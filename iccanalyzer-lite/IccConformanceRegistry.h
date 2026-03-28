@@ -1339,6 +1339,9 @@ static const ConformanceCheck kConformanceRegistry[] = {
   {"CF-339", "Abstract Profile Device PCC Presence",
    "Abstract profiles with colorimetric/spectral device colour space may use dpcc for alternate PCC", "ICC.2:2023 §9.2.x+1",
    CFSeverity::INFO, CFCategory::V5},
+  {"CF-340", "colorantTableOutTag Count vs PCS Channels",
+   "Validates colorantTableOutTag entry count matches PCS channel count (icGetSpaceSamples(pcs))", "ICC.1-2022-05 §9.2.13",
+   CFSeverity::ERROR, CFCategory::TAG_TYPES},
 };
 
 static constexpr int kConformanceCheckCount =

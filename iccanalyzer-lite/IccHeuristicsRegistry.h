@@ -23,7 +23,10 @@ enum class HeuristicPhase {
   DATA_VALIDATION,
   PROFILE_COMPLIANCE,
   INTEGRITY,
-  IMAGE
+  IMAGE,
+  CODEQL_PATTERNS,
+  EXPLOIT_GAP,
+  XML_SAFETY
 };
 
 // Severity classification based on CWE impact and exploitability.

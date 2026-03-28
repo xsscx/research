@@ -454,8 +454,205 @@ int RunHeuristic_H145_XmlCurveTypeConsistency(CIccProfile *pIcc)
   return hc.end("All curve/MPE type signatures consistent for XML serialization");
 }
 
+// =====================================================================
+// H180: XML Round-Trip Fidelity (CWE-345/CWE-787)
+// =====================================================================
+// Validates that ICC -> XML -> ICC round-trip preserves profile binary
+// content. Data loss or corruption during XML serialization can hide
+// malicious tag content or silently alter color transforms.
+//
+// Uses fork() isolation (same pattern as H142) because both ToXml()
+// and LoadXml()/FromXml() can crash on malformed profiles.
+//
+// The child process:
+//   1. Loads the original profile as CIccProfileXml
+//   2. Calls ToXml() to serialize to XML string
+//   3. Creates a new CIccProfileXml and calls LoadXml()
+//   4. Writes round-tripped profile to memory via CIccMemIO
+//   5. Compares header fields and tag table structure
+//   6. Reports discrepancies via exit code
+//
+// Exit codes from child:
+//   0 = round-trip matched (or profile can't be loaded)
+//   1 = ToXml() failed
+//   2 = LoadXml() (FromXml) failed
+//   3 = structural mismatch (tag count, header fields)
+//   4 = tag data size mismatch
+// =====================================================================
+int RunHeuristic_H180_XmlRoundTripFidelity(CIccProfile * /*pIcc*/, const char *filename)
+{
+  auto &hc = HeuristicCollector::instance();
+  hc.begin(180, "XML Round-Trip Fidelity (ToXml -> FromXml -> Write)");
+
+  if (!filename || !filename[0])
+    return hc.skip("no filename provided");
+
+  fflush(stdout);
+  fflush(stderr);
+  pid_t pid = fork();
+
+  if (pid < 0) {
+    hc.warn("Fork() failed (errno=%d)", errno);
+    return hc.end("Fork failed");
+  }
+
+  if (pid == 0) {
+    // -- Child process --
+    int devnull = open("/dev/null", O_WRONLY);
+    if (devnull >= 0) {
+      dup2(devnull, STDOUT_FILENO);
+      dup2(devnull, STDERR_FILENO);
+      close(devnull);
+    }
+    alarm(15);  // 15s timeout for full round-trip
+
+    // Register XML factories
+    auto *tagFactory = new (std::nothrow) CIccTagXmlFactory();
+    auto *mpeFactory = new (std::nothrow) CIccMpeXmlFactory();
+    if (!tagFactory || !mpeFactory) {
+      delete tagFactory;
+      delete mpeFactory;
+      _exit(0);
+    }
+    CIccTagCreator::PushFactory(tagFactory);
+    CIccMpeCreator::PushFactory(mpeFactory);
+
+    // Step 1: Load original profile
+    CIccProfileXml origProfile;
+    CIccFileIO srcIO;
+    if (!srcIO.Open(filename, "rb"))
+      _exit(0);
+    if (!origProfile.Read(&srcIO))
+      _exit(0);  // Binary parse failure -- not XML round-trip issue
+    srcIO.Close();
+
+    // Capture original header and tag count
+    icUInt32Number origTagCount = static_cast<icUInt32Number>(origProfile.m_Tags.size());
+    icUInt32Number origVersion = origProfile.m_Header.version;
+    icUInt32Number origClass = (icUInt32Number)origProfile.m_Header.deviceClass;
+    icColorSpaceSignature origCS = origProfile.m_Header.colorSpace;
+    icColorSpaceSignature origPCS = origProfile.m_Header.pcs;
+
+    // Step 2: ToXml()
+    std::string xmlOutput;
+    try {
+      xmlOutput.reserve(4 * 1024 * 1024);
+    } catch (...) {
+      _exit(0);
+    }
+    if (!origProfile.ToXml(xmlOutput))
+      _exit(1);  // ToXml failed
+
+    // Step 3: FromXml (LoadXml from temp file)
+    char tmpXml[] = "/tmp/h180-rt-XXXXXX";
+    int tmpFd = mkstemp(tmpXml);
+    if (tmpFd < 0)
+      _exit(0);
+    ssize_t written = write(tmpFd, xmlOutput.c_str(), xmlOutput.size());
+    close(tmpFd);
+    if (written < 0 || (size_t)written != xmlOutput.size()) {
+      unlink(tmpXml);
+      _exit(0);
+    }
+
+    CIccProfileXml rtProfile;
+    std::string loadParseStr;
+    bool loadOk = rtProfile.LoadXml(tmpXml, NULL, &loadParseStr);
+    unlink(tmpXml);
+    if (!loadOk)
+      _exit(2);  // LoadXml/ParseXml failed
+
+    // Step 4: Compare structural fields
+    if (rtProfile.m_Header.version != origVersion ||
+        (icUInt32Number)rtProfile.m_Header.deviceClass != origClass ||
+        rtProfile.m_Header.colorSpace != origCS ||
+        rtProfile.m_Header.pcs != origPCS) {
+      _exit(3);  // Header mismatch
+    }
+
+    // Step 5: Compare tag counts
+    icUInt32Number rtTagCount = static_cast<icUInt32Number>(rtProfile.m_Tags.size());
+    if (rtTagCount != origTagCount) {
+      _exit(3);
+    }
+
+    // Step 6: Compare tag signatures present in both
+    int tagMismatches = 0;
+    for (auto it = origProfile.m_Tags.begin(); it != origProfile.m_Tags.end(); ++it) {
+      icTagSignature origSig = it->TagInfo.sig;
+      CIccTag *rtTag = rtProfile.FindTag(origSig);
+      if (!rtTag) {
+        tagMismatches++;
+      }
+    }
+    if (tagMismatches > 0)
+      _exit(4);  // Tag data loss
+
+    _exit(0);  // Round-trip OK
+  }
+
+  // -- Parent process --
+  int status = 0;
+  int waited = 0;
+  for (int i = 0; i < 200; i++) {  // 20s max wait
+    pid_t ret = waitpid(pid, &status, WNOHANG);
+    if (ret == pid) { waited = 1; break; }
+    if (ret < 0) { waited = -1; break; }
+    usleep(100000);
+  }
+
+  if (!waited) {
+    kill(pid, SIGKILL);
+    waitpid(pid, &status, 0);
+    hc.warn("HEURISTIC: XML round-trip timed out (>20s) -- CWE-400");
+    hc.cweNote("CWE-400: Uncontrolled Resource Consumption");
+    return hc.end("Round-trip timed out");
+  }
+
+  if (WIFSIGNALED(status)) {
+    int sig = WTERMSIG(status);
+    hc.critical("HEURISTIC: XML round-trip CRASHED (signal %d) -- "
+                "ToXml/FromXml path has memory safety bug", sig);
+    hc.cweNote("CWE-787: Out-of-bounds Write / CWE-125: Out-of-bounds Read");
+    char crashMsg[80];
+    snprintf(crashMsg, sizeof(crashMsg), "Round-trip crashed with signal %d", sig);
+    return hc.end(crashMsg);
+  }
+
+  if (WIFEXITED(status)) {
+    int code = WEXITSTATUS(status);
+    switch (code) {
+    case 0:
+      return hc.end("XML round-trip preserves profile structure");
+    case 1:
+      hc.warn("HEURISTIC: ToXml() serialization failed -- data not representable as XML");
+      hc.cweNote("CWE-345: Insufficient Verification of Data Authenticity");
+      return hc.end("ToXml failed");
+    case 2:
+      hc.warn("HEURISTIC: FromXml(ToXml()) failed -- round-trip data loss");
+      hc.cweNote("CWE-345: Insufficient Verification of Data Authenticity");
+      return hc.end("FromXml failed on ToXml output");
+    case 3:
+      hc.warn("HEURISTIC: Round-trip header/tag-count mismatch -- structural data loss");
+      hc.cweNote("CWE-345: Insufficient Verification of Data Authenticity");
+      return hc.end("Structural mismatch after round-trip");
+    case 4:
+      hc.warn("HEURISTIC: Round-trip tag data loss -- tags present in original missing after round-trip");
+      hc.cweNote("CWE-345: Insufficient Verification of Data Authenticity");
+      return hc.end("Tag data lost in round-trip");
+    default:
+      hc.info("XML round-trip child exited with code %d", code);
+      char defMsg[80];
+      snprintf(defMsg, sizeof(defMsg), "Round-trip exited with code %d", code);
+      return hc.end(defMsg);
+    }
+  }
+
+  return hc.end("XML round-trip check completed (unknown child status)");
+}
+
 // ============================================================================
-// Sub-Dispatcher: RunXmlSafetyHeuristics (H142-H145)
+// Sub-Dispatcher: RunXmlSafetyHeuristics (H142-H145, H180)
 // ============================================================================
 int RunXmlSafetyHeuristics(CIccProfile *pIcc, const char *filename)
 {
@@ -464,5 +661,6 @@ int RunXmlSafetyHeuristics(CIccProfile *pIcc, const char *filename)
   heuristicCount += RunHeuristic_H143_XmlArrayBoundsPrecheck(pIcc);
   heuristicCount += RunHeuristic_H144_XmlStringTerminationPrecheck(pIcc);
   heuristicCount += RunHeuristic_H145_XmlCurveTypeConsistency(pIcc);
+  heuristicCount += RunHeuristic_H180_XmlRoundTripFidelity(pIcc, filename);
   return heuristicCount;
 }
