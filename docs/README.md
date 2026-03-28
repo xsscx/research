@@ -16,7 +16,7 @@ This directory mixes authored references, research writeups, test fixtures, and 
 
 | Path | What it covers |
 |------|----------------|
-| [vulnerability-taxonomy.md](vulnerability-taxonomy.md) | CWE/CVE/CVSS vulnerability classification, attack surface map, SCAP identifiers, exploit primitives, detection coverage matrix |
+| [iccDEV/vulnerability-taxonomy.md](iccDEV/vulnerability-taxonomy.md) | CWE/CVE/CVSS vulnerability classification, attack surface map, SCAP identifiers, exploit primitives, detection coverage matrix |
 
 ## Research and Testing
 
