@@ -46,12 +46,12 @@
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 130 || size > 1024 * 1024) return 0;
-  
+
   // Use fixed parameters that match real tool usage
   // Tools typically use Perceptual intent and Linear interpolation
   icRenderingIntent intent = icPerceptual;
   icXformInterp interp = icInterpLinear;
-  
+
   // Write the COMPLETE profile without modification
   const char *tmpdir = fuzz_tmpdir();
   char tmp_file[PATH_MAX];
@@ -60,7 +60,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (fd == -1) return 0;
   write(fd, data, size);
   close(fd);
-  
+
   CIccCmm cmm;
   if (cmm.AddXform(tmp_file, intent, interp) == icCmmStatOk) {
     icStatusCMM beginStatus = cmm.Begin();
@@ -72,43 +72,43 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         unlink(tmp_file);
         return 0;
       }
-      
+
       CIccApplyCmm *pApply = cmm.GetApply();
       if (!pApply) {
         unlink(tmp_file);
         return 0;
       }
-      
+
       // Get actual channel counts
       icUInt16Number nSrcChannels = cmm.GetSourceSamples();
       icUInt16Number nDstChannels = cmm.GetDestSamples();
-      
+
       // Validate channel counts
       if (nSrcChannels == 0 || nDstChannels == 0 ||
           nSrcChannels > 16 || nDstChannels > 16) {
         unlink(tmp_file);
         return 0;
       }
-      
+
       // Allocate buffers based on actual channel counts
       icFloatNumber in[128] = {0};
       icFloatNumber out[128] = {0};
-      
+
       // Initialize test values - ensure we don't exceed array bounds
       int maxInit = (8 * nSrcChannels < 128) ? 8 * nSrcChannels : 127;
       for (int i = 0; i < maxInit; i++) {
         in[i] = (i % 10) * 0.1f;
       }
-      
+
       // Apply transforms with bounds checking
-      for (int i = 0; i < 8 && (i + 1) * nDstChannels <= 128 && 
+      for (int i = 0; i < 8 && (i + 1) * nDstChannels <= 128 &&
                               (i + 1) * nSrcChannels <= 128; i++) {
         if (cmm.Apply(out + i * nDstChannels, in + i * nSrcChannels) != icCmmStatOk) {
           unlink(tmp_file);
           return 0;
         }
       }
-      
+
       // Test edge cases
       icFloatNumber edge_in[64] = {0};
       icFloatNumber edge_out[64] = {0};
@@ -119,14 +119,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
           return 0;
         }
       }
-      
+
       // Exercise CMM info methods
       (void)cmm.GetNumXforms();
       (void)cmm.GetSourceSpace();
       (void)cmm.GetDestSpace();
     }
   }
-  
+
   unlink(tmp_file);
   return 0;
 }

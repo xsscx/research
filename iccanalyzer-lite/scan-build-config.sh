@@ -82,7 +82,7 @@ if [ -d "$OUTPUT_DIR" ]; then
     if [ -n "$LATEST_REPORT" ]; then
         mv "$LATEST_REPORT" "$REPORT_DIR"
         echo "[SUCCESS] Report available at: $REPORT_DIR/index.html"
-        
+
         # Count issues
         ISSUE_COUNT=$(grep -c "Bug" "$REPORT_DIR/index.html" 2>/dev/null || echo "0")
         echo "[INFO] Issues found: $ISSUE_COUNT"

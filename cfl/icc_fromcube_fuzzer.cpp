@@ -187,7 +187,7 @@ public:
   {
     if (m_sizeLut3D < 2 || nSizeLut <= 0)
         return false;
-    
+
     uint64_t temp = (uint64_t)m_sizeLut3D * (uint64_t)m_sizeLut3D * (uint64_t)m_sizeLut3D;
     if (temp > UINT_MAX)
         return false;
@@ -223,7 +223,7 @@ public:
 
 protected:
   std::string m_sFilename;
-  
+
   bool open()
   {
     if (!m_f) {

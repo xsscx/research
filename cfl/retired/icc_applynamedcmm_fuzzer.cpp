@@ -105,7 +105,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!fuzz_build_path(tmp_profile, sizeof(tmp_profile), tmpdir, "/fuzz_namedcmm_XXXXXX")) return 0;
   int fd = mkstemp(tmp_profile);
   if (fd == -1) return 0;
-  
+
   ssize_t written = write(fd, profile_data, profile_size);
   close(fd);
   if (written != (ssize_t)profile_size) {
@@ -120,7 +120,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     unlink(tmp_profile);
     return 0;
   }
-  
+
   icColorSpaceSignature srcSpace = pProf->m_Header.colorSpace;
 
   // Validate srcSpace before using it — reject unknown/invalid color space
@@ -148,12 +148,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Build hint manager for profile attachment (mirrors lines 354-389)
   CIccCreateXformHintManager Hint;
-  
+
   if (useBPC) {
     auto *bpcHint = new (std::nothrow) CIccApplyBPCHint();
     if (bpcHint) Hint.AddHint(bpcHint);
   }
-  
+
   if (adjustPcsLuminance) {
     auto *lumHint = new (std::nothrow) CIccLuminanceMatchingHint();
     if (lumHint) Hint.AddHint(lumHint);
@@ -197,7 +197,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Initialize CMM (mirrors line 398)
   stat = namedCmm.Begin();
-  
+
   if (stat != icCmmStatOk) {
     unlink(tmp_profile);
     return 0;
@@ -205,16 +205,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Get actual CMM interface type (determined by profiles)
   icApplyInterface interface = namedCmm.GetInterface();
-  
+
   // Get source and destination color spaces
   icColorSpaceSignature actualSrcSpace = namedCmm.GetSourceSpace();
   icColorSpaceSignature actualDstSpace = namedCmm.GetDestSpace();
-  
+
   int nSrcSamples = icGetSpaceSamples(actualSrcSpace);
   int nDstSamples = icGetSpaceSamples(actualDstSpace);
-  
+
   // Validate sample counts
-  if (nSrcSamples <= 0 || nSrcSamples > 16 || 
+  if (nSrcSamples <= 0 || nSrcSamples > 16 ||
       nDstSamples <= 0 || nDstSamples > 16) {
     unlink(tmp_profile);
     return 0;
@@ -222,7 +222,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Apply transformations based on interface type
   // (mirrors iccApplyNamedCmm.cpp lines 470-560)
-  
+
   switch (interface) { // NOLINT — long switch mirrors upstream tool structure
     case icApplyNamed2Pixel: {
       // Named color to pixel transformation
@@ -231,72 +231,72 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         "White", "Black", "Red", "Green", "Blue",
         "Cyan", "Magenta", "Yellow", "Gray"
       };
-      
+
       for (size_t i = 0; i < sizeof(testNames) / sizeof(testNames[0]); i++) {
         icFloatNumber tint = 1.0;
         namedCmm.Apply(dstPixel, testNames[i], tint);
-        
+
         // Test tint variations
         tint = 0.5;
         namedCmm.Apply(dstPixel, testNames[i], tint);
-        
+
         tint = 0.0;
         namedCmm.Apply(dstPixel, testNames[i], tint);
       }
       break;
     }
-    
+
     case icApplyPixel2Pixel: {
       // Pixel to pixel transformation (most common case)
       icFloatNumber srcPixel[16];
       icFloatNumber dstPixel[16];
-      
+
       // Test 1: Black (all zeros)
       memset(srcPixel, 0, sizeof(icFloatNumber) * nSrcSamples);
       namedCmm.Apply(dstPixel, srcPixel);
-      
+
       // Test 2: White (all ones)
       for (int i = 0; i < nSrcSamples; i++) {
         srcPixel[i] = 1.0;
       }
       namedCmm.Apply(dstPixel, srcPixel);
-      
+
       // Test 3: Gray (all 0.5)
       for (int i = 0; i < nSrcSamples; i++) {
         srcPixel[i] = 0.5;
       }
       namedCmm.Apply(dstPixel, srcPixel);
-      
+
       // Test 4: Primary colors
       for (int j = 0; j < nSrcSamples && j < 8; j++) {
         memset(srcPixel, 0, sizeof(icFloatNumber) * nSrcSamples);
         srcPixel[j] = 1.0;
         namedCmm.Apply(dstPixel, srcPixel);
       }
-      
+
       // Test 5: Edge cases - negative values
       for (int i = 0; i < nSrcSamples; i++) {
         srcPixel[i] = -0.1;
       }
       namedCmm.Apply(dstPixel, srcPixel);
-      
+
       // Test 6: Edge cases - values > 1.0
       for (int i = 0; i < nSrcSamples; i++) {
         srcPixel[i] = 1.5;
       }
       namedCmm.Apply(dstPixel, srcPixel);
-      
+
       // Test 7: NaN/Inf handling (critical for fuzzing)
       for (int i = 0; i < nSrcSamples; i++) {
         srcPixel[i] = 0.0 / 0.0; // NaN
       }
       namedCmm.Apply(dstPixel, srcPixel);
-      
+
       for (int i = 0; i < nSrcSamples; i++) {
         srcPixel[i] = 1.0 / 0.0; // +Inf
       }
       namedCmm.Apply(dstPixel, srcPixel);
-      
+
       // Test 8: Random values from remaining fuzz data
       if (size > 132) {
         size_t remaining = size - 132;
@@ -305,53 +305,53 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         }
         namedCmm.Apply(dstPixel, srcPixel);
       }
-      
+
       // Test 9: Batch apply (tests multi-pixel path)
       icFloatNumber batchSrc[48]; // 3 pixels * 16 channels max
       icFloatNumber batchDst[48];
-      
+
       for (int i = 0; i < nSrcSamples * 3; i++) {
         batchSrc[i] = ((icFloatNumber)(i % 256)) / 255.0;
       }
       namedCmm.Apply(batchDst, batchSrc, 3);
-      
+
       break;
     }
-    
+
     case icApplyNamed2Named: {
       // Named color to named color transformation
       icChar srcName[256];
       icChar dstName[256];
       const char *testNames[] = {"White", "Black", "Red"};
-      
+
       for (size_t i = 0; i < sizeof(testNames) / sizeof(testNames[0]); i++) {
         strncpy(srcName, testNames[i], sizeof(srcName) - 1);
         srcName[sizeof(srcName) - 1] = '\0';
-        
+
         icFloatNumber tint = 1.0;
         namedCmm.Apply(dstName, srcName, tint);
       }
       break;
     }
-    
+
     case icApplyPixel2Named: {
       // Pixel to named color transformation
       icFloatNumber srcPixel[16];
       icChar dstName[256];
-      
+
       // Test white point
       for (int i = 0; i < nSrcSamples; i++) {
         srcPixel[i] = 1.0;
       }
       namedCmm.Apply(dstName, srcPixel);
-      
+
       // Test black point
       memset(srcPixel, 0, sizeof(icFloatNumber) * nSrcSamples);
       namedCmm.Apply(dstName, srcPixel);
-      
+
       break;
     }
-    
+
     default:
       // Unknown interface - should not occur if CMM is valid
       break;
@@ -364,31 +364,31 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   (void)namedCmm.GetDestSpace();
   (void)namedCmm.GetLastSpace();
   (void)namedCmm.GetLastParentSpace();
-  
+
   // Test encoding conversion functions (mirrors lines 489, 523, 541)
   // These are critical paths that handle different encoding formats
   icFloatNumber testPixel[16];
   icFloatNumber convertedPixel[16];
-  
+
   for (int i = 0; i < nDstSamples; i++) {
     testPixel[i] = 0.5;
   }
-  
+
   // Test various encoding conversions
   icFloatColorEncoding encodings[] = {
     icEncodeValue,
-    icEncodePercent, 
+    icEncodePercent,
     icEncodeUnitFloat,
     icEncodeFloat,
     icEncode16Bit,
     icEncode16BitV2
   };
-  
+
   for (size_t i = 0; i < sizeof(encodings) / sizeof(encodings[0]); i++) {
     // ToInternalEncoding test (source encoding)
-    CIccCmm::ToInternalEncoding(actualSrcSpace, encodings[i], 
+    CIccCmm::ToInternalEncoding(actualSrcSpace, encodings[i],
                                  convertedPixel, testPixel, true);
-    
+
     // FromInternalEncoding test (destination encoding)
     CIccCmm::FromInternalEncoding(actualDstSpace, encodings[i],
                                    convertedPixel, testPixel, false);

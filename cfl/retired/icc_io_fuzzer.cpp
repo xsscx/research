@@ -47,32 +47,32 @@
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 128 || size > 2 * 1024 * 1024) return 0;
-  
+
   const char *tmpdir = fuzz_tmpdir();
   char icc_file[PATH_MAX];
   if (!fuzz_build_path(icc_file, sizeof(icc_file), tmpdir, "/fuzz_icc_XXXXXX")) return 0;
   int fd = mkstemp(icc_file);
   if (fd == -1) return 0;
-  
+
   write(fd, data, size);
   close(fd);
-  
+
   // Test ICC profile I/O operations
   CIccFileIO io;
   if (io.Open(icc_file, "r")) {
     unsigned long length = io.GetLength();
-    
+
     if (length > 0 && length < 10 * 1024 * 1024) {
       icUInt8Number *profile_data = (icUInt8Number *)malloc(length);
       if (profile_data) {
         io.Read8(profile_data, (icInt32Number)length);
-        
+
         // Validate profile
         CIccProfile *pIcc = OpenIccProfile(profile_data, length);
         if (pIcc) {
           std::string report;
           pIcc->Validate(report);
-          
+
           // Test write operations
           char out_file[PATH_MAX];
           if (!fuzz_build_path(out_file, sizeof(out_file), tmpdir, "/fuzz_out_XXXXXX")) {
@@ -92,16 +92,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             }
             unlink(out_file);
           }
-          
+
           delete pIcc;
         }
-        
+
         free(profile_data);
       }
     }
     io.Close();
   }
-  
+
   unlink(icc_file);
   return 0;
 }

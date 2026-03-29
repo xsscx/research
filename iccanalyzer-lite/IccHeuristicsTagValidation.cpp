@@ -217,48 +217,48 @@ hc.info("Note: Tag signature ≠ tag type - must check tag DATA");
 RawFileHandle fh = OpenRawFile(filename);
 if (fh) {
   size_t fileSize = (size_t)fh.fileSize;
-  
+
   if (fileSize >= 132) {
     icUInt8Number rawHdr[132];
     if (fread(rawHdr, 1, 132, fh.fp) == 132) {
-      icUInt32Number tagTableCount = (static_cast<icUInt32Number>(rawHdr[128])<<24) | (static_cast<icUInt32Number>(rawHdr[129])<<16) | 
+      icUInt32Number tagTableCount = (static_cast<icUInt32Number>(rawHdr[128])<<24) | (static_cast<icUInt32Number>(rawHdr[129])<<16) |
                                       (static_cast<icUInt32Number>(rawHdr[130])<<8) | rawHdr[131];
-      
+
       bool foundTagArray = false;
       icUInt32Number tagArrayCount = 0;
-      
+
       // Read each tag entry and check its TYPE (not just signature)
       for (icUInt32Number i = 0; i < tagTableCount && i < 256; i++) {
         size_t entryPos = 132 + i*12;
         if (entryPos + 12 > fileSize) break;
-        
+
         icUInt8Number entry[12];
         fseek(fh.fp, entryPos, SEEK_SET);
         if (fread(entry, 1, 12, fh.fp) != 12) break;
-        
+
         icUInt32Number tagSig = (static_cast<icUInt32Number>(entry[0])<<24) | (static_cast<icUInt32Number>(entry[1])<<16) | (static_cast<icUInt32Number>(entry[2])<<8) | entry[3];
         icUInt32Number tagOffset = (static_cast<icUInt32Number>(entry[4])<<24) | (static_cast<icUInt32Number>(entry[5])<<16) | (static_cast<icUInt32Number>(entry[6])<<8) | entry[7];
         icUInt32Number tagSize = (static_cast<icUInt32Number>(entry[8])<<24) | (static_cast<icUInt32Number>(entry[9])<<16) | (static_cast<icUInt32Number>(entry[10])<<8) | entry[11];
-        
+
         // Validate tag is within file bounds (overflow-safe check)
         if (tagOffset >= 128 && tagSize >= 4 && tagSize <= fileSize && tagOffset <= fileSize - tagSize) {
           icUInt8Number tagData[4];
           fseek(fh.fp, tagOffset, SEEK_SET);
           if (fread(tagData, 1, 4, fh.fp) == 4) {
-            icUInt32Number tagType = (static_cast<icUInt32Number>(tagData[0])<<24) | (static_cast<icUInt32Number>(tagData[1])<<16) | 
+            icUInt32Number tagType = (static_cast<icUInt32Number>(tagData[0])<<24) | (static_cast<icUInt32Number>(tagData[1])<<16) |
                                      (static_cast<icUInt32Number>(tagData[2])<<8) | tagData[3];
-            
+
             // Check for TagArrayType (0x74617279 = 'tary')
             if (tagType == 0x74617279) {
               foundTagArray = true;
               tagArrayCount++;
-              
+
               char sigStr[5], typeStr[5];
               sigStr[0] = static_cast<char>((tagSig>>24)&0xff); sigStr[1] = static_cast<char>((tagSig>>16)&0xff);
               sigStr[2] = static_cast<char>((tagSig>>8)&0xff); sigStr[3] = static_cast<char>(tagSig&0xff); sigStr[4] = '\0';
               typeStr[0] = static_cast<char>((tagType>>24)&0xff); typeStr[1] = static_cast<char>((tagType>>16)&0xff);
               typeStr[2] = static_cast<char>((tagType>>8)&0xff); typeStr[3] = static_cast<char>(tagType&0xff); typeStr[4] = '\0';
-              
+
               hc.critical("TagArrayType found!");
               hc.info(" Tag %u: signature='%s' (0x%08X), type='%s' (0x%08X)",
                      i, sigStr, tagSig, typeStr, tagType);
@@ -266,7 +266,7 @@ if (fh) {
           }
         }
       }
-      
+
       if (foundTagArray) {
         hc.warn("HEURISTIC: %u TagArrayType tag(s) detected", tagArrayCount);
         hc.cweNote("Risk: CRITICAL - Heap-use-after-free in CIccTagArray::Cleanup()");
@@ -731,7 +731,7 @@ hc.begin(25, "Tag Offset/Size Out-of-Bounds Detection");
   RawFileHandle fh25 = OpenRawFile(filename);
   if (fh25) {
     size_t realSize = (size_t)fh25.fileSize;
-    
+
     int oobCount = 0;
     if (realSize >= 132) {
       icUInt8Number hdr25[132];
@@ -741,27 +741,27 @@ hc.begin(25, "Tag Offset/Size Out-of-Bounds Detection");
         icUInt32Number tc = (static_cast<icUInt32Number>(hdr25[128])<<24) | (static_cast<icUInt32Number>(hdr25[129])<<16) |
                             (static_cast<icUInt32Number>(hdr25[130])<<8) | hdr25[131];
         size_t bound = (realSize < hdrProfileSize) ? realSize : hdrProfileSize;
-        
+
         for (icUInt32Number i = 0; i < tc && i < 256; i++) {
           size_t ePos = 132 + i * 12;
           if (ePos + 12 > realSize) break;
-          
+
           icUInt8Number e25[12];
           fseek(fh25.fp, ePos, SEEK_SET);
           if (fread(e25, 1, 12, fh25.fp) != 12) break;
-          
+
           icUInt32Number tSig = (static_cast<icUInt32Number>(e25[0])<<24) | (static_cast<icUInt32Number>(e25[1])<<16) |
                                 (static_cast<icUInt32Number>(e25[2])<<8) | e25[3];
           icUInt32Number tOff = (static_cast<icUInt32Number>(e25[4])<<24) | (static_cast<icUInt32Number>(e25[5])<<16) |
                                 (static_cast<icUInt32Number>(e25[6])<<8) | e25[7];
           icUInt32Number tSz  = (static_cast<icUInt32Number>(e25[8])<<24) | (static_cast<icUInt32Number>(e25[9])<<16) |
                                 (static_cast<icUInt32Number>(e25[10])<<8) | e25[11];
-          
+
           uint64_t tagEnd = (uint64_t)tOff + tSz;
           char sig25[5];
           sig25[0] = static_cast<char>((tSig>>24)&0xff); sig25[1] = static_cast<char>((tSig>>16)&0xff);
           sig25[2] = static_cast<char>((tSig>>8)&0xff);  sig25[3] = static_cast<char>(tSig&0xff); sig25[4] = '\0';
-          
+
           if (tOff >= bound) {
             hc.warn("Tag '%s' offset 0x%X beyond file/profile bounds (%zu bytes)",
                    sig25, tOff, bound);
@@ -776,7 +776,7 @@ hc.begin(25, "Tag Offset/Size Out-of-Bounds Detection");
       }
     }
 
-    
+
     if (oobCount > 0) {
       hc.cweNote("%d tag(s) reference data beyond file/profile bounds", oobCount);
       hc.cweNote("Risk: Heap-buffer-overflow when loading OOB tags");
@@ -797,26 +797,26 @@ hc.begin(26, "NamedColor2 String Validation");
   RawFileHandle fh26 = OpenRawFile(filename);
   if (fh26) {
       size_t fs26 = (size_t)fh26.fileSize;
-      
+
       if (fs26 >= 132) {
         icUInt8Number hdr26[132];
         if (fread(hdr26, 1, 132, fh26.fp) == 132) {
           icUInt32Number tc26 = (static_cast<icUInt32Number>(hdr26[128])<<24) | (static_cast<icUInt32Number>(hdr26[129])<<16) |
                                 (static_cast<icUInt32Number>(hdr26[130])<<8) | hdr26[131];
-          
+
           for (icUInt32Number i = 0; i < tc26 && i < 256; i++) {
             size_t ePos = 132 + i * 12;
             if (ePos + 12 > fs26) break;
-            
+
             icUInt8Number e26[12];
             fseek(fh26.fp, ePos, SEEK_SET);
             if (fread(e26, 1, 12, fh26.fp) != 12) break;
-            
+
             icUInt32Number tOff26 = (static_cast<icUInt32Number>(e26[4])<<24) | (static_cast<icUInt32Number>(e26[5])<<16) |
                                     (static_cast<icUInt32Number>(e26[6])<<8) | e26[7];
             icUInt32Number tSz26  = (static_cast<icUInt32Number>(e26[8])<<24) | (static_cast<icUInt32Number>(e26[9])<<16) |
                                     (static_cast<icUInt32Number>(e26[10])<<8) | e26[11];
-            
+
             // Read first 4 bytes of tag data to check type
             if (tOff26 > fs26 || tOff26 + 4 > fs26 || tSz26 < 84) continue;
             icUInt8Number typeCheck[4];
@@ -826,13 +826,13 @@ hc.begin(26, "NamedColor2 String Validation");
                                        (static_cast<icUInt32Number>(typeCheck[2])<<8) | typeCheck[3];
             if (tagType26 != 0x6E636C32) continue;  // Not 'ncl2' type
             if (tOff26 > fs26 || tOff26 + 84 > fs26) continue;
-            
+
             // NamedColor2: type(4)+reserved(4)+vendorFlags(4)+count(4)+nDevCoords(4)+prefix(32)+suffix(32)
             icUInt8Number prefix[32], suffix[32];
             fseek(fh26.fp, tOff26 + 20, SEEK_SET);
             if (fread(prefix, 1, 32, fh26.fp) != 32) continue;
             if (fread(suffix, 1, 32, fh26.fp) != 32) continue;
-            
+
             // Count XML-expandable chars: ' " & < > expand to 4-6 chars in icFixXml
             auto countXmlExpand = [](const icUInt8Number *buf, int len) -> int {
               int ct = 0;
@@ -843,18 +843,18 @@ hc.begin(26, "NamedColor2 String Validation");
               }
               return ct;
             };
-            
+
             int prefixLen = 0, suffixLen = 0;
             for (int j = 0; j < 32 && prefix[j]; j++) prefixLen++;
             for (int j = 0; j < 32 && suffix[j]; j++) suffixLen++;
-            
+
             int prefixExpand = countXmlExpand(prefix, 32);
             int suffixExpand = countXmlExpand(suffix, 32);
-            
+
             // icFixXml destination is char[256]. Expandable chars grow up to 6x (&apos; etc.)
             int prefixExpanded = prefixLen + prefixExpand * 5;
             int suffixExpanded = suffixLen + suffixExpand * 5;
-            
+
             if (prefixExpanded > 255) {
               hc.critical("Prefix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)",
                      prefixLen, prefixExpand, prefixExpanded);
@@ -863,7 +863,7 @@ hc.begin(26, "NamedColor2 String Validation");
               hc.warn("Prefix has %d XML-expandable chars in %d-byte string (expanded: %d)",
                      prefixExpand, prefixLen, prefixExpanded);
             }
-            
+
             if (suffixExpanded > 255) {
               hc.critical("Suffix (%d bytes, %d XML-expandable) overflows icFixXml buffer (expanded: %d > 255)",
                      suffixLen, suffixExpand, suffixExpanded);
@@ -872,12 +872,12 @@ hc.begin(26, "NamedColor2 String Validation");
               hc.warn("Suffix has %d XML-expandable chars in %d-byte string (expanded: %d)",
                      suffixExpand, suffixLen, suffixExpanded);
             }
-            
+
             // Check for non-null-terminated strings
             bool prefixUnterminated = true, suffixUnterminated = true;
             for (int j = 0; j < 32; j++) { if (prefix[j] == 0) { prefixUnterminated = false; break; } }
             for (int j = 0; j < 32; j++) { if (suffix[j] == 0) { suffixUnterminated = false; break; } }
-            
+
             if (prefixUnterminated) {
               hc.warn("Prefix not null-terminated (all 32 bytes non-zero)");
               hc.cweNote("Risk: strlen overflow, icFixXml reads past buffer boundary");
@@ -890,7 +890,7 @@ hc.begin(26, "NamedColor2 String Validation");
         }
       }
 
-      
+
     }
   }
 
@@ -913,23 +913,23 @@ hc.begin(27, "MPE Matrix Output Channel Validation");
   for (auto sig : mpeSigs) {
     CIccTagMultiProcessElement *pMpe = FindAndCast<CIccTagMultiProcessElement>(pIcc, (icTagSignature)sig);
     if (!pMpe) continue;
-    
+
     icUInt32Number numElements = pMpe->NumElements();
-    
+
     int elemIdx = 0;
     for (icUInt32Number ei = 0; ei < numElements && elemIdx < 64; ei++, elemIdx++) {
       CIccMultiProcessElement *pElem = pMpe->GetElement(ei);
       if (!pElem) continue;
-      
+
       // Check for matrix elements with 0 output channels
       CIccMpeMatrix *pMatrix = dynamic_cast<CIccMpeMatrix*>(pElem);
       if (pMatrix) {
         icUInt16Number numOut = pMatrix->NumOutputChannels();
         icUInt16Number numIn = pMatrix->NumInputChannels();
-        
+
         char sigStr27[5];
         SignatureToFourCC(sig, sigStr27);
-        
+
         if (numOut == 0 || numIn == 0) {
           hc.warn("Tag '%s' elem %d: Matrix %ux%u — zero dimension",
                  sigStr27, elemIdx, numIn, numOut);
@@ -940,16 +940,16 @@ hc.begin(27, "MPE Matrix Output Channel Validation");
           hc.cweNote("Risk: HBO in pushXYZConvert accessing pOffset[0..2] on %u-channel matrix", numOut);
         }
       }
-      
+
       // Check calculator elements for sub-element count
       CIccMpeCalculator *pCalc = dynamic_cast<CIccMpeCalculator*>(pElem);
       if (pCalc) {
         icUInt16Number calcOut = pCalc->NumOutputChannels();
         icUInt16Number calcIn = pCalc->NumInputChannels();
-        
+
         char sigStr27c[5];
         SignatureToFourCC(sig, sigStr27c);
-        
+
         if (calcOut == 0 || calcIn == 0) {
           hc.warn("Tag '%s' elem %d: Calculator %ux%u — zero dimension",
                  sigStr27c, elemIdx, calcIn, calcOut);
@@ -957,7 +957,7 @@ hc.begin(27, "MPE Matrix Output Channel Validation");
       }
     }
   }
-  
+
 }
 
   return hc.end("All MPE matrix/calculator dimensions valid");

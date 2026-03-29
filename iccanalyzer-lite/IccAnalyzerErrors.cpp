@@ -50,7 +50,7 @@ void ErrorOutputDirRequired() {
   fprintf(stderr, "%sExamples:%s\n", COLOR_YELLOW, COLOR_RESET);
   fprintf(stderr, "  iccAnalyzer -batch '*.icc' -output ./reports/\n");
   fprintf(stderr, "  iccAnalyzer -watch corpus/ -output ./analysis/\n\n");
-  
+
   if (g_verbose_errors) {
     fprintf(stderr, "Alternatively, set a default in .iccanalyzer.conf:\n");
     fprintf(stderr, "  [defaults]\n");
@@ -66,7 +66,7 @@ void ErrorInvalidFormat(const char *format) {
   fprintf(stderr, "  -format html              # Single format\n");
   fprintf(stderr, "  -format html,json         # Multiple formats\n");
   fprintf(stderr, "  -format html,json,sarif   # GitHub Security integration\n\n");
-  
+
   if (g_verbose_errors) {
     fprintf(stderr, "Format details:\n");
     fprintf(stderr, "  html   - Visual reports with charts (default)\n");
@@ -79,18 +79,18 @@ void ErrorInvalidFormat(const char *format) {
 
 void ErrorFileNotFound(const char *path) {
   fprintf(stderr, "\n%sERROR:%s File not found: %s%s%s\n\n", COLOR_BOLD_RED, COLOR_RESET, COLOR_YELLOW, path, COLOR_RESET);
-  
+
   // Check if it's a relative path issue
   char cwd[1024] = {0};
   if (getcwd(cwd, sizeof(cwd))) {
     fprintf(stderr, "%sCurrent directory:%s %s\n", COLOR_CYAN, COLOR_RESET, cwd);
   }
-  
+
   fprintf(stderr, "\n%sPlease check:%s\n", COLOR_YELLOW, COLOR_RESET);
   fprintf(stderr, "  • File path is correct\n");
   fprintf(stderr, "  • File exists in the current directory\n");
   fprintf(stderr, "  • You have read permissions\n\n");
-  
+
   if (g_verbose_errors) {
     fprintf(stderr, "%sSuggestion:%s Use absolute path to avoid ambiguity:\n", COLOR_GREEN, COLOR_RESET);
     if (path[0] != '/') {
@@ -108,7 +108,7 @@ void ErrorPatternNoMatch(const char *pattern) {
   fprintf(stderr, "  profiles/*.icc     - All .icc files in profiles/\n");
   fprintf(stderr, "  **/*.icc           - Recursive search (all subdirectories)\n");
   fprintf(stderr, "  {*.icc,*.icm}      - Multiple extensions\n\n");
-  
+
   if (g_verbose_errors) {
     fprintf(stderr, "%sCommon issues:%s\n", COLOR_YELLOW, COLOR_RESET);
     fprintf(stderr, "  • Quote the pattern: -batch '*.icc' (not -batch *.icc)\n");
@@ -123,7 +123,7 @@ void ErrorWatchDirNotFound(const char *path) {
   fprintf(stderr, "%sTo fix:%s\n", COLOR_GREEN, COLOR_RESET);
   fprintf(stderr, "  mkdir -p %s\n", path);
   fprintf(stderr, "  iccAnalyzer -watch %s -output reports/\n\n", path);
-  
+
   if (g_verbose_errors) {
     fprintf(stderr, "Watch mode monitors a directory for new ICC profiles.\n");
     fprintf(stderr, "The directory must exist before starting watch mode.\n\n");
@@ -138,7 +138,7 @@ void ErrorWatchDirNotFound(const char *path) {
 void ErrorIccProfileInvalid(const char *path, const char *reason) {
   fprintf(stderr, "\n%sERROR:%s Invalid ICC profile: %s%s%s\n", COLOR_BOLD_RED, COLOR_RESET, COLOR_YELLOW, path, COLOR_RESET);
   fprintf(stderr, "%sReason:%s %s\n\n", COLOR_RED, COLOR_RESET, reason);
-  
+
   // Check file size
   struct stat st;
   if (stat(path, &st) == 0) {
@@ -148,17 +148,17 @@ void ErrorIccProfileInvalid(const char *path, const char *reason) {
     }
     fprintf(stderr, "\n\n");
   }
-  
+
   fprintf(stderr, "%sPossible causes:%s\n", COLOR_YELLOW, COLOR_RESET);
   fprintf(stderr, "  • File is corrupted or truncated\n");
   fprintf(stderr, "  • File is not a valid ICC profile\n");
   fprintf(stderr, "  • File size < 128 bytes (minimum header size)\n");
   fprintf(stderr, "  • Magic bytes are incorrect (expected: 'acsp')\n\n");
-  
+
   fprintf(stderr, "%sTo analyze malformed profiles:%s\n", COLOR_GREEN, COLOR_RESET);
   fprintf(stderr, "  iccAnalyzer -n %s     # Ninja mode (no validation)\n", path);
   fprintf(stderr, "  iccAnalyzer -nf %s    # Ninja mode (full dump)\n\n", path);
-  
+
   if (g_verbose_errors) {
     fprintf(stderr, "%sAdvanced analysis:%s\n", COLOR_CYAN, COLOR_RESET);
     fprintf(stderr, "  hexdump -C %s | head -20    # View raw bytes\n", path);
@@ -169,18 +169,18 @@ void ErrorIccProfileInvalid(const char *path, const char *reason) {
 
 void ErrorPermissionDenied(const char *path) {
   fprintf(stderr, "\n%sERROR:%s Permission denied: %s%s%s\n\n", COLOR_BOLD_RED, COLOR_RESET, COLOR_YELLOW, path, COLOR_RESET);
-  
+
   struct stat st;
   if (stat(path, &st) == 0) {
     fprintf(stderr, "%sFile permissions:%s %04o\n", COLOR_CYAN, COLOR_RESET, st.st_mode & 0777);
     fprintf(stderr, "%sOwner:%s UID=%d GID=%d\n\n", COLOR_CYAN, COLOR_RESET, st.st_uid, st.st_gid);
   }
-  
+
   fprintf(stderr, "%sSolutions:%s\n", COLOR_GREEN, COLOR_RESET);
   fprintf(stderr, "  • Check file permissions: ls -l %s\n", path);
   fprintf(stderr, "  • Add read permission: chmod +r %s\n", path);
   fprintf(stderr, "  • Run as file owner or use sudo (if appropriate)\n\n");
-  
+
   if (g_verbose_errors) {
     fprintf(stderr, "%sNote:%s ICC files should typically be readable by all users.\n", COLOR_YELLOW, COLOR_RESET);
     fprintf(stderr, "Recommended permissions: 644 (rw-r--r--)\n\n");
@@ -195,7 +195,7 @@ void ErrorDatabaseNotFound(const char *path) {
   fprintf(stderr, "%sTo use an existing database:%s\n", COLOR_GREEN, COLOR_RESET);
   fprintf(stderr, "  iccAnalyzer -heuristics profile.icc %s\n", path);
   fprintf(stderr, "  iccAnalyzer -comprehensive profile.icc %s\n\n", path);
-  
+
   if (g_verbose_errors) {
     fprintf(stderr, "%sDatabase formats supported:%s\n", COLOR_CYAN, COLOR_RESET);
     fprintf(stderr, "  • Directory with .iccdb files (fingerprints/)\n");
@@ -207,23 +207,23 @@ void ErrorDatabaseNotFound(const char *path) {
 void ErrorDatabaseCorrupted(const char *path) {
   fprintf(stderr, "\n%sERROR:%s Fingerprint database corrupted: %s%s%s\n\n", COLOR_BOLD_RED, COLOR_RESET, COLOR_YELLOW, path, COLOR_RESET);
   fprintf(stderr, "The database file exists but cannot be parsed.\n\n");
-  
+
   struct stat st;
   if (stat(path, &st) == 0) {
     fprintf(stderr, "%sFile size:%s %ld bytes\n\n", COLOR_CYAN, COLOR_RESET, st.st_size);
   }
-  
+
   fprintf(stderr, "%sPossible causes:%s\n", COLOR_YELLOW, COLOR_RESET);
   fprintf(stderr, "  • Incomplete write (disk full, interrupted)\n");
   fprintf(stderr, "  • Invalid JSON syntax\n");
   fprintf(stderr, "  • Wrong file format (expected .iccdb or .json)\n");
   fprintf(stderr, "  • File truncation during transfer\n\n");
-  
+
   fprintf(stderr, "%sRecovery options:%s\n", COLOR_GREEN, COLOR_RESET);
   fprintf(stderr, "  1. Restore from backup: cp %s.bak %s\n", path, path);
   fprintf(stderr, "  2. Rebuild database: iccAnalyzer -fingerprint-create %s <profiles>\n", path);
   fprintf(stderr, "  3. Validate JSON: python3 -m json.tool %s\n\n", path);
-  
+
   if (g_verbose_errors) {
     fprintf(stderr, "%sDebug:%s View first 10 lines of database:\n", COLOR_CYAN, COLOR_RESET);
     fprintf(stderr, "  head -10 %s\n\n", path);

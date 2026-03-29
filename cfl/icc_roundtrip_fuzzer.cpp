@@ -64,7 +64,7 @@ public:
     memset(&maxLab2[0], 0, sizeof(maxLab2));
   }
 
-  virtual void Compare(icFloatNumber * /*pixel*/, icFloatNumber *deviceLab, 
+  virtual void Compare(icFloatNumber * /*pixel*/, icFloatNumber *deviceLab,
                       icFloatNumber *lab1, icFloatNumber *lab2) override {
     icFloatNumber DE1 = icDeltaE(deviceLab, lab1);
     icFloatNumber DE2 = icDeltaE(lab1, lab2);
@@ -117,19 +117,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // Gate 0b: Validate tag table integrity (CWE-789 amplification guard)
   if (!fuzz_validate_icc_tags(data, size)) return 0;
-  
+
   // Derive parameters from trailing bytes to preserve ICC header structure
   // (consuming leading bytes shifts the profile header, breaking fidelity)
   icRenderingIntent nIntent = (icRenderingIntent)(data[size - 1] % 4);
   bool nUseMPE = (data[size - 2] % 2) == 1;
-  
+
   // Create temp file (TOOL FIDELITY - matches tool's file-based I/O)
   const char *tmpdir = fuzz_tmpdir();
   char tmp_file[PATH_MAX];
   if (!fuzz_build_path(tmp_file, sizeof(tmp_file), tmpdir, "/fuzz_roundtrip_XXXXXX")) return 0;
   int fd = mkstemp(tmp_file);
   if (fd == -1) return 0;
-  
+
   // Write with error checking (TOOL FIDELITY FIX - ensure valid file)
   // Tool only processes valid files, fuzzer must not process corrupted temp files
   if (write(fd, data, size) != (ssize_t)size) {
@@ -138,28 +138,28 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     return 0;
   }
   close(fd);
-  
+
   CIccMinMaxEval eval;
-  
+
   // Evaluate profile round-trip accuracy
   icStatusCMM stat = eval.EvaluateProfile(tmp_file, 0, nIntent, icInterpLinear, nUseMPE);
-  
+
   // TOOL FIDELITY: Exit on first error (tool lines 172-174)
   if (stat != icCmmStatOk) {
     unlink(tmp_file);
     return 0;
   }
-  
+
   // TOOL FIDELITY: Run PRMG analysis (tool lines 177-184)
   CIccPRMG prmg;
   stat = prmg.EvaluateProfile(tmp_file, nIntent, icInterpLinear, nUseMPE);
-  
+
   // TOOL FIDELITY: Check PRMG status (tool exits on PRMG failure)
   if (stat != icCmmStatOk) {
     unlink(tmp_file);
     return 0;
   }
-  
+
   // TOOL FIDELITY: Access eval members (tool lines 194-206)
   // Tool accesses these to print results - fuzzer must access to exercise same code paths
   (void)eval.minDE1;
@@ -168,14 +168,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   (void)eval.maxLab1[0];
   (void)eval.maxLab1[1];
   (void)eval.maxLab1[2];
-  
+
   (void)eval.minDE2;
   (void)eval.maxDE2;
   (void)eval.GetMean2();
   (void)eval.maxLab2[0];
   (void)eval.maxLab2[1];
   (void)eval.maxLab2[2];
-  
+
   // TOOL FIDELITY: Access PRMG members (tool lines 190, 208-217)
   // Tool accesses these to print PRMG interoperability results
   if (prmg.m_nTotal) {
@@ -193,7 +193,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccInfo info;
   (void)info.GetRenderingIntentName(nIntent);
   (void)info.GetRenderingIntentName(nIntent, true);  // bIsV5 variant
-  
+
   unlink(tmp_file);
   return 0;
 }

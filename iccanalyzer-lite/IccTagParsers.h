@@ -131,40 +131,40 @@ inline double ReadU16Fixed16(const unsigned char* data) {
 // Parse multiLocalizedUnicode (mluc) tag
 inline bool ParseMLUCTag(std::ostringstream& xml, const unsigned char* data, size_t size, const char* indent) {
   if (size < 16) return false;
-  
+
   uint32_t type_sig = Read32(data);
   if (type_sig != 0x6D6C7563) return false; // 'mluc'
-  
+
   uint32_t num_records = Read32(data + 8);
   uint32_t record_size = Read32(data + 12);
-  
+
   if (num_records > 100 || record_size != 12) return false; // Safety check
   if (size < 16 + (num_records * 12)) return false;
-  
+
   xml << indent << "<multiLocalizedUnicodeType>\n";
-  
+
   for (uint32_t i = 0; i < num_records; i++) {
     size_t rec_offset = 16 + (i * 12);
     if (rec_offset + 12 > size) break;
-    
+
     uint16_t lang_code = Read16(data + rec_offset);
     uint16_t country_code = Read16(data + rec_offset + 2);
     uint32_t str_len = Read32(data + rec_offset + 4);
     uint32_t str_offset = Read32(data + rec_offset + 8);
-    
+
     // Validate str_offset is within bounds before accessing
     if (str_offset >= size) continue;
     if (str_offset + str_len > size || str_len > 10000) continue; // Safety
-    
+
     char lang[3] = {0};
     char country[3] = {0};
     lang[0] = (lang_code >> 8) & 0xFF;
     lang[1] = lang_code & 0xFF;
     country[0] = (country_code >> 8) & 0xFF;
     country[1] = country_code & 0xFF;
-    
+
     xml << indent << "  <LocalizedText LanguageCountry=\"" << lang << country << "\"><![CDATA[";
-    
+
     // Convert UTF-16BE to ASCII (simplified - just take low bytes)
     for (uint32_t j = 0; j < str_len/2; j++) {
       size_t idx = static_cast<size_t>(str_offset) + static_cast<size_t>(j) * 2 + 1;
@@ -174,10 +174,10 @@ inline bool ParseMLUCTag(std::ostringstream& xml, const unsigned char* data, siz
         if (c >= 32 && c < 127) xml << c;
       }
     }
-    
+
     xml << "]]></LocalizedText>\n";
   }
-  
+
   xml << indent << "</multiLocalizedUnicodeType>";
   return true;
 }
@@ -185,16 +185,16 @@ inline bool ParseMLUCTag(std::ostringstream& xml, const unsigned char* data, siz
 // Parse XYZ tag
 inline bool ParseXYZTag(std::ostringstream& xml, const unsigned char* data, size_t size, const char* indent) {
   if (size < 20) return false;
-  
+
   uint32_t type_sig = Read32(data);
   if (type_sig != 0x58595A20) return false; // 'XYZ '
-  
+
   double x = ReadS15Fixed16(data + 8);
   double y = ReadS15Fixed16(data + 12);
   double z = ReadS15Fixed16(data + 16);
-  
+
   xml << indent << "<XYZType>\n";
-  xml << indent << "  <XYZNumber X=\"" << std::fixed << std::setprecision(12) << x 
+  xml << indent << "  <XYZNumber X=\"" << std::fixed << std::setprecision(12) << x
       << "\" Y=\"" << y << "\" Z=\"" << z << "\"/>\n";
   xml << indent << "</XYZType>";
   return true;
@@ -203,21 +203,21 @@ inline bool ParseXYZTag(std::ostringstream& xml, const unsigned char* data, size
 // Parse text description (desc) tag - legacy
 inline bool ParseTextDescTag(std::ostringstream& xml, const unsigned char* data, size_t size, const char* indent) {
   if (size < 12) return false;
-  
+
   uint32_t type_sig = Read32(data);
   if (type_sig != 0x64657363) return false; // 'desc'
-  
+
   uint32_t ascii_count = Read32(data + 8);
   if (ascii_count == 0 || ascii_count > 1000 || size < 12 + ascii_count) return false;
-  
+
   xml << indent << "<textDescriptionType>\n";
   xml << indent << "  <Description><![CDATA[";
-  
+
   for (uint32_t i = 0; i < ascii_count - 1 && (12 + i) < size; i++) {
     unsigned char c = data[12 + i];
     if (c >= 32 && c < 127) xml << c;
   }
-  
+
   xml << "]]></Description>\n";
   xml << indent << "</textDescriptionType>";
   return true;
@@ -226,16 +226,16 @@ inline bool ParseTextDescTag(std::ostringstream& xml, const unsigned char* data,
 // Parse curve (curv) tag
 inline bool ParseCurveTag(std::ostringstream& xml, const unsigned char* data, size_t size, const char* indent) {
   if (size < 12) return false;
-  
+
   uint32_t type_sig = Read32(data);
   if (type_sig != 0x63757276) return false; // 'curv'
-  
+
   uint32_t count = Read32(data + 8);
   if (count > 4096 || size < 12 + count * 2) return false; // Safety
-  
+
   xml << indent << "<curveType>\n";
   xml << indent << "  <Curve count=\"" << count << "\">";
-  
+
   if (count > 0) {
     xml << "\n" << indent << "    ";
     for (uint32_t i = 0; i < count && (12 + i * 2 + 1) < size; i++) {
@@ -246,7 +246,7 @@ inline bool ParseCurveTag(std::ostringstream& xml, const unsigned char* data, si
     }
     xml << "\n" << indent << "  ";
   }
-  
+
   xml << "</Curve>\n";
   xml << indent << "</curveType>";
   return true;
@@ -255,13 +255,13 @@ inline bool ParseCurveTag(std::ostringstream& xml, const unsigned char* data, si
 // Parse parametric curve (para) tag
 inline bool ParseParaTag(std::ostringstream& xml, const unsigned char* data, size_t size, const char* indent) {
   if (size < 12) return false;
-  
+
   uint32_t type_sig = Read32(data);
   if (type_sig != 0x70617261) return false; // 'para'
-  
+
   uint16_t func_type = Read16(data + 8);
   if (func_type > 4) return false;
-  
+
   // Calculate expected parameters
   uint32_t num_params = 0;
   switch (func_type) {
@@ -271,18 +271,18 @@ inline bool ParseParaTag(std::ostringstream& xml, const unsigned char* data, siz
     case 3: num_params = 5; break; // gamma, a, b, c, d
     case 4: num_params = 7; break; // gamma, a, b, c, d, e, f
   }
-  
+
   if (size < 12 + num_params * 4) return false;
-  
+
   xml << indent << "<parametricCurveType>\n";
   xml << indent << "  <FunctionType>" << func_type << "</FunctionType>\n";
   xml << indent << "  <Parameters>";
-  
+
   for (uint32_t i = 0; i < num_params; i++) {
     double val = ReadS15Fixed16(data + 12 + i * 4);
     xml << " " << std::fixed << std::setprecision(8) << val;
   }
-  
+
   xml << "</Parameters>\n";
   xml << indent << "</parametricCurveType>";
   return true;
@@ -291,18 +291,18 @@ inline bool ParseParaTag(std::ostringstream& xml, const unsigned char* data, siz
 // Parse text (text) tag
 inline bool ParseTextTag(std::ostringstream& xml, const unsigned char* data, size_t size, const char* indent) {
   if (size < 8) return false;
-  
+
   uint32_t type_sig = Read32(data);
   if (type_sig != 0x74657874) return false; // 'text'
-  
+
   xml << indent << "<textType><![CDATA[";
-  
+
   for (size_t i = 8; i < size && i < 1000; i++) {
     unsigned char c = data[i];
     if (c == 0) break;
     if (c >= 32 && c < 127) xml << c;
   }
-  
+
   xml << "]]></textType>";
   return true;
 }

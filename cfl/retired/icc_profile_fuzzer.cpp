@@ -49,12 +49,12 @@
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 128) return 0;
-  
+
   CIccProfile *pIcc = OpenIccProfile(data, size);
   if (pIcc) {
     std::string report;
     pIcc->Validate(report);
-    
+
     // Exercise header fields
     volatile icUInt32Number tmp;
     tmp = pIcc->m_Header.size;
@@ -68,7 +68,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     tmp = pIcc->m_Header.attributes;
     tmp = pIcc->m_Header.flags;
     (void)tmp;
-    
+
     // Exercise all tag iteration with deeper testing
     TagEntryList::iterator i;
     for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
@@ -82,7 +82,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         i->pTag->GetTagStructType();
       }
     }
-    
+
     // Exercise expanded tag lookups for maximum coverage
     icSignature tags[] = {icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
                            icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
@@ -107,13 +107,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         tag->IsSupported();
       }
     }
-    
+
     // Test device class specific methods
     (void)pIcc->GetSpaceSamples();
     (void)pIcc->AreTagsUnique();
     (void)pIcc->GetParentSpaceSamples();
     (void)pIcc->GetParentColorSpace();
-    
+
     // Test serialization if profile is valid (before CMM ownership transfer)
     if (report.find("Error") == std::string::npos && size < 100000) {
       CIccMemIO io;
@@ -128,12 +128,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         }
       }
     }
-    
+
     // Note: CMM transforms (AddXform/Begin/Apply) are out of scope for
     // profile inspection tools. Those paths are covered by icc_apply_fuzzer
     // and icc_applynamedcmm_fuzzer which mirror their respective tools.
     delete pIcc;
   }
-  
+
   return 0;
 }

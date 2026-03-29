@@ -47,7 +47,7 @@ struct IccAnalyzerConfig {
   std::string output_format;
   std::string min_severity;
   bool auto_create_dirs;
-  
+
   IccAnalyzerConfig() : auto_create_dirs(true) {}
 };
 

@@ -193,7 +193,7 @@ static int RecoverableRun(const char *label, Fn fn) {
 void PrintUsage() {
   printf(ICCANALYZER_VERSION_FULL " - ICC Profile Conformance Auditor\n\n");
   printf("Usage: iccAnalyzer-lite [OPTIONS] [--legacy] <file>\n\n");
-  
+
   printf("Conformance Modes (default — ICC specification auditing):\n");
   printf("  -a <file>                  Conformance audit (auto-detects TIFF/PNG/JPEG/ICC)\n");
   printf("  -pawg <file>               ICC PAWG assessment report (31-item checklist)\n");
@@ -217,7 +217,7 @@ void PrintUsage() {
   printf("  -dump <file.icc>           Full profile dump (DumpAll: header, tags, v5 summary)\n");
   printf("  -cg <crash.log> [out.png]  Call graph from ASAN/UBSAN log\n");
   printf("  -luts <file.icc> [base]    LUT visualization (SVG curves + TIFF 3D CLUTs)\n");
-  
+
   printf("\nLUT I/O:\n");
   printf("  -x <file.icc> <basename>   Extract LUT tables (binary CLUT)\n");
   printf("  -xt <file.icc> <basename>  Extract LUT tables as editable text (TSV)\n");
@@ -231,13 +231,13 @@ void PrintUsage() {
   printf("  TIFF: Extract embedded ICC (tag 34675), report metadata, scan injections\n");
   printf("  PNG:  Extract ICC from iCCP chunk\n");
   printf("  JPEG: Extract ICC from APP2 marker\n");
-  
+
   printf("\nExit Codes:\n");
   printf("  0  Clean    - Profile analyzed, no issues detected\n");
   printf("  1  Finding  - Conformance issues or heuristic warnings detected\n");
   printf("  2  Error    - I/O error (file not found, profile read failure)\n");
   printf("  3  Usage    - Bad arguments or unknown option\n");
-  
+
   printf("\nNote: Default mode is conformance auditing (ICC spec validation).\n");
   printf("      Use --legacy to include backward-looking vulnerability heuristics.\n");
 }
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
   }
 
   const char *mode = argv[1];
-  
+
   // Validate profile path for modes that accept one (skip -cg which takes log files)
   const char *profilePath = nullptr;
   if (argc >= 3 && strcmp(mode, "--version") != 0 && strcmp(mode, "-version") != 0
@@ -284,17 +284,17 @@ int main(int argc, char **argv) {
       return ICC_EXIT_USAGE;
     }
   }
-  
+
   // Heuristics mode (pass NULL for fingerprint_db in lite version)
   if (strcmp(mode, "-h") == 0 && argc >= 3) {
     return RecoverableRun("heuristic analysis", [&]{ return HeuristicAnalyze(profilePath, nullptr); });
   }
-  
+
   // Round-trip mode
   if (strcmp(mode, "-r") == 0 && argc >= 3) {
     return RecoverableRun("round-trip analysis", [&]{ return RoundTripAnalyze(profilePath); });
   }
-  
+
   // JSON output mode
   if (strcmp(mode, "--json") == 0 && argc >= 3) {
     return RecoverableRun("JSON analysis", [&]{ return RunWithJsonOutput(profilePath, nullptr, legacyMode); });
@@ -326,22 +326,22 @@ int main(int argc, char **argv) {
     }
     return RecoverableRun("comprehensive analysis", [&]{ return ComprehensiveAnalyze(profilePath, nullptr, legacyMode); });
   }
-  
+
   // Image analysis mode (explicit — any image format)
   if (strcmp(mode, "-img") == 0 && argc >= 3) {
     return RecoverableRun("image analysis", [&]{ return AnalyzeImageFile(profilePath, nullptr); });
   }
-  
+
   // Ninja mode
   if (strcmp(mode, "-n") == 0 && argc >= 3) {
     return RecoverableRun("ninja analysis", [&]{ return NinjaModeAnalyze(profilePath, false); });
   }
-  
+
   // Ninja mode (full dump)
   if (strcmp(mode, "-nf") == 0 && argc >= 3) {
     return RecoverableRun("ninja analysis (full)", [&]{ return NinjaModeAnalyze(profilePath, true); });
   }
-  
+
   // Call graph mode (ASAN/UBSAN log analysis — no ICC profile needed)
   if (strcmp(mode, "-cg") == 0) {
     return RecoverableRun("call graph analysis", [&]{ return RunCallGraphMode(argc, argv); });
@@ -357,7 +357,7 @@ int main(int argc, char **argv) {
   if (strcmp(mode, "-dump") == 0 && argc >= 3) {
     return RecoverableRun("profile dump", [&]{ return DumpAllAnalysis(profilePath, 100); });
   }
-  
+
   // Extract LUT
   if (strcmp(mode, "-x") == 0 && argc >= 4) {
     auto lutPathResult = IccAnalyzerSecurity::ValidateFilePath(
@@ -423,7 +423,7 @@ int main(int argc, char **argv) {
       return ImportCubeToProfile(cubeIn, outFile);
     });
   }
-  
+
   // XML report export
   if (strcmp(mode, "-xml") == 0 && argc >= 4) {
     const char *outXml = argv[3];
@@ -457,7 +457,7 @@ int main(int argc, char **argv) {
     outXml = resolvedXml;
     return RecoverableRun("XML export", [&]{ return IccAnalyzerXMLExport::RunWithXMLOutput(profilePath, outXml, nullptr, legacyMode); });
   }
-  
+
   // Registry dump — emit heuristic database as JSON (source of truth for all counts)
   if (strcmp(mode, "--registry") == 0) {
     RegistryStats stats = ComputeRegistryStats();
@@ -504,13 +504,13 @@ int main(int argc, char **argv) {
     printf("Database features: DISABLED (lite version)\n");
     return ICC_EXIT_CLEAN;
   }
-  
+
   // Help
   if (strcmp(mode, "--help") == 0 || strcmp(mode, "-help") == 0) {
     PrintUsage();
     return ICC_EXIT_CLEAN;
   }
-  
+
   fprintf(stderr, "ERROR: Unknown option: %s\n\n", SanitizeForLog(mode).c_str());
   PrintUsage();
   return ICC_EXIT_USAGE;

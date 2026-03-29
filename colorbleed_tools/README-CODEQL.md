@@ -1,7 +1,7 @@
 # CodeQL Security Analysis for ColorBleed Tools
 
-**Purpose:** Security analysis of unsafe ICC XML tools for vulnerability research  
-**Target Tools:** `iccFromXml_unsafe`, `iccToXml_unsafe`  
+**Purpose:** Security analysis of unsafe ICC XML tools for vulnerability research
+**Target Tools:** `iccFromXml_unsafe`, `iccToXml_unsafe`
 **Analysis Date:** 2026-02-07
 
 ## Overview
@@ -63,8 +63,8 @@ codeql query run \
 
 ## Configuration
 
-**File:** `codeql-config.yml`  
-**Language:** C++17  
+**File:** `codeql-config.yml`
+**Language:** C++17
 **Paths Analyzed:**
 - `IccXML/CmdLine/IccFromXml/IccFromXml_unsafe.cpp`
 - `IccXML/CmdLine/IccToXml/IccToXml_unsafe.cpp`
@@ -106,5 +106,5 @@ See `.github/workflows/` for automated CodeQL scanning workflows.
 - **Build Instructions:** `../../unsafe_source/BUILD.md`
 
 ---
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Maintainer:** Security Research Team

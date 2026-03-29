@@ -80,10 +80,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!fuzz_build_path(temp_input, sizeof(temp_input), tmpdir, "/fuzz_fromxml_tool_XXXXXX")) return 0;
   int fd = mkstemp(temp_input);
   if (fd == -1) return 0;
-  
+
   ssize_t written = write(fd, data, size);
   close(fd);
-  
+
   if (written != static_cast<ssize_t>(size)) {
     unlink(temp_input);
     return 0;
@@ -94,7 +94,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // ═══════════════════════════════════════════════════════════════════
 
   CIccProfileXml profile;
-  std::string reason;  
+  std::string reason;
 
   std::string szRelaxNGDir;
   bool bNoId = false;
@@ -120,7 +120,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       if (profile.m_Header.profileID.ID8[i])
         break;
     }
-    
+
     // Write to temp output file (replaces argv[2])
     char temp_output[PATH_MAX];
     if (!fuzz_build_path(temp_output, sizeof(temp_output), tmpdir, "/fuzz_fromxml_tool_out_XXXXXX")) {
@@ -130,7 +130,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     int out_fd = mkstemp(temp_output);
     if (out_fd != -1) {
       close(out_fd);
-      
+
       SaveIccProfile(temp_output, &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID));
       unlink(temp_output);
     }
@@ -142,7 +142,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       if (profile.m_Header.profileID.ID8[i])
         break;
     }
-    
+
     char temp_output[PATH_MAX];
     if (!fuzz_build_path(temp_output, sizeof(temp_output), tmpdir, "/fuzz_fromxml_tool_out_XXXXXX")) {
       unlink(temp_input);

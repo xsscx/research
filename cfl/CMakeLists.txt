@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.15)
 # Only build fuzzers with Clang and when explicitly enabled
 if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   message(STATUS "Fuzzing harnesses enabled with full instrumentation")
-  
+
   # Common include directories
   set(FUZZER_INCLUDES
     ${CMAKE_SOURCE_DIR}/../../IccProfLib
@@ -14,7 +14,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccCommon
     ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccApplyProfiles
   )
-  
+
   # Full instrumentation flags: sanitizers, debug, profiling, coverage
   # Based on iccAnalyzer instrumented build configuration
   set(FUZZER_COMPILE_FLAGS
@@ -25,42 +25,42 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -fprofile-instr-generate        # Clang instrumentation profiling
     -fcoverage-mapping              # Clang coverage mapping
   )
-  
+
   set(FUZZER_LINK_FLAGS
     -fsanitize=fuzzer,address,undefined
     -fprofile-instr-generate        # Clang instrumentation profiling
   )
-  
+
   # No additional link libraries needed - Clang provides runtime automatically
-  
+
   # V5 DSP/OBS fuzzer
   add_executable(icc_v5dspobs_fuzzer icc_v5dspobs_fuzzer.cpp)
   target_compile_options(icc_v5dspobs_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_v5dspobs_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_v5dspobs_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_v5dspobs_fuzzer IccProfLib2)
-  
+
   # Roundtrip fuzzer
   add_executable(icc_roundtrip_fuzzer icc_roundtrip_fuzzer.cpp)
   target_compile_options(icc_roundtrip_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_roundtrip_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_roundtrip_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_roundtrip_fuzzer IccProfLib2)
-  
+
   # Dump fuzzer
   add_executable(icc_dump_fuzzer icc_dump_fuzzer.cpp)
   target_compile_options(icc_dump_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_dump_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_dump_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_dump_fuzzer IccProfLib2)
-  
+
   # Link fuzzer
   add_executable(icc_link_fuzzer icc_link_fuzzer.cpp)
   target_compile_options(icc_link_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_link_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_link_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_link_fuzzer IccProfLib2)
-  
+
   # FromCube fuzzer
   add_executable(icc_fromcube_fuzzer icc_fromcube_fuzzer.cpp)
   target_compile_options(icc_fromcube_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
@@ -74,14 +74,14 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_link_options(icc_applynamedcmm_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_applynamedcmm_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_applynamedcmm_fuzzer IccProfLib2)
-  
+
   # ApplyProfiles fuzzer
   add_executable(icc_applyprofiles_fuzzer icc_applyprofiles_fuzzer.cpp)
   target_compile_options(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_applyprofiles_fuzzer IccProfLib2)
-  
+
   # JSON Config fuzzer (IccCmmConfig.cpp + IccJsonUtil.cpp compiled in — not in shared lib)
   set(CFG_FUZZER_SOURCES
     icc_cfg_fuzzer.cpp
@@ -93,7 +93,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_link_options(icc_cfg_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_cfg_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_cfg_fuzzer IccProfLib2)
-  
+
   # XML-based fuzzers (require IccXML)
   if(TARGET IccXML2)
     # FromXML fuzzer
@@ -102,7 +102,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_link_options(icc_fromxml_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
     target_include_directories(icc_fromxml_fuzzer PRIVATE ${FUZZER_INCLUDES})
     target_link_libraries(icc_fromxml_fuzzer IccProfLib2 IccXML2 xml2)
-    
+
     # ToXML fuzzer
     add_executable(icc_toxml_fuzzer icc_toxml_fuzzer.cpp)
     target_compile_options(icc_toxml_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
@@ -110,25 +110,25 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_include_directories(icc_toxml_fuzzer PRIVATE ${FUZZER_INCLUDES})
     target_link_libraries(icc_toxml_fuzzer IccProfLib2 IccXML2 xml2)
   endif()
-  
+
   # TIFF-based fuzzers (require TIFF)
   if(TIFF_FOUND)
     # SpecSep and TiffDump fuzzers require TiffImg.cpp compilation
     # TODO: Add TiffImg.cpp to build or create separate TIFF tools library
-    # 
+    #
     # add_executable(icc_specsep_fuzzer icc_specsep_fuzzer.cpp)
     # target_compile_options(icc_specsep_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined -g -O1)
     # target_link_options(icc_specsep_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)
     # target_include_directories(icc_specsep_fuzzer PRIVATE ${FUZZER_INCLUDES})
     # target_link_libraries(icc_specsep_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
-    # 
+    #
     # add_executable(icc_tiffdump_fuzzer icc_tiffdump_fuzzer.cpp)
     # target_compile_options(icc_tiffdump_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined -g -O1)
     # target_link_options(icc_tiffdump_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)
     # target_include_directories(icc_tiffdump_fuzzer PRIVATE ${FUZZER_INCLUDES})
     # target_link_libraries(icc_tiffdump_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
   endif()
-  
+
   message(STATUS "Fuzzing harnesses configured:")
   message(STATUS "  Core: v5dspobs, roundtrip, dump, link, fromcube (5)")
   message(STATUS "  Apply: applynamedcmm, applyprofiles (2)")
