@@ -9,9 +9,11 @@
 
 #include "icctest/ProfileView.h"
 #include "icctest/Logger.h"
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <string_view>
 #include <vector>
 
 extern void test_assert(bool, const char*, const char*, int);
@@ -23,21 +25,146 @@ extern void test_assert(bool, const char*, const char*, int);
 
 using namespace icctest;
 
-static std::filesystem::path resolve_repo_file(const char* relativePath) {
-    std::filesystem::path srcPath(__FILE__);
-    std::filesystem::path base = srcPath.parent_path();
-
-    std::filesystem::path combined = base / "../../../" / relativePath;
-    std::filesystem::path candidate = combined.lexically_normal();
-    if (std::filesystem::exists(candidate)) return candidate;
-
-    std::filesystem::path cwd = std::filesystem::current_path();
-    std::filesystem::path cwdCombined = cwd / relativePath;
-    candidate = cwdCombined.lexically_normal();
-    if (std::filesystem::exists(candidate)) return candidate;
+static std::filesystem::path find_named_ancestor(std::filesystem::path start,
+                                                 std::string_view name) {
+    while (!start.empty()) {
+        if (start.filename() == name) {
+            return start;
+        }
+        auto parent = start.parent_path();
+        if (parent == start) {
+            break;
+        }
+        start = parent;
+    }
 
     return {};
 }
+
+static std::filesystem::path find_repo_root(std::filesystem::path start) {
+    while (!start.empty()) {
+        if (std::filesystem::exists(start / ".git")) {
+            return start;
+        }
+        auto parent = start.parent_path();
+        if (parent == start) {
+            break;
+        }
+        start = parent;
+    }
+
+    return {};
+}
+
+static std::filesystem::path configured_project_root() {
+#ifdef ICCTEST_PROJECT_SOURCE_ROOT
+    return std::filesystem::path(ICCTEST_PROJECT_SOURCE_ROOT).lexically_normal();
+#else
+    return {};
+#endif
+}
+
+static std::filesystem::path configured_analyzer_root() {
+#ifdef ICCTEST_ANALYZER_SOURCE_ROOT
+    return std::filesystem::path(ICCTEST_ANALYZER_SOURCE_ROOT).lexically_normal();
+#else
+    return {};
+#endif
+}
+
+static std::filesystem::path configured_monorepo_root() {
+#ifdef ICCTEST_MONOREPO_SOURCE_ROOT
+    return std::filesystem::path(ICCTEST_MONOREPO_SOURCE_ROOT).lexically_normal();
+#else
+    return {};
+#endif
+}
+
+static bool path_exists(const std::filesystem::path& path) {
+    if (path.empty()) {
+        return false;
+    }
+
+    std::error_code ec;
+    return std::filesystem::exists(path, ec) && !ec;
+}
+
+static void append_unique_path(std::vector<std::filesystem::path>& roots,
+                               const std::filesystem::path& candidate) {
+    if (candidate.empty()) {
+        return;
+    }
+
+    std::filesystem::path normalized = candidate.lexically_normal();
+    if (std::find(roots.begin(), roots.end(), normalized) == roots.end()) {
+        roots.push_back(normalized);
+    }
+}
+
+static std::vector<std::filesystem::path> resolve_repo_roots() {
+    std::vector<std::filesystem::path> roots;
+    std::filesystem::path analyzerRoot = configured_analyzer_root();
+    std::filesystem::path repoRoot = configured_monorepo_root();
+    std::filesystem::path projectRoot = configured_project_root();
+    std::filesystem::path sourceDir = std::filesystem::path(__FILE__).parent_path();
+    std::filesystem::path iccaRoot = find_named_ancestor(sourceDir, "iccanalyzer-lite");
+
+    append_unique_path(roots, repoRoot);
+    append_unique_path(roots, analyzerRoot.parent_path());
+    append_unique_path(roots, analyzerRoot);
+    append_unique_path(roots, projectRoot);
+    append_unique_path(roots, find_repo_root(sourceDir));
+    append_unique_path(roots, iccaRoot.parent_path());
+    append_unique_path(roots, iccaRoot);
+
+    std::filesystem::path cwd = std::filesystem::current_path();
+    append_unique_path(roots, find_repo_root(cwd));
+    append_unique_path(roots, find_named_ancestor(cwd, "iccanalyzer-lite").parent_path());
+    append_unique_path(roots, find_named_ancestor(cwd, "iccanalyzer-lite"));
+    append_unique_path(roots, cwd);
+
+    return roots;
+}
+
+static std::filesystem::path resolve_repo_file(const char* relativePath) {
+    std::filesystem::path analyzerRoot = configured_analyzer_root();
+    if (std::strncmp(relativePath, "tests/", 6) == 0 && !analyzerRoot.empty()) {
+        std::filesystem::path candidate = (analyzerRoot / relativePath).lexically_normal();
+        if (path_exists(candidate)) {
+            return candidate;
+        }
+    }
+
+    for (const auto& root : resolve_repo_roots()) {
+        std::filesystem::path candidate = (root / relativePath).lexically_normal();
+        if (path_exists(candidate)) {
+            return candidate;
+        }
+    }
+
+    return {};
+}
+
+class ScopedCurrentPath {
+public:
+    explicit ScopedCurrentPath(const std::filesystem::path& next) {
+        previous_ = std::filesystem::current_path();
+        std::filesystem::current_path(next);
+    }
+
+    ~ScopedCurrentPath() {
+        std::error_code ignored;
+        if (!previous_.empty()) {
+            std::filesystem::current_path(previous_, ignored);
+        }
+    }
+
+    ScopedCurrentPath(const ScopedCurrentPath&) = delete;
+    ScopedCurrentPath& operator=(const ScopedCurrentPath&) = delete;
+
+private:
+    std::filesystem::path previous_;
+};
 
 // Helper: create a minimal valid ICC profile in memory (128-byte header + tag table)
 static std::vector<uint8_t> makeMinimalProfile() {
@@ -377,17 +504,52 @@ static void test_failed_load_profiles_keep_raw_state() {
     }
 }
 
+static void test_repo_fixture_resolution_stability() {
+    std::printf("  test_repo_fixture_resolution_stability...\n");
+
+    const std::filesystem::path repoRoot = configured_monorepo_root();
+    const std::filesystem::path analyzerRoot = configured_analyzer_root();
+    const std::filesystem::path buildRoot = configured_project_root() / "build";
+
+    ASSERT_TRUE(path_exists(repoRoot));
+    ASSERT_TRUE(path_exists(analyzerRoot));
+    ASSERT_TRUE(path_exists(buildRoot));
+
+    const std::vector<const char*> fixtures = {
+        "test-profiles/sRGB_D65_MAT.icc",
+        "test-profiles/NamedColor.icc",
+        "test-profiles/CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc",
+        "test-profiles/oom-CIccSingleSampledCurve-SetSize-IccProfLib-IccMpeBasic_cpp-Line1496.icc",
+        "test-profiles/ub-npd-spectral-fuzzer-CIccApplyCmm-IccCmm_cpp-Line8845.icc",
+        "tests/corpus/valid_srgb.icc",
+    };
+
+    const std::vector<std::filesystem::path> workingDirs = {
+        repoRoot,
+        analyzerRoot,
+        buildRoot,
+    };
+
+    for (const auto& workingDir : workingDirs) {
+        ScopedCurrentPath scoped(workingDir);
+        for (const char* relativePath : fixtures) {
+            auto resolved = resolve_repo_file(relativePath);
+            ASSERT_FALSE(resolved.empty());
+            ASSERT_TRUE(path_exists(resolved));
+
+            std::filesystem::path expected =
+                std::strncmp(relativePath, "tests/", 6) == 0
+                    ? (analyzerRoot / relativePath).lexically_normal()
+                    : (repoRoot / relativePath).lexically_normal();
+            ASSERT_EQ(expected, resolved.lexically_normal());
+        }
+    }
+}
+
 static void test_open_real_profile() {
     std::printf("  test_open_real_profile...\n");
-    // Try a known-good profile if it exists
-    std::filesystem::path testProfile("test-profiles/sRGB_D65_MAT.icc");
-    if (!std::filesystem::exists(testProfile)) {
-        testProfile = "../test-profiles/sRGB_D65_MAT.icc";
-    }
-    if (!std::filesystem::exists(testProfile)) {
-        testProfile = "../../test-profiles/sRGB_D65_MAT.icc";
-    }
-    if (!std::filesystem::exists(testProfile)) {
+    auto testProfile = resolve_repo_file("test-profiles/sRGB_D65_MAT.icc");
+    if (testProfile.empty()) {
         std::printf("    (skipped — no test profile found)\n");
         return;
     }
@@ -427,6 +589,7 @@ void test_profile_view() {
     test_open_too_small();
     test_open_small_image_buffer();
     test_image_format_detection();
+    test_repo_fixture_resolution_stability();
     test_ub_prescan_gbd();
     test_ub_prescan_clean();
     test_ub_prescan_embedded_icc5_skip_load();

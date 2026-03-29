@@ -214,15 +214,15 @@ def main() -> int:
             ]
         )
 
-    counts = compare_payload.get("summary", {}).get("counts", {})
-    if int(counts.get("delta", 0)) != 0:
-        raise RuntimeError(
-            f"Expected H98 comparator delta=0 for malformed spectral fixture, got {counts}"
-        )
-    if int(counts.get("implicitSkipMatch", 0)) != 1:
-        raise RuntimeError(
-            f"Expected H98 comparator implicitSkipMatch=1 for malformed spectral fixture, got {counts}"
-        )
+        counts = compare_payload.get("summary", {}).get("counts", {})
+        if int(counts.get("delta", 0)) != 0:
+            raise RuntimeError(
+                f"Expected H98 comparator delta=0 for malformed spectral fixture, got {counts}"
+            )
+        if int(counts.get("implicitSkipMatch", 0)) != 1:
+            raise RuntimeError(
+                f"Expected H98 comparator implicitSkipMatch=1 for malformed spectral fixture, got {counts}"
+            )
 
         h30_payload = run_json(
             [
@@ -243,6 +243,33 @@ def main() -> int:
         if int(h30_counts.get("delta", 0)) != 0:
             raise RuntimeError(
                 f"Expected H30 comparator delta=0 for nested GBD fixture, got {h30_counts}"
+            )
+
+        gbd_extra_payload = run_json(
+            [
+                sys.executable,
+                str(compare),
+                "--lane",
+                "heuristic",
+                "--check",
+                "H74,H107,H110,H116,H117",
+                "--v1-binary",
+                str(args.v1_binary),
+                "--v2-binary",
+                str(args.v2_binary),
+                str(args.h30_fixture),
+            ]
+        )
+        gbd_extra_counts = gbd_extra_payload.get("summary", {}).get("counts", {})
+        if int(gbd_extra_counts.get("delta", 0)) != 0:
+            raise RuntimeError(
+                "Expected GBD raw-only comparator delta=0 for H74/H107/H110/H116/H117, "
+                f"got {gbd_extra_counts}"
+            )
+        if int(gbd_extra_counts.get("coverageImprovement", 0)) != 5:
+            raise RuntimeError(
+                "Expected GBD raw-only comparator coverageImprovement=5 for "
+                f"H74/H107/H110/H116/H117, got {gbd_extra_counts}"
             )
 
         h21_payload = run_json(
@@ -285,7 +312,11 @@ def main() -> int:
             ]
         )
         h172_record = next(
-            (record for record in h172_payload.get("records", []) if record.get("canonicalId") == "H172"),
+            (
+                record
+                for record in h172_payload.get("records", [])
+                if record.get("canonicalId") == "H172"
+            ),
             None,
         )
         if not h172_record:
