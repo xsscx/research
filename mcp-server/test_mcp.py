@@ -840,6 +840,26 @@ async def test_check_dependencies_smoke():
     T.section_summary()
 
 
+async def test_scan_logs_default_behavior():
+    """Default log scanning should be informative even when no logs exist."""
+    T.section("Operations: scan_logs")
+
+    result = await scan_logs()
+    T.ok("default scan_logs returns text", bool(result), result[:120])
+    T.ok(
+        "default scan_logs is informative",
+        result.startswith("[Log Scanner") or result.startswith("[OK] No .log files found"),
+        result[:160],
+    )
+    T.ok(
+        "default scan_logs avoids hard fail on empty default dir",
+        not result.startswith("[FAIL] No .log files found"),
+        result[:160],
+    )
+
+    T.section_summary()
+
+
 # ---------------------------------------------------------------------------
 # Maintainer Build Tools Tests
 # ---------------------------------------------------------------------------
@@ -1447,6 +1467,7 @@ async def main():
     # Health check tests
     await test_health_check()
     await test_check_dependencies_smoke()
+    await test_scan_logs_default_behavior()
 
     # Maintainer build tools tests
     test_sanitize_cmake_args()

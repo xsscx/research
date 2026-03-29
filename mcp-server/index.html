@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="ICC Profile Analyzer — 173-check ICC security and conformance scanner with V2 Web UI reports">
 <title>ICC Profile Analyzer — MCP Web UI</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
 <style>
 /* ── Reset & Variables ─────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -724,7 +725,7 @@ function renderInputs() {
       <div class="input-row">
         <div class="field">
           <label for="inp-directory">Log Directory</label>
-          <input id="inp-directory" value="" placeholder="(default: build dir)" autocomplete="off">
+          <input id="inp-directory" value="" placeholder="(optional: auto-detect Testing logs)" autocomplete="off">
         </div>
         <div class="field">
           <label for="inp-categories">Categories</label>
@@ -737,7 +738,8 @@ function renderInputs() {
         </div>
         <button class="btn-run" id="btnRun">Run</button>
         ${saveBtn}
-      </div>`;
+      </div>
+      <p class="tool-hint">Scans on-disk <code>.log</code> files only. Leave the directory blank to auto-detect iccDEV testing logs, or enter a repo-relative log directory.</p>`;
   } else if (currentTool === "build_tools") {
     html = `
       <div class="input-row">
@@ -1249,6 +1251,7 @@ async function handleFileUpload() {
 /* ── Run the selected tool ─────────────────────────────── */
 async function run() {
   const tool = TOOLS[currentTool];
+  const optionalGetFields = new Set(["build_dir", "severity_filter"]);
 
   // graph_viewer has no API endpoint — handled by loadGraphViewer()
   if (!tool.endpoint) return;
@@ -1319,12 +1322,12 @@ async function run() {
     const el = document.getElementById(`inp-${f}`);
     if (!el) continue;
     const val = el.value.trim();
-    if (!val && f !== "directory") {
+    if (!val && !optionalGetFields.has(f) && f !== "directory") {
       setStatus("err", `${f} is required`);
       el.focus();
       return;
     }
-    params.set(f, val);
+    if (val !== "") params.set(f, val);
   }
 
   // Abort previous request if still running

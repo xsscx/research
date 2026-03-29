@@ -2653,7 +2653,7 @@ async def scan_logs(
 
     Args:
         directory: Directory containing .log files to scan.
-                   Defaults to current working directory.
+                   Defaults to the auto-detected iccDEV Testing directory.
         categories: Comma-separated categories — "errors", "signals", "invalid",
                     "overflow", "memory", "hangs", or "all" (default).
     """
@@ -2683,7 +2683,11 @@ async def scan_logs(
 
     log_files = sorted(scan_dir.rglob("*.log"))
     if not log_files:
-        return f"[FAIL] No .log files found in {scan_dir}"
+        return (
+            f"[OK] No .log files found in {scan_dir}\n\n"
+            "Tip: point Log Directory at a repo-relative folder containing .log files, "
+            "or run a maintainer workflow that emits build/test logs first."
+        )
 
     lines = [f"[Log Scanner — {len(log_files)} files, {len(active)} categories]", ""]
     total_matches = 0

@@ -73,6 +73,7 @@ def test_csp_nonce():
     check("CSP nonce unique per request", csp1 != csp2)
     check("CSP has script-src with nonce", "script-src 'self' 'nonce-" in csp1)
     check("CSP has style-src with nonce", "style-src 'self' 'nonce-" in csp1)
+    check("CSP allows runtime inline styles for graph viewer", "'unsafe-inline'" in csp1)
     check("CSP has blob: for Save As", "blob:" in csp1)
     # Verify nonce appears in HTML
     check("HTML <script nonce=...>", 'nonce="' in r1.text and "<script" in r1.text)
@@ -118,10 +119,30 @@ def test_html_integrity():
     check("Has clipboard-offscreen CSS class", ".clipboard-offscreen" in r.text)
     check("Has sanitize() function", "function sanitize(" in r.text)
     check("Has esc() function", "function esc(" in r.text)
-    check("Uses addEventListener", "addEventListener" in r.text)
-    check("No document.write", "document.write" not in r.text)
-    check("No eval(", "eval(" not in r.text)
-    check("No innerHTML = user", ".innerHTML = html" not in r.text or "innerHTML = html" in r.text)
+
+
+def test_graph_viewer_assets():
+    r = c.get("/static/cytoscape.min.js")
+    check("Cytoscape asset returns 200", r.status_code == 200)
+    check("Cytoscape asset is JS", "javascript" in r.headers.get("content-type", ""))
+    check("Cytoscape asset has library banner", "Cytoscape" in r.text[:200])
+
+    r = c.get("/favicon.ico")
+    check("favicon returns 200", r.status_code == 200)
+    check("favicon has icon content type", "image/x-icon" in r.headers.get("content-type", ""))
+
+    r = c.get("/.well-known/appspecific/com.chrome.devtools.json")
+    check("Chrome devtools probe returns 204", r.status_code == 204)
+
+    html = c.get("/").text
+    check("HTML links favicon", 'rel="icon" href="/favicon.ico"' in html)
+    check("Graph viewer loads local Cytoscape asset", "/static/cytoscape.min.js" in html)
+    check("Graph viewer supports optional GET fields", "const optionalGetFields = new Set([\"build_dir\", \"severity_filter\"]);" in html)
+    check("Coverage gaps defaults to All", '<option value="" selected>All</option>' in html)
+    check("Uses addEventListener", "addEventListener" in html)
+    check("No document.write", "document.write" not in html)
+    check("No eval(", "eval(" not in html)
+    check("No innerHTML = user", ".innerHTML = html" not in html or "innerHTML = html" in html)
 
 
 # ── Form Field Validation (renderInputs coverage) ─────────
@@ -948,6 +969,12 @@ def test_operations_endpoints():
     data = r.json()
     check("check-dependencies has result", "result" in data)
 
+    # Coverage gaps (GET, optional severity filter)
+    r = c.get("/api/coverage-gaps")
+    check("coverage-gaps returns 200 without severity_filter", r.status_code == 200)
+    data = r.json()
+    check("coverage-gaps default has result", "result" in data)
+
     # Find artifacts (GET, empty build_dir → searches all)
     r = c.get("/api/find-artifacts")
     check("find-artifacts returns 200", r.status_code == 200)
@@ -1004,6 +1031,13 @@ def test_operations_post_endpoints():
     check("scan-logs returns 200", r.status_code == 200)
     data = r.json()
     check("scan-logs handles missing dir", "[FAIL]" in data.get("result", ""))
+
+    r = c.post("/api/scan-logs", json={})
+    check("scan-logs default returns 200", r.status_code == 200)
+    data = r.json()
+    result = data.get("result", "")
+    check("scan-logs default is informative", result.startswith("[Log Scanner") or result.startswith("[OK] No .log files found"))
+    check("scan-logs default avoids hard fail on empty default dir", not result.startswith("[FAIL] No .log files found"))
 
 
 def test_build_tools_endpoint():
@@ -1090,6 +1124,7 @@ def main():
         ("Security Headers", test_security_headers),
         ("Security Headers on Index", test_security_headers_on_index),
         ("HTML Integrity", test_html_integrity),
+        ("Graph Viewer Assets", test_graph_viewer_assets),
         ("Form Fields Per Tool", test_form_fields_per_tool),
         ("Health", test_health),
         ("List Profiles", test_list),
