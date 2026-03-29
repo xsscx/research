@@ -1703,3 +1703,6 @@ multi_sig="mwpmcl1l"
 "US-I"
 "i3o88bref"
 "utf17u"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\x00\x0d&"
