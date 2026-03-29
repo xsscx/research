@@ -1,8 +1,6 @@
 # Security Research Tools for ICC Color Profiles
 
-## [Fuzzer Harness](ua)
-
-Last Updated: 2026-03-18 03:34:17 UTC by David Hoyt
+## Overview
 
 <img width="3672" height="1917" alt="image" src="https://github.com/user-attachments/assets/8092db67-8705-4cef-8aef-f2a25afaa421" />
 
@@ -10,10 +8,11 @@ Last Updated: 2026-03-18 03:34:17 UTC by David Hoyt
 
 | Tool | LOC | Description |
 |------|-----|-------------|
-| **iccanalyzer-lite** | 22,400+ | 180-heuristic security analyzer with ASAN/UBSAN, TIFF image analysis, JSON/XML/Report output, callgraph, OOM protection, Ninja mode |
+| **iccanalyzer-lite** | 22,400+ | V1 security analyzer with 173 heuristics, ASAN/UBSAN, TIFF image analysis, JSON/XML/report output, callgraph, OOM protection, and Ninja mode |
+| **icctest** | — | V2 rewrite and parity harness for `iccanalyzer-lite`; current in-repo baseline is raw parity `delta=0`, image parity `delta=0`, and `1822/1822` unit tests passed |
 | **cfl** (13 fuzzers) | ~2,800 | LibFuzzer harnesses targeting iccDEV (dump, roundtrip, apply, cfg, etc.) |
 | **colorbleed_tools** | 224 | Unsafe ICC↔XML converters for mutation testing |
-| **mcp-server** | — | ICC Profile MCP server with web UI (24 tools) |
+| **mcp-server** | — | 26-tool ICC Profile MCP server with Web UI + REST API; security endpoints default to V2, while structural/reporting endpoints keep V1 where needed |
 
 ## Related Projects
 
@@ -38,11 +37,30 @@ Last Updated: 2026-03-18 03:34:17 UTC by David Hoyt
 # iccanalyzer-lite (ASAN + UBSAN + coverage)
 cd iccanalyzer-lite && ./build.sh
 
+# icctest (V2 rewrite + parity harness)
+cd iccanalyzer-lite/icctest && ./build.sh
+
 # CFL fuzzers (auto-applies security patches to iccDEV)
 cd cfl && ./build.sh
 
 # colorbleed_tools
 cd colorbleed_tools && make setup && make
+
+# mcp-server (venv + tests)
+cd mcp-server && ./build.sh test
+```
+
+## Test
+
+```bash
+# iccanalyzer-lite regression suite
+python3 iccanalyzer-lite/tests/run_tests.py -v
+
+# icctest unit + parity targets
+ctest --test-dir iccanalyzer-lite/icctest/build --output-on-failure
+
+# mcp-server and Web UI suites
+cd mcp-server && ./build.sh test
 ```
 
 ## Fuzzing (ramdisk)
@@ -142,7 +160,7 @@ docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 ```
 
-Open http://localhost:8080/
+Open `http://127.0.0.1:8080/`.
 
 <img width="3742" height="1936" alt="image" src="https://github.com/user-attachments/assets/30a8c93f-6c78-4d1e-a67e-c38eb0cb8186" />
 
@@ -155,13 +173,18 @@ docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 ```
 
-Routes: `/` (demo report), `/ui` (interactive WebUI), `/api` (endpoint index), `/api/*` (analysis).
+Routes:
+- `/` interactive WebUI with deep links such as `#security`, `#security_report`, `#pawg`, `#inspect`, `#graph_viewer`, `#coverage_gaps`, and `#scan_logs`
+- `/api/health` liveness plus tool/engine metadata
+- `/api/health-check` full bundled-tool health check
+- `/api/*` analysis, maintainer, and graph endpoints
 
 ```bash
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
+curl -fsS http://127.0.0.1:8080/api/health
+curl -fsS "http://127.0.0.1:8080/api/security-report?path=sRGB_D65_MAT.icc" | jq -r '.result'
 curl -fsS "http://127.0.0.1:8080/api/pawg?path=sRGB_D65_MAT.icc" | jq -r '.result'
-curl http://localhost:8080/api/health
 ```
 
 Two modes: `mcp` (default, stdio server for AI agents), `web` (REST API + HTML UI).
