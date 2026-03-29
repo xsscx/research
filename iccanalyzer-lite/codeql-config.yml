@@ -13,7 +13,7 @@ queries:
   # Official CodeQL security queries
   - uses: security-extended
   - uses: security-experimental
-  
+
   # Custom security research queries (local path from repo root)
   - uses: ./iccanalyzer-lite/codeql-queries
 
@@ -37,19 +37,19 @@ paths-ignore:
 cpp:
   # Compiler flags to include
   compile-command: "cmake -S Build/Cmake -B Build-codeql -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && make -C Build-codeql -j$(nproc)"
-  
+
   # Include paths for analysis
   include-paths:
     - IccProfLib
     - IccXML/IccLibXML
     - Tools/CmdLine
-  
+
   # Define macros for analysis
   defines:
     - ICCPROFLIB_API=
     - ICCLIBXML_API=
     - ICC_BYTE_ORDER_LITTLE_ENDIAN=1
-  
+
   # C++ standard
   standard: "c++17"
 
@@ -57,24 +57,24 @@ cpp:
 analysis:
   # Maximum memory for analysis (MB)
   ram: 8192
-  
+
   # Number of threads (0 = auto-detect)
   threads: 0
-  
+
   # Timeout for queries (seconds)
   timeout: 1800
-  
+
   # Enable extended analysis
   extended-analysis: true
-  
+
   # Security-focused settings
   security:
     # Track taint flow through multiple hops
     max-taint-hops: 10
-    
+
     # Deep dataflow analysis
     deep-analysis: true
-    
+
     # Enable experimental security checks
     experimental-checks: true
 
@@ -82,16 +82,16 @@ analysis:
 sarif:
   # Include code snippets in results
   add-snippets: true
-  
+
   # Include dataflow paths
   add-dataflow-paths: true
-  
+
   # Include related locations
   add-related-locations: true
-  
+
   # Categorize results
   category: "security-research"
-  
+
   # Custom properties
   properties:
     project: "iccLibFuzzer"
@@ -119,7 +119,7 @@ vulnerability-research:
       - double-free
       - null-pointer-dereference
       - uninitialized-memory
-  
+
   # Integer safety
   integer-safety:
     enabled: true
@@ -130,7 +130,7 @@ vulnerability-research:
       - unsigned-integer-overflow
       - integer-truncation
       - division-by-zero
-  
+
   # Type safety
   type-safety:
     enabled: true
@@ -140,7 +140,7 @@ vulnerability-research:
       - enum-undefined-behavior
       - virtual-dispatch-confusion
       - cast-alignment
-  
+
   # Control flow
   control-flow:
     enabled: true
@@ -150,7 +150,7 @@ vulnerability-research:
       - infinite-loops
       - missing-return
       - switch-fallthrough
-  
+
   # API misuse
   api-misuse:
     enabled: true
@@ -160,7 +160,7 @@ vulnerability-research:
       - resource-leaks
       - format-string-vulnerabilities
       - command-injection
-  
+
   # Cryptography
   crypto:
     enabled: true
@@ -174,16 +174,16 @@ vulnerability-research:
 exploit-research:
   # Enable deep analysis for exploit chains
   chain-analysis: true
-  
+
   # Track gadget candidates for ROP/JOP
   gadget-tracking: true
-  
+
   # Identify information disclosure vectors
   info-disclosure: true
-  
+
   # Track privilege escalation paths
   privilege-escalation: true
-  
+
   # Identify code execution vectors
   code-execution: true
 
@@ -191,13 +191,13 @@ exploit-research:
 ci-integration:
   # Fail build on high severity issues
   fail-on-severity: high
-  
+
   # Generate detailed reports
   detailed-reports: true
-  
+
   # Upload results to GitHub Security
   upload-to-github: true
-  
+
   # Compare with baseline
   baseline-comparison: true
 
@@ -209,7 +209,7 @@ metadata:
   created: "2026-01-28"
   purpose: "Security research, vulnerability discovery, exploit development for defense"
   classification: "security-research"
-  
+
 # Custom tags for result classification
 tags:
   - security

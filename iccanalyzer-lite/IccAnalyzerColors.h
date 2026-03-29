@@ -122,10 +122,10 @@ inline void InitializeColors(bool forceDisable = false) {
     g_useColors = false;
     return;
   }
-  
+
   // Auto-detect: only use colors if stdout is a terminal
   g_useColors = IsTTY(stdout);
-  
+
 #ifdef _WIN32
   // On Windows, enable virtual terminal processing
   if (g_useColors) {

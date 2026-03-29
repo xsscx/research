@@ -492,7 +492,7 @@ hc.begin(17, "Spectral Range Validation (ICC.2-2023 §7.2.22-23)");
   float biStart = SafeF16ToF(header.biSpectralRange.start);
   float biEnd   = SafeF16ToF(header.biSpectralRange.end);
   uint16_t biSteps = header.biSpectralRange.steps;
-  
+
   // Diagnostic: trace NaN in spectral range conversions
   ICC_TRACE_NAN(specStart, "spectralRange.start");
   ICC_TRACE_NAN(specEnd, "spectralRange.end");
@@ -501,7 +501,7 @@ hc.begin(17, "Spectral Range Validation (ICC.2-2023 §7.2.22-23)");
 
   bool hasSpectral = (specSteps > 0 || specStart != 0.0f || specEnd != 0.0f);
   bool hasBiSpectral = (biSteps > 0 || biStart != 0.0f || biEnd != 0.0f);
-  
+
   if (hasSpectral) {
     hc.info("Spectral: start=%.2fnm end=%.2fnm steps=%u", specStart, specEnd, specSteps);
     if (specSteps > 10000) {

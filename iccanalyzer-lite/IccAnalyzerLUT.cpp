@@ -134,15 +134,15 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
   std::string safeTag = SanitizeTagName(tagName);
   char filename[512];
   CIccCLUT *pCLUT = pMpeCLUT->GetCLUT();
-  
+
   if (!pCLUT) {
     printf("    MPE CLUT[%d]: No CLUT data\n", clutIndex);
     return;
   }
-  
+
   int inputDim = pCLUT->GetInputDim();
   int outputChannels = pCLUT->GetOutputChannels();
-  
+
   SafeSnprintf(filename, sizeof(filename), "%s_%s_mpe_clut%d_info.txt",
            baseFilename, safeTag.c_str(), clutIndex);
   FILE *fInfo = SecureFileOpen(filename, "w");
@@ -153,7 +153,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
     for (int i = 0; i < inputDim; i++) {
       fprintf(fInfo, "Grid[%d]: %u\n", i, pCLUT->GetDimSize(i));
     }
-    
+
     icUInt32Number totalEntries = outputChannels;
     for (int i = 0; i < inputDim; i++) {
       icUInt32Number dimSize = pCLUT->GetDimSize(i);
@@ -168,7 +168,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
     fclose(fInfo);
     printf("    Wrote MPE CLUT[%d] info: %s\n", clutIndex, filename);
   }
-  
+
   SafeSnprintf(filename, sizeof(filename), "%s_%s_mpe_clut%d.bin",
            baseFilename, safeTag.c_str(), clutIndex);
   FILE *fBin = SecureFileOpen(filename, "wb");
@@ -185,7 +185,7 @@ void ExtractMpeCLUT(CIccMpeCLUT *pMpeCLUT, const char *tagName, const char *base
         }
         totalEntries *= dimSize;
       }
-      
+
       for (icUInt32Number i = 0; i < totalEntries; i++) {
         ICC_TRACE_NAN(data[i], "mpeCLUT.data");
         icFloatNumber v = data[i];
@@ -212,34 +212,34 @@ void ExtractMpeTables(CIccProfile *pIcc, const char *baseFilename)
 {
   CIccInfo info;
   int mpeCount = 0;
-  
+
   TagEntryList::iterator i;
   for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
     CIccTag *pTag = pIcc->FindTag((*i).TagInfo.sig);
     if (!pTag) continue;
-    
+
     icTagTypeSignature tagType = pTag->GetType();
-    
+
     if (tagType == icSigMultiProcessElementType) {
-      printf("\nExtracting MPE from tag: %s (type: %s)\n", 
+      printf("\nExtracting MPE from tag: %s (type: %s)\n",
              info.GetTagSigName((*i).TagInfo.sig),
              info.GetTagTypeSigName(tagType));
-      
+
       CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
       if (!pMPE) continue;
       icUInt32Number numElements = pMPE->NumElements();
-      
+
       printf("  MultiProcessElement: %u elements\n", numElements);
-      printf("  Input channels: %u, Output channels: %u\n", 
+      printf("  Input channels: %u, Output channels: %u\n",
              pMPE->NumInputChannels(), pMPE->NumOutputChannels());
-      
+
       int clutCount = 0;
       for (icUInt32Number elem = 0; elem < numElements; elem++) {
         CIccMultiProcessElement *pElem = pMPE->GetElement(elem);
         if (!pElem) continue;
-        
+
         icElemTypeSignature elemType = pElem->GetType();
-        
+
         if (elemType == icSigCLutElemType) {
           printf("  Element[%u]: CLUT\n", elem);
           CIccMpeCLUT *pMpeCLUT = dynamic_cast<CIccMpeCLUT*>(pElem);
@@ -250,13 +250,13 @@ void ExtractMpeTables(CIccProfile *pIcc, const char *baseFilename)
           printf("  Element[%u]: %s (not a CLUT)\n", elem, pElem->GetClassName());
         }
       }
-      
+
       if (clutCount > 0) {
         mpeCount++;
       }
     }
   }
-  
+
   if (mpeCount == 0) {
     printf("No MPE tags with CLUT elements found\n");
   }
@@ -272,37 +272,37 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
   // Iterate all tags, extracting curve and CLUT metadata for Lut8/Lut16 types
   CIccInfo info;
   int lutCount = 0;
-  
+
   TagEntryList::iterator i;
   for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
     CIccTag *pTag = pIcc->FindTag((*i).TagInfo.sig);
     if (!pTag) continue;
-    
+
     icTagTypeSignature tagType = pTag->GetType();
-    
+
     if (tagType == icSigLut8Type || tagType == icSigLut16Type) {
       const char *rawTagName = info.GetTagSigName((*i).TagInfo.sig);
       std::string safeTag = SanitizeTagName(rawTagName);
       printf("\nExtracting LUT from tag: %s\n", rawTagName);
-      
+
       CIccTagLut8 *pLut8 = nullptr;
       CIccTagLut16 *pLut16 = nullptr;
-      
+
       if (tagType == icSigLut8Type) {
         pLut8 = dynamic_cast<CIccTagLut8*>(pTag);
       } else {
         pLut16 = dynamic_cast<CIccTagLut16*>(pTag);
       }
       if (!pLut8 && !pLut16) continue;
-      
+
       char filename[512];
-      
+
       // Extract Lut8 sub-components: input curves (A), CLUT grid, output curves (B)
       if (pLut8) {
         CIccCLUT *pCLUT = pLut8->GetCLUT();
         LPIccCurve *pCurvesA = pLut8->GetCurvesA();
         LPIccCurve *pCurvesB = pLut8->GetCurvesB();
-        
+
         if (pCurvesA) {
           SafeSnprintf(filename, sizeof(filename), "%s_%s_curvesA.txt",
                   baseFilename, safeTag.c_str());
@@ -314,7 +314,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
             printf("  Wrote A-curves metadata: %s\n", filename);
           }
         }
-        
+
         if (pCLUT) {
           SafeSnprintf(filename, sizeof(filename), "%s_%s_clut.txt",
                   baseFilename, safeTag.c_str());
@@ -330,7 +330,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
             printf("  Wrote CLUT metadata: %s\n", filename);
           }
         }
-        
+
         if (pCurvesB) {
           SafeSnprintf(filename, sizeof(filename), "%s_%s_curvesB.txt",
                   baseFilename, safeTag.c_str());
@@ -347,7 +347,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         CIccCLUT *pCLUT = pLut16->GetCLUT();
         LPIccCurve *pCurvesA = pLut16->GetCurvesA();
         LPIccCurve *pCurvesB = pLut16->GetCurvesB();
-        
+
         if (pCurvesA) {
           SafeSnprintf(filename, sizeof(filename), "%s_%s_curvesA.txt",
                   baseFilename, safeTag.c_str());
@@ -359,7 +359,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
             printf("  Wrote A-curves metadata: %s\n", filename);
           }
         }
-        
+
         if (pCLUT) {
           SafeSnprintf(filename, sizeof(filename), "%s_%s_clut.txt",
                   baseFilename, safeTag.c_str());
@@ -375,7 +375,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
             printf("  Wrote CLUT metadata: %s\n", filename);
           }
         }
-        
+
         if (pCurvesB) {
           SafeSnprintf(filename, sizeof(filename), "%s_%s_curvesB.txt",
                   baseFilename, safeTag.c_str());
@@ -388,7 +388,7 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
           }
         }
       }
-      
+
       SafeSnprintf(filename, sizeof(filename), "%s_%s_lut_info.txt",
               baseFilename, safeTag.c_str());
       FILE *f = SecureFileOpen(filename, "w");
@@ -405,11 +405,11 @@ void ExtractLutTables(CIccProfile *pIcc, const char *baseFilename)
         fclose(f);
         printf("  Wrote metadata: %s\n", filename);
       }
-      
+
       lutCount++;
     }
   }
-  
+
   if (lutCount == 0) {
     printf("\nNo LUT tags found in profile\n");
   } else {
@@ -451,7 +451,7 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
     printf("Error opening profile: %s\n", profileFile);
     return -1;
   }
-  
+
   CIccProfile *pIcc = new (std::nothrow) CIccProfile;
   if (!pIcc) {
     printf("Error: memory allocation failed\n");
@@ -466,34 +466,34 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
 
   bool modified = false;
   CIccInfo info;
-  
+
   TagEntryList::iterator i;
   for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
     CIccTag *pTag = pIcc->FindTag((*i).TagInfo.sig);
     if (!pTag) continue;
-    
+
     icTagTypeSignature tagType = pTag->GetType();
-    
+
     if (tagType == icSigLut8Type || tagType == icSigLut16Type) {
       printf("Found LUT tag: %s\n", info.GetTagSigName((*i).TagInfo.sig));
-      
+
       RawFileHandle fh = OpenRawFile(clutFile);
       if (!fh) {
         printf("Cannot open CLUT file: %s\n", clutFile);
         continue;
       }
       long fileSize = fh.fileSize;
-      
+
       // Validate CLUT grid dimensions with overflow-safe multiplication
       if (tagType == icSigLut8Type) {
         CIccTagLut8 *pLut8 = dynamic_cast<CIccTagLut8*>(pTag);
         CIccCLUT *pCLUT = pLut8 ? pLut8->GetCLUT() : nullptr;
-        
+
         if (!pCLUT) {
           printf("No CLUT in tag\n");
           continue;
         }
-        
+
         uint64_t clutSize = 1;
         bool clutOverflow = false;
         for (int j = 0; j < pCLUT->GetInputDim(); j++) {
@@ -510,52 +510,52 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           printf("CLUT size overflow detected\n");
           continue;
         }
-        
+
         if (static_cast<long>(clutSize) != fileSize) {
           printf("CLUT size mismatch: expected %llu, got %ld\n",
                  (unsigned long long)clutSize, fileSize);
           continue;
         }
-        
+
         icFloatNumber *pData = pCLUT->GetData(0);
         if (!pData) {
           printf("Cannot access CLUT data\n");
           continue;
         }
-        
+
         icUInt8Number *buffer = new (std::nothrow) icUInt8Number[fileSize];
         if (!buffer) {
           printf("Allocation failed (%ld bytes)\n", fileSize);
           continue;
         }
         size_t bytesRead = fread(buffer, 1, fileSize, fh.fp);
-        
+
         if (static_cast<long>(bytesRead) != fileSize) {
           printf("Read error: expected %ld bytes, got %zu\n", fileSize, bytesRead);
           delete[] buffer;
           continue;
         }
-        
+
         // Convert 8-bit CLUT data to float [0.0, 1.0] range
         for (long j = 0; j < fileSize; j++) {
           pData[j] = (icFloatNumber)buffer[j] / 255.0f;
           ICC_TRACE_NAN(pData[j], "lut8.clutData");
         }
-        
+
         delete[] buffer;
         modified = true;
         printf("Injected %ld bytes into CLUT\n", fileSize);
-        
+
       // Handle Lut16 type: 16-bit CLUT data with big-endian byte swap
       } else if (tagType == icSigLut16Type) {
         CIccTagLut16 *pLut16 = dynamic_cast<CIccTagLut16*>(pTag);
         CIccCLUT *pCLUT = pLut16 ? pLut16->GetCLUT() : nullptr;
-        
+
         if (!pCLUT) {
           printf("No CLUT in tag\n");
           continue;
         }
-        
+
         uint64_t clutSize = 1;
         bool clutOverflow = false;
         for (int j = 0; j < pCLUT->GetInputDim(); j++) {
@@ -576,68 +576,68 @@ int InjectLutDataInternal(const char *profileFile, const char *outputFile, const
           printf("CLUT size overflow detected\n");
           continue;
         }
-        
+
         if (static_cast<long>(clutSize) != fileSize) {
           printf("CLUT size mismatch: expected %llu, got %ld\n",
                  (unsigned long long)clutSize, fileSize);
           continue;
         }
-        
+
         icFloatNumber *pData = pCLUT->GetData(0);
         if (!pData) {
           printf("Cannot access CLUT data\n");
           continue;
         }
-        
+
         icUInt16Number *buffer = new (std::nothrow) icUInt16Number[fileSize / 2];
         if (!buffer) {
           printf("Allocation failed (%ld bytes)\n", fileSize);
           continue;
         }
         size_t itemsRead = fread(buffer, 2, fileSize / 2, fh.fp);
-        
+
         if (static_cast<long>(itemsRead) != fileSize / 2) {
           printf("Read error: expected %ld items, got %zu\n", fileSize / 2, itemsRead);
           delete[] buffer;
           continue;
         }
-        
+
         for (long j = 0; j < fileSize / 2; j++) {
           icUInt16Number val = buffer[j];
           val = ((val >> 8) & 0xff) | ((val << 8) & 0xff00);
           pData[j] = (icFloatNumber)val / 65535.0f;
           ICC_TRACE_NAN(pData[j], "lut16.clutData");
         }
-        
+
         delete[] buffer;
         modified = true;
         printf("Injected %ld bytes into CLUT\n", fileSize);
       }
     }
   }
-  
+
   if (!modified) {
     printf("No LUT tags modified\n");
     delete pIcc;
     return -1;
   }
-  
+
   CIccFileIO outIO;
   if (!outIO.Open(outputFile, "wb")) {
     printf("Error opening output file: %s\n", outputFile);
     delete pIcc;
     return -1;
   }
-  
+
   if (!pIcc->Write(&outIO)) {
     printf("Error writing modified profile\n");
     delete pIcc;
     return -1;
   }
-  
+
   outIO.Close();
   delete pIcc;
-  
+
   printf("Modified profile written to: %s\n", outputFile);
   return 0;
 }
@@ -675,10 +675,10 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
   printf("Input profile: %s\n", profileFile);
   printf("CLUT file: %s\n", clutFile);
   printf("Output profile: %s\n\n", outputFile);
-  
+
   CIccProfile *pIcc = OpenIccProfile(profileFile);
   if (!pIcc) return -1;
-  
+
   RawFileHandle fh = OpenRawFile(clutFile);
   if (!fh) {
     printf("Error opening CLUT file: %s\n", clutFile);
@@ -686,13 +686,13 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
     return -1;
   }
   long fileSize = fh.fileSize;
-  
+
   if (fileSize == 0 || fileSize > 100000000) {
     printf("Invalid CLUT file size: %ld\n", fileSize);
     delete pIcc;
     return -1;
   }
-  
+
   icUInt16Number *buffer = new (std::nothrow) icUInt16Number[fileSize / 2];
   if (!buffer) {
     printf("Allocation failed (%ld bytes)\n", fileSize);
@@ -700,35 +700,35 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
     return -1;
   }
   size_t itemsRead = fread(buffer, 2, fileSize / 2, fh.fp);
-  
+
   if (static_cast<long>(itemsRead) != fileSize / 2) {
     printf("Read error: expected %ld items, got %zu\n", fileSize / 2, itemsRead);
     delete[] buffer;
     delete pIcc;
     return -1;
   }
-  
+
   int tagsModified = 0;
   CIccInfo info;
-  
+
   TagEntryList::iterator i;
   for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
     CIccTag *pTag = pIcc->FindTag((*i).TagInfo.sig);
     if (!pTag) continue;
-    
+
     if (pTag->GetType() == icSigMultiProcessElementType) {
       CIccTagMultiProcessElement *pMPE = dynamic_cast<CIccTagMultiProcessElement*>(pTag);
       if (!pMPE) continue;
-      
+
       for (icUInt32Number elem = 0; elem < pMPE->NumElements(); elem++) {
         CIccMultiProcessElement *pElem = pMPE->GetElement(elem);
         if (!pElem || pElem->GetType() != icSigCLutElemType) continue;
-        
+
         CIccMpeCLUT *pMpeCLUT = dynamic_cast<CIccMpeCLUT*>(pElem);
         if (!pMpeCLUT) continue;
         CIccCLUT *pCLUT = pMpeCLUT->GetCLUT();
         if (!pCLUT) continue;
-        
+
         int inputDim = pCLUT->GetInputDim();
         int outputChannels = pCLUT->GetOutputChannels();
         uint64_t expectedSize = outputChannels;
@@ -739,7 +739,7 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
             break;
           }
         }
-        
+
         if (sizeOverflow) { continue; }
         long actualSize = fileSize / 2;
         if ((uint64_t)actualSize != expectedSize) {
@@ -748,11 +748,11 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
                  (unsigned long long)expectedSize, actualSize);
           continue;
         }
-        
+
         printf("  Tag %s Element[%u]: Injecting CLUT (%llu entries)\n",
                info.GetTagSigName((*i).TagInfo.sig), elem,
                (unsigned long long)expectedSize);
-        
+
         // Byte-swap 16-bit big-endian CLUT entries and normalize to float [0.0, 1.0]
         icFloatNumber *data = pCLUT->GetData(0);
         if (!data) {
@@ -765,14 +765,14 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
           icUInt16Number littleEndian = ((bigEndian >> 8) & 0xff) | ((bigEndian << 8) & 0xff00);
           data[idx] = littleEndian / 65535.0f;
         }
-        
+
         tagsModified++;
       }
     }
   }
-  
+
   delete[] buffer;
-  
+
   // Write modified profile to output file if any CLUT elements were injected
   if (tagsModified > 0) {
     CIccFileIO io;
@@ -781,18 +781,18 @@ int InjectMpeDataInternal(const char *profileFile, const char *outputFile, const
       delete pIcc;
       return -1;
     }
-    
+
     if (!pIcc->Write(&io)) {
       printf("Error writing profile\n");
       delete pIcc;
       return -1;
     }
-    
+
     printf("\nSuccessfully wrote modified profile\n");
   } else {
     printf("No MPE CLUT elements modified\n");
   }
-  
+
   delete pIcc;
   return 0;
 }
@@ -809,7 +809,7 @@ int ExtractLutData(const char *filename, const char *baseFilename)
     printf("Error opening file: %s\n", filename);
     return -1;
   }
-  
+
   CIccProfile *pIcc = new (std::nothrow) CIccProfile;
   if (!pIcc) {
     printf("Error: memory allocation failed\n");
@@ -820,15 +820,15 @@ int ExtractLutData(const char *filename, const char *baseFilename)
     delete pIcc;
     return -1;
   }
-  
+
   printf("=== Extracting LUTs from: %s ===\n", filename);
-  
+
   printf("\n--- Legacy LUT Tags (lut8/lut16) ---\n");
   ExtractLutTables(pIcc, baseFilename);
-  
+
   printf("\n--- Modern MPE Tags (lutAtoB/lutBtoA) ---\n");
   ExtractMpeTables(pIcc, baseFilename);
-  
+
   delete pIcc;
   return 0;
 }
@@ -839,16 +839,16 @@ int InjectLutData(int argc, char *argv[])
     printf("Usage: iccAnalyzer -i <profile.icc> <clut.bin> <output.icc>\n");
     return -1;
   }
-  
+
   const char *profileFile = argv[2];
   const char *clutFile = argv[3];
   const char *outputFile = argv[4];
-  
+
   printf("=== Injecting CLUT data ===\n");
   printf("Input profile: %s\n", profileFile);
   printf("CLUT file: %s\n", clutFile);
   printf("Output profile: %s\n\n", outputFile);
-  
+
   return InjectLutDataInternal(profileFile, outputFile, clutFile);
 }
 
@@ -859,11 +859,11 @@ int InjectMpeLutData(int argc, char *argv[])
     printf("Usage: iccAnalyzer -im <profile.icc> <clut.bin> <output.icc>\n");
     return -1;
   }
-  
+
   const char *profileFile = argv[2];
   const char *clutFile = argv[3];
   const char *outputFile = argv[4];
-  
+
   return InjectMpeDataInternal(profileFile, outputFile, clutFile);
 }
 

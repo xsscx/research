@@ -87,7 +87,7 @@ public:
    * Write XSLT stylesheet to a stream (used by companion .xsl writer)
    */
   static void WriteXSLTStylesheet(std::ofstream& xml);
-  
+
   /**
    * Escape XML special characters
    */

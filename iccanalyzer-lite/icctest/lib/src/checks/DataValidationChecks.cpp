@@ -901,8 +901,8 @@ static CheckResult check_h90_preview_tag_channel_consistency(const ProfileView& 
         switch (typeSig) {
             case 0x6D667431u: // mft1
             case 0x6D667432u: // mft2
-            case 0x6D414220u: // mAB 
-            case 0x6D424120u: // mBA 
+            case 0x6D414220u: // mAB
+            case 0x6D424120u: // mBA
                 checkPreviewTag(static_cast<icTagSignature>(sig), tag[8], tag[9]);
                 break;
             default:

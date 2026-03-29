@@ -77,7 +77,7 @@ enum class PathValidationResult {
 
 /**
  * Validates a file path for security risks.
- * 
+ *
  * @param path The file path to validate
  * @param mode Validation strictness level
  * @param require_exists If true, path must exist
@@ -93,7 +93,7 @@ PathValidationResult ValidateFilePath(
 
 /**
  * Validates a directory path for security risks.
- * 
+ *
  * @param path The directory path to validate
  * @param mode Validation strictness level
  * @param require_exists If true, directory must exist
@@ -107,7 +107,7 @@ PathValidationResult ValidateDirectoryPath(
 
 /**
  * Converts validation result to human-readable error message.
- * 
+ *
  * @param result The validation result
  * @param path The path that failed validation
  * @return Error message string
@@ -116,7 +116,7 @@ std::string GetValidationErrorMessage(PathValidationResult result, const std::st
 
 /**
  * Sanitizes a path by resolving it to canonical form.
- * 
+ *
  * @param path The path to sanitize
  * @param sanitized Output parameter for sanitized path
  * @return true if successful, false if path invalid or doesn't exist
@@ -125,7 +125,7 @@ bool SanitizePath(const std::string& path, std::string& sanitized);
 
 /**
  * Checks if a path is a symlink.
- * 
+ *
  * @param path The path to check
  * @return true if path is a symlink, false otherwise
  */
@@ -133,7 +133,7 @@ bool IsSymlink(const std::string& path);
 
 /**
  * Checks if a path contains traversal sequences (../).
- * 
+ *
  * @param path The path to check
  * @return true if traversal detected, false otherwise
  */
@@ -141,7 +141,7 @@ bool ContainsPathTraversal(const std::string& path);
 
 /**
  * Checks if a path is within allowed directory boundaries.
- * 
+ *
  * @param path The path to check
  * @param base_dir The base directory boundary
  * @return true if path is within base_dir, false otherwise
@@ -150,7 +150,7 @@ bool IsWithinBoundary(const std::string& path, const std::string& base_dir);
 
 /**
  * Validates binary database file format security.
- * 
+ *
  * @param data Raw binary data
  * @param size Size of data in bytes
  * @param error_message Output parameter for error message

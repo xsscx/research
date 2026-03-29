@@ -12,7 +12,7 @@ name: iccAnalyzer-lite
 
 permissions:
   contents: read
-  
+
 on:
   workflow_dispatch:
 
@@ -28,7 +28,7 @@ jobs:
     defaults:
       run:
         shell: bash --noprofile --norc {0}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
@@ -36,7 +36,7 @@ jobs:
           persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 0
-      
+
       - name: Configure environment
         env:
           BASH_ENV: /dev/null
@@ -50,12 +50,12 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           echo "Workflow:    ${WORKFLOW_NAME}"
           echo "Ref:         ${WORKFLOW_REF}"
           echo "Commit:      ${WORKFLOW_SHA}"
           echo "Runner OS:   ${RUNNER_OS_NAME}"
-      
+
       - name: Cache APT packages
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-apt
@@ -76,7 +76,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
             sudo apt-get update -qq
           else
@@ -94,7 +94,7 @@ jobs:
             liblzma-dev \
             nlohmann-json3-dev \
             libssl-dev
-      
+
       - name: Print compiler version
         env:
           BASH_ENV: /dev/null
@@ -104,10 +104,10 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           echo "Compiler: clang++"
           clang++ --version | head -n 1
-          
+
           {
             echo "### Build Configuration"
             echo ""
@@ -116,7 +116,7 @@ jobs:
             echo "**Flags:**      ASAN + UBSAN + Coverage"
             echo "**Tool:**       iccanalyzer-lite"
           } >> $GITHUB_STEP_SUMMARY
-      
+
       - name: Cache iccDEV repository
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev
@@ -137,16 +137,16 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           cd iccanalyzer-lite
           if [ ! -d "iccDEV" ]; then
             git clone https://github.com/InternationalColorConsortium/iccDEV.git
           fi
           cd iccDEV
-          
+
           echo "iccDEV cloned at: $(pwd)"
           echo "iccDEV commit: $(git log --oneline -1)"
-          
+
           {
             echo ""
             echo "### iccDEV Dependency"
@@ -154,7 +154,7 @@ jobs:
             echo "**Location:** \`iccanalyzer-lite/iccDEV/\`"
             echo "**Commit:**   $(git log --oneline -1)"
           } >> $GITHUB_STEP_SUMMARY
-      
+
       - name: Cache iccDEV build
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev-build
@@ -192,9 +192,9 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           cd iccanalyzer-lite/iccDEV/Build
-          
+
           echo "Configuring CMake with instrumentation..."
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
@@ -209,14 +209,14 @@ jobs:
             -DICC_LOG_SAFE=ON \
             -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
-          
+
           echo "Building libraries with $(nproc) cores..."
           make -j$(nproc)
-          
+
           echo "Verifying libraries..."
           ls -lh IccProfLib/libIccProfLib2-static*.a
           ls -lh IccXML/libIccXML2-static*.a
-          
+
           {
             echo ""
             echo "### iccDEV Libraries Built"
@@ -226,7 +226,7 @@ jobs:
             ls -lh IccXML/libIccXML2-static*.a
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
-      
+
       - name: Build iccanalyzer-lite
         env:
           BASH_ENV: /dev/null
@@ -237,19 +237,19 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           cd iccanalyzer-lite
-          
+
           echo "Working directory: $(pwd)"
           echo "Building iccanalyzer-lite..."
-          
+
           chmod +x build.sh
           ./build.sh
-          
+
           echo "Build complete."
           ls -lh iccanalyzer-lite
           file iccanalyzer-lite
-          
+
           {
             echo ""
             echo "### iccanalyzer-lite Binary"
@@ -259,7 +259,7 @@ jobs:
             file iccanalyzer-lite
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
-      
+
       - name: Test iccanalyzer-lite
         env:
           BASH_ENV: /dev/null
@@ -270,12 +270,12 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           cd iccanalyzer-lite
-          
+
           echo "=== Test 1: Help Output ==="
           ./iccanalyzer-lite --help || echo "Help test completed"
-          
+
           echo ""
           echo "=== Test 2: Security Analysis ==="
           if [ -f "iccDEV/Testing/sRGB_v4_ICC_preference.icc" ]; then
@@ -285,7 +285,7 @@ jobs:
           else
             echo "WARNING: Test profile not found, skipping analysis test"
           fi
-          
+
           {
             echo ""
             echo "### Test Results"
@@ -293,7 +293,7 @@ jobs:
             echo "- [PASS] Help output"
             echo "- [PASS] Security analysis execution"
           } >> $GITHUB_STEP_SUMMARY
-      
+
       - name: Generate checksums
         env:
           BASH_ENV: /dev/null
@@ -304,13 +304,13 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           cd iccanalyzer-lite
           sha256sum iccanalyzer-lite > SHA256SUMS
-          
+
           echo "=== SHA256 Checksums ==="
           cat SHA256SUMS
-          
+
           {
             echo ""
             echo "### SHA256 Checksums"
@@ -319,7 +319,7 @@ jobs:
             cat SHA256SUMS
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
@@ -330,7 +330,7 @@ jobs:
             iccanalyzer-lite/*.gcda
             iccanalyzer-lite/*.gcno
           retention-days: 30
-      
+
       - name: Generate build summary
         if: always()
         env:
@@ -342,7 +342,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           {
             echo ""
             echo "---"

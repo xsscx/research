@@ -389,11 +389,11 @@ int RunHeuristic_H106_EnvVar(CIccProfile *pIcc) {
     hc.info("      Spectral viewing conditions:");
     hc.info("        Illuminant type: 0x%08X", (unsigned)pSvc->getStdIllumiant());
     hc.info("        Observer type: 0x%08X", (unsigned)pSvc->getStdObserver());
-    
+
     // Use getIlluminant() which takes icSpectralRange& output
     icSpectralRange illumRange = {};
     const icFloatNumber *pIllumData = pSvc->getIlluminant(illumRange);
-    
+
     if (illumRange.steps > 0 && pIllumData) {
       hc.info("        Illuminant range: %.0f–%.0f nm, %u steps",
              (double)SafeF16ToF(illumRange.start), (double)SafeF16ToF(illumRange.end),
