@@ -86,13 +86,19 @@ Build-target artifacts are written to:
 
 On the current corpus and generated image smoke:
 
-- raw ICC parity: `delta = 0`, `knownGap = 0`
+- raw ICC parity: `delta = 0`, `knownGap = 0`, `coverageImprovement = 17`
 - image outer parity: `delta = 0`
 - embedded raw parity: `delta = 0`, `knownGap = 0`
 - generated PNG/JPEG embedded-ICC smoke: pass
   Container-open parity and embedded-profile-presence parity both match for the generated PNG/JPEG samples, and the extracted embedded ICC profiles also pass raw parity (`delta = 0`).
 - PAWG verifier: pass
-- unit tests: `1663/1663 passed`
+- unit tests: `1822/1822 passed`
+
+The unit-test binary now resolves shared repo fixtures consistently whether it is
+launched from the monorepo root, `iccanalyzer-lite/`, or `icctest/build/`.
+The raw-parity summary still carries `quarantined` buckets for intentionally
+suppressed V1/V2 collision cases, but there are no remaining `knownGap` or
+TODO-backed exact-port parity gaps.
 
 ## CI Notes
 

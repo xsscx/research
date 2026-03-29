@@ -12,6 +12,9 @@ add_executable(icctest_unit_tests
     test_main.cpp
 )
 
+get_filename_component(ICCTEST_ANALYZER_SOURCE_ROOT "${PROJECT_SOURCE_DIR}/.." ABSOLUTE)
+get_filename_component(ICCTEST_MONOREPO_SOURCE_ROOT "${PROJECT_SOURCE_DIR}/../.." ABSOLUTE)
+
 # Use --whole-archive to force inclusion of all static initializers
 # (REGISTER_HEURISTIC macros in check .cpp files).
 target_link_libraries(icctest_unit_tests PRIVATE
@@ -21,6 +24,12 @@ target_include_directories(icctest_unit_tests PRIVATE
     ${ICCDEV_ROOT}/IccProfLib
     ${ICCDEV_ROOT}/IccXML/IccLibXML
     /usr/include/libxml2
+)
+
+target_compile_definitions(icctest_unit_tests PRIVATE
+    ICCTEST_PROJECT_SOURCE_ROOT="${PROJECT_SOURCE_DIR}"
+    ICCTEST_ANALYZER_SOURCE_ROOT="${ICCTEST_ANALYZER_SOURCE_ROOT}"
+    ICCTEST_MONOREPO_SOURCE_ROOT="${ICCTEST_MONOREPO_SOURCE_ROOT}"
 )
 
 # Sanitizer flags for tests

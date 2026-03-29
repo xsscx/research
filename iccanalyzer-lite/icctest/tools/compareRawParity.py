@@ -483,9 +483,14 @@ def heuristic_fixture_coverage_improvement(
     if input_path.name == "gbd_tary_signed_channel_wrap.icc":
         gbd_ids = {
             "H20",
+            "H74",
             "H32",
             "H93",
+            "H107",
+            "H110",
             "H111",
+            "H116",
+            "H117",
             "H123",
             "H127",
             "H128",
@@ -970,6 +975,7 @@ def main() -> int:
             "Conformance V1 ok versus V2 finding is normalized as advisory_match when every V2 finding is INFO/LOW, reflecting legacy informational notes that V1 did not treat as failing status.",
             "V1 heuristic H151 is synthesized from the composite H37 JSON output because the V1 binary does not emit a standalone H151 record.",
             "V1 heuristic export omissions on early-rejected raw inputs are normalized as export_omission_match for H111/H142-H146 when V2 reports clean ok/no-findings.",
+            "The nested GBD quarantine fixture can be normalized as coverageImprovement when V2 adds raw-scan findings that V1 never surfaced on that PoC.",
             "Heuristic collision IDs are quarantined using heuristic-remap.tsv.",
             "TODO-backed V2 heuristic ports are downgraded to known gaps instead of ordinary parity deltas.",
             "Named spectral H98 fixtures can be normalized as coverageImprovement when V1 intentionally gaps out but V2 adds raw defensive coverage for that specific PoC.",

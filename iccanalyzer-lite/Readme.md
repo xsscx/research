@@ -1,6 +1,6 @@
 ## iccAnalyzer-lite
 
-Last Updated: 2026-03-22 17:00:00 UTC
+Last Updated: 2026-03-29 19:00:00 UTC
 
 tl;dr ICC Profile Security Analyzer — 173 heuristics (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H173 CodeQL-driven), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
 
@@ -35,8 +35,9 @@ The V2 rewrite lives under `icctest/`.
 - Build and registry/unit validation are documented in `icctest/README.md`.
 - The parity harness for V1 vs V2 alignment is also documented there.
 - Current parity state on the in-repo corpus is closed:
-  - raw ICC parity: `delta = 0`
+  - raw ICC parity: `delta = 0`, `knownGap = 0`
   - image/container parity: `delta = 0`
+  - current V2 unit baseline: `1822/1822 passed`
 
 ### Heuristic Modules (8 files)
 
