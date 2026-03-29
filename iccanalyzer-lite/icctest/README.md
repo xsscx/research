@@ -33,6 +33,8 @@ Registered tests:
 - `icctest_verify_pawg`
 - `icctest_verify_parity`
 - `icctest_generated_image_smoke`
+- `icctest_verify_cli_sandbox`
+- `icctest_verify_parity_tooling`
 
 Native PAWG report parity smoke:
 
@@ -84,12 +86,13 @@ Build-target artifacts are written to:
 
 On the current corpus and generated image smoke:
 
-- raw ICC parity: `delta = 0`
+- raw ICC parity: `delta = 0`, `knownGap = 0`
 - image outer parity: `delta = 0`
-- embedded raw parity: `delta = 0`
+- embedded raw parity: `delta = 0`, `knownGap = 0`
 - generated PNG/JPEG embedded-ICC smoke: pass
+  Container-open parity and embedded-profile-presence parity both match for the generated PNG/JPEG samples, and the extracted embedded ICC profiles also pass raw parity (`delta = 0`).
 - PAWG verifier: pass
-- unit tests: `647/647 passed`
+- unit tests: `1663/1663 passed`
 
 ## CI Notes
 
@@ -119,7 +122,8 @@ env -u LD_LIBRARY_PATH \
 
 ## Notes
 
-- The heuristic remap used for collision and TODO quarantine lives in `icctest/tools/heuristic-remap.tsv`.
+- The heuristic remap used for collision handling and parity mapping lives in `icctest/tools/heuristic-remap.tsv`.
+- Generated PNG/JPEG smoke is intentionally narrower than TIFF outer-image parity: it validates container-open parity, embedded-profile-presence parity, and parity of the extracted embedded ICC payload.
 - CTest and the verifier force `ASAN_OPTIONS=detect_leaks=0` because LSAN can
   abort under the harness execution environment even when the suite itself
   passes. Do not rely on `setdefault()` alone if a parent environment may

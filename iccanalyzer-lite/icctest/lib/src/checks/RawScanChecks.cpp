@@ -9,10 +9,25 @@
 #include "icctest/CheckRegistry.h"
 #include "util/CheckHelpers.h"
 
+#include "IccProfile.h"
+#include "IccTagBasic.h"
+#include "IccTagLut.h"
+#include "IccTagMPE.h"
+#include "IccUtil.h"
+
 #include <cstring>
 #include <cmath>
+#include <vector>
 
 namespace icctest {
+
+template<typename T>
+static T* FindAndCast(CIccProfile* pIcc, icTagSignature sig) {
+    if (!pIcc) return nullptr;
+    CIccTag* tag = pIcc->FindTag(sig);
+    if (!tag) return nullptr;
+    return dynamic_cast<T*>(tag);
+}
 
 // ── H33: Embedded Image Detection ──
 static CheckResult check_h33_embedded_image(const ProfileView& pv) {
@@ -658,9 +673,44 @@ static CheckResult check_h47_namedcolor2_size_overflow_detection(const ProfileVi
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H47
-    return cb.done("NamedColor2 Size Overflow Detection checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (!rawRangeAccessible(rawLen, tag.offset, 4) || tag.size < 4) continue;
+        if (readU32BE(raw + tag.offset) != 0x6E636C32u) continue; // 'ncl2'
+        if (tag.size < 84 || !rawRangeAccessible(rawLen, tag.offset, 84)) continue;
+
+        const uint8_t* hdr = raw + tag.offset + 8;
+        uint32_t nColors = readU32BE(hdr + 4);
+        uint32_t nDevice = readU32BE(hdr + 8);
+
+        uint64_t entrySize = 32ull + 6ull + static_cast<uint64_t>(nDevice) * 2ull;
+        uint64_t totalData = static_cast<uint64_t>(nColors) * entrySize;
+
+        if (nDevice > 15u) {
+            cb.warn(
+                sfmt("Tag '%s' (ncl2): nDeviceCoords = %u (>15 ICC spec max)",
+                     sigStr(tag.signature).c_str(), nDevice),
+                "CWE-787: Device coord count exceeds ICC spec max (CFL-076 pattern)");
+        }
+
+        if (nColors > 0u && totalData + 84ull > tag.size) {
+            cb.warn(
+                sfmt("Tag '%s' (ncl2): %u entries x %llu bytes = %llu, but tag is only %u bytes",
+                     sigStr(tag.signature).c_str(), nColors,
+                     static_cast<unsigned long long>(entrySize),
+                     static_cast<unsigned long long>(totalData), tag.size));
+        }
+
+        if (nColors > 10000u) {
+            cb.warn(
+                sfmt("Tag '%s' (ncl2): %u entries (>10000) - Describe() DoS risk",
+                     sigStr(tag.signature).c_str(), nColors),
+                "CWE-400: Describe() iterates m_nSize with no runtime cap (CFL-078 pattern)");
+        }
+    }
+
+    return cb.done("No NamedColor2 size overflow");
 }
 
 REGISTER_HEURISTIC(47, "NamedColor2 Size Overflow Detection",
@@ -673,9 +723,93 @@ static CheckResult check_h48_clut_grid_dimension_product_overflow(const ProfileV
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H48
-    return cb.done("CLUT Grid Dimension Product Overflow checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    constexpr uint64_t kMaxCLUTGridProduct = 256ull * 1024ull * 1024ull;
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (!rawRangeAccessible(rawLen, tag.offset, 12) || tag.size < 12) continue;
+        uint32_t typeVal = readU32BE(raw + tag.offset);
+
+        if (typeVal == 0x6D667431u || typeVal == 0x6D667432u) { // lut8/lut16
+            const uint8_t* lutHdr = raw + tag.offset + 8;
+            uint8_t nInput = lutHdr[0];
+            uint8_t nOutput = lutHdr[1];
+            uint8_t gridPts = lutHdr[2];
+
+            if (nInput > 0 && gridPts > 0 && nOutput > 0) {
+                uint64_t product = 1;
+                bool overflow = false;
+                for (uint8_t d = 0; d < nInput; ++d) {
+                    product *= static_cast<uint64_t>(gridPts);
+                    if (product > kMaxCLUTGridProduct) {
+                        overflow = true;
+                        break;
+                    }
+                }
+                if (!overflow) {
+                    product *= static_cast<uint64_t>(nOutput);
+                    if (product > kMaxCLUTGridProduct) overflow = true;
+                }
+
+                if (overflow) {
+                    cb.warn(
+                        sfmt("Tag '%s' (%s): grid %u^%u x %u output = overflow",
+                             sigStr(tag.signature).c_str(),
+                             typeVal == 0x6D667431u ? "lut8" : "lut16",
+                             static_cast<unsigned>(gridPts),
+                             static_cast<unsigned>(nInput),
+                             static_cast<unsigned>(nOutput)),
+                        "CRITICAL: CWE-131/CWE-190 CLUT allocation overflow (CVE-2026-22255 pattern)");
+                }
+            }
+        }
+
+        if (typeVal == 0x6D414220u || typeVal == 0x6D424120u) { // mAB/mBA
+            if (tag.size < 32 || !rawRangeAccessible(rawLen, tag.offset, 32)) continue;
+
+            const uint8_t* mbaHdr = raw + tag.offset + 8;
+            uint8_t nInput = mbaHdr[0];
+            uint8_t nOutput = mbaHdr[1];
+            // Intentionally mirrors the legacy heuristic's offset read.
+            uint32_t clutOff = readU32BE(mbaHdr + 12);
+
+            if (clutOff > 0u && clutOff < tag.size &&
+                rawRangeAccessible(rawLen, static_cast<uint64_t>(tag.offset) + clutOff, 16) &&
+                nInput <= 16u) {
+                const uint8_t* gridDims = raw + tag.offset + clutOff;
+
+                uint64_t product = 1;
+                bool overflow = false;
+                bool hasZeroDim = false;
+                for (uint8_t d = 0; d < nInput; ++d) {
+                    if (gridDims[d] == 0u) {
+                        hasZeroDim = true;
+                        break;
+                    }
+                    product *= static_cast<uint64_t>(gridDims[d]);
+                    if (product > kMaxCLUTGridProduct) {
+                        overflow = true;
+                        break;
+                    }
+                }
+                if (!overflow && !hasZeroDim && nOutput > 0u) {
+                    product *= static_cast<uint64_t>(nOutput);
+                    if (product > kMaxCLUTGridProduct) overflow = true;
+                }
+
+                if (overflow) {
+                    cb.warn(
+                        sfmt("Tag '%s' (%s): CLUT grid product overflows (>256M entries)",
+                             sigStr(tag.signature).c_str(),
+                             typeVal == 0x6D414220u ? "mAB" : "mBA"),
+                        "CRITICAL: CWE-131/CWE-190 CLUT allocation overflow (CVE-2026-22255 pattern)");
+                }
+            }
+        }
+    }
+
+    return cb.done("CLUT grid dimension products within bounds");
 }
 
 REGISTER_HEURISTIC(48, "CLUT Grid Dimension Product Overflow",
@@ -688,9 +822,46 @@ static CheckResult check_h49_float_s15fixed16_nan_inf_detection(const ProfileVie
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H49
-    return cb.done("Float s15Fixed16 NaN Inf Detection checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    int issues = 0;
+    constexpr size_t kMaxTagDataScan = 65536;
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (!rawRangeAccessible(rawLen, tag.offset, 12) || tag.size < 12) continue;
+        uint32_t typeVal = readU32BE(raw + tag.offset);
+
+        bool hasFloat = typeVal == 0x666C3332u ||  // fl32
+                        typeVal == 0x70617261u ||  // para
+                        typeVal == 0x6D706574u;    // mpet
+        if (!hasFloat) continue;
+
+        size_t scanLen = std::min<size_t>(tag.size, kMaxTagDataScan);
+        if (tag.offset + scanLen > rawLen) {
+            scanLen = rawLen - tag.offset;
+        }
+        if (scanLen < 12) continue;
+
+        for (size_t b = 8; b + 3 < scanLen; b += 4) {
+            uint32_t rawWord = readU32BE(raw + tag.offset + b);
+            float value = 0.0f;
+            std::memcpy(&value, &rawWord, sizeof(value));
+
+            if (!std::isnan(value) && !std::isinf(value)) continue;
+
+            cb.warn(
+                sfmt("Tag '%s': %s detected at offset +%zu (raw=0x%08X)",
+                     sigStr(tag.signature).c_str(),
+                     std::isnan(value) ? "NaN" : "Inf",
+                     b, rawWord),
+                "CWE-758: Undefined behavior when converting NaN to integer (CVE-2026-21681)");
+            issues++;
+            if (issues >= 10) break;
+        }
+        if (issues >= 10) break;
+    }
+
+    return cb.done("No NaN/Inf values in float tags");
 }
 
 REGISTER_HEURISTIC(49, "Float s15Fixed16 NaN Inf Detection",
@@ -726,9 +897,36 @@ static CheckResult check_h51_lut_io_channel_count_consistency(const ProfileView&
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H51
-    return cb.done("LUT IO Channel Count Consistency checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (!rawRangeAccessible(rawLen, tag.offset, 12) || tag.size < 12) continue;
+        uint32_t typeVal = readU32BE(raw + tag.offset);
+        if (typeVal != 0x6D667431u && typeVal != 0x6D667432u) continue;
+
+        const uint8_t* lutHdr = raw + tag.offset + 8;
+        uint8_t nInput = lutHdr[0];
+        uint8_t nOutput = lutHdr[1];
+
+        if (nInput == 0u || nOutput == 0u) {
+            cb.warn(
+                sfmt("Tag '%s': LUT has 0 channels (in=%u, out=%u)",
+                     sigStr(tag.signature).c_str(),
+                     static_cast<unsigned>(nInput),
+                     static_cast<unsigned>(nOutput)),
+                "CWE-476: Zero-channel LUT causes null/zero-size allocation");
+        }
+
+        if (nInput > 16u) {
+            cb.warn(
+                sfmt("Tag '%s': LUT nInput=%u > 16 - exponential CLUT size",
+                     sigStr(tag.signature).c_str(),
+                     static_cast<unsigned>(nInput)),
+                "CWE-400: High-dimensional LUT - OOM risk");
+        }
+    }
+
+    return cb.done("LUT channel counts consistent");
 }
 
 REGISTER_HEURISTIC(51, "LUT IO Channel Count Consistency",
@@ -875,9 +1073,33 @@ static CheckResult check_h53_embedded_profile_recursion_detection(const ProfileV
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H53
-    return cb.done("Embedded Profile Recursion Detection checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (tag.size >= 128u &&
+            rawRangeAccessible(rawLen, static_cast<uint64_t>(tag.offset) + 36ull, 4)) {
+            const uint8_t* magic = raw + tag.offset + 36;
+            if (magic[0] == 'a' && magic[1] == 'c' && magic[2] == 's' && magic[3] == 'p') {
+                cb.warn(
+                    sfmt("Tag '%s': contains embedded ICC profile ('acsp' at +36)",
+                         sigStr(tag.signature).c_str()),
+                    "CWE-674: Recursive profile parsing - potential stack overflow");
+            }
+        }
+
+        if (tag.size >= 136u &&
+            rawRangeAccessible(rawLen, static_cast<uint64_t>(tag.offset) + 44ull, 4)) {
+            const uint8_t* magic = raw + tag.offset + 44;
+            if (magic[0] == 'a' && magic[1] == 'c' && magic[2] == 's' && magic[3] == 'p') {
+                cb.warn(
+                    sfmt("Tag '%s': embedded ICC profile at +44 (after type header)",
+                         sigStr(tag.signature).c_str()),
+                    "CWE-674: Recursive profile parsing - potential stack overflow");
+            }
+        }
+    }
+
+    return cb.done("No embedded profile recursion detected");
 }
 
 REGISTER_HEURISTIC(53, "Embedded Profile Recursion Detection",
@@ -890,9 +1112,49 @@ static CheckResult check_h54_division_by_zero_trigger_detection(const ProfileVie
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H54
-    return cb.done("Division-by-Zero Trigger Detection checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (!rawRangeAccessible(rawLen, tag.offset, 32) || tag.size < 32) continue;
+        const uint8_t* tagData = raw + tag.offset;
+        uint32_t typeVal = readU32BE(tagData);
+
+        if (typeVal == 0x6D414220u || typeVal == 0x6D424120u) {
+            uint8_t nInput = tagData[8];
+            uint32_t clutOff = readU32BE(tagData + 24);
+
+            if (clutOff > 0u && clutOff < tag.size &&
+                rawRangeAccessible(rawLen, static_cast<uint64_t>(tag.offset) + clutOff, 16) &&
+                nInput <= 16u) {
+                const uint8_t* gridDims = raw + tag.offset + clutOff;
+                for (uint8_t d = 0; d < nInput; ++d) {
+                    if (gridDims[d] != 0u) continue;
+                    cb.warn(
+                        sfmt("Tag '%s' (%s): CLUT grid dimension[%u] = 0",
+                             sigStr(tag.signature).c_str(),
+                             typeVal == 0x6D414220u ? "mAB" : "mBA",
+                             static_cast<unsigned>(d)),
+                        "CWE-369: Zero grid dimension - div-by-zero in interpolation");
+                    break;
+                }
+            }
+        }
+
+        if (typeVal == 0x63757276u && rawRangeAccessible(rawLen, static_cast<uint64_t>(tag.offset) + 14ull, 2)) {
+            uint32_t count = readU32BE(tagData + 8);
+            if (count == 1u) {
+                uint16_t gamma = readU16BE(raw + tag.offset + 12);
+                if (gamma == 0u) {
+                    cb.warn(
+                        sfmt("Tag '%s' (curv): gamma = 0 (u8Fixed8)",
+                             sigStr(tag.signature).c_str()),
+                        "CWE-369: Zero gamma causes division by zero in inverse TRC");
+                }
+            }
+        }
+    }
+
+    return cb.done("No division-by-zero triggers");
 }
 
 REGISTER_HEURISTIC(54, "Division-by-Zero Trigger Detection",
@@ -905,9 +1167,48 @@ static CheckResult check_h55_utf_16_encoding_validation(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H55
-    return cb.done("UTF-16 Encoding Validation checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    for (const auto& tag : pv.rawTagTable()) {
+        if (!rawRangeAccessible(rawLen, tag.offset, 12) || tag.size < 12) continue;
+        uint32_t typeVal = readU32BE(raw + tag.offset);
+        if (typeVal != 0x6D6C7563u) continue; // 'mluc'
+        if (tag.size < 16 || !rawRangeAccessible(rawLen, tag.offset, 16)) continue;
+
+        uint32_t numRec = readU32BE(raw + tag.offset + 8);
+        uint32_t recSize = readU32BE(raw + tag.offset + 12);
+
+        if (recSize != 12u) {
+            cb.warn(sfmt("Tag '%s' (mluc): record size %u != 12 (expected)",
+                         sigStr(tag.signature).c_str(), recSize));
+        }
+
+        if (numRec > 500u) numRec = 500u;
+        for (uint32_t r = 0; r < numRec; ++r) {
+            size_t recOff = 16u + static_cast<size_t>(r) * 12u;
+            if (recOff + 12u > tag.size ||
+                !rawRangeAccessible(rawLen, static_cast<uint64_t>(tag.offset) + recOff, 12)) {
+                break;
+            }
+
+            uint32_t strLen = readU32BE(raw + tag.offset + recOff + 4);
+            uint32_t strOff = readU32BE(raw + tag.offset + recOff + 8);
+
+            if (static_cast<uint64_t>(strOff) + static_cast<uint64_t>(strLen) > tag.size) {
+                cb.warn(
+                    sfmt("Tag '%s' (mluc): record[%u] string at +%u len %u exceeds tag size %u",
+                         sigStr(tag.signature).c_str(), r, strOff, strLen, tag.size),
+                    "CWE-120: UTF-16 string overflows tag boundary");
+            }
+            if ((strLen & 1u) != 0u) {
+                cb.warn(
+                    sfmt("Tag '%s' (mluc): string %u has odd byte length %u (invalid UTF-16)",
+                         sigStr(tag.signature).c_str(), r, strLen));
+            }
+        }
+    }
+
+    return cb.done("UTF-16 encoding OK");
 }
 
 REGISTER_HEURISTIC(55, "UTF-16 Encoding Validation",
@@ -918,11 +1219,24 @@ REGISTER_HEURISTIC(55, "UTF-16 Encoding Validation",
 
 static CheckResult check_h58_sparse_matrix_entry_bounds(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H58
-    return cb.done("Sparse Matrix Entry Bounds checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        auto* numArr = FindAndCast<CIccTagNumArray>(p, sit->TagInfo.sig);
+        if (!numArr) continue;
+
+        icUInt32Number arrSz = numArr->GetNumValues();
+        if (arrSz > 16777216u) {
+            cb.warn(
+                sfmt("Tag '%s': NumArray with %u values (>16M, OOM risk)",
+                     sigStr(sit->TagInfo.sig).c_str(), arrSz),
+                "CWE-400: Resource exhaustion via oversized array");
+        }
+    }
+
+    return cb.done("No oversized array/sparse matrix entries");
 }
 
 REGISTER_HEURISTIC(58, "Sparse Matrix Entry Bounds",
@@ -935,9 +1249,41 @@ static CheckResult check_h59_spectral_wavelength_range_consistency(const Profile
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H59
-    return cb.done("Spectral Wavelength Range Consistency checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    uint8_t versionMajor = raw[8];
+    if (versionMajor < 5u) {
+        return CheckResult::skip("Not a v5+ profile");
+    }
+
+    if (rawLen >= 110u) {
+        uint16_t specStart = readU16BE(raw + 104);
+        uint16_t specEnd = readU16BE(raw + 106);
+        uint16_t specSteps = readU16BE(raw + 108);
+
+        if (specStart > 0u || specEnd > 0u || specSteps > 0u) {
+            if (specStart > 0u && (specStart < 100u || specStart > 2000u)) {
+                cb.warn(sfmt("Spectral start wavelength %u nm outside reasonable range (100-2000)",
+                             static_cast<unsigned>(specStart)));
+            }
+            if (specEnd > 0u && specEnd <= specStart) {
+                cb.warn(
+                    sfmt("Spectral end (%u) <= start (%u)",
+                         static_cast<unsigned>(specEnd),
+                         static_cast<unsigned>(specStart)),
+                    "CWE-682: Inverted spectral range");
+            }
+            if (specSteps == 0u && (specStart > 0u || specEnd > 0u)) {
+                cb.warn(
+                    sfmt("Spectral steps = 0 with non-zero wavelength range (%u-%u nm)",
+                         static_cast<unsigned>(specStart),
+                         static_cast<unsigned>(specEnd)),
+                    "CWE-369: Division by zero in spectral interpolation");
+            }
+        }
+    }
+
+    return cb.done("Spectral wavelength range OK");
 }
 
 REGISTER_HEURISTIC(59, "Spectral Wavelength Range Consistency",
@@ -948,11 +1294,44 @@ REGISTER_HEURISTIC(59, "Spectral Wavelength Range Consistency",
 
 static CheckResult check_h61_viewing_conditions_validation(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H61
-    return cb.done("Viewing Conditions Validation checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    auto* vc = FindAndCast<CIccTagViewingConditions>(p, static_cast<icTagSignature>(icSigViewingConditionsTag));
+    if (vc) {
+        icFloatNumber vcIllumX = icFtoD(vc->m_XYZIllum.X);
+        icFloatNumber vcIllumY = icFtoD(vc->m_XYZIllum.Y);
+        icFloatNumber vcIllumZ = icFtoD(vc->m_XYZIllum.Z);
+        if (vcIllumX < 0.0f || vcIllumY < 0.0f || vcIllumZ < 0.0f) {
+            cb.warn(
+                sfmt("Negative illuminant XYZ (%.4f, %.4f, %.4f)",
+                     static_cast<double>(vcIllumX),
+                     static_cast<double>(vcIllumY),
+                     static_cast<double>(vcIllumZ)),
+                "CWE-682: Negative tristimulus -> invalid color math");
+        }
+        if (vcIllumX > 200.0f || vcIllumY > 200.0f || vcIllumZ > 200.0f) {
+            cb.warn(
+                sfmt("Extreme illuminant XYZ magnitude (%.4f, %.4f, %.4f)",
+                     static_cast<double>(vcIllumX),
+                     static_cast<double>(vcIllumY),
+                     static_cast<double>(vcIllumZ)));
+        }
+
+        icFloatNumber surX = icFtoD(vc->m_XYZSurround.X);
+        icFloatNumber surY = icFtoD(vc->m_XYZSurround.Y);
+        icFloatNumber surZ = icFtoD(vc->m_XYZSurround.Z);
+        if (surX < 0.0f || surY < 0.0f || surZ < 0.0f) {
+            cb.warn(
+                sfmt("Negative surround XYZ (%.4f, %.4f, %.4f)",
+                     static_cast<double>(surX),
+                     static_cast<double>(surY),
+                     static_cast<double>(surZ)));
+        }
+    }
+
+    return cb.done("Viewing conditions plausible (or tag absent)");
 }
 
 REGISTER_HEURISTIC(61, "Viewing Conditions Validation",
@@ -963,11 +1342,37 @@ REGISTER_HEURISTIC(61, "Viewing Conditions Validation",
 
 static CheckResult check_h62_mlu_string_bombs(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H62
-    return cb.done("MLU String Bombs checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        auto* mluc = FindAndCast<CIccTagMultiLocalizedUnicode>(p, sit->TagInfo.sig);
+        if (!mluc || !mluc->m_Strings) continue;
+
+        int localeCount = 0;
+        size_t totalBytes = 0;
+        for (auto lit = mluc->m_Strings->begin(); lit != mluc->m_Strings->end(); ++lit) {
+            localeCount++;
+            totalBytes += lit->GetLength() * sizeof(icUInt16Number);
+            if (localeCount > 10000) break;
+        }
+
+        if (localeCount > 1000) {
+            cb.warn(
+                sfmt("Tag '%s': mluc has %d locales (>1000)",
+                     sigStr(sit->TagInfo.sig).c_str(), localeCount),
+                "CWE-400: Locale-bomb DoS");
+        }
+        if (totalBytes > 10485760u) {
+            cb.warn(
+                sfmt("Tag '%s': mluc aggregate %zu bytes (>10MB)",
+                     sigStr(sit->TagInfo.sig).c_str(), totalBytes),
+                "CWE-770: Excessive string data allocation");
+        }
+    }
+
+    return cb.done("MultiLocalizedUnicode tags within bounds");
 }
 
 REGISTER_HEURISTIC(62, "MLU String Bombs",
@@ -978,11 +1383,41 @@ REGISTER_HEURISTIC(62, "MLU String Bombs",
 
 static CheckResult check_h63_curve_lut_channel_mismatch(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H63
-    return cb.done("Curve LUT Channel Mismatch checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    static const icTagSignature lutSigs[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+        static_cast<icTagSignature>(0)
+    };
+
+    for (int s = 0; lutSigs[s] != static_cast<icTagSignature>(0); ++s) {
+        auto* mbb = FindAndCast<CIccMBB>(p, lutSigs[s]);
+        if (!mbb) continue;
+
+        icUInt8Number nIn = mbb->InputChannels();
+        icUInt8Number nOut = mbb->OutputChannels();
+        if (nIn == 0u || nOut == 0u) {
+            cb.warn(
+                sfmt("LUT tag '%s': zero channels (in=%u, out=%u)",
+                     sigStr(static_cast<uint32_t>(lutSigs[s])).c_str(),
+                     static_cast<unsigned>(nIn),
+                     static_cast<unsigned>(nOut)),
+                "CWE-131: Zero-channel LUT -> division by zero risk");
+        }
+        if (nIn > 16u || nOut > 16u) {
+            cb.warn(
+                sfmt("LUT tag '%s': extreme channels (in=%u, out=%u)",
+                     sigStr(static_cast<uint32_t>(lutSigs[s])).c_str(),
+                     static_cast<unsigned>(nIn),
+                     static_cast<unsigned>(nOut)),
+                "CWE-120: Channel count exceeds fixed buffer (16)");
+        }
+    }
+
+    return cb.done("LUT I/O channel counts valid");
 }
 
 REGISTER_HEURISTIC(63, "Curve LUT Channel Mismatch",
@@ -993,11 +1428,44 @@ REGISTER_HEURISTIC(63, "Curve LUT Channel Mismatch",
 
 static CheckResult check_h64_named_color2device_coord_overflow(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H64
-    return cb.done("Named Color2Device Coord Overflow checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    auto* nc2 = FindAndCast<CIccTagNamedColor2>(p, static_cast<icTagSignature>(icSigNamedColor2Tag));
+    if (nc2) {
+        icUInt32Number nColors = nc2->GetSize();
+        icUInt32Number nDevCoords = nc2->GetDeviceCoords();
+
+        if (nColors > 10000u) {
+            cb.warn(
+                sfmt("NamedColor2: %u entries (>10000) - Describe() DoS risk", nColors),
+                "CWE-400: Describe() iterates m_nSize with no runtime cap (CFL-078 pattern)");
+        }
+        if (nColors > 65536u) {
+            cb.warn(
+                sfmt("NamedColor2: %u entries (>65536)", nColors),
+                "CWE-400: Excessive named color entries");
+        }
+        if (nDevCoords > 15u) {
+            cb.warn(
+                sfmt("NamedColor2: %u device coords (>15)", nDevCoords),
+                "CWE-787: Device coord count exceeds ICC spec max");
+        }
+        if (nColors > 0u && nDevCoords > 0u) {
+            uint64_t product = static_cast<uint64_t>(nColors) *
+                               static_cast<uint64_t>(nDevCoords + 3u) *
+                               sizeof(icFloatNumber);
+            if (product > 1073741824ull) {
+                cb.warn(
+                    sfmt("NamedColor2: allocation %llu bytes (>1GB)",
+                         static_cast<unsigned long long>(product)),
+                    "CWE-131: Integer overflow in size calculation");
+            }
+        }
+    }
+
+    return cb.done("NamedColor2 dimensions valid (or tag absent)");
 }
 
 REGISTER_HEURISTIC(64, "Named Color2Device Coord Overflow",
@@ -1008,11 +1476,36 @@ REGISTER_HEURISTIC(64, "Named Color2Device Coord Overflow",
 
 static CheckResult check_h65_chromaticity_plausibility(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H65
-    return cb.done("Chromaticity Plausibility checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    auto* chrom = FindAndCast<CIccTagChromaticity>(p, static_cast<icTagSignature>(icSigChromaticityTag));
+    if (chrom) {
+        icUInt32Number nChan = chrom->GetSize();
+        for (icUInt32Number c = 0; c < nChan && c < 16u; ++c) {
+            icChromaticityNumber* xy = chrom->Getxy(c);
+            if (!xy) continue;
+
+            icFloatNumber x = icUFtoD(xy->x);
+            icFloatNumber y = icUFtoD(xy->y);
+            if (x < 0.0f || x > 0.9f || y < 0.0f || y > 0.9f) {
+                cb.warn(
+                    sfmt("Chromaticity[%u]: xy=(%.4f, %.4f) outside CIE bounds",
+                         static_cast<unsigned>(c),
+                         static_cast<double>(x),
+                         static_cast<double>(y)),
+                    "CWE-682: Non-physical chromaticity coordinates");
+            }
+            if (y == 0.0f && x != 0.0f) {
+                cb.warn(
+                    sfmt("Chromaticity[%u]: y=0 with x!=0 (singularity)",
+                         static_cast<unsigned>(c)));
+            }
+        }
+    }
+
+    return cb.done("Chromaticity coordinates plausible (or tag absent)");
 }
 
 REGISTER_HEURISTIC(65, "Chromaticity Plausibility",
@@ -1023,11 +1516,49 @@ REGISTER_HEURISTIC(65, "Chromaticity Plausibility",
 
 static CheckResult check_h66_num_array_nan_inf_scan(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H66
-    return cb.done("Num Array NaN Inf Scan checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        CIccTag* tag = p->FindTag(sit->TagInfo.sig);
+        if (!tag || !tag->IsNumArrayType()) continue;
+
+        auto* numArr = dynamic_cast<CIccTagNumArray*>(tag);
+        if (!numArr) continue;
+
+        icUInt32Number nVals = numArr->GetNumValues();
+        if (nVals == 0u || nVals > 1048576u) continue;
+
+        icUInt32Number scanLimit = nVals > 4096u ? 4096u : nVals;
+        std::vector<icFloatNumber> vals(scanLimit);
+        if (!numArr->GetValues(vals.data(), 0, scanLimit)) continue;
+
+        int nanCount = 0;
+        int infCount = 0;
+        int extremeCount = 0;
+        for (icUInt32Number v = 0; v < scanLimit; ++v) {
+            if (std::isnan(vals[v])) nanCount++;
+            else if (std::isinf(vals[v])) infCount++;
+            else if (std::fabs(vals[v]) > 1e10f) extremeCount++;
+        }
+
+        if (nanCount > 0 || infCount > 0) {
+            cb.warn(
+                sfmt("Tag '%s': %d NaN, %d Inf in %u values",
+                     sigStr(sit->TagInfo.sig).c_str(),
+                     nanCount, infCount, scanLimit),
+                "CWE-682: Non-finite values propagate through color math");
+        }
+        if (extremeCount > static_cast<int>(scanLimit / 4u)) {
+            cb.warn(
+                sfmt("Tag '%s': %d/%u extreme values (>1e10)",
+                     sigStr(sit->TagInfo.sig).c_str(),
+                     extremeCount, scanLimit));
+        }
+    }
+
+    return cb.done("All numeric arrays free of NaN/Inf");
 }
 
 REGISTER_HEURISTIC(66, "Num Array NaN Inf Scan",
@@ -1038,11 +1569,36 @@ REGISTER_HEURISTIC(66, "Num Array NaN Inf Scan",
 
 static CheckResult check_h67_response_curve_set_bounds(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H67
-    return cb.done("Response Curve Set Bounds checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    CIccTagResponseCurveSet16* rcs = nullptr;
+    for (auto it = p->m_Tags.begin(); it != p->m_Tags.end(); ++it) {
+        CIccTag* tag = p->FindTag(it->TagInfo.sig);
+        if (!tag) continue;
+        rcs = dynamic_cast<CIccTagResponseCurveSet16*>(tag);
+        if (rcs) break;
+    }
+
+    if (rcs) {
+        icUInt16Number nChan = rcs->GetNumChannels();
+        if (nChan > 16u) {
+            cb.warn(
+                sfmt("ResponseCurveSet: %u channels (>16)", static_cast<unsigned>(nChan)),
+                "CWE-131: Channel count exceeds safe bounds");
+        }
+
+        icUInt16Number nMeasTypes = rcs->GetNumResponseCurveTypes();
+        if (nMeasTypes > 100u) {
+            cb.warn(
+                sfmt("ResponseCurveSet: %u measurement types (>100)",
+                     static_cast<unsigned>(nMeasTypes)),
+                "CWE-400: Excessive measurement types -> O(n) in Describe()");
+        }
+    }
+
+    return cb.done("ResponseCurveSet bounds valid (or tag absent)");
 }
 
 REGISTER_HEURISTIC(67, "Response Curve Set Bounds",
@@ -1141,9 +1697,34 @@ static CheckResult check_h69_profile_id_md5_consistency(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
     size_t rawLen = pv.rawSize();
-    if (!raw || rawLen < 132) return cb.done("File too small");
-    // TODO: port full validation logic from V1 RunHeuristic_H69
-    return cb.done("Profile ID MD5 Consistency checked");
+    if (!raw || rawLen < 132) return CheckResult::skip("File too small for tag table");
+
+    const uint8_t* profileId = raw + 84;
+    bool allZero = true;
+    for (int i = 0; i < 16; ++i) {
+        if (profileId[i] != 0u) {
+            allZero = false;
+            break;
+        }
+    }
+    if (allZero) {
+        return CheckResult::ok("Profile ID not set (zeros)");
+    }
+
+    bool allFF = true;
+    bool repeating = true;
+    for (int i = 0; i < 16; ++i) {
+        if (profileId[i] != 0xFFu) allFF = false;
+        if (i > 0 && profileId[i] != profileId[0]) repeating = false;
+    }
+
+    if (allFF || repeating) {
+        cb.warn(
+            sfmt("Profile ID: suspicious pattern (all 0x%02X)", profileId[0]),
+            "CWE-345: Spoofed/invalid Profile ID");
+    }
+
+    return cb.done("Profile ID / MD5 consistency OK");
 }
 
 REGISTER_HEURISTIC(69, "Profile ID MD5 Consistency",

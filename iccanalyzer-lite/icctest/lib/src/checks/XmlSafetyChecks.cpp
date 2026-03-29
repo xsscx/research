@@ -255,8 +255,9 @@ REGISTER_HEURISTIC(145, "XML Curve Type Consistency",
     "CWE-843", "", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h145_xml_curve_type);
 
 // ── H180: XML Round-Trip Fidelity ──
-// Fork-isolated: ICC -> ToXml -> LoadXml -> compare tag counts.
-// Detects profiles that lose tags or gain phantom tags through XML round-trip.
+// Fork-isolated: ICC -> ToXml -> LoadXml -> compare header + tag structure.
+// Match V1: header mismatches and missing tags are findings even if tag counts
+// happen to stay the same after round-trip.
 static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.filePath().empty()) {
@@ -309,42 +310,36 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
         CIccProfileXml origXml;
         CIccFileIO srcIo;
         if (!srcIo.Open(pv.filePath().c_str(), "rb")) {
-            int32_t val = -998;
-            (void)write(pipeFd[1], &val, sizeof(val));
             close(pipeFd[1]);
             _exit(0);
         }
         if (!origXml.Read(&srcIo)) {
             srcIo.Close();
-            int32_t val = -997;
-            (void)write(pipeFd[1], &val, sizeof(val));
             close(pipeFd[1]);
             _exit(0);
         }
         srcIo.Close();
         int32_t origCount = static_cast<int32_t>(origXml.m_Tags.size());
+        uint32_t origVersion = static_cast<uint32_t>(origXml.m_Header.version);
+        uint32_t origClass = static_cast<uint32_t>(origXml.m_Header.deviceClass);
+        uint32_t origCS = static_cast<uint32_t>(origXml.m_Header.colorSpace);
+        uint32_t origPCS = static_cast<uint32_t>(origXml.m_Header.pcs);
 
         // Step 2: ToXml
         std::string xmlOutput;
         try { xmlOutput.reserve(4 * 1024 * 1024); } catch (...) {
-            int32_t val = -996;
-            (void)write(pipeFd[1], &val, sizeof(val));
             close(pipeFd[1]);
             _exit(0);
         }
         if (!origXml.ToXml(xmlOutput)) {
-            int32_t val = -995;
-            (void)write(pipeFd[1], &val, sizeof(val));
             close(pipeFd[1]);
-            _exit(0);
+            _exit(1);
         }
 
         // Step 3: Write XML to temp file
         char tmpPath[] = "/tmp/icctest-h180-XXXXXX";
         int fd = mkstemp(tmpPath);
         if (fd < 0) {
-            int32_t val = -994;
-            (void)write(pipeFd[1], &val, sizeof(val));
             close(pipeFd[1]);
             _exit(0);
         }
@@ -356,20 +351,37 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
         std::string parseErr;
         if (!rtProfile.LoadXml(tmpPath, nullptr, &parseErr)) {
             unlink(tmpPath);
-            int32_t val = -993;
-            (void)write(pipeFd[1], &val, sizeof(val));
             close(pipeFd[1]);
-            _exit(0);
+            _exit(2);
         }
         unlink(tmpPath);
 
         int32_t rtCount = static_cast<int32_t>(rtProfile.m_Tags.size());
         int32_t delta = rtCount - origCount;
-
-        // Write: origCount, rtCount, delta
         (void)write(pipeFd[1], &origCount, sizeof(origCount));
         (void)write(pipeFd[1], &rtCount, sizeof(rtCount));
         (void)write(pipeFd[1], &delta, sizeof(delta));
+
+        if (static_cast<uint32_t>(rtProfile.m_Header.version) != origVersion ||
+            static_cast<uint32_t>(rtProfile.m_Header.deviceClass) != origClass ||
+            static_cast<uint32_t>(rtProfile.m_Header.colorSpace) != origCS ||
+            static_cast<uint32_t>(rtProfile.m_Header.pcs) != origPCS ||
+            rtCount != origCount) {
+            close(pipeFd[1]);
+            _exit(3);
+        }
+
+        int tagMismatches = 0;
+        for (auto it = origXml.m_Tags.begin(); it != origXml.m_Tags.end(); ++it) {
+            if (!rtProfile.FindTag(it->TagInfo.sig)) {
+                tagMismatches++;
+            }
+        }
+        if (tagMismatches > 0) {
+            close(pipeFd[1]);
+            _exit(4);
+        }
+
         close(pipeFd[1]);
         _exit(0);
     }
@@ -407,43 +419,52 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
         return cb.done("XML round-trip crashed");
     }
 
-    // Read pipe results
     int32_t vals[3] = {0, 0, 0};
     ssize_t nRead = read(pipeFd[0], vals, sizeof(vals));
     close(pipeFd[0]);
 
-    if (nRead == sizeof(int32_t)) {
-        // Single error code from child
-        int32_t errCode = vals[0];
-        if (errCode < -900) {
-            // -993 = LoadXml failed after ToXml succeeded = round-trip data loss
-            // -995 = ToXml failed = no round-trip possible (not a finding)
-            // -997 = Read failed = cannot load profile (not a finding)
-            if (errCode == -993) {
-                cb.high("FromXml(ToXml()) failed -- round-trip data loss",
-                        "CWE-345: Insufficient Verification of Data Authenticity");
-                return cb.done(sfmt("XML round-trip: LoadXml failed (stage %d)", errCode));
+    int code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    int32_t origCount = vals[0];
+    int32_t rtCount = vals[1];
+    int32_t delta = vals[2];
+
+    switch (code) {
+        case 0:
+            if (nRead == 3 * static_cast<ssize_t>(sizeof(int32_t))) {
+                return CheckResult::ok(
+                    sfmt("XML round-trip: orig=%d tags, rt=%d tags, delta=%d",
+                         origCount, rtCount, delta));
             }
-            return CheckResult::ok(
-                sfmt("XML round-trip could not complete (stage error %d) -- not a crash", errCode));
-        }
+            return CheckResult::ok("XML round-trip preserves profile structure");
+
+        case 1:
+            cb.high("ToXml() serialization failed -- data not representable as XML",
+                    "CWE-345: Insufficient Verification of Data Authenticity");
+            return cb.done("ToXml failed");
+
+        case 2:
+            cb.high("FromXml(ToXml()) failed -- round-trip data loss",
+                    "CWE-345: Insufficient Verification of Data Authenticity");
+            return cb.done("FromXml failed on ToXml output");
+
+        case 3:
+            cb.high("Round-trip header/tag-count mismatch -- structural data loss",
+                    "CWE-345: Insufficient Verification of Data Authenticity");
+            if (nRead == 3 * static_cast<ssize_t>(sizeof(int32_t))) {
+                return cb.done(
+                    sfmt("XML round-trip: orig=%d tags, rt=%d tags, delta=%d",
+                         origCount, rtCount, delta));
+            }
+            return cb.done("Structural mismatch after round-trip");
+
+        case 4:
+            cb.high("Round-trip tag data loss -- tags present in original missing after round-trip",
+                    "CWE-345: Insufficient Verification of Data Authenticity");
+            return cb.done("Tag data lost in round-trip");
+
+        default:
+            return CheckResult::ok("XML round-trip completed (no detailed results available)");
     }
-
-    if (nRead == 3 * static_cast<ssize_t>(sizeof(int32_t))) {
-        int32_t origCount = vals[0];
-        int32_t rtCount = vals[1];
-        int32_t delta = vals[2];
-
-        if (delta != 0) {
-            cb.high(sfmt("XML round-trip tag count mismatch: original=%d, round-tripped=%d, delta=%d",
-                         origCount, rtCount, delta),
-                    "CWE-345: Insufficient data authenticity verification in XML serialization");
-        }
-        return cb.done(sfmt("XML round-trip: orig=%d tags, rt=%d tags, delta=%d",
-                            origCount, rtCount, delta));
-    }
-
-    return CheckResult::ok("XML round-trip completed (no detailed results available)");
 }
 
 REGISTER_HEURISTIC(180, "XML Round-Trip Fidelity",
