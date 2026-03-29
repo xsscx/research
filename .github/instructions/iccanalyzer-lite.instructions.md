@@ -6,7 +6,7 @@ applyTo: "iccanalyzer-lite/**"
 
 ## What This Is
 
-A 173-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
+A 180-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
 built with full ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles
 against ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE
 violations, malformed structures, and potential exploitation vectors. Heuristics cover
@@ -111,7 +111,7 @@ python3 iccanalyzer-lite/tests/run_tests.py
 
 ## Architecture — HeuristicCollector + 10 Heuristic Modules
 
-All 173 heuristics use the `HeuristicCollector` API for structured output. Each
+All 180 heuristics use the `HeuristicCollector` API for structured output. Each
 heuristic is a `RunHeuristic_H##_Name()` function that calls `hc.begin()` /
 `hc.warn()` / `hc.critical()` / `hc.info()` / `hc.cweNote()` / `hc.end()` /
 `hc.skip()`. No raw `printf("[H##]...")` remains in the codebase.
@@ -149,7 +149,7 @@ hc.skip("No relevant tag present");                // Skip — [SKIP]
 
 | Module | Purpose |
 |--------|---------|
-| `IccHeuristicResult.h/.cpp` | HeuristicCollector singleton — structured output API for all 173 heuristics |
+| `IccHeuristicResult.h/.cpp` | HeuristicCollector singleton — structured output API for all 180 heuristics |
 | `IccHeuristicPrinter.h` | Legacy printer compatibility layer |
 | `IccAnalyzerSecurity.cpp` | Orchestrator — `RunSecurityHeuristics()` dispatcher |
 | `IccHeuristicsLibrary.cpp` | Thin dispatcher for H9-H138 (99 lines) |
@@ -497,12 +497,12 @@ Next available: **CF-330**.
 6. Add test assertion in `run_tests.py` `test_conformance_checks()`
 7. Build, test (813+ tests), ASAN spot-check
 
-## CVE Coverage (93 iccDEV Advisories)
+## CVE Coverage (113 iccDEV Advisories)
 
-57 heuristics detect patterns from 87 CVEs + 95 GHSAs (182 unique) across the 93 iccDEV
+57 heuristics detect patterns from 87 CVEs + 95 GHSAs (182 unique) across the 113 iccDEV
 security advisories. Use `./iccanalyzer-lite --registry | jq` for authoritative counts.
 All 25 XML parser/serializer advisories are now in-scope via H142-H145.
-All 93 advisories are in scope (iccFromCube mapped to H34).
+All 113 advisories are in scope (iccFromCube mapped to H34).
 Source of truth: `docs/cve/iccDEV-CVE-Report.md`.
 
 CVE cross-references are stored in `IccHeuristicsRegistry.h` per heuristic entry.
@@ -575,7 +575,7 @@ severity). This is the **source of truth** for all counts — adding a new entry
 
 ## Severity Classification (v3.6.0+)
 
-All 173 heuristics are classified by CWE impact:
+All 180 heuristics are classified by CWE impact:
 - **CRITICAL** (62): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506, CWE-789, CWE-762
 - **HIGH** (41): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476, CWE-252, CWE-681, CWE-369
 - **MEDIUM** (~28): Data integrity — CWE-682, CWE-345
@@ -632,7 +632,7 @@ only a handler function + 1 table entry.
    XSS, SQLi, format string, path traversal, XXE), ICC mutation strategy markers,
    BigTIFF-in-TIFF type confusion
 4. **ICC extraction**: TIFFTAG_ICCPROFILE (tag 34675) → temp file → full
-   ComprehensiveAnalyze() with all 173 heuristics
+   ComprehensiveAnalyze() with all 180 heuristics
 
 ### Format Detection (magic bytes)
 - TIFF LE: `II\x2a\x00` (0x49492a00)
@@ -646,7 +646,7 @@ only a handler function + 1 table entry.
 ### PNG Analysis Pipeline
 1. **Metadata**: dimensions, bit depth, color type, interlace method, compression
 2. **ICC extraction**: iCCP chunk via `png_get_iCCP()` → decompress → temp file →
-   full ComprehensiveAnalyze() with all 173 heuristics
+   full ComprehensiveAnalyze() with all 180 heuristics
 3. **Security checks**: dimensions, color type validation
 
 ### JPEG Analysis Pipeline
