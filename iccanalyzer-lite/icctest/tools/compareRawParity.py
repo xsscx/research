@@ -474,34 +474,6 @@ def is_heuristic_cwe_note_count_match(
     return v1_count in (2 * v2_count, 3 * v2_count)
 
 
-def _is_new_check_id(check_id: str) -> bool:
-    """True for H175-H180 (newly added checks with known V1/V2 behavioural
-    variance that is being actively tuned)."""
-    if not check_id.startswith("H"):
-        return False
-    try:
-        hnum = int(check_id[1:])
-    except ValueError:
-        return False
-    return 175 <= hnum <= 180
-
-
-def is_heuristic_new_check_tuning_gap(
-    check_id: str, v1_record: dict | None, v2_record: dict | None
-) -> bool:
-    """H175-H180 have known detection-logic differences between V1 and V2
-    (e.g. V2 H179 info on all Output profiles vs V1 selective detection,
-    V2 H176/H178 not catching certain srng out-of-range, V2 H180 missing
-    round-trip header/tag-count delta on certain profiles).  Classify
-    remaining deltas on these check IDs as known_gap while tuning continues."""
-    if not _is_new_check_id(check_id):
-        return False
-    # At least one side must have a record
-    if not v1_record and not v2_record:
-        return False
-    return True
-
-
 def heuristic_fixture_coverage_improvement(
     input_path: Path,
     check_id: str,
@@ -709,9 +681,6 @@ def compare_lane(
                     entry_issues = []
                 elif implementation == "todo":
                     comparison = "known_gap"
-                elif is_heuristic_new_check_tuning_gap(check_id, v1_record, v2_record):
-                    comparison = "known_gap"
-                    normalized_reason = "h175_h180_detection_tuning"
                 else:
                     comparison = "match" if not entry_issues else "delta"
             elif lane == "heuristic" and entry_issues == ["finding_count_mismatch"]:
@@ -721,9 +690,6 @@ def compare_lane(
                     entry_issues = []
                 elif implementation == "todo":
                     comparison = "known_gap"
-                elif is_heuristic_new_check_tuning_gap(check_id, v1_record, v2_record):
-                    comparison = "known_gap"
-                    normalized_reason = "h175_h180_detection_tuning"
                 else:
                     comparison = "match" if not entry_issues else "delta"
             elif lane == "heuristic" and entry_issues == ["status_mismatch", "finding_count_mismatch"]:
@@ -737,9 +703,6 @@ def compare_lane(
                     entry_issues = []
                 elif implementation == "todo":
                     comparison = "known_gap"
-                elif is_heuristic_new_check_tuning_gap(check_id, v1_record, v2_record):
-                    comparison = "known_gap"
-                    normalized_reason = "h175_h180_detection_tuning"
                 else:
                     comparison = "match" if not entry_issues else "delta"
             elif lane == "heuristic" and implementation == "todo":
@@ -747,11 +710,6 @@ def compare_lane(
                     comparison = "known_gap"
                 else:
                     comparison = "known_gap_match"
-            elif lane == "heuristic" and entry_issues and is_heuristic_new_check_tuning_gap(
-                check_id, v1_record, v2_record
-            ):
-                comparison = "known_gap"
-                normalized_reason = "h175_h180_detection_tuning"
             else:
                 comparison = "match" if not entry_issues else "delta"
 

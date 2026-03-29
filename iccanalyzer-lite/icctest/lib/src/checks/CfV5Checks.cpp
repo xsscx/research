@@ -3370,30 +3370,63 @@ static CheckResult check_h176_dsrn_tag_validation(const ProfileView& pv) {
     uint16_t specSteps    = ReadU16BE(tagData + 12);
     float specStart = safeF16ToF(specStartRaw);
     float specEnd   = safeF16ToF(specEndRaw);
+    int issues = 0;
 
-    if (std::isnan(specStart) || std::isinf(specStart))
+    if (std::isnan(specStart) || std::isinf(specStart)) {
         findings.push_back({id, Severity::CRITICAL, "Spectral start wavelength is NaN/Inf", "", "CWE-20"});
-    if (std::isnan(specEnd) || std::isinf(specEnd))
+        issues++;
+    }
+    if (std::isnan(specEnd) || std::isinf(specEnd)) {
         findings.push_back({id, Severity::CRITICAL, "Spectral end wavelength is NaN/Inf", "", "CWE-20"});
-
-    if (std::isfinite(specStart) && std::isfinite(specEnd)) {
-        if (specEnd <= specStart)
-            findings.push_back({id, Severity::CRITICAL,
-                "Spectral end <= start — inverted range", "", "CWE-682"});
+        issues++;
     }
 
-    if (specSteps < 2 && (specStartRaw != 0 || specEndRaw != 0))
+    if (std::isfinite(specStart) && std::isfinite(specEnd)) {
+        if (specStart < 100.0f || specStart > 2500.0f) {
+            findings.push_back({id, Severity::MEDIUM,
+                sfmt("Spectral start wavelength %.1f nm outside typical range (100-2500 nm)",
+                     static_cast<double>(specStart)),
+                "", ""});
+            issues++;
+        }
+        if (specEnd < 100.0f || specEnd > 2500.0f) {
+            findings.push_back({id, Severity::MEDIUM,
+                sfmt("Spectral end wavelength %.1f nm outside typical range (100-2500 nm)",
+                     static_cast<double>(specEnd)),
+                "", ""});
+            issues++;
+        }
+        if (specEnd <= specStart) {
+            findings.push_back({id, Severity::CRITICAL,
+                "Spectral end <= start — inverted range", "", "CWE-682"});
+            issues++;
+        }
+    }
+
+    if (specSteps < 2 && (specStartRaw != 0 || specEndRaw != 0)) {
         findings.push_back({id, Severity::CRITICAL,
             "Spectral steps=" + std::to_string(specSteps) + " (must be >= 2)", "", "CWE-369"});
+        issues++;
+    }
 
     // Bi-spectral range (bytes 14-19)
     uint16_t biStartRaw = ReadU16BE(tagData + 14);
     uint16_t biEndRaw   = ReadU16BE(tagData + 16);
     uint16_t biSteps    = ReadU16BE(tagData + 18);
 
-    if (!IsBiSpectralDeviceV2(pv) && (biStartRaw != 0 || biEndRaw != 0 || biSteps != 0))
+    if (!IsBiSpectralDeviceV2(pv) && (biStartRaw != 0 || biEndRaw != 0 || biSteps != 0)) {
         findings.push_back({id, Severity::MEDIUM,
             "Bi-spectral range non-zero for non-bi-spectral device", "", "CWE-20"});
+        issues++;
+    }
+
+    if (issues > 0) {
+        findings.push_back({id, Severity::LOW,
+            sfmt("Spectral range: start=%.1f nm (0x%04X), end=%.1f nm (0x%04X), steps=%u",
+                 static_cast<double>(specStart), specStartRaw,
+                 static_cast<double>(specEnd), specEndRaw, specSteps),
+            "", ""});
+    }
 
     if (findings.empty()) return CheckResult::ok("dsrn tag validation passed");
     return {CheckResult::Status::FINDINGS, "dsrn tag issues found", std::move(findings)};
@@ -3483,6 +3516,7 @@ static CheckResult check_h178_srng_encoding_validation(const ProfileView& pv) {
     CheckID id{CheckID::Kind::Heuristic, 178};
     std::vector<Finding> findings;
     int srngCount = 0;
+    int issues = 0;
 
     for (const auto &tag : pv.rawTagTable()) {
         if (tag.size < 20) continue;
@@ -3510,18 +3544,37 @@ static CheckResult check_h178_srng_encoding_validation(const ProfileView& pv) {
         float specEnd   = safeF16ToF(specEndRaw);
 
         if (std::isnan(specStart) || std::isinf(specStart) ||
-            std::isnan(specEnd) || std::isinf(specEnd))
+            std::isnan(specEnd) || std::isinf(specEnd)) {
             findings.push_back({id, Severity::CRITICAL,
                 std::string("Tag '") + tagSigStr + "': NaN/Inf wavelength", "", "CWE-20"});
-        else if (specStart > 0.0f || specEnd > 0.0f) {
-            if (specEnd <= specStart)
+            issues++;
+        } else if (specStart > 0.0f || specEnd > 0.0f) {
+            if (specStart < 100.0f || specStart > 2500.0f) {
+                findings.push_back({id, Severity::MEDIUM,
+                    sfmt("Tag '%s': srng start wavelength %.1f nm outside 100-2500 nm",
+                         tagSigStr, static_cast<double>(specStart)),
+                    "", ""});
+                issues++;
+            }
+            if (specEnd < 100.0f || specEnd > 2500.0f) {
+                findings.push_back({id, Severity::MEDIUM,
+                    sfmt("Tag '%s': srng end wavelength %.1f nm outside 100-2500 nm",
+                         tagSigStr, static_cast<double>(specEnd)),
+                    "", ""});
+                issues++;
+            }
+            if (specEnd <= specStart) {
                 findings.push_back({id, Severity::CRITICAL,
                     std::string("Tag '") + tagSigStr + "': inverted spectral range",
                     "", "CWE-682"});
-            if (specSteps < 2)
+                issues++;
+            }
+            if (specSteps < 2) {
                 findings.push_back({id, Severity::CRITICAL,
                     std::string("Tag '") + tagSigStr + "': steps=" +
                     std::to_string(specSteps) + " (need >= 2)", "", "CWE-369"});
+                issues++;
+            }
         }
 
         // Bi-spectral range (bytes 14-19)
@@ -3529,13 +3582,21 @@ static CheckResult check_h178_srng_encoding_validation(const ProfileView& pv) {
         uint16_t biEndRaw   = ReadU16BE(tagData + 16);
         uint16_t biSteps    = ReadU16BE(tagData + 18);
 
-        if (!IsBiSpectralDeviceV2(pv) && (biStartRaw != 0 || biEndRaw != 0 || biSteps != 0))
+        if (!IsBiSpectralDeviceV2(pv) && (biStartRaw != 0 || biEndRaw != 0 || biSteps != 0)) {
             findings.push_back({id, Severity::MEDIUM,
                 std::string("Tag '") + tagSigStr + "': bi-spectral range non-zero for non-bi-spectral",
                 "", "CWE-20"});
+            issues++;
+        }
     }
 
     if (srngCount == 0) return CheckResult::ok("No srng type tags found");
+    if (issues > 0) {
+        findings.push_back({id, Severity::LOW,
+            sfmt("Validated %d spectralRangeType instance(s), %d issue(s) found",
+                 srngCount, issues),
+            "", ""});
+    }
     if (findings.empty()) return CheckResult::ok("srng encoding validation passed");
     return {CheckResult::Status::FINDINGS, "srng encoding issues found", std::move(findings)};
 }
