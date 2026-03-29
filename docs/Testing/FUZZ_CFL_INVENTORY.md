@@ -4,7 +4,7 @@
 
 **fuzz/** (201 MB): Public fuzzing corpus and PoC collection — security signatures, CVE PoCs, and malicious inputs across 34 subdirectories.
 
-**cfl/** (23 GB): Crash-Free LibFuzzer framework — 19 compiled fuzzer binaries + seed corpus + dictionary files for ICC profile testing (iccDEV library).
+**cfl/** (23 GB): ClusterFuzzLite framework — 19 compiled fuzzer binaries + seed corpus + dictionary files for ICC profile testing (iccDEV library).
 
 **Relationship**: fuzz/ contains INPUT DATA (corpus + PoCs); cfl/ contains FUZZER BINARIES & INFRASTRUCTURE to execute them. cfl/ includes 27 .dict files derived from ICC standards.
 
@@ -104,7 +104,7 @@
 ## 2. CFL/ DIRECTORY STRUCTURE (23 GB)
 
 ### What is CFL?
-**Crash-Free LibFuzzer**: 19 LibFuzzer harnesses (4,537 LOC C/C++) + patches + corpus + dictionaries.
+**ClusterFuzzLite**: 19 LibFuzzer harnesses (4,537 LOC C/C++) + patches + corpus + dictionaries.
 - **Target**: iccDEV (International Color Consortium ICC profile library)
 - **Compiler**: clang++ 18 with `-fsanitize=address,undefined,fuzzer`
 - **Upstream**: github.com/InternationalColorConsortium/iccDEV (commit b5ade94, 2026-03-06)

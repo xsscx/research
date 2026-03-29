@@ -2,7 +2,7 @@
 applyTo: "cfl/**"
 ---
 
-# CFL (Crash-Free LibFuzzer) — Path-Specific Instructions
+# CFL (ClusterFuzzLite) — Path-Specific Instructions
 
 ## What This Is
 
