@@ -10,6 +10,7 @@
 #include "icctest/IccTest.h"
 #include "IccProfile.h"
 #include <array>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -128,6 +129,40 @@ static std::vector<uint8_t> read_file_bytes(const std::filesystem::path& path) {
     }
     std::fclose(fp);
     return data;
+}
+
+static std::vector<uint8_t> bytes_from_hex(std::string_view hex) {
+    auto hex_value = [](char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    };
+
+    std::vector<uint8_t> out;
+    int high = -1;
+    for (char c : hex) {
+        if (std::isspace(static_cast<unsigned char>(c))) {
+            continue;
+        }
+        int value = hex_value(c);
+        if (value < 0) {
+            continue;
+        }
+        if (high < 0) {
+            high = value;
+        } else {
+            out.push_back(static_cast<uint8_t>((high << 4) | value));
+            high = -1;
+        }
+    }
+    return out;
+}
+
+static std::vector<uint8_t> make_h21_tag_struct_profile() {
+    static constexpr std::string_view kHex =
+        "000002d0000000000500000063656e63524742200000000000000000000000000000000061637370000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000372666e6d000000a80000001463736e6d000000bc0000001063657074000000cc00000204757466380000000049534f2032323032382d3100757466380000000062672d73524742007473747200000000636570740000000f7258595a000000c4000000146758595a000000d8000000146258595a000000ec0000001466756e630000010000000070776c756d000001700000000c7758595a0000017c0000001065526e670000018c00000010626974730000019c0000000b696d7374000001a80000000c69626b67000001b40000000c73726e64000001c00000000c61696c6d000001cc0000000c6d77706c000001d80000000c6d777063000001e4000000106d627063000001f400000010666c3332000000003f23d70a3ea8f5c33cf5c28f666c3332000000003e99999a3f19999a3dcccccd666c3332000000003e19999a3d75c28f3f4a3d71637572660000000000030000bb4d2e1c3b4d2e1c70617266000000000003000043d55555bf870a3dbf80000000000000000000007061726600000000000000003f800000414eb85200000000000000007061726600000000000300003ed555553f870a3d3f8000000000000000000000666c33320000000042a00000666c3332000000003e870a3d3f8000000000000000000000666c33320000000042a00000666c3332000000003ea01a373ea872b0666c333200000000bf07ae143fd70a3d75693038000000000a0c10007369672000000000646f7263666c33320000000042a00000666c3332000000003ea01a373ea872b0666c3332000000003ea01a373ea872b0";
+    return bytes_from_hex(kHex);
 }
 
 static const PerCheckResult* find_per_check(const AnalysisResult& result,
@@ -3703,12 +3738,12 @@ static void test_h25_tag_offset_oob_regression() {
 static void test_h21_h24_tag_struct_regressions() {
     std::printf("  test_h21_h24_tag_struct_regressions...\n");
 
-    auto structFixture = resolve_repo_file("test-profiles/sbo-CIccTagStruct-GetElemNumberValue-IccTagComposite_cpp-Line737.icc");
     auto corpusDir = resolve_repo_file("tests/corpus");
-    if (structFixture.empty() || corpusDir.empty()) {
-        std::printf("    (skipped — tagStruct fixture(s) not found)\n");
-        return;
-    }
+    if (corpusDir.empty()) return;
+    auto structFixture = write_temp_profile(make_h21_tag_struct_profile(),
+                                            "icctest-h21-tagstruct.icc");
+    ASSERT_FALSE(structFixture.empty());
+    if (structFixture.empty()) return;
 
     {
         auto result = analyze_corpus_heuristics(structFixture, {21, 22, 23, 24});
@@ -3764,6 +3799,9 @@ static void test_h21_h24_tag_struct_regressions() {
             ASSERT_TRUE(h24->result.summary.find("Max nesting depth: 0") != std::string::npos);
         }
     }
+
+    std::error_code ignored;
+    std::filesystem::remove(structFixture, ignored);
 }
 
 static void test_h26_named_color2_string_regression() {
