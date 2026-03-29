@@ -46,6 +46,12 @@ def default_h21_fixture() -> Path:
     )
 
 
+def make_h21_tag_struct_profile_bytes() -> bytes:
+    return bytes.fromhex(
+        "000002d0000000000500000063656e63524742200000000000000000000000000000000061637370000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000372666e6d000000a80000001463736e6d000000bc0000001063657074000000cc00000204757466380000000049534f2032323032382d3100757466380000000062672d73524742007473747200000000636570740000000f7258595a000000c4000000146758595a000000d8000000146258595a000000ec0000001466756e630000010000000070776c756d000001700000000c7758595a0000017c0000001065526e670000018c00000010626974730000019c0000000b696d7374000001a80000000c69626b67000001b40000000c73726e64000001c00000000c61696c6d000001cc0000000c6d77706c000001d80000000c6d777063000001e4000000106d627063000001f400000010666c3332000000003f23d70a3ea8f5c33cf5c28f666c3332000000003e99999a3f19999a3dcccccd666c3332000000003e19999a3d75c28f3f4a3d71637572660000000000030000bb4d2e1c3b4d2e1c70617266000000000003000043d55555bf870a3dbf80000000000000000000007061726600000000000000003f800000414eb85200000000000000007061726600000000000300003ed555553f870a3d3f8000000000000000000000666c33320000000042a00000666c3332000000003e870a3d3f8000000000000000000000666c33320000000042a00000666c3332000000003ea01a373ea872b0666c333200000000bf07ae143fd70a3d75693038000000000a0c10007369672000000000646f7263666c33320000000042a00000666c3332000000003ea01a373ea872b0666c3332000000003ea01a373ea872b0"
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--v1-binary", type=Path, default=default_v1_binary())
@@ -164,43 +170,49 @@ def main() -> int:
     ensure_file(args.v2_binary, "V2 parity binary")
     ensure_file(args.fixture, "malformed spectral fixture")
     ensure_file(args.h30_fixture, "H30 GBD fixture")
-    ensure_file(args.h21_fixture, "H21 tagStruct fixture")
 
     tool_dir = Path(__file__).resolve().parent
     normalize = tool_dir / "normalizeV1Json.py"
     compare = tool_dir / "compareRawParity.py"
 
-    v1_payload = run_json(
-        [
-            sys.executable,
-            str(normalize),
-            "--binary",
-            str(args.v1_binary),
-            "--lane",
-            "heuristic",
-            "--disable-library-ub-defense",
-            "--legacy",
-            str(args.fixture),
-        ]
-    )
-    if v1_payload.get("lane") != "heuristic":
-        raise RuntimeError("normalizeV1Json returned unexpected lane")
+    with tempfile.TemporaryDirectory(prefix="icctest-parity-tooling-") as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        h21_fixture = args.h21_fixture
+        if not h21_fixture.is_file():
+            h21_fixture = tmpdir_path / "h21-tagstruct.icc"
+            h21_fixture.write_bytes(make_h21_tag_struct_profile_bytes())
 
-    compare_payload = run_json(
-        [
-            sys.executable,
-            str(compare),
-            "--lane",
-            "heuristic",
-            "--check",
-            "H98",
-            "--v1-binary",
-            str(args.v1_binary),
-            "--v2-binary",
-            str(args.v2_binary),
-            str(args.fixture),
-        ]
-    )
+        v1_payload = run_json(
+            [
+                sys.executable,
+                str(normalize),
+                "--binary",
+                str(args.v1_binary),
+                "--lane",
+                "heuristic",
+                "--disable-library-ub-defense",
+                "--legacy",
+                str(args.fixture),
+            ]
+        )
+        if v1_payload.get("lane") != "heuristic":
+            raise RuntimeError("normalizeV1Json returned unexpected lane")
+
+        compare_payload = run_json(
+            [
+                sys.executable,
+                str(compare),
+                "--lane",
+                "heuristic",
+                "--check",
+                "H98",
+                "--v1-binary",
+                str(args.v1_binary),
+                "--v2-binary",
+                str(args.v2_binary),
+                str(args.fixture),
+            ]
+        )
 
     counts = compare_payload.get("summary", {}).get("counts", {})
     if int(counts.get("delta", 0)) != 0:
@@ -212,51 +224,50 @@ def main() -> int:
             f"Expected H98 comparator implicitSkipMatch=1 for malformed spectral fixture, got {counts}"
         )
 
-    h30_payload = run_json(
-        [
-            sys.executable,
-            str(compare),
-            "--lane",
-            "heuristic",
-            "--check",
-            "H30",
-            "--v1-binary",
-            str(args.v1_binary),
-            "--v2-binary",
-            str(args.v2_binary),
-            str(args.h30_fixture),
-        ]
-    )
-    h30_counts = h30_payload.get("summary", {}).get("counts", {})
-    if int(h30_counts.get("delta", 0)) != 0:
-        raise RuntimeError(
-            f"Expected H30 comparator delta=0 for nested GBD fixture, got {h30_counts}"
+        h30_payload = run_json(
+            [
+                sys.executable,
+                str(compare),
+                "--lane",
+                "heuristic",
+                "--check",
+                "H30",
+                "--v1-binary",
+                str(args.v1_binary),
+                "--v2-binary",
+                str(args.v2_binary),
+                str(args.h30_fixture),
+            ]
         )
+        h30_counts = h30_payload.get("summary", {}).get("counts", {})
+        if int(h30_counts.get("delta", 0)) != 0:
+            raise RuntimeError(
+                f"Expected H30 comparator delta=0 for nested GBD fixture, got {h30_counts}"
+            )
 
-    h21_payload = run_json(
-        [
-            sys.executable,
-            str(compare),
-            "--lane",
-            "heuristic",
-            "--check",
-            "H21,H22,H23,H24",
-            "--v1-binary",
-            str(args.v1_binary),
-            "--v2-binary",
-            str(args.v2_binary),
-            str(args.h21_fixture),
-        ]
-    )
-    h21_counts = h21_payload.get("summary", {}).get("counts", {})
-    if int(h21_counts.get("delta", 0)) != 0:
-        raise RuntimeError(
-            f"Expected H21-H24 comparator delta=0 for tagStruct fixture, got {h21_counts}"
+        h21_payload = run_json(
+            [
+                sys.executable,
+                str(compare),
+                "--lane",
+                "heuristic",
+                "--check",
+                "H21,H22,H23,H24",
+                "--v1-binary",
+                str(args.v1_binary),
+                "--v2-binary",
+                str(args.v2_binary),
+                str(h21_fixture),
+            ]
         )
+        h21_counts = h21_payload.get("summary", {}).get("counts", {})
+        if int(h21_counts.get("delta", 0)) != 0:
+            raise RuntimeError(
+                f"Expected H21-H24 comparator delta=0 for tagStruct fixture, got {h21_counts}"
+            )
 
-    with tempfile.TemporaryDirectory(prefix="icctest-parity-tooling-") as tmpdir:
-        malformed_h172 = Path(tmpdir) / "h172-lut-matrix.icc"
-        clean_h172 = Path(tmpdir) / "h172-lut-matrix-clean.icc"
+        malformed_h172 = tmpdir_path / "h172-lut-matrix.icc"
+        clean_h172 = tmpdir_path / "h172-lut-matrix-clean.icc"
         malformed_h172.write_bytes(make_h172_lut_matrix_profile_bytes(True))
         clean_h172.write_bytes(make_h172_lut_matrix_profile_bytes(False))
 
