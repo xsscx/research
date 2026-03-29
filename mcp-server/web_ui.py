@@ -94,6 +94,7 @@ from icc_profile_mcp import (  # noqa: E402
 _HERE = Path(__file__).resolve().parent
 _INDEX_HTML = _HERE / "index.html"
 _CYTOSCAPE_JS = _HERE / "cytoscape.min.js"
+_FAVICON_ICO = _HERE / "favicon.ico"
 _INDEX_CONTENT: str | None = None  # cached on first request
 MAX_PATH_LEN = 512
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024  # 50 MB cap on file downloads
@@ -179,7 +180,7 @@ _SECURITY_HEADERS = {
 # CSP template with nonce placeholder for the index page
 _CSP_NONCE_TEMPLATE = (
     "default-src 'self' blob:; "
-    "style-src 'self' 'nonce-{nonce}'; "
+    "style-src 'self' 'nonce-{nonce}' 'unsafe-inline'; "
     "script-src 'self' 'nonce-{nonce}'"
 )
 
@@ -287,6 +288,22 @@ async def serve_cytoscape_js(request: Request) -> Response:
         media_type="application/javascript",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+async def serve_favicon(request: Request) -> Response:
+    """Serve favicon.ico for browser chrome and tab icons."""
+    if not _FAVICON_ICO.is_file():
+        return Response("Not found", status_code=404, media_type="text/plain")
+    return Response(
+        _FAVICON_ICO.read_bytes(),
+        media_type="image/x-icon",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+async def no_content(request: Request) -> Response:
+    """Return 204 for browser probe endpoints that should not emit 404 noise."""
+    return Response(status_code=204)
 
 
 async def api_list(request: Request) -> Response:
@@ -1087,6 +1104,8 @@ async def api_coverage_gaps(request: Request) -> Response:
         if not isinstance(severity_filter, str):
             severity_filter = ""
         severity_filter = severity_filter.strip().upper()[:20]
+        if severity_filter == "ALL":
+            severity_filter = ""
         async with (await _get_semaphore()):
             result = await coverage_gaps(severity_filter=severity_filter)
         return JSONResponse({"ok": True, "result": result})
@@ -1117,6 +1136,8 @@ async def api_knowledge_graph_json(request: Request) -> Response:
 # ---------------------------------------------------------------------------
 routes = [
     Route("/", index, methods=["GET"]),
+    Route("/favicon.ico", serve_favicon, methods=["GET"]),
+    Route("/.well-known/appspecific/com.chrome.devtools.json", no_content, methods=["GET"]),
     Route("/static/cytoscape.min.js", serve_cytoscape_js, methods=["GET"]),
     Route("/api/health", api_health, methods=["GET"]),
     Route("/api/registry", api_registry, methods=["GET"]),
