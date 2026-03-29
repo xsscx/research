@@ -10,17 +10,32 @@
 #include "util/CheckHelpers.h"
 
 #include "IccProfile.h"
+#include "IccPcc.h"
+#include "IccSparseMatrix.h"
+#include "IccTagComposite.h"
+#include "IccTagDict.h"
 #include "IccMpeBasic.h"
+#include "IccMpeCalc.h"
+#include "IccMpeSpectral.h"
 #include "IccTagBasic.h"
 #include "IccTagEmbedIcc.h"
 #include "IccTagLut.h"
 #include "IccTagMPE.h"
+#include "IccUtil.h"
 
 #include <cmath>
 #include <map>
 #include <set>
 
 namespace icctest {
+
+template<typename T>
+static T* FindAndCast(CIccProfile* pIcc, icTagSignature sig) {
+    if (!pIcc) return nullptr;
+    CIccTag* tag = pIcc->FindTag(sig);
+    if (!tag) return nullptr;
+    return dynamic_cast<T*>(tag);
+}
 
 // ── H56: MediaWhitePoint Validation ──
 static CheckResult check_h56_white_point(const ProfileView& pv) {
@@ -290,12 +305,28 @@ REGISTER_HEURISTIC(151, "Calculator Operator Enum Validation",
 // ── Additional registrations for DataValidationChecks ──
 
 static CheckResult check_h70_measurement_tag_validation(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H70
-    return cb.done("Measurement Tag Validation checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    if (auto* meas = FindAndCast<CIccTagMeasurement>(p, icSigMeasurementTag)) {
+        icUInt32Number obs = meas->m_Data.stdObserver;
+        if (obs != 0 && obs != 1 && obs != 2) {
+            cb.warn(sfmt("Measurement: invalid observer type %u", obs),
+                    "CWE-20: Invalid enum -> undefined behavior in observer selection");
+        }
+        icUInt32Number geom = meas->m_Data.geometry;
+        if (geom > 3) {
+            cb.warn(sfmt("Measurement: invalid geometry %u (>3)", geom));
+        }
+        icUInt32Number flareRaw = static_cast<icUInt32Number>(meas->m_Data.flare);
+        if (flareRaw > 0x00010000u) {
+            cb.warn(sfmt("Measurement: flare 0x%08X exceeds 1.0", flareRaw));
+        }
+    }
+
+    return cb.done("Measurement tag valid (or absent)");
 }
 
 REGISTER_HEURISTIC(70, "Measurement Tag Validation",
@@ -305,12 +336,47 @@ REGISTER_HEURISTIC(70, "Measurement Tag Validation",
     check_h70_measurement_tag_validation);
 
 static CheckResult check_h71_colorant_table_null_termination(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H71
-    return cb.done("Colorant Table Null Termination checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    static const icTagSignature ctSigs[] = {
+        icSigColorantTableTag,
+        icSigColorantTableOutTag,
+        static_cast<icTagSignature>(0)
+    };
+
+    for (int s = 0; ctSigs[s] != static_cast<icTagSignature>(0); ++s) {
+        auto* ct = FindAndCast<CIccTagColorantTable>(p, ctSigs[s]);
+        if (!ct) continue;
+
+        icUInt32Number nEntries = ct->GetSize();
+        if (nEntries > 65535u) {
+            cb.warn(sfmt("ColorantTable: %u entries (excessive)", nEntries),
+                    "CWE-400: Excessive colorant count");
+            continue;
+        }
+
+        for (icUInt32Number i = 0; i < nEntries && i < 256u; ++i) {
+            icColorantTableEntry* entry = ct->GetEntry(i);
+            if (!entry) continue;
+
+            bool hasNull = false;
+            for (int j = 0; j < 32; ++j) {
+                if (entry->name[j] == 0) {
+                    hasNull = true;
+                    break;
+                }
+            }
+            if (!hasNull) {
+                cb.warn(sfmt("Colorant[%u]: name[32] has no null terminator", i),
+                        "CWE-170: strlen OOB -> heap-buffer-overflow");
+            }
+        }
+    }
+
+    return cb.done("ColorantTable names properly terminated (or absent)");
 }
 
 REGISTER_HEURISTIC(71, "Colorant Table Null Termination",
@@ -320,12 +386,44 @@ REGISTER_HEURISTIC(71, "Colorant Table Null Termination",
     check_h71_colorant_table_null_termination);
 
 static CheckResult check_h72_sparse_matrix_array_bounds(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H72
-    return cb.done("Sparse Matrix Array Bounds checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        auto* sma = FindAndCast<CIccTagSparseMatrixArray>(p, sit->TagInfo.sig);
+        if (!sma) continue;
+
+        std::string tagName = sigStr(static_cast<uint32_t>(sit->TagInfo.sig));
+        icUInt32Number nMat = sma->GetNumMatrices();
+        icUInt32Number nCPM = sma->GetChannelsPerMatrix();
+        uint64_t product = static_cast<uint64_t>(nMat) *
+                           static_cast<uint64_t>(nCPM) *
+                           sizeof(icFloatNumber);
+        if (product > 16777216ull) {
+            cb.warn(sfmt("Tag '%s': SparseMatrix %u matrices x %u channels = %llu bytes",
+                         tagName.c_str(), nMat, nCPM,
+                         static_cast<unsigned long long>(product)),
+                    "CWE-400: Exceeds 16MB allocation cap");
+        }
+
+        icSparseMatrixType matType = sma->GetMatrixType();
+        icUInt16Number matTypeVal = static_cast<icUInt16Number>(matType);
+        if (matTypeVal > 4u) {
+            cb.warn(sfmt("Tag '%s': invalid icSparseMatrixType=%u (valid: 0-4)",
+                         tagName.c_str(), matTypeVal),
+                    "CWE-843: Type confusion - enum out of range");
+        }
+
+        if (nCPM == 0 && nMat > 0) {
+            cb.warn(sfmt("Tag '%s': SparseMatrix %u matrices with 0 channels - null deref risk",
+                         tagName.c_str(), nMat),
+                    "CWE-476: GetColumnsForRow() dereferences null matrix data");
+        }
+    }
+
+    return cb.done("SparseMatrixArray allocations and types valid (or absent)");
 }
 
 REGISTER_HEURISTIC(72, "Sparse Matrix Array Bounds",
@@ -335,12 +433,85 @@ REGISTER_HEURISTIC(72, "Sparse Matrix Array Bounds",
     check_h72_sparse_matrix_array_bounds);
 
 static CheckResult check_h73_tag_array_nesting_depth(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H73
-    return cb.done("Tag Array Nesting Depth checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        CIccTag* tag = p->FindTag(sit->TagInfo.sig);
+        if (!tag) continue;
+
+        std::string tagName = sigStr(static_cast<uint32_t>(sit->TagInfo.sig));
+
+        if (auto* ts = dynamic_cast<CIccTagStruct*>(tag)) {
+            TagEntryList* elems = ts->GetElemList();
+            if (elems) {
+                for (auto it = elems->begin(); it != elems->end(); ++it) {
+                    CIccTag* child = ts->FindElem(it->TagInfo.sig);
+                    if (!child) continue;
+                    if (dynamic_cast<CIccTagStruct*>(child) || dynamic_cast<CIccTagArray*>(child)) {
+                        cb.warn(sfmt("Tag '%s': nested TagStruct/TagArray detected",
+                                     tagName.c_str()),
+                                "CWE-674: Potential recursive nesting -> stack overflow");
+                        break;
+                    }
+                }
+            }
+        }
+
+        auto* ta = dynamic_cast<CIccTagArray*>(tag);
+        if (!ta) continue;
+
+        icUInt32Number nSz = ta->GetSize();
+        if (nSz > 10000u) {
+            cb.warn(sfmt("Tag '%s': TagArray with %u elements (excessive)",
+                         tagName.c_str(), nSz),
+                    "CWE-400: Excessive array size");
+            continue;
+        }
+
+        int unknownCount = 0;
+        for (icUInt32Number i = 0; i < nSz && i < 100u; ++i) {
+            CIccTag* child = ta->GetIndex(i);
+            if (!child) continue;
+            if (dynamic_cast<CIccTagStruct*>(child) || dynamic_cast<CIccTagArray*>(child)) {
+                cb.warn(sfmt("Tag '%s'[%u]: nested TagStruct/TagArray",
+                             tagName.c_str(), i),
+                        "CWE-674: Recursive nesting -> stack overflow");
+                break;
+            }
+            if (child->GetType() == icSigUnknownType) {
+                unknownCount++;
+            }
+        }
+
+        if (unknownCount > 0 && nSz > 1u) {
+            cb.warn(sfmt("Tag '%s': TagArray has %d/%u CIccTagUnknown elements",
+                         tagName.c_str(), unknownCount, nSz),
+                    "CWE-416: Unknown elements in TagArray -> use-after-free in Cleanup()");
+        }
+
+        int sharedPtrs = 0;
+        for (icUInt32Number i = 0; i < nSz && i < 100u; ++i) {
+            CIccTag* ci = ta->GetIndex(i);
+            if (!ci) continue;
+            for (icUInt32Number j = i + 1; j < nSz && j < 100u; ++j) {
+                CIccTag* cj = ta->GetIndex(j);
+                if (cj && ci == cj) {
+                    sharedPtrs++;
+                    break;
+                }
+            }
+        }
+        if (sharedPtrs > 0) {
+            cb.critical(sfmt("Tag '%s': TagArray has %d shared tag pointers",
+                             tagName.c_str(), sharedPtrs),
+                        "CWE-416: Shared pointers in Cleanup() dedup loop -> double-free / use-after-free");
+        }
+    }
+
+    return cb.done("No suspicious TagArray/TagStruct nesting");
 }
 
 REGISTER_HEURISTIC(73, "Tag Array Nesting Depth",
@@ -350,12 +521,47 @@ REGISTER_HEURISTIC(73, "Tag Array Nesting Depth",
     check_h73_tag_array_nesting_depth);
 
 static CheckResult check_h74_tag_type_signature_consistency(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H74
-    return cb.done("Tag Type Signature Consistency checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    struct TagTypeExpectation {
+        icTagSignature tag;
+        icTagTypeSignature expected[5];
+    };
+
+    static const TagTypeExpectation expectations[] = {
+        {icSigAToB0Tag, {icSigLutAtoBType, icSigLut8Type, icSigLut16Type, icSigMultiProcessElementType, static_cast<icTagTypeSignature>(0)}},
+        {icSigAToB1Tag, {icSigLutAtoBType, icSigLut8Type, icSigLut16Type, icSigMultiProcessElementType, static_cast<icTagTypeSignature>(0)}},
+        {icSigBToA0Tag, {icSigLutBtoAType, icSigLut8Type, icSigLut16Type, icSigMultiProcessElementType, static_cast<icTagTypeSignature>(0)}},
+        {icSigBToA1Tag, {icSigLutBtoAType, icSigLut8Type, icSigLut16Type, icSigMultiProcessElementType, static_cast<icTagTypeSignature>(0)}},
+        {icSigMediaWhitePointTag, {icSigXYZType, static_cast<icTagTypeSignature>(0)}},
+        {icSigCopyrightTag, {icSigTextType, icSigMultiLocalizedUnicodeType, static_cast<icTagTypeSignature>(0)}},
+        {static_cast<icTagSignature>(0), {static_cast<icTagTypeSignature>(0)}},
+    };
+
+    for (int e = 0; expectations[e].tag != static_cast<icTagSignature>(0); ++e) {
+        CIccTag* tag = p->FindTag(expectations[e].tag);
+        if (!tag) continue;
+
+        icTagTypeSignature actualType = tag->GetType();
+        bool valid = false;
+        for (int t = 0; t < 5 && expectations[e].expected[t] != static_cast<icTagTypeSignature>(0); ++t) {
+            if (actualType == expectations[e].expected[t]) {
+                valid = true;
+                break;
+            }
+        }
+        if (!valid) {
+            cb.warn(sfmt("Tag '%s': unexpected type '%s'",
+                         sigStr(static_cast<uint32_t>(expectations[e].tag)).c_str(),
+                         sigStr(static_cast<uint32_t>(actualType)).c_str()),
+                    "CWE-843: Type confusion -> incorrect cast in processing");
+        }
+    }
+
+    return cb.done("Tag type signatures consistent");
 }
 
 REGISTER_HEURISTIC(74, "Tag Type Signature Consistency",
@@ -365,12 +571,21 @@ REGISTER_HEURISTIC(74, "Tag Type Signature Consistency",
     check_h74_tag_type_signature_consistency);
 
 static CheckResult check_h75_tags_very_small_size(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H75
-    return cb.done("Tags Very Small Size checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        if (sit->TagInfo.size <= 8u && sit->TagInfo.size > 0u) {
+            cb.warn(sfmt("Tag '%s': size %u bytes (<= 8, suspiciously small)",
+                         sigStr(static_cast<uint32_t>(sit->TagInfo.sig)).c_str(),
+                         sit->TagInfo.size),
+                    "CWE-191: Unsigned underflow in size-N calculations");
+        }
+    }
+
+    return cb.done("All tags have sufficient minimum size");
 }
 
 REGISTER_HEURISTIC(75, "Tags Very Small Size",
@@ -380,12 +595,30 @@ REGISTER_HEURISTIC(75, "Tags Very Small Size",
     check_h75_tags_very_small_size);
 
 static CheckResult check_h76_cicctagdata_type_flag(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H76
-    return cb.done("CIccTagData Type Flag checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        auto* dataTag = FindAndCast<CIccTagData>(p, sit->TagInfo.sig);
+        if (!dataTag) continue;
+
+        icUInt32Number dataSz = dataTag->GetSize();
+        if (dataSz > 134217728u) {
+            cb.warn(sfmt("Tag '%s': CIccTagData size %u bytes (>128MB)",
+                         sigStr(static_cast<uint32_t>(sit->TagInfo.sig)).c_str(),
+                         dataSz),
+                    "CWE-400: Excessive data tag allocation");
+        }
+        if (dataTag->IsTypeCompressed()) {
+            cb.warn(sfmt("Tag '%s': compressed data flag set",
+                         sigStr(static_cast<uint32_t>(sit->TagInfo.sig)).c_str()),
+                    "CWE-843: Compressed type may trigger unsafe decompression");
+        }
+    }
+
+    return cb.done("CIccTagData types valid (or absent)");
 }
 
 REGISTER_HEURISTIC(76, "CIccTagData Type Flag",
@@ -395,12 +628,31 @@ REGISTER_HEURISTIC(76, "CIccTagData Type Flag",
     check_h76_cicctagdata_type_flag);
 
 static CheckResult check_h77_mpe_calculator_sub_element_count(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H77
-    return cb.done("MPE Calculator Sub Element Count checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    static const icTagSignature mpeSigs[] = {
+        icSigDToB0Tag, icSigDToB1Tag, icSigDToB2Tag, icSigDToB3Tag,
+        icSigBToD0Tag, icSigBToD1Tag, icSigBToD2Tag, icSigBToD3Tag,
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        static_cast<icTagSignature>(0)
+    };
+
+    for (int s = 0; mpeSigs[s] != static_cast<icTagSignature>(0); ++s) {
+        auto* mpe = FindAndCast<CIccTagMultiProcessElement>(p, mpeSigs[s]);
+        if (!mpe) continue;
+
+        icUInt32Number nElems = mpe->NumElements();
+        if (nElems > 256u) {
+            cb.warn(sfmt("Tag '%s': MPE with %u elements (>256)",
+                         sigStr(static_cast<uint32_t>(mpeSigs[s])).c_str(), nElems),
+                    "CWE-400: Excessive MPE elements -> large op arrays");
+        }
+    }
+
+    return cb.done("MPE calculator element counts within bounds");
 }
 
 REGISTER_HEURISTIC(77, "MPE Calculator Sub Element Count",
@@ -410,12 +662,56 @@ REGISTER_HEURISTIC(77, "MPE Calculator Sub Element Count",
     check_h77_mpe_calculator_sub_element_count);
 
 static CheckResult check_h78_clut_grid_dimension_overflow(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H78
-    return cb.done("CLUT Grid Dimension Overflow checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    static const icTagSignature clutSigs[] = {
+        icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+        icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
+        static_cast<icTagSignature>(0)
+    };
+
+    for (int s = 0; clutSigs[s] != static_cast<icTagSignature>(0); ++s) {
+        auto* mbb = FindAndCast<CIccMBB>(p, clutSigs[s]);
+        if (!mbb) continue;
+
+        CIccCLUT* clut = mbb->GetCLUT();
+        if (!clut) continue;
+
+        icUInt8Number nIn = mbb->InputChannels();
+        icUInt8Number nOut = mbb->OutputChannels();
+        if (!nIn) continue;
+
+        uint64_t gridProduct = 1;
+        bool overflow = false;
+        for (uint8_t d = 0; d < nIn && d < 16u; ++d) {
+            icUInt8Number gridPt = clut->GridPoint(d);
+            gridProduct *= gridPt;
+            if (gridProduct > 268435456ull) {
+                overflow = true;
+                break;
+            }
+        }
+
+        if (overflow) {
+            cb.warn(sfmt("Tag '%s': CLUT grid product overflow (%u inputs)",
+                         sigStr(static_cast<uint32_t>(clutSigs[s])).c_str(), nIn),
+                    "CWE-190: Exponential grid allocation");
+            continue;
+        }
+
+        uint64_t totalBytes = gridProduct * static_cast<uint64_t>(nOut) * sizeof(icFloatNumber);
+        if (totalBytes > 16777216ull) {
+            cb.warn(sfmt("Tag '%s': CLUT alloc %llu bytes (>16MB)",
+                         sigStr(static_cast<uint32_t>(clutSigs[s])).c_str(),
+                         static_cast<unsigned long long>(totalBytes)),
+                    "CWE-131: CLUT exceeds per-allocation cap");
+        }
+    }
+
+    return cb.done("CLUT grid dimension products within bounds");
 }
 
 REGISTER_HEURISTIC(78, "CLUT Grid Dimension Overflow",
@@ -426,26 +722,55 @@ REGISTER_HEURISTIC(78, "CLUT Grid Dimension Overflow",
 
 static CheckResult check_h79_load_tag_allocation_overflow(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H79
-    return cb.done("Load Tag Allocation Overflow checked");
+    for (const auto& tag : pv.rawTagTable()) {
+        icUInt32Number tagSize = tag.size;
+        icUInt32Number tagOffset = tag.offset;
+        std::string tagName = sigStr(tag.signature);
+
+        if (tagSize > 268435456u) {
+            cb.warn(sfmt("Tag '%s' (0x%08X): size=%u (>256MB) - potential OOM in LoadTag",
+                         tagName.c_str(), tag.signature, tagSize),
+                    "CWE-400: Uncapped allocation from tag size");
+        }
+        if (tagOffset > 0 && tagSize > 0 &&
+            (static_cast<uint64_t>(tagOffset) + static_cast<uint64_t>(tagSize)) > 0xFFFFFFFFull) {
+            cb.warn(sfmt("Tag '%s': offset(%u)+size(%u) wraps 32-bit - OOB read in LoadTag",
+                         tagName.c_str(), tagOffset, tagSize),
+                    "CWE-190: Integer overflow in offset+size");
+        }
+    }
+
+    return cb.done("Tag sizes within safe allocation limits");
 }
 
 REGISTER_HEURISTIC(79, "Load Tag Allocation Overflow",
     "", "",
     "CWE-190", "CVE-2026-21485,GHSA-chp2-4gv5-2432",
-    Severity::CRITICAL, CheckPhase::LIBRARY,
+    Severity::CRITICAL, CheckPhase::RAW_SCAN,
     check_h79_load_tag_allocation_overflow);
 
 static CheckResult check_h80_shared_tag_pointer_uaf(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H80
-    return cb.done("Shared Tag Pointer UAF checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    std::map<icUInt32Number, std::vector<icSignature>> offsetMap;
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        if (sit->TagInfo.offset > 0 && sit->TagInfo.size > 0) {
+            offsetMap[sit->TagInfo.offset].push_back(sit->TagInfo.sig);
+        }
+    }
+
+    for (const auto& entry : offsetMap) {
+        if (entry.second.size() > 4u) {
+            cb.warn(sfmt("Offset 0x%08X shared by %zu tags - UAF risk if tag freed independently",
+                         entry.first, entry.second.size()),
+                    "CWE-416: Shared tag pointer pattern");
+        }
+    }
+
+    return cb.done("No excessive tag pointer sharing detected");
 }
 
 REGISTER_HEURISTIC(80, "Shared Tag Pointer UAF",
@@ -455,12 +780,35 @@ REGISTER_HEURISTIC(80, "Shared Tag Pointer UAF",
     check_h80_shared_tag_pointer_uaf);
 
 static CheckResult check_h81_mpe_calculator_io_consistency(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H81
-    return cb.done("MPE Calculator IO Consistency checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        CIccTag* tag = p->FindTag(sit->TagInfo.sig);
+        auto* mpe = (tag && tag->GetType() == icSigMultiProcessElementType)
+            ? dynamic_cast<CIccTagMultiProcessElement*>(tag)
+            : nullptr;
+        if (!mpe) continue;
+
+        icUInt16Number mpeIn = mpe->NumInputChannels();
+        icUInt16Number mpeOut = mpe->NumOutputChannels();
+        std::string tagName = sigStr(static_cast<uint32_t>(sit->TagInfo.sig));
+
+        if (mpeIn == 0 || mpeOut == 0) {
+            cb.warn(sfmt("Tag '%s': MPE with 0 channels (in=%u, out=%u)",
+                         tagName.c_str(), mpeIn, mpeOut),
+                    "CWE-122: Zero-channel MPE causes division/buffer errors");
+        }
+        if (mpeIn > 1024 || mpeOut > 1024) {
+            cb.warn(sfmt("Tag '%s': MPE channel count extreme (in=%u, out=%u)",
+                         tagName.c_str(), mpeIn, mpeOut),
+                    "CWE-122: Large channel count -> massive buffer allocation");
+        }
+    }
+
+    return cb.done("MPE calculator channel counts within bounds");
 }
 
 REGISTER_HEURISTIC(81, "MPE Calculator IO Consistency",
@@ -471,26 +819,73 @@ REGISTER_HEURISTIC(81, "MPE Calculator IO Consistency",
 
 static CheckResult check_h82_io_read_size_overflow(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
-    auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H82
-    return cb.done("IO Read Size Overflow checked");
+    for (const auto& tag : pv.rawTagTable()) {
+        icUInt32Number tagSize = tag.size;
+        if (tagSize > 0x1FFFFFFFu) {
+            cb.warn(sfmt("Tag '%s': size=%u may overflow Read64 bit-shift",
+                         sigStr(tag.signature).c_str(),
+                         tagSize),
+                    "CWE-190: nNum<<3 overflow in CIccIO");
+        }
+    }
+
+    return cb.done("Tag sizes safe for I/O bit-shift operations");
 }
 
 REGISTER_HEURISTIC(82, "IO Read Size Overflow",
     "", "",
     "CWE-190", "CVE-2026-25582,CVE-2026-25583,CVE-2026-30987,GHSA-46hq-fphp-jggf,GHSA-5ffg-r52h-fgw3,GHSA-fj57-gfhq-rjqr",
-    Severity::CRITICAL, CheckPhase::LIBRARY,
+    Severity::CRITICAL, CheckPhase::RAW_SCAN,
     check_h82_io_read_size_overflow);
 
 static CheckResult check_h83_float_numeric_array_size(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H83
-    return cb.done("Float Numeric Array Size checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    static const icSignature floatSigs[] = {
+        icSigXYZType, icSigS15Fixed16ArrayType, icSigU16Fixed16ArrayType,
+        icSigFloat16ArrayType, icSigFloat32ArrayType, icSigFloat64ArrayType,
+        static_cast<icSignature>(0)
+    };
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        CIccTag* tag = p->FindTag(sit->TagInfo.sig);
+        if (!tag) continue;
+
+        icTagTypeSignature tagType = tag->GetType();
+        bool isFloatArray = false;
+        for (int f = 0; floatSigs[f] != static_cast<icSignature>(0); ++f) {
+            if (tagType == static_cast<icTagTypeSignature>(floatSigs[f])) {
+                isFloatArray = true;
+                break;
+            }
+        }
+        if (!isFloatArray) continue;
+
+        icUInt32Number tagDataSize = sit->TagInfo.size;
+        if (tagDataSize < 8u) continue;
+        icUInt32Number payloadSize = tagDataSize - 8u;
+
+        icUInt32Number elemSize = 4u;
+        if (tagType == static_cast<icTagTypeSignature>(icSigXYZType)) {
+            elemSize = 12u;
+        } else if (tagType == static_cast<icTagTypeSignature>(icSigFloat64ArrayType)) {
+            elemSize = 8u;
+        } else if (tagType == static_cast<icTagTypeSignature>(icSigFloat16ArrayType)) {
+            elemSize = 2u;
+        }
+
+        if (payloadSize / elemSize > 16777216u) {
+            cb.warn(sfmt("Tag '%s': %u elements in float array (>16M)",
+                         sigStr(static_cast<uint32_t>(sit->TagInfo.sig)).c_str(),
+                         payloadSize / elemSize),
+                    "CWE-121: Stack overflow risk in GetValues");
+        }
+    }
+
+    return cb.done("Float/numeric array sizes within bounds");
 }
 
 REGISTER_HEURISTIC(83, "Float Numeric Array Size",
@@ -500,12 +895,47 @@ REGISTER_HEURISTIC(83, "Float Numeric Array Size",
     check_h83_float_numeric_array_size);
 
 static CheckResult check_h84_lut3d_transform_consistency(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H84
-    return cb.done("LUT3D Transform Consistency checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    icUInt32Number csChannels = icGetSpaceSamples(p->m_Header.colorSpace);
+    icUInt32Number pcsChannels = icGetSpaceSamples(p->m_Header.pcs);
+
+    if (csChannels == 3u) {
+        static const icTagSignature aToBSigs[] = {
+            icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
+            static_cast<icTagSignature>(0)
+        };
+        for (int a = 0; aToBSigs[a] != static_cast<icTagSignature>(0); ++a) {
+            CIccTag* tag = p->FindTag(aToBSigs[a]);
+            if (!tag || !tag->IsMBBType()) continue;
+            auto* mbb = dynamic_cast<CIccMBB*>(tag);
+            if (!mbb) continue;
+
+            CIccCLUT* clut = mbb->GetCLUT();
+            if (!clut) continue;
+
+            icUInt8Number clutIn = clut->GetInputDim();
+            icUInt8Number clutOut = clut->GetOutputChannels();
+
+            if (clutIn != csChannels) {
+                cb.warn(sfmt("Tag '%s': CLUT input dim=%u != colorSpace channels=%u",
+                             sigStr(static_cast<uint32_t>(aToBSigs[a])).c_str(),
+                             clutIn, csChannels),
+                        "CWE-125: 3D LUT dimension mismatch");
+            }
+            if (pcsChannels > 0 && clutOut != pcsChannels) {
+                cb.warn(sfmt("Tag '%s': CLUT output=%u != PCS channels=%u",
+                             sigStr(static_cast<uint32_t>(aToBSigs[a])).c_str(),
+                             clutOut, pcsChannels),
+                        "CWE-125: Output channel mismatch -> buffer overread");
+            }
+        }
+    }
+
+    return cb.done("3D LUT channel/grid dimensions consistent");
 }
 
 REGISTER_HEURISTIC(84, "LUT3D Transform Consistency",
@@ -515,12 +945,34 @@ REGISTER_HEURISTIC(84, "LUT3D Transform Consistency",
     check_h84_lut3d_transform_consistency);
 
 static CheckResult check_h85_mpe_buffer_overlap(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H85
-    return cb.done("MPE Buffer Overlap checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        CIccTag* tag = p->FindTag(sit->TagInfo.sig);
+        auto* mpe = (tag && tag->GetType() == icSigMultiProcessElementType)
+            ? dynamic_cast<CIccTagMultiProcessElement*>(tag)
+            : nullptr;
+        if (!mpe) continue;
+
+        icUInt16Number mpeIn = mpe->NumInputChannels();
+        icUInt16Number mpeOut = mpe->NumOutputChannels();
+        int elemCount = 0;
+        for (;; ++elemCount) {
+            if (!mpe->GetElement(elemCount)) break;
+        }
+
+        if (mpeIn == mpeOut && elemCount > 1 && mpeIn > 256u) {
+            cb.warn(sfmt("Tag '%s': MPE chain (%d elements, %u channels) - memcpy overlap risk",
+                         sigStr(static_cast<uint32_t>(sit->TagInfo.sig)).c_str(),
+                         elemCount, mpeIn),
+                    "CWE-120: Buffer overlap in chained Apply");
+        }
+    }
+
+    return cb.done("No excessive MPE buffer overlap patterns");
 }
 
 REGISTER_HEURISTIC(85, "MPE Buffer Overlap",
@@ -982,12 +1434,40 @@ REGISTER_HEURISTIC(91, "Colorant Order Validation",
     check_h91_colorant_order_validation);
 
 static CheckResult check_h92_spectral_viewing_conditions(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H92
-    return cb.done("Spectral Viewing Conditions checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    CIccTag* tag = p->FindTag(icSigSpectralViewingConditionsTag);
+    if (tag) {
+        auto* svc = dynamic_cast<CIccTagSpectralViewingConditions*>(tag);
+        if (svc) {
+            if (std::isnan(svc->m_illuminantXYZ.X) || std::isnan(svc->m_illuminantXYZ.Y) ||
+                std::isnan(svc->m_illuminantXYZ.Z) || std::isinf(svc->m_illuminantXYZ.X) ||
+                std::isinf(svc->m_illuminantXYZ.Y) || std::isinf(svc->m_illuminantXYZ.Z)) {
+                cb.warn("Spectral viewing conditions: illuminant XYZ contains NaN/Inf",
+                        "CWE-682: NaN/Inf in PCC illuminant -> undefined PCS transform");
+            }
+            if (svc->m_illuminantXYZ.Y <= 0.0f && svc->m_illuminantXYZ.Y != 0.0f) {
+                cb.warn(sfmt("Spectral viewing conditions: illuminant Y=%.4f (non-positive)",
+                             static_cast<double>(svc->m_illuminantXYZ.Y)));
+            }
+            if (std::isnan(svc->m_surroundXYZ.X) || std::isnan(svc->m_surroundXYZ.Y) ||
+                std::isnan(svc->m_surroundXYZ.Z)) {
+                cb.warn("Spectral viewing conditions: surround XYZ contains NaN");
+            }
+            icFloatNumber cct = svc->getIlluminantCCT();
+            if (cct < 0.0f || cct > 100000.0f) {
+                cb.warn(sfmt("Illuminant CCT=%.1f (outside 0-100000K range)",
+                             static_cast<double>(cct)));
+            }
+        } else {
+            cb.warn("Spectral viewing conditions tag has unexpected type");
+        }
+    }
+
+    return cb.done("Spectral viewing conditions valid");
 }
 
 REGISTER_HEURISTIC(92, "Spectral Viewing Conditions",
@@ -1114,18 +1594,52 @@ REGISTER_HEURISTIC(94, "Matrix TRC Colorant Consistency",
     check_h94_matrix_trc_colorant_consistency);
 
 static CheckResult check_h95_sparse_matrix_array_bounds_validation(const ProfileView& pv) {
+    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return cb.done("Library not loaded — skipped");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return cb.done("No profile");
-    // TODO: port full validation logic from V1 RunHeuristic_H95
-    return cb.done("Sparse Matrix Array Bounds Validation checked");
+    if (!p) return CheckResult::skip("No profile");
+
+    bool foundSparse = false;
+    for (auto sit = p->m_Tags.begin(); sit != p->m_Tags.end(); ++sit) {
+        CIccTag* smaTag = p->FindTag(sit->TagInfo.sig);
+        if (!smaTag || smaTag->GetType() != icSigSparseMatrixArrayType) continue;
+
+        auto* sma = dynamic_cast<CIccTagSparseMatrixArray*>(smaTag);
+        if (!sma) {
+            cb.warn("SparseMatrix tag present but wrong type - type confusion risk");
+            continue;
+        }
+
+        foundSparse = true;
+        icUInt32Number nChannels = sma->GetChannelsPerMatrix();
+        if (nChannels == 0u) {
+            cb.critical("Zero channels per matrix - potential division-by-zero");
+        }
+        if (nChannels > 65535u) {
+            cb.warn(sfmt("Channels per matrix=%u exceeds reasonable limit", nChannels));
+        }
+
+        CIccSparseMatrix mtx;
+        if (sma->GetSparseMatrix(mtx, 0, true)) {
+            icUInt16Number rows = mtx.Rows();
+            icUInt16Number cols = mtx.Cols();
+            if (rows == 0 || cols == 0) {
+                cb.critical(sfmt("Zero-dimension sparse matrix (rows=%u, cols=%u)", rows, cols));
+            }
+        }
+    }
+
+    if (!foundSparse) {
+        return CheckResult::skip("No sparse matrix array tags present");
+    }
+
+    return cb.done("Sparse matrix array bounds valid");
 }
 
 REGISTER_HEURISTIC(95, "Sparse Matrix Array Bounds Validation",
     "", "",
     "CWE-843", "CVE-2026-21503,GHSA-h554-qrfh-53gx",
-    Severity::HIGH, CheckPhase::LIBRARY,
+    Severity::HIGH, CheckPhase::RAW_SCAN,
     check_h95_sparse_matrix_array_bounds_validation);
 
 static CheckResult check_h96_embedded_profile_validation(const ProfileView& pv) {
