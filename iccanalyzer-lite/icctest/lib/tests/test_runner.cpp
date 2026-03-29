@@ -2751,6 +2751,82 @@ static void test_gbd_tary_signed_channel_wrap_regression() {
             ASSERT_TRUE(sawDev);
         }
     }
+
+    {
+        auto result = analyze_corpus_heuristics(profilePath, {74, 107, 110, 116, 117});
+        ASSERT_EQ(5, result.stats.checksRun);
+        expect_heuristic_result(result, 74, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 107, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 110, CheckResult::Status::FINDINGS, 4);
+        expect_heuristic_result(result, 116, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 117, CheckResult::Status::FINDINGS, 1);
+
+        const auto* h74 = find_per_check(result, CheckID::Kind::Heuristic, 74);
+        ASSERT_TRUE(h74 != nullptr);
+        if (h74) {
+            ASSERT_EQ(1u, h74->result.findings.size());
+            if (h74->result.findings.size() == 1u) {
+                ASSERT_TRUE(h74->result.findings[0].message.find("unexpected type") != std::string::npos);
+                ASSERT_TRUE(h74->result.findings[0].message.find("rf") != std::string::npos);
+            }
+        }
+
+        const auto* h107 = find_per_check(result, CheckID::Kind::Heuristic, 107);
+        ASSERT_TRUE(h107 != nullptr);
+        if (h107) {
+            ASSERT_EQ(1u, h107->result.findings.size());
+            if (h107->result.findings.size() == 1u) {
+                ASSERT_TRUE(h107->result.findings[0].message.find("Cannot determine channel counts") != std::string::npos);
+            }
+        }
+
+        const auto* h110 = find_per_check(result, CheckID::Kind::Heuristic, 110);
+        ASSERT_TRUE(h110 != nullptr);
+        if (h110) {
+            bool sawMissingDesc = false;
+            bool sawMissingWtpt = false;
+            bool sawUnknownClass = false;
+            bool sawInvalidPcs = false;
+            for (const auto& finding : h110->result.findings) {
+                if (finding.message.find("Missing required tag 'desc'") != std::string::npos) {
+                    sawMissingDesc = true;
+                }
+                if (finding.message.find("Missing required tag 'wtpt'") != std::string::npos) {
+                    sawMissingWtpt = true;
+                }
+                if (finding.message.find("Unknown profile class") != std::string::npos) {
+                    sawUnknownClass = true;
+                }
+                if (finding.message.find("Non-DeviceLink PCS is not Lab/XYZ/spectral") != std::string::npos) {
+                    sawInvalidPcs = true;
+                }
+            }
+            ASSERT_TRUE(sawMissingDesc);
+            ASSERT_TRUE(sawMissingWtpt);
+            ASSERT_TRUE(sawUnknownClass);
+            ASSERT_TRUE(sawInvalidPcs);
+        }
+
+        const auto* h116 = find_per_check(result, CheckID::Kind::Heuristic, 116);
+        ASSERT_TRUE(h116 != nullptr);
+        if (h116) {
+            ASSERT_EQ(1u, h116->result.findings.size());
+            if (h116->result.findings.size() == 1u) {
+                ASSERT_TRUE(h116->result.findings[0].message.find("cprt") != std::string::npos);
+                ASSERT_TRUE(h116->result.findings[0].message.find("multiLocalizedUnicodeType") != std::string::npos);
+            }
+        }
+
+        const auto* h117 = find_per_check(result, CheckID::Kind::Heuristic, 117);
+        ASSERT_TRUE(h117 != nullptr);
+        if (h117) {
+            ASSERT_EQ(1u, h117->result.findings.size());
+            if (h117->result.findings.size() == 1u) {
+                ASSERT_TRUE(h117->result.findings[0].message.find("'cprt'") != std::string::npos);
+                ASSERT_TRUE(h117->result.findings[0].message.find("not in allowed set") != std::string::npos);
+            }
+        }
+    }
 }
 
 static void test_profile_sequence_id_validation_regression() {

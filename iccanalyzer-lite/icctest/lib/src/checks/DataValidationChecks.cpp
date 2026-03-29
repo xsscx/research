@@ -521,10 +521,17 @@ REGISTER_HEURISTIC(73, "Tag Array Nesting Depth",
     check_h73_tag_array_nesting_depth);
 
 static CheckResult check_h74_tag_type_signature_consistency(const ProfileView& pv) {
-    if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
     CheckBuilder cb;
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return CheckResult::skip("No profile");
+    bool useRawFallback = !pv.libraryLoaded() || !p;
+    if (useRawFallback) {
+        if (!pv.rawData() ||
+            pv.rawSize() < 132u ||
+            pv.header().magic != 0x61637370u ||
+            pv.rawTagTable().empty()) {
+            return CheckResult::skip("Library parse failed");
+        }
+    }
 
     struct TagTypeExpectation {
         icTagSignature tag;
@@ -542,10 +549,21 @@ static CheckResult check_h74_tag_type_signature_consistency(const ProfileView& p
     };
 
     for (int e = 0; expectations[e].tag != static_cast<icTagSignature>(0); ++e) {
-        CIccTag* tag = p->FindTag(expectations[e].tag);
-        if (!tag) continue;
+        icTagTypeSignature actualType = static_cast<icTagTypeSignature>(0);
+        if (useRawFallback) {
+            auto rawTag = pv.rawTag(static_cast<uint32_t>(expectations[e].tag));
+            if (!rawTag ||
+                rawTag->size < 8u ||
+                !rawRangeAccessible(pv.rawSize(), rawTag->offset, 8u)) {
+                continue;
+            }
+            actualType = static_cast<icTagTypeSignature>(readU32BE(pv.rawData() + rawTag->offset));
+        } else {
+            CIccTag* tag = p->FindTag(expectations[e].tag);
+            if (!tag) continue;
+            actualType = tag->GetType();
+        }
 
-        icTagTypeSignature actualType = tag->GetType();
         bool valid = false;
         for (int t = 0; t < 5 && expectations[e].expected[t] != static_cast<icTagTypeSignature>(0); ++t) {
             if (actualType == expectations[e].expected[t]) {
@@ -567,7 +585,7 @@ static CheckResult check_h74_tag_type_signature_consistency(const ProfileView& p
 REGISTER_HEURISTIC(74, "Tag Type Signature Consistency",
     "", "",
     "CWE-843", "CVE-2021-30942,CVE-2026-21505,CVE-2026-24856,GHSA-j577-8285-qrf9,GHSA-w585-cv3v-c396",
-    Severity::HIGH, CheckPhase::LIBRARY,
+    Severity::HIGH, CheckPhase::RAW_SCAN,
     check_h74_tag_type_signature_consistency);
 
 static CheckResult check_h75_tags_very_small_size(const ProfileView& pv) {
