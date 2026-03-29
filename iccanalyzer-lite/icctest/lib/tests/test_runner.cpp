@@ -9,6 +9,7 @@
 
 #include "icctest/IccTest.h"
 #include "IccProfile.h"
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstdio>
@@ -58,45 +59,115 @@ static std::filesystem::path find_repo_root(std::filesystem::path start) {
     return {};
 }
 
-static std::filesystem::path resolve_repo_file(const char* relativePath) {
-    std::filesystem::path srcPath(__FILE__);
-    std::filesystem::path sourceDir = srcPath.parent_path();
+static std::filesystem::path configured_project_root() {
+#ifdef ICCTEST_PROJECT_SOURCE_ROOT
+    return std::filesystem::path(ICCTEST_PROJECT_SOURCE_ROOT).lexically_normal();
+#else
+    return {};
+#endif
+}
+
+static std::filesystem::path configured_analyzer_root() {
+#ifdef ICCTEST_ANALYZER_SOURCE_ROOT
+    return std::filesystem::path(ICCTEST_ANALYZER_SOURCE_ROOT).lexically_normal();
+#else
+    return {};
+#endif
+}
+
+static std::filesystem::path configured_monorepo_root() {
+#ifdef ICCTEST_MONOREPO_SOURCE_ROOT
+    return std::filesystem::path(ICCTEST_MONOREPO_SOURCE_ROOT).lexically_normal();
+#else
+    return {};
+#endif
+}
+
+static bool path_exists(const std::filesystem::path& path) {
+    if (path.empty()) {
+        return false;
+    }
+
+    std::error_code ec;
+    return std::filesystem::exists(path, ec) && !ec;
+}
+
+static void append_unique_path(std::vector<std::filesystem::path>& roots,
+                               const std::filesystem::path& candidate) {
+    if (candidate.empty()) {
+        return;
+    }
+
+    std::filesystem::path normalized = candidate.lexically_normal();
+    if (std::find(roots.begin(), roots.end(), normalized) == roots.end()) {
+        roots.push_back(normalized);
+    }
+}
+
+static std::vector<std::filesystem::path> resolve_repo_roots() {
+    std::vector<std::filesystem::path> roots;
+    std::filesystem::path analyzerRoot = configured_analyzer_root();
+    std::filesystem::path repoRoot = configured_monorepo_root();
+    std::filesystem::path projectRoot = configured_project_root();
+    std::filesystem::path sourceDir = std::filesystem::path(__FILE__).parent_path();
     std::filesystem::path iccaRoot = find_named_ancestor(sourceDir, "iccanalyzer-lite");
-    std::filesystem::path repoRoot = find_repo_root(sourceDir);
 
-    if (std::strncmp(relativePath, "tests/", 6) == 0 && !iccaRoot.empty()) {
-        std::filesystem::path combined = iccaRoot / relativePath;
-        std::filesystem::path candidate = combined.lexically_normal();
-        if (std::filesystem::exists(candidate)) {
-            return candidate;
-        }
-    }
-
-    if (!repoRoot.empty()) {
-        std::filesystem::path combined = repoRoot / relativePath;
-        std::filesystem::path candidate = combined.lexically_normal();
-        if (std::filesystem::exists(candidate)) {
-            return candidate;
-        }
-    }
-
-    if (!iccaRoot.empty()) {
-        std::filesystem::path combined = iccaRoot / relativePath;
-        std::filesystem::path candidate = combined.lexically_normal();
-        if (std::filesystem::exists(candidate)) {
-            return candidate;
-        }
-    }
+    append_unique_path(roots, repoRoot);
+    append_unique_path(roots, analyzerRoot.parent_path());
+    append_unique_path(roots, analyzerRoot);
+    append_unique_path(roots, projectRoot);
+    append_unique_path(roots, find_repo_root(sourceDir));
+    append_unique_path(roots, iccaRoot.parent_path());
+    append_unique_path(roots, iccaRoot);
 
     std::filesystem::path cwd = std::filesystem::current_path();
-    std::filesystem::path combined = cwd / relativePath;
-    std::filesystem::path candidate = combined.lexically_normal();
-    if (std::filesystem::exists(candidate)) {
-        return candidate;
+    append_unique_path(roots, find_repo_root(cwd));
+    append_unique_path(roots, find_named_ancestor(cwd, "iccanalyzer-lite").parent_path());
+    append_unique_path(roots, find_named_ancestor(cwd, "iccanalyzer-lite"));
+    append_unique_path(roots, cwd);
+
+    return roots;
+}
+
+static std::filesystem::path resolve_repo_file(const char* relativePath) {
+    std::filesystem::path analyzerRoot = configured_analyzer_root();
+    if (std::strncmp(relativePath, "tests/", 6) == 0 && !analyzerRoot.empty()) {
+        std::filesystem::path candidate = (analyzerRoot / relativePath).lexically_normal();
+        if (path_exists(candidate)) {
+            return candidate;
+        }
+    }
+
+    for (const auto& root : resolve_repo_roots()) {
+        std::filesystem::path candidate = (root / relativePath).lexically_normal();
+        if (path_exists(candidate)) {
+            return candidate;
+        }
     }
 
     return {};
 }
+
+class ScopedCurrentPath {
+public:
+    explicit ScopedCurrentPath(const std::filesystem::path& next) {
+        previous_ = std::filesystem::current_path();
+        std::filesystem::current_path(next);
+    }
+
+    ~ScopedCurrentPath() {
+        std::error_code ignored;
+        if (!previous_.empty()) {
+            std::filesystem::current_path(previous_, ignored);
+        }
+    }
+
+    ScopedCurrentPath(const ScopedCurrentPath&) = delete;
+    ScopedCurrentPath& operator=(const ScopedCurrentPath&) = delete;
+
+private:
+    std::filesystem::path previous_;
+};
 
 static std::filesystem::path write_temp_profile(const std::vector<uint8_t>& data,
                                                 const char* fileName) {
@@ -1554,6 +1625,49 @@ static void test_severity_filter() {
     // Only CRITICAL findings should be in results
     for (const auto& f : result.findings) {
         ASSERT_EQ(Severity::CRITICAL, f.level);
+    }
+}
+
+static void test_repo_fixture_resolution_stability() {
+    std::printf("  test_repo_fixture_resolution_stability...\n");
+
+    const std::filesystem::path repoRoot = configured_monorepo_root();
+    const std::filesystem::path analyzerRoot = configured_analyzer_root();
+    const std::filesystem::path buildRoot = configured_project_root() / "build";
+
+    ASSERT_TRUE(path_exists(repoRoot));
+    ASSERT_TRUE(path_exists(analyzerRoot));
+    ASSERT_TRUE(path_exists(buildRoot));
+
+    const std::vector<const char*> fixtures = {
+        "test-profiles/sRGB_D65_MAT.icc",
+        "test-profiles/NamedColor.icc",
+        "test-profiles/CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc",
+        "test-profiles/oom-CIccSingleSampledCurve-SetSize-IccProfLib-IccMpeBasic_cpp-Line1496.icc",
+        "test-profiles/heap-buffer-overflow-CIccMpeSpectralMatrix-Describe-IccMpeSpectral_cpp-Line352.icc",
+        "tests/corpus/valid_srgb.icc",
+        "tests/corpus/gbd_tary_signed_channel_wrap.icc",
+    };
+
+    const std::vector<std::filesystem::path> workingDirs = {
+        repoRoot,
+        analyzerRoot,
+        buildRoot,
+    };
+
+    for (const auto& workingDir : workingDirs) {
+        ScopedCurrentPath scoped(workingDir);
+        for (const char* relativePath : fixtures) {
+            auto resolved = resolve_repo_file(relativePath);
+            ASSERT_FALSE(resolved.empty());
+            ASSERT_TRUE(path_exists(resolved));
+
+            std::filesystem::path expected =
+                std::strncmp(relativePath, "tests/", 6) == 0
+                    ? (analyzerRoot / relativePath).lexically_normal()
+                    : (repoRoot / relativePath).lexically_normal();
+            ASSERT_EQ(expected, resolved.lexically_normal());
+        }
     }
 }
 
@@ -4910,6 +5024,7 @@ void test_runner() {
     test_check_count();
     test_heuristic_coverage();
     test_conformance_coverage();
+    test_repo_fixture_resolution_stability();
     test_conformance_private_tag_documentation_regression();
     test_conformance_adgc_regression();
     test_sampleicc_legibility_regression();
