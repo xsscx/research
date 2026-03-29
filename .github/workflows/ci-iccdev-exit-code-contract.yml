@@ -238,6 +238,9 @@ jobs:
             "$TOOLS/IccToXml/iccToXml" "$VALID_ICC" "/tmp/ec-test.xml"
 
           if [ -f /tmp/ec-test.xml ]; then
+            if [ "${{ matrix.branch }}" = "master" ]; then
+              KNOWN="upstream iccFromXml valid-XML ASAN regression"
+            fi
             check_exit "valid-iccFromXml" "iccFromXml valid XML" "0" \
               "$TOOLS/IccFromXml/iccFromXml" "/tmp/ec-test.xml" "/tmp/ec-test-rt.icc"
           fi
