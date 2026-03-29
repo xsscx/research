@@ -203,7 +203,7 @@ int RoundTripAnalyze(const char *filename)
 {
   printf("\n=== Round-Trip Tag Pair Analysis ===\n");
   printf("Profile: %s\n\n", filename);
-  
+
   if (IsProfileTruncated(filename)) {
     printf("[NOT RUN] Profile TRUNCATED — round-trip validation not run\n");
     printf("       Header claims more bytes than file contains (CWE-125)\n\n");
@@ -215,7 +215,7 @@ int RoundTripAnalyze(const char *filename)
     printf("Error opening file: %s\n", filename);
     return -1;
   }
-  
+
   CIccProfile *pIcc = new (std::nothrow) CIccProfile;
   if (!pIcc) {
     printf("Error: memory allocation failed\n");
@@ -230,7 +230,7 @@ int RoundTripAnalyze(const char *filename)
     return -1;
   }
   io.Close();
-  
+
   // Check device class
   icHeader *pHdr = &pIcc->m_Header;
   if (pHdr->deviceClass == icSigLinkClass) {
@@ -239,14 +239,14 @@ int RoundTripAnalyze(const char *filename)
     delete pIcc;
     return 0;
   }
-  
+
   printf("Device Class: 0x%08X\n\n", pHdr->deviceClass);
-  
+
   // Check tag pairs
   auto hasTag = [pIcc](icTagSignature sig) -> bool {
     return (pIcc->FindTag(sig) != nullptr);
   };
-  
+
   // AToB/BToA pairs (v2/v4)
   bool hasAToB0 = hasTag(icSigAToB0Tag);
   bool hasBToA0 = hasTag(icSigBToA0Tag);
@@ -254,7 +254,7 @@ int RoundTripAnalyze(const char *filename)
   bool hasBToA1 = hasTag(icSigBToA1Tag);
   bool hasAToB2 = hasTag(icSigAToB2Tag);
   bool hasBToA2 = hasTag(icSigBToA2Tag);
-  
+
   // DToB/BToD pairs (v5)
   bool hasDToB0 = hasTag(icSigDToB0Tag);
   bool hasBToD0 = hasTag(icSigBToD0Tag);
@@ -262,7 +262,7 @@ int RoundTripAnalyze(const char *filename)
   bool hasBToD1 = hasTag(icSigBToD1Tag);
   bool hasDToB2 = hasTag(icSigDToB2Tag);
   bool hasBToD2 = hasTag(icSigBToD2Tag);
-  
+
   // Matrix/TRC tags
   bool hasMatrix =
     hasTag(icSigRedMatrixColumnTag) &&
@@ -271,9 +271,9 @@ int RoundTripAnalyze(const char *filename)
     hasTag(icSigRedTRCTag) &&
     hasTag(icSigGreenTRCTag) &&
     hasTag(icSigBlueTRCTag);
-  
+
   printf("Tag Pair Analysis:\n");
-  printf("  AToB0/BToA0 (Perceptual):        %s %s  %s\n", 
+  printf("  AToB0/BToA0 (Perceptual):        %s %s  %s\n",
          hasAToB0 ? "[[X]]" : "[ ]",
          hasBToA0 ? "[[X]]" : "[ ]",
          (hasAToB0 && hasBToA0) ? "[X] Round-trip capable" : "");
@@ -285,7 +285,7 @@ int RoundTripAnalyze(const char *filename)
          hasAToB2 ? "[[X]]" : "[ ]",
          hasBToA2 ? "[[X]]" : "[ ]",
          (hasAToB2 && hasBToA2) ? "[X] Round-trip capable" : "");
-  
+
   printf("\n  DToB0/BToD0 (Perceptual):        %s %s  %s\n",
          hasDToB0 ? "[[X]]" : "[ ]",
          hasBToD0 ? "[[X]]" : "[ ]",
@@ -298,14 +298,14 @@ int RoundTripAnalyze(const char *filename)
          hasDToB2 ? "[[X]]" : "[ ]",
          hasBToD2 ? "[[X]]" : "[ ]",
          (hasDToB2 && hasBToD2) ? "[X] Round-trip capable" : "");
-  
+
   printf("\n  Matrix/TRC Tags:                 %s  %s\n",
          hasMatrix ? "[[X]]" : "[ ]",
          hasMatrix ? "[X] Round-trip capable" : "");
-  
+
   // Overall result
   bool roundTripable = HasRoundTripSupport(pIcc);
-  
+
   printf("\n");
   if (roundTripable) {
     printf("[OK] RESULT: Profile supports round-trip validation\n");
@@ -314,7 +314,7 @@ int RoundTripAnalyze(const char *filename)
     printf("   (Missing symmetric AToB/BToA, DToB/BToD, or Matrix/TRC tag pairs)\n");
   }
   printf("\n");
-  
+
   delete pIcc;
   return roundTripable ? 0 : 1;
 }
@@ -338,26 +338,26 @@ int RecursiveScan(const char *directory, bool quiet, int depth)
     }
     return -1;
   }
-  
+
   struct dirent *entry;
   int total = 0, valid = 0, invalid = 0, roundtrip = 0;
-  
+
   if (!quiet) {
     printf("\n=== Recursive Profile Scan ===\n");
     printf("Directory: %s\n\n", directory);
   }
-  
+
   while ((entry = readdir(dir)) != nullptr) {
     // Skip hidden files and parent/current directory
     if (entry->d_name[0] == '.') continue;
-    
+
     // Build full path
     std::string fullPath = std::string(directory) + "/" + std::string(entry->d_name);
-    
+
     // Check if it's a directory
     struct stat st;
     if (stat(fullPath.c_str(), &st) != 0) continue;
-    
+
     if (S_ISDIR(st.st_mode)) {
       // Recurse into subdirectory
       int subResult = RecursiveScan(fullPath.c_str(), quiet, depth + 1);
@@ -368,7 +368,7 @@ int RecursiveScan(const char *directory, bool quiet, int depth)
       // Check if it's an ICC file
       size_t len = strlen(entry->d_name);
       if (len < 4) continue;
-      
+
       const char *ext = entry->d_name + len - 4;
       if (strcasecmp(ext, ".icc") != 0 && strcasecmp(ext, ".icm") != 0) {
         if (len >= 5) {
@@ -378,9 +378,9 @@ int RecursiveScan(const char *directory, bool quiet, int depth)
           continue;
         }
       }
-      
+
       total++;
-      
+
       // Try to load profile
       CIccFileIO io;
       if (!io.Open(fullPath.c_str(), "rb")) {
@@ -388,7 +388,7 @@ int RecursiveScan(const char *directory, bool quiet, int depth)
         invalid++;
         continue;
       }
-      
+
       CIccProfile *pIcc = new (std::nothrow) CIccProfile;
       if (!pIcc) {
         if (!quiet) printf("  [FAIL] %s (memory allocation failed)\n", fullPath.c_str());
@@ -404,28 +404,28 @@ int RecursiveScan(const char *directory, bool quiet, int depth)
         continue;
       }
       io.Close();
-      
+
       valid++;
-      
+
       // Check if round-tripable
       icHeader *pHdr = &pIcc->m_Header;
       bool isRoundTrip = false;
-      
+
       if (pHdr->deviceClass != icSigLinkClass) {
         isRoundTrip = HasRoundTripSupport(pIcc);
         if (isRoundTrip) roundtrip++;
       }
-      
+
       if (!quiet) {
         printf("  [X] %s %s\n", fullPath.c_str(), isRoundTrip ? "[RT]" : "");
       }
-      
+
       delete pIcc;
     }
   }
-  
+
   closedir(dir);
-  
+
   if (!quiet && total > 0) {
     printf("\n=== Scan Summary ===\n");
     printf("  Total ICC files:     %d\n", total);
@@ -434,6 +434,6 @@ int RecursiveScan(const char *directory, bool quiet, int depth)
     printf("  Round-trip capable:  %d\n", roundtrip);
     printf("\n");
   }
-  
+
   return total;
 }

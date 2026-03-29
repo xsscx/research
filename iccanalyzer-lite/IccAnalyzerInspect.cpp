@@ -48,7 +48,7 @@ void PrintHexDump(const icUInt8Number *data, icUInt32Number size, icUInt32Number
 {
   for (icUInt32Number i = 0; i < size; i += 16) {
     printf("0x%04X: ", offset + i);
-    
+
     for (icUInt32Number j = 0; j < 16; j++) {
       if (i + j < size) {
         printf("%02X ", data[i + j]);
@@ -57,7 +57,7 @@ void PrintHexDump(const icUInt8Number *data, icUInt32Number size, icUInt32Number
       }
       if (j == 7) printf(" ");
     }
-    
+
     printf(" |");
     for (icUInt32Number j = 0; j < 16 && i + j < size; j++) {
       icUInt8Number c = data[i + j];
@@ -234,18 +234,18 @@ void DumpTagTable(CIccProfile *pIcc, CIccIO *pIO)
 {
   printf("\n=== Tag Table ===\n");
   printf("Tag Count: %u\n\n", (unsigned int)pIcc->m_Tags.size());
-  
+
   icUInt32Number tagTableOffset = 128;
   pIO->Seek(tagTableOffset, icSeekSet);
-  
+
   icUInt32Number tagCount = 0;
   pIO->Read32(&tagCount);
-  
+
   if (tagCount > UINT32_MAX / 12 || tagCount > 10000) {
     printf("Error: Tag count too large (%u)\n", tagCount);
     return;
   }
-  
+
   icUInt32Number tableSize = tagCount * 12 + 4;
   icUInt8Number *tagTableData = new (std::nothrow) icUInt8Number[tableSize];
   if (!tagTableData) {
@@ -254,14 +254,14 @@ void DumpTagTable(CIccProfile *pIcc, CIccIO *pIO)
   }
   pIO->Seek(tagTableOffset, icSeekSet);
   pIO->Read8(tagTableData, tableSize);
-  
+
   printf("Tag Table Raw Data (0x%04X-0x%04X):\n", tagTableOffset, tagTableOffset + tableSize);
   PrintHexDump(tagTableData, tableSize, tagTableOffset);
-  
+
   printf("\nTag Entries:\n");
   printf("%-4s %-12s %-12s %-10s %s\n", "Idx", "Signature", "FourCC", "Offset", "Size");
   printf("%-4s %-12s %-12s %-10s %s\n", "---", "------------", "------------", "----------", "----");
-  
+
   unsigned int idx = 0;
   CIccInfo info;
   TagEntryList::iterator i;
@@ -269,22 +269,22 @@ void DumpTagTable(CIccProfile *pIcc, CIccIO *pIO)
     IccTagEntry *entry = &(*i);
     char fourcc[5];
     SignatureToFourCC(entry->TagInfo.sig, fourcc);
-    
+
     printf("%-4u %-12s '%-10s'  0x%08X  %u",
            idx,
            info.GetTagSigName(entry->TagInfo.sig),
            fourcc,
            entry->TagInfo.offset,
            entry->TagInfo.size);
-    
+
     // Warn if signature contains non-printable characters
     if (HasNonPrintableSignature(entry->TagInfo.sig)) {
       printf(" [WARN] non-printable");
     }
-    
+
     printf("\n");
   }
-  
+
   delete[] tagTableData;
 }
 
@@ -295,18 +295,18 @@ void DumpTagData(CIccProfile *pIcc, CIccIO *pIO, icTagSignature sig)
     printf("Tag not found\n");
     return;
   }
-  
+
   TagEntryList::iterator i;
   for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
     if ((*i).TagInfo.sig == sig) {
       IccTagEntry *entry = &(*i);
       CIccInfo info;
-      
+
       printf("\n=== Tag Data: '%s' (0x%08X-0x%08X) ===\n",
              info.GetTagSigName(sig),
              entry->TagInfo.offset,
              entry->TagInfo.offset + entry->TagInfo.size);
-      
+
       if (entry->TagInfo.size > ICCANALYZER_MAX_TAG_SIZE) {
         printf("Tag size too large (%u > %llu)\n",
                entry->TagInfo.size, (unsigned long long)ICCANALYZER_MAX_TAG_SIZE);

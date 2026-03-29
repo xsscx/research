@@ -43,12 +43,12 @@ bool ContainsPathTraversal(const std::string& path) {
       path.find("\\..") != std::string::npos) {
     return true;
   }
-  
+
   // Check for path starting with ../
   if (path.rfind("../", 0) == 0 || path.rfind("..\\", 0) == 0) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -63,15 +63,15 @@ bool SanitizePath(const std::string& path, std::string& sanitized) {
 
 bool IsWithinBoundary(const std::string& path, const std::string& base_dir) {
   std::string sanitized_path, sanitized_base;
-  
+
   if (!SanitizePath(path, sanitized_path)) {
     return false; // Can't resolve path
   }
-  
+
   if (!SanitizePath(base_dir, sanitized_base)) {
     return false; // Can't resolve base directory
   }
-  
+
   // Check if path starts with base_dir
   return sanitized_path.rfind(sanitized_base, 0) == 0;
 }
@@ -86,17 +86,17 @@ PathValidationResult ValidateFilePath(
   if (path.empty()) {
     return PathValidationResult::INVALID_EMPTY;
   }
-  
+
   // Check for null bytes (security risk)
   if (path.find('\0') != std::string::npos) {
     return PathValidationResult::INVALID_NULL_BYTE;
   }
-  
+
   // Check path length
   if (path.length() > MAX_PATH_LENGTH) {
     return PathValidationResult::INVALID_TOO_LONG;
   }
-  
+
   // In strict mode, check for special characters
   if (mode == PathValidationMode::STRICT) {
     for (char c : path) {
@@ -105,32 +105,32 @@ PathValidationResult ValidateFilePath(
       }
     }
   }
-  
+
   // Check for path traversal
   if (mode == PathValidationMode::STRICT && ContainsPathTraversal(path)) {
     return PathValidationResult::INVALID_TRAVERSAL;
   }
-  
+
   // Check if file exists (if required)
   struct stat path_stat;
   bool exists = (stat(path.c_str(), &path_stat) == 0);
-  
+
   if (require_exists && !exists) {
     return PathValidationResult::INVALID_NONEXISTENT;
   }
-  
+
   if (exists) {
     // Check if it's a symlink (security risk)
     if (mode == PathValidationMode::STRICT && IsSymlink(path)) {
       return PathValidationResult::INVALID_SYMLINK;
     }
-    
+
     // Check if it's a regular file
     if (!S_ISREG(path_stat.st_mode)) {
       return PathValidationResult::INVALID_NOT_REGULAR_FILE;
     }
   }
-  
+
   // Check file extension whitelist
   if (!allowed_extensions.empty()) {
     bool found = false;
@@ -145,7 +145,7 @@ PathValidationResult ValidateFilePath(
       return PathValidationResult::INVALID_EXTENSION;
     }
   }
-  
+
   return PathValidationResult::VALID;
 }
 
@@ -158,42 +158,42 @@ PathValidationResult ValidateDirectoryPath(
   if (path.empty()) {
     return PathValidationResult::INVALID_EMPTY;
   }
-  
+
   // Check for null bytes
   if (path.find('\0') != std::string::npos) {
     return PathValidationResult::INVALID_NULL_BYTE;
   }
-  
+
   // Check path length
   if (path.length() > MAX_PATH_LENGTH) {
     return PathValidationResult::INVALID_TOO_LONG;
   }
-  
+
   // Check for path traversal
   if (mode == PathValidationMode::STRICT && ContainsPathTraversal(path)) {
     return PathValidationResult::INVALID_TRAVERSAL;
   }
-  
+
   // Check if directory exists (if required)
   struct stat path_stat;
   bool exists = (stat(path.c_str(), &path_stat) == 0);
-  
+
   if (require_exists && !exists) {
     return PathValidationResult::INVALID_NONEXISTENT;
   }
-  
+
   if (exists) {
     // Check if it's a symlink
     if (mode == PathValidationMode::STRICT && IsSymlink(path)) {
       return PathValidationResult::INVALID_SYMLINK;
     }
-    
+
     // Check if it's a directory
     if (!S_ISDIR(path_stat.st_mode)) {
       return PathValidationResult::INVALID_NOT_DIRECTORY;
     }
   }
-  
+
   return PathValidationResult::VALID;
 }
 
@@ -238,84 +238,84 @@ bool ValidateBinaryDatabaseFormat(
     error_message = "Binary database too small (minimum 16 bytes)";
     return false;
   }
-  
+
   // Validate magic header (exact match "ICCDB001")
   const char expected_magic[9] = "ICCDB001";
   if (memcmp(data, expected_magic, 8) != 0) {
     error_message = "Invalid magic header (expected 'ICCDB001')";
     return false;
   }
-  
+
   // Read version (bytes 8-11, little-endian) — use memcpy for alignment safety
   uint32_t version;
   memcpy(&version, data + 8, sizeof(version));
-  
+
   // Validate version range (0x00000001 - 0x00000003)
   if (version < 0x00000001 || version > 0x00000003) {
-    error_message = "Unknown database version: 0x" + 
-                    std::to_string(version) + 
+    error_message = "Unknown database version: 0x" +
+                    std::to_string(version) +
                     " (expected 0x01-0x03)";
     return false;
   }
-  
+
   // Read flags (bytes 12-15, little-endian) — parsed for future validation
   uint32_t flags;
   memcpy(&flags, data + 12, sizeof(flags));
   (void)flags;
-  
+
   // If version >= 2, check uncompressed size
   if (version >= 2) {
     if (size < 20) {
       error_message = "Binary database V2/V3 too small (minimum 20 bytes)";
       return false;
     }
-    
+
     uint32_t uncompressed_size;
     memcpy(&uncompressed_size, data + 16, sizeof(uncompressed_size));
-    
+
     // Validate uncompressed size (prevent OOM attacks)
     if (uncompressed_size > MAX_BINARY_DB_UNCOMPRESSED_SIZE) {
-      error_message = "Uncompressed size exceeds limit (" + 
-                      std::to_string(uncompressed_size) + 
-                      " > " + 
-                      std::to_string(MAX_BINARY_DB_UNCOMPRESSED_SIZE) + 
+      error_message = "Uncompressed size exceeds limit (" +
+                      std::to_string(uncompressed_size) +
+                      " > " +
+                      std::to_string(MAX_BINARY_DB_UNCOMPRESSED_SIZE) +
                       ") - POSSIBLE OOM ATTACK";
       return false;
     }
   }
-  
+
   // If version >= 3, check Bloom filter size
   if (version >= 3) {
     if (size < 24) {
       error_message = "Binary database V3 too small (minimum 24 bytes)";
       return false;
     }
-    
+
     uint32_t bloom_size;
     memcpy(&bloom_size, data + 20, sizeof(bloom_size));
-    
+
     // Validate Bloom filter size (prevent absurd allocations)
     if (bloom_size > MAX_BLOOM_FILTER_SIZE) {
-      error_message = "Bloom filter size exceeds limit (" + 
-                      std::to_string(bloom_size) + 
-                      " > " + 
-                      std::to_string(MAX_BLOOM_FILTER_SIZE) + 
+      error_message = "Bloom filter size exceeds limit (" +
+                      std::to_string(bloom_size) +
+                      " > " +
+                      std::to_string(MAX_BLOOM_FILTER_SIZE) +
                       ") - POSSIBLE OOM ATTACK";
       return false;
     }
-    
+
     // Check that total size is sufficient for header + Bloom filter
     size_t min_required_size = 24 + bloom_size;
     if (size < min_required_size) {
-      error_message = "Binary database truncated (expected " + 
-                      std::to_string(min_required_size) + 
-                      " bytes, got " + 
-                      std::to_string(size) + 
+      error_message = "Binary database truncated (expected " +
+                      std::to_string(min_required_size) +
+                      " bytes, got " +
+                      std::to_string(size) +
                       ")";
       return false;
     }
   }
-  
+
   // All checks passed
   return true;
 }

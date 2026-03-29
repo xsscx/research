@@ -58,7 +58,7 @@ echo "────────────────────────�
 
 for fuzzer in "${FUZZERS[@]}"; do
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    
+
     # Check executable
     if [ -f "$BUILD_DIR/$fuzzer" ] && [ -x "$BUILD_DIR/$fuzzer" ]; then
         EXE_STATUS="[OK]"
@@ -66,7 +66,7 @@ for fuzzer in "${FUZZERS[@]}"; do
         EXE_STATUS="[FAIL]"
         FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
-    
+
     # Check dictionary
     dict="${FUZZER_DICTS[$fuzzer]}"
     if [ -f "$CFL_DIR/$dict" ]; then
@@ -75,7 +75,7 @@ for fuzzer in "${FUZZERS[@]}"; do
         DICT_STATUS="[FAIL]"
         FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
-    
+
     # Check corpus
     corpus_dir="$CFL_DIR/${fuzzer}_seed_corpus"
     if [ -d "$corpus_dir" ]; then
@@ -89,12 +89,12 @@ for fuzzer in "${FUZZERS[@]}"; do
         CORPUS_STATUS="[FAIL]"
         FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
-    
+
     # All checks passed?
     if [ "$EXE_STATUS" = "[OK]" ] && [ "$DICT_STATUS" = "[OK]" ] && [[ "$CORPUS_STATUS" == \[OK\]* ]]; then
         PASSED_TESTS=$((PASSED_TESTS + 1))
     fi
-    
+
     printf "%-35s %-15s %-15s %s\n" "$fuzzer" "$EXE_STATUS" "$DICT_STATUS" "$CORPUS_STATUS"
 done
 

@@ -55,7 +55,7 @@ if [ -d "$FUZZ_BASE/graphics/icc" ]; then
     for icc_file in "$FUZZ_BASE/graphics/icc"/*.icc; do
         if [ -f "$icc_file" ]; then
             basename_file=$(basename "$icc_file")
-            
+
             # Copy to profile-based fuzzers
             for fuzzer in icc_dump_fuzzer icc_roundtrip_fuzzer icc_applyprofiles_fuzzer icc_applynamedcmm_fuzzer icc_link_fuzzer icc_v5dspobs_fuzzer; do
                 cp "$icc_file" "$CFL_DIR/${fuzzer}_seed_corpus/$basename_file"
@@ -76,7 +76,7 @@ if [ -d "$FUZZ_BASE/xml/icc" ]; then
     for xml_file in "$FUZZ_BASE/xml/icc"/*.xml; do
         if [ -f "$xml_file" ]; then
             basename_file=$(basename "$xml_file")
-            
+
             # Copy to XML fuzzers
             for fuzzer in icc_fromxml_fuzzer icc_toxml_fuzzer; do
                 cp "$xml_file" "$CFL_DIR/${fuzzer}_seed_corpus/$basename_file"

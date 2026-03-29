@@ -46,10 +46,10 @@
 static std::string Trim(const std::string &str) {
   size_t start = 0;
   while (start < str.length() && isspace(str[start])) start++;
-  
+
   size_t end = str.length();
   while (end > start && isspace(str[end - 1])) end--;
-  
+
   return str.substr(start, end - start);
 }
 
@@ -58,30 +58,30 @@ bool LoadConfig(const char *config_path, IccAnalyzerConfig &config) {
   if (!fp) {
     return false;
   }
-  
+
   char line[1024];
   std::string current_section;
-  
+
   while (fgets(line, sizeof(line), fp)) {
     std::string str_line = Trim(line);
-    
+
     if (str_line.empty() || str_line[0] == '#' || str_line[0] == ';') {
       continue;
     }
-    
+
     if (str_line[0] == '[' && str_line[str_line.length() - 1] == ']') {
       current_section = str_line.substr(1, str_line.length() - 2);
       continue;
     }
-    
+
     size_t eq_pos = str_line.find('=');
     if (eq_pos == std::string::npos) {
       continue;
     }
-    
+
     std::string key = Trim(str_line.substr(0, eq_pos));
     std::string value = Trim(str_line.substr(eq_pos + 1));
-    
+
     if (current_section == "defaults") {
       if (key == "fingerprint_db") {
         config.fingerprint_db = value;
@@ -100,7 +100,7 @@ bool LoadConfig(const char *config_path, IccAnalyzerConfig &config) {
       }
     }
   }
-  
+
   fclose(fp);
   return true;
 }
@@ -110,19 +110,19 @@ bool LoadConfigAuto(IccAnalyzerConfig &config) {
   if (!home || !home[0]) {
     return false;
   }
-  
+
   // Canonicalize HOME via realpath() to prevent path traversal
   char resolved_home[PATH_MAX];
   if (realpath(home, resolved_home) == nullptr) {
     return false;
   }
-  
+
   // Verify resolved HOME is an absolute path without traversal
   if (resolved_home[0] != '/' || strstr(resolved_home, "..") != nullptr) {
     fprintf(stderr, "WARNING: HOME resolved to suspicious path — skipping config load\n");
     return false;
   }
-  
+
   char config_path[PATH_MAX];
   char resolved_config[PATH_MAX];
   int n;
@@ -144,11 +144,11 @@ bool LoadConfigAuto(IccAnalyzerConfig &config) {
       return true;
     }
   }
-  
+
   if (LoadConfig(".iccanalyzer.conf", config)) {
     return true;
   }
-  
+
   return false;
 }
 

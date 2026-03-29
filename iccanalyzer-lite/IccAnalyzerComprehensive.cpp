@@ -243,24 +243,24 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   }
   printf("=======================================================================\n");
   printf("\n%sFile:%s %s\n\n", ColorInfo(), ColorReset(), filename);
-  
+
   int totalIssues = 0;
   int phaseNum = 1;
-  
+
   // Legacy mode Phase 1: Security Heuristics (CVE/GHSA pattern detectors)
   if (legacy) {
     printf("=======================================================================\n");
     printf("%sPHASE %d: SECURITY HEURISTIC ANALYSIS (LEGACY)%s\n",
            ColorHeader(), phaseNum, ColorReset());
     printf("=======================================================================\n\n");
-    
+
     int heuristicCount = HeuristicAnalyze(filename, fingerprint_db);
     if (heuristicCount > 0) {
       totalIssues += heuristicCount;
     }
     phaseNum++;
   }
-  
+
   // Conformance Phase: ICC specification validation via CIccProfile::ReadValidate()
   if (IsProfileTruncated(filename)) {
     // Distinguish empty/unreadable files from truncated-but-analyzable profiles.
@@ -337,7 +337,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   printf("%sPHASE %d: ICC SPECIFICATION CONFORMANCE%s\n",
          ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
-  
+
   if (skipLibraryValidation) {
     printf("%s[NOT RUN] Library validation not run — half-float fields would hit "
            "upstream icF16toF UB during Validate()%s\n",
@@ -353,7 +353,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     }
   }
   phaseNum++;
-  
+
   // Deep Conformance Phase: specification checks beyond library validation
   // Requires a loaded CIccProfile — load early and reuse for later phases
   CIccFileIO ioConf;
@@ -362,47 +362,47 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     pIcc = new (std::nothrow) CIccProfile;
     if (pIcc && pIcc->Read(&ioConf)) {
       ioConf.Close();
-      
+
       printf("\n");
       printf("=======================================================================\n");
       printf("%sPHASE %d: DEEP CONFORMANCE CHECKS (ICC.1/ICC.2)%s\n",
              ColorHeader(), phaseNum, ColorReset());
       printf("=======================================================================\n\n");
-      
+
       int cfIssues = 0;
-      
+
       printf("%s--- Header Conformance (CF-001..CF-015, CF-184..CF-187, CF-199..CF-201, CF-203, CF-206, CF-210, CF-214..CF-219) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunHeaderConformance(pIcc, filename);
-      
+
       printf("\n%s--- Tag Type Conformance (CF-020..CF-034, CF-169..CF-174, CF-188..CF-190, CF-208, CF-209, CF-212, CF-213, CF-220..CF-234, CF-247..CF-254, CF-263..CF-265, CF-273..CF-281) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunTagTypeConformance(pIcc, filename);
-      
+
       printf("\n%s--- Required Tag Conformance (CF-040..CF-053, CF-202, CF-204..CF-205, CF-207, CF-211, CF-258..CF-260, CF-266..CF-272, CF-282..CF-283) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunRequiredTagConformance(pIcc, filename);
-      
+
       printf("\n%s--- LUT/Matrix Conformance (CF-060..CF-070, CF-163..CF-168, CF-255..CF-256, CF-261..CF-262) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunLUTConformance(pIcc);
-      
+
       printf("\n%s--- v5/iccMAX Conformance (CF-080..CF-090, CF-113..CF-115, CF-137..CF-162, CF-175..CF-198, CF-235..CF-242, CF-257, CF-284..CF-316) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunV5Conformance(pIcc);
-      
+
       printf("\n%s--- Security Conformance (CF-091..CF-094) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunSecurityConformance(pIcc, filename);
-      
+
       printf("\n%s--- Private Tag Conformance (CF-095..CF-098) ---%s\n\n",
              ColorInfo(), ColorReset());
       // CF-095..CF-098 run inside RunRequiredTagConformance() above
-      
+
       printf("\n%s--- Quality Conformance (CF-099..CF-102) ---%s\n\n",
              ColorInfo(), ColorReset());
       cfIssues += RunQualityConformance(pIcc);
-      
+
       printf("\n%sDeep Conformance Summary:%s %d issue(s)\n",
              ColorInfo(), ColorReset(), cfIssues);
       totalIssues += cfIssues;
@@ -414,14 +414,14 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     }
   }
   phaseNum++;
-  
+
   // Round-trip tag validation
   printf("\n");
   printf("=======================================================================\n");
   printf("%sPHASE %d: ROUND-TRIP TAG VALIDATION%s\n",
          ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
-  
+
   int rtResult = RoundTripAnalyze(filename);
   if (rtResult != 0) {
     printf("%sResult: NOT round-trip capable%s\n", ColorCritical(), ColorReset());
@@ -439,7 +439,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
       printf("%s[ERROR] Cannot open file for signature analysis%s\n", ColorCritical(), ColorReset());
       return totalIssues > 0 ? totalIssues : -1;
     }
-    
+
     pIcc = new (std::nothrow) CIccProfile;
     if (!pIcc) {
       printf("%s[ERROR] Memory allocation failed%s\n", ColorCritical(), ColorReset());
@@ -460,15 +460,15 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   printf("=======================================================================\n");
   printf("%sPHASE %d: SIGNATURE ANALYSIS%s\n", ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
-  
+
   AnalyzeSignatures(pIcc);
   phaseNum++;
-  
+
   printf("\n");
   printf("=======================================================================\n");
   printf("%sPHASE %d: PROFILE STRUCTURE DUMP%s\n", ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
-  
+
   CIccFileIO io2;
   if (io2.Open(filename, "rb")) {
     printf("%s=== ICC Profile Header ===%s\n", ColorInfo(), ColorReset());
@@ -478,19 +478,19 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     io2.Close();
   }
   phaseNum++;
-  
+
   printf("\n");
   printf("=======================================================================\n");
   printf("%sPHASE %d: TAG CONTENT ANALYSIS%s\n", ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
-  
+
   int tagIssues = TagDetailAnalyze(pIcc, filename);
   if (tagIssues > 0) {
     totalIssues += tagIssues;
   }
-  
+
   delete pIcc;
-  
+
   printf("\n");
   printf("=======================================================================\n");
   if (legacy) {
@@ -499,14 +499,14 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     printf("%sCONFORMANCE AUDIT SUMMARY%s\n", ColorHeader(), ColorReset());
   }
   printf("=======================================================================\n\n");
-  
+
   printf("%sFile:%s %s\n", ColorInfo(), ColorReset(), filename);
   printf("%sMode:%s %s\n", ColorInfo(), ColorReset(),
          legacy ? "Legacy (conformance + vulnerability heuristics)"
                 : "Conformance (ICC specification audit)");
-  printf("%sTotal Issues Detected:%s %s%d%s\n", ColorInfo(), ColorReset(), 
+  printf("%sTotal Issues Detected:%s %s%d%s\n", ColorInfo(), ColorReset(),
          totalIssues > 0 ? ColorWarning() : ColorSuccess(), totalIssues, ColorReset());
-  
+
   if (totalIssues == 0) {
     printf("\n%s[OK] ANALYSIS COMPLETE - No issues detected%s\n", ColorSuccess(), ColorReset());
     if (legacy) {
@@ -523,7 +523,7 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
              ColorWarning(), ColorReset());
     }
   }
-  
+
   printf("\n");
   return totalIssues;
 }

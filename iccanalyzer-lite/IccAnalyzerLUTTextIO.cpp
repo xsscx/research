@@ -1009,7 +1009,7 @@ int ImportTextLutData(const char *profileFile, const char *outputFile,
         sigStr[1] = (char)((targetSig >> 16) & 0xFF);
         sigStr[2] = (char)((targetSig >> 8) & 0xFF);
         sigStr[3] = (char)(targetSig & 0xFF);
-        printf("Error: tag '%s' not found in profile\n", 
+        printf("Error: tag '%s' not found in profile\n",
                (tagSigStr && tagSigStr[0]) ? tagSigStr : sigStr);
         delete pIcc;
         return -1;
