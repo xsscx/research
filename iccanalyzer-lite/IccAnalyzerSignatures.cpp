@@ -46,7 +46,7 @@ void SignatureToFourCC(icUInt32Number sig, char *fourcc)
   uc[1] = (sig >> 16) & 0xFF;
   uc[2] = (sig >> 8) & 0xFF;
   uc[3] = sig & 0xFF;
-  
+
   // Replace non-printable characters with '.'
   int len = 4;
   for (int i = 0; i < 4; i++) {
@@ -72,10 +72,10 @@ bool HasNonPrintableSignature(icUInt32Number sig)
 int AnalyzeSignatures(CIccProfile *pIcc)
 {
   printf("\n=== Signature Analysis ===\n\n");
-  
+
   CIccInfo info;
   int issueCount = 0;
-  
+
   // Diagnostic: check header signatures for 0x3F corruption pattern
   ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.deviceClass, "header.deviceClass");
   ICC_SANITY_CHECK_SIGNATURE(pIcc->m_Header.colorSpace, "header.colorSpace");
@@ -89,7 +89,7 @@ int AnalyzeSignatures(CIccProfile *pIcc)
          pIcc->m_Header.deviceClass,
          "",
          info.GetProfileClassSigName((icProfileClassSignature)pIcc->m_Header.deviceClass));
-  
+
   char fourcc[5];
   SignatureToFourCC(pIcc->m_Header.colorSpace, fourcc);
   printf("  Color Space:     0x%08X  '%s'  %s",
@@ -101,7 +101,7 @@ int AnalyzeSignatures(CIccProfile *pIcc)
     issueCount++;
   }
   printf("\n");
-  
+
   SignatureToFourCC(pIcc->m_Header.pcs, fourcc);
   printf("  PCS:             0x%08X  '%s'  %s",
          pIcc->m_Header.pcs,
@@ -112,23 +112,23 @@ int AnalyzeSignatures(CIccProfile *pIcc)
     issueCount++;
   }
   printf("\n");
-  
+
   SignatureToFourCC(pIcc->m_Header.manufacturer, fourcc);
   printf("  Manufacturer:    0x%08X  '%s'\n", pIcc->m_Header.manufacturer, fourcc);
-  
+
   SignatureToFourCC(pIcc->m_Header.model, fourcc);
   printf("  Model:           0x%08X  '%s'\n", pIcc->m_Header.model, fourcc);
-  
+
   printf("\nTag Signatures:\n");
   printf("%-4s %-12s %-10s %-12s %s\n", "Idx", "Tag", "FourCC", "Type", "Issues");
   printf("%-4s %-12s %-10s %-12s %s\n", "---", "------------", "----------", "------------", "------");
-  
+
   int idx = 0;
   TagEntryList::iterator i;
   for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++, idx++) {
     IccTagEntry *entry = &(*i);
     CIccTag *pTag = pIcc->FindTag(entry->TagInfo.sig);
-    
+
     ICC_SANITY_CHECK_SIGNATURE(entry->TagInfo.sig, "tag.sig");
     SignatureToFourCC(entry->TagInfo.sig, fourcc);
     char typeFourCC[5] = "";
@@ -136,13 +136,13 @@ int AnalyzeSignatures(CIccProfile *pIcc)
       ICC_SANITY_CHECK_SIGNATURE(pTag->GetType(), "tag.type");
       SignatureToFourCC(pTag->GetType(), typeFourCC);
     }
-    
+
     printf("%-4d %-12s '%-8s'  %-12s",
            idx,
            info.GetTagSigName(entry->TagInfo.sig),
            fourcc,
            pTag ? info.GetTagTypeSigName(pTag->GetType()) : "N/A");
-    
+
     // Check for issues
     bool hasIssues = false;
     if (HasNonPrintableSignature(entry->TagInfo.sig)) {
@@ -155,10 +155,10 @@ int AnalyzeSignatures(CIccProfile *pIcc)
       printf(" bad-type");
       issueCount++;
     }
-    
+
     printf("\n");
   }
-  
+
   printf("\nSummary: %d signature issue(s) detected\n", issueCount);
   return issueCount;
 }

@@ -44,17 +44,17 @@
 
 /**
  * Checked arithmetic operations for preventing integer overflow vulnerabilities.
- * 
+ *
  * NOTE: These are iccAnalyzer-specific utilities and do NOT modify IccProfLib.
  *       They are used for validating ICC profile data during security analysis.
- * 
+ *
  * All functions return true if the operation succeeded without overflow,
  * false if overflow would occur. The result pointer is only written on success.
  */
 
 /**
  * Safe 64-bit unsigned addition with overflow detection.
- * 
+ *
  * @param result Pointer to store result (only written if no overflow)
  * @param a First operand
  * @param b Second operand
@@ -71,7 +71,7 @@ inline bool SafeAdd64(uint64_t *result, uint64_t a, uint64_t b)
 
 /**
  * Safe 64-bit unsigned multiplication with overflow detection.
- * 
+ *
  * @param result Pointer to store result (only written if no overflow)
  * @param a First operand
  * @param b Second operand
@@ -83,18 +83,18 @@ inline bool SafeMul64(uint64_t *result, uint64_t a, uint64_t b)
     *result = 0;
     return true;
   }
-  
+
   if (a > UINT64_MAX / b) {
     return false;
   }
-  
+
   *result = a * b;
   return true;
 }
 
 /**
  * Safe 32-bit unsigned addition with overflow detection.
- * 
+ *
  * @param result Pointer to store result (only written if no overflow)
  * @param a First operand
  * @param b Second operand
@@ -111,7 +111,7 @@ inline bool SafeAdd32(uint32_t *result, uint32_t a, uint32_t b)
 
 /**
  * Safe 32-bit unsigned multiplication with overflow detection.
- * 
+ *
  * @param result Pointer to store result (only written if no overflow)
  * @param a First operand
  * @param b Second operand
@@ -123,18 +123,18 @@ inline bool SafeMul32(uint32_t *result, uint32_t a, uint32_t b)
     *result = 0;
     return true;
   }
-  
+
   if (a > UINT32_MAX / b) {
     return false;
   }
-  
+
   *result = a * b;
   return true;
 }
 
 /**
  * Safe cast from 64-bit to 32-bit with overflow detection.
- * 
+ *
  * @param result Pointer to store result (only written if cast is safe)
  * @param value 64-bit value to cast
  * @return true if cast succeeded, false if value > UINT32_MAX

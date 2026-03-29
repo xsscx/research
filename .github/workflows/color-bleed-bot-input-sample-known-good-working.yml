@@ -14,7 +14,7 @@ name: ColorBleed Tools
 
 permissions:
   contents: read
-  
+
 on:
   workflow_dispatch:
 
@@ -46,7 +46,7 @@ jobs:
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
-          unset GITHUB_TOKEN || true 
+          unset GITHUB_TOKEN || true
           sudo apt-get update
           sudo apt-get install -y \
             build-essential cmake gcc g++ clang clang-tools \
@@ -61,7 +61,7 @@ jobs:
           set -euo pipefail
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
-          unset GITHUB_TOKEN || true 
+          unset GITHUB_TOKEN || true
           if [ "${{ matrix.compiler }}" = "clang" ]; then
             echo "CC=clang" >> "$GITHUB_ENV"
             echo "CXX=clang++" >> "$GITHUB_ENV"
@@ -75,7 +75,7 @@ jobs:
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
-          unset GITHUB_TOKEN || true 
+          unset GITHUB_TOKEN || true
           echo "Compiler Version:" >> "$GITHUB_STEP_SUMMARY"
           sanitize_codeblock "$($CC --version 2>&1)" >> "$GITHUB_STEP_SUMMARY"
       - name: Build
@@ -86,7 +86,7 @@ jobs:
           set -euo pipefail
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
-          unset GITHUB_TOKEN || true 
+          unset GITHUB_TOKEN || true
           cd colorbleed_tools
           if [ ! -d "iccDEV" ]; then
             git clone https://github.com/InternationalColorConsortium/iccDEV.git
@@ -117,7 +117,7 @@ jobs:
           set -euo pipefail
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
-          unset GITHUB_TOKEN || true 
+          unset GITHUB_TOKEN || true
           cd colorbleed_tools
           sha256sum iccToXml_unsafe iccFromXml_unsafe > SHA256SUMS
           cat SHA256SUMS
@@ -141,7 +141,7 @@ jobs:
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
-          unset GITHUB_TOKEN || true 
+          unset GITHUB_TOKEN || true
           echo "### Linux Build Summary (${{ matrix.compiler }})" >> "$GITHUB_STEP_SUMMARY"
           echo "- Compiler: ${{ matrix.compiler }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Status: [OK] Success" >> "$GITHUB_STEP_SUMMARY"
@@ -155,4 +155,4 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           sanitize_codeblock "$(cat colorbleed_tools/SHA256SUMS)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          
+

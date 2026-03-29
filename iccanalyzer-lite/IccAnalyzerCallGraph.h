@@ -52,7 +52,7 @@ struct CallGraphNode {
   std::vector<CallGraphNode*> m_callees;
   bool m_is_crash_site;
   bool m_is_entry_point;
-  
+
   CallGraphNode() : m_line_number(0), m_is_crash_site(false), m_is_entry_point(false) {}
 };
 
@@ -63,7 +63,7 @@ struct ASANFrame {
   std::string m_file_path;
   unsigned int m_line_number;
   bool m_is_crash;
-  
+
   ASANFrame() : m_frame_num(0), m_line_number(0), m_is_crash(false) {}
 };
 
@@ -76,7 +76,7 @@ struct VulnMetadata {
   std::string m_var_name;
   unsigned int m_var_size;
   unsigned int m_overflow_bytes;
-  
+
   VulnMetadata() : m_access_size(0), m_var_size(0), m_overflow_bytes(0) {}
 };
 
@@ -85,31 +85,31 @@ class CIccAnalyzerCallGraph {
 public:
   // Parse ASAN crash log
   bool ParseASANLog(const char* log_file, std::vector<ASANFrame>& frames, VulnMetadata& metadata);
-  
+
   // Parse UBSAN runtime error log
   bool ParseUBSANLog(const char* log_file, std::vector<ASANFrame>& frames, VulnMetadata& metadata);
-  
+
   // Generate call graph from ASAN frames
   bool GenerateCallGraphFromASAN(const std::vector<ASANFrame>& frames, const char* output_dot);
-  
+
   // Export call graph to various formats
   bool ExportGraph(const char* dot_file, const char* output_file, const char* format);
-  
+
   // Map ASAN crash to source code call chain
   bool MapCrashToSource(const char* asan_log, const char* source_dir, const char* output_file);
-  
+
   // Generate DOT format call graph
   bool GenerateDOTGraph(const std::vector<ASANFrame>& frames, const char* output_file);
-  
+
   // Export call graph as JSON
   bool ExportJSON(const std::vector<ASANFrame>& frames, const VulnMetadata& metadata, const char* output_file);
-  
+
   // Analyze call chain depth
   unsigned int GetCallChainDepth(const std::vector<ASANFrame>& frames);
-  
+
   // Identify exploitable patterns
   bool AnalyzeExploitability(const VulnMetadata& metadata, const std::vector<ASANFrame>& frames);
-  
+
   // Print call chain in tree format
   void PrintCallChainTree(const std::vector<ASANFrame>& frames, const VulnMetadata& metadata);
 };

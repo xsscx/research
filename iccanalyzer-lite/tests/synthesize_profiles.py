@@ -171,7 +171,7 @@ def make_lut8_tag(n_in, n_out, grid=2, clut_values=None, matrix_values=None):
 
 def build_profile(tags_data, **header_kwargs):
     """Assemble a complete ICC profile from tag data list.
-    
+
     tags_data: list of (signature_bytes, tag_data_bytes)
     """
     tag_count = len(tags_data)

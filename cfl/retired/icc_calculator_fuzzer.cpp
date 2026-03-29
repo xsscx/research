@@ -107,7 +107,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
           // Trigger MPE chain validation and channel info
           (void)pLut->InputChannels();
           (void)pLut->OutputChannels();
-          
+
           // Exercise tag description
           std::string desc;
           SafeDescribe(pTag, desc, 100);

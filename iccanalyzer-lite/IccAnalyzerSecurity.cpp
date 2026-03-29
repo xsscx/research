@@ -112,22 +112,22 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   printf("|              ICC PROFILE SECURITY HEURISTIC ANALYSIS                  |\n");
   printf("=========================================================================\n");
   printf("\nFile: %s\n\n", filename);
-  
+
   int heuristicCount = 0;
-  
+
   // PHASE 0: Fingerprint Database Check (if available)
 #if ICCANALYZER_ENABLE_FINGERPRINT
   if (fingerprint_db != nullptr) {
     printf("=======================================================================\n");
     printf("FINGERPRINT DATABASE CHECK (V2.1)\n");
     printf("=======================================================================\n\n");
-    
+
     std::string vuln_type, known_as;
     float confidence = 0.0f;
     RiskLevel risk = RiskLevel::UNKNOWN;
-    
+
     int fp_result = CheckFingerprintQuiet(filename, fingerprint_db, vuln_type, known_as, confidence, risk);
-    
+
     if (fp_result == 2) {
       // EXACT MATCH - Known malicious
       printf("[CRITICAL] EXACT MATCH TO KNOWN MALICIOUS PROFILE\n\n");
@@ -135,7 +135,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       printf("  Known As: %s\n", known_as.c_str());
       printf("  Confidence: %.0f%% (exact SHA256 match)\n", confidence);
       printf("  Risk Level: %s\n", RiskLevelToString(risk).c_str());
-      
+
       // Display risk-specific warnings
       if (risk == RiskLevel::CRITICAL || risk == RiskLevel::HIGH) {
         printf("  [WARN]  EXPLOITABLE VULNERABILITY DETECTED\n\n");
@@ -161,7 +161,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       printf("  Similar To: %s\n", known_as.c_str());
       printf("  Confidence: %.0f%% (structural/header similarity)\n", confidence);
       printf("  Risk Level: %s\n", RiskLevelToString(risk).c_str());
-      
+
       // Risk-aware warnings for partial matches
       if (risk == RiskLevel::CRITICAL || risk == RiskLevel::HIGH) {
         printf("  [WARN]  SIMILAR TO HIGH-RISK PROFILE\n\n");
@@ -189,7 +189,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("      For full fingerprint analysis, use regular iccAnalyzer\n\n");
   }
 #endif
-  
+
   CIccFileIO io;
   if (!io.Open(filename, "rb")) {
     printf("[ERROR] Cannot open file: %s\n", filename);
@@ -202,7 +202,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   if (stat(filename, &fileStat) == 0) {
     actualFileSize = fileStat.st_size;
   }
-  
+
   icHeader header;
   // Read header with proper byte-swapping (ICC is big-endian)
   if (!io.Read32(&header.size) ||
@@ -243,7 +243,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     io.Close();
     return -1;
   }
-  
+
   // Read raw tag count from offset 128 (4 bytes big-endian) for early gating
   bool skipLibraryPhase = false;
   bool libraryAnalyzed = false;
@@ -325,7 +325,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       printf("=======================================================================\n\n");
     }
   }
-  
+
   // PHASE 0.5: External File Metadata (when tools available)
   printf("=======================================================================\n");
   printf("%sEXTERNAL FILE METADATA%s\n", ColorHeader(), ColorReset());
@@ -475,7 +475,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   heuristicCount += RunHeaderHeuristics(header, actualFileSize);
 
   io.Close();
-  
+
   if (skipLibraryPhase) {
     printf("=======================================================================\n");
     printf("[NOT RUN] Profile structurally unsafe for library loading (%u tags, %zu bytes)\n",
@@ -492,7 +492,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("=======================================================================\n\n");
   } else {
     libraryAnalyzed = true;
-    
+
     // ICC Library Conformance Validation — CIccProfile::ReadValidate()
     // Runs header, required tags, tag types, and per-tag content checks
     heuristicCount += RunIccLibraryValidation(filename);
@@ -500,7 +500,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("=======================================================================\n");
     printf("TAG-LEVEL HEURISTICS\n");
     printf("=======================================================================\n\n");
-    
+
     // Library-API heuristics (H9-H32, H56-H86, H95-H106)
     // Extracted to IccHeuristicsLibrary.cpp
     heuristicCount += RunLibraryAPIHeuristics(pIcc, filename);
@@ -538,7 +538,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   // Summary
   printf("%sHEURISTIC SUMMARY%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
-  
+
   if (heuristicCount == 0) {
     printf("%s[OK] NO HEURISTIC WARNINGS DETECTED%s\n", ColorSuccess(), ColorReset());
     printf("  Profile appears well-formed with no obvious security concerns.\n");
@@ -597,7 +597,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  • Do NOT use in production color workflows\n");
     printf("  • Consider as potential security test case\n");
   }
-  
+
   printf("\n");
   return heuristicCount;
 }

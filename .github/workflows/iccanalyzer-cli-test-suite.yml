@@ -9,11 +9,11 @@
 #
 # CLI Arguments Under Test:
 #   -h <file.icc>   Security heuristics analysis
-#   -r <file.icc>   Round-trip accuracy test  
+#   -r <file.icc>   Round-trip accuracy test
 #   -a <file.icc>   Comprehensive analysis (all modes)
 #   -n <file.icc>   Ninja mode (minimal output)
 #   -nf <file.icc>  Ninja mode (full dump, no truncation)
-# 
+#
 # Note: -x extraction mode requires basename parameter, tested separately
 #
 ###############################################################
@@ -86,7 +86,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
             sudo apt-get update -qq
           else
@@ -125,13 +125,13 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           cd iccanalyzer-lite
           if [ ! -d "iccDEV" ]; then
             git clone https://github.com/InternationalColorConsortium/iccDEV.git
           fi
           cd iccDEV
-          
+
           echo "iccDEV cloned at: $(pwd)"
           echo "iccDEV commit: $(git log --oneline -1)"
 
@@ -171,9 +171,9 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          
+
           cd iccanalyzer-lite/iccDEV/Build
-          
+
           echo "Configuring CMake with full instrumentation..."
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
@@ -188,10 +188,10 @@ jobs:
             -DICC_LOG_SAFE=ON \
             -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
-          
+
           echo "Building libraries with $(nproc) cores..."
           make -j$(nproc)
-          
+
           echo "Verifying instrumented libraries..."
           ls -lh IccProfLib/libIccProfLib2-static*.a
           ls -lh IccXML/libIccXML2-static*.a
@@ -216,17 +216,17 @@ jobs:
           set -euo pipefail
           source .github/scripts/icc-profile-quarantine.sh
           mkdir -p cli-test-results/outputs
-          
+
           PROFILE_COUNT=${{ env.TEST_PROFILE_COUNT }}
           PROFILE_COUNT=$((PROFILE_COUNT > 50 ? 50 : PROFILE_COUNT))
-          
+
           find test-profiles/ -type f -name "*.icc" | sort > /tmp/cli-test-suite-all.txt
           icc_profile_filter_quarantine /tmp/cli-test-suite-all.txt /tmp/cli-test-suite-routine.txt
           shuf -n ${PROFILE_COUNT} /tmp/cli-test-suite-routine.txt > cli-test-results/selected-profiles.txt
-          
+
           AVAILABLE=$(wc -l < cli-test-results/selected-profiles.txt | tr -d ' \n\r')
           echo "test_count=${AVAILABLE}" >> $GITHUB_OUTPUT
-          
+
           echo "Selected ${AVAILABLE} profiles for CLI mode testing:"
           cat cli-test-results/selected-profiles.txt
 
@@ -235,12 +235,12 @@ jobs:
           set -euo pipefail
           cd iccanalyzer-lite
           source ../.github/scripts/sanitize-sed.sh
-          
+
           # ANSI escape code stripper for output files
           strip_ansi() {
             sed -i 's/\x1b\[[0-9;]*[a-zA-Z]//g' "$1"
           }
-          
+
           SUMMARY="../cli-test-results/test-summary.txt"
           echo "==================================================================" > $SUMMARY
           echo "iccAnalyzer-lite CLI Test Suite Report" >> $SUMMARY
@@ -251,38 +251,38 @@ jobs:
           echo "Build: Debug + ASAN + UBSAN + Coverage" >> $SUMMARY
           echo "Profiles: $(wc -l < ../cli-test-results/selected-profiles.txt)" >> $SUMMARY
           echo "" >> $SUMMARY
-          
+
           # Define CLI modes to test
           MODES="heuristics:h roundtrip:r comprehensive:a ninja:n ninja-full:nf"
-          
+
           GRAND_TOTAL=0
           GRAND_SUCCESS=0
           GRAND_FAILED=0
-          
+
           for MODE_PAIR in $MODES; do
             MODE_NAME="${MODE_PAIR%%:*}"
             MODE_FLAG="-${MODE_PAIR##*:}"
-            
+
             echo "==================================================================" >> $SUMMARY
             echo "Mode: ${MODE_NAME} (${MODE_FLAG})" >> $SUMMARY
             echo "==================================================================" >> $SUMMARY
             echo "" >> $SUMMARY
-            
+
             mkdir -p "../cli-test-results/outputs/${MODE_NAME}"
-            
+
             TOTAL=0
             CLEAN=0
             FINDINGS=0
-            
+
             while IFS= read -r profile; do
               TOTAL=$((TOTAL + 1))
               PROFILE_NAME=$(basename "$profile")
               OUTPUT_FILE="../cli-test-results/outputs/${MODE_NAME}/${PROFILE_NAME}.txt"
               printf '%s\n' "$MODE_NAME $profile" > ../cli-test-results/current-profile.txt
-              
+
               echo "[${MODE_NAME}] Testing: ${PROFILE_NAME}"
               echo "Profile: ${PROFILE_NAME}" >> $SUMMARY
-              
+
               if timeout 30s ./iccanalyzer-lite ${MODE_FLAG} "../${profile}" > "$OUTPUT_FILE" 2>&1; then
                 strip_ansi "$OUTPUT_FILE"
                 # Content-based finding detection (ninja modes exit 0 even for malformed profiles)
@@ -304,27 +304,27 @@ jobs:
                 echo "  Detection output:" >> $SUMMARY
                 tail -5 "$OUTPUT_FILE" >> $SUMMARY 2>/dev/null || true
               fi
-              
+
               FILE_SIZE=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || echo 0)
               echo "  Output size: $FILE_SIZE bytes" >> $SUMMARY
               echo "" >> $SUMMARY
-              
+
             done < ../cli-test-results/selected-profiles.txt
-            
+
             echo "---" >> $SUMMARY
             echo "${MODE_NAME} totals: ${CLEAN}/${TOTAL} clean, ${FINDINGS} findings" >> $SUMMARY
             echo "" >> $SUMMARY
-            
+
             GRAND_TOTAL=$((GRAND_TOTAL + TOTAL))
             GRAND_SUCCESS=$((GRAND_SUCCESS + CLEAN))
             GRAND_FAILED=$((GRAND_FAILED + FINDINGS))
-            
+
             # Store per-mode results in env for summary
             echo "${MODE_NAME}_total=$TOTAL" >> $GITHUB_ENV
             echo "${MODE_NAME}_success=$CLEAN" >> $GITHUB_ENV
             echo "${MODE_NAME}_failed=$FINDINGS" >> $GITHUB_ENV
           done
-          
+
           echo "==================================================================" >> $SUMMARY
           echo "FINAL RESULTS" >> $SUMMARY
           echo "==================================================================" >> $SUMMARY
@@ -332,11 +332,11 @@ jobs:
           RATE=$(awk "BEGIN {printf \"%.1f\", ($GRAND_SUCCESS/$GRAND_TOTAL)*100}")
           echo "Clean rate: ${RATE}%" >> $SUMMARY
           echo "==================================================================" >> $SUMMARY
-          
+
           echo "grand_total=$GRAND_TOTAL" >> $GITHUB_ENV
           echo "grand_success=$GRAND_SUCCESS" >> $GITHUB_ENV
           echo "grand_failed=$GRAND_FAILED" >> $GITHUB_ENV
-          
+
           cat $SUMMARY
 
       - name: Collect coverage data
@@ -344,7 +344,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p cli-test-results/coverage
-          
+
           if command -v gcov >/dev/null 2>&1; then
             find iccanalyzer-lite -name "*.gcda" -exec gcov {} \; 2>/dev/null | tail -5 || true
             find . -name "*.gcov" -exec cp {} cli-test-results/coverage/ \; 2>/dev/null || true
@@ -359,9 +359,9 @@ jobs:
         run: |
           set -euo pipefail
           cd cli-test-results
-          
+
           INDEX_FILE="index.html"
-          
+
           cat > $INDEX_FILE << 'EOF'
           <!DOCTYPE html>
           <html lang="en">
@@ -395,20 +395,20 @@ jobs:
             <div class="container">
               <h1>iccAnalyzer-lite CLI Test Suite Results</h1>
           EOF
-          
+
           # Add summary stats
           echo "<div class='summary'>" >> $INDEX_FILE
           echo "<strong>Test Date:</strong> $(date -u '+%Y-%m-%d %H:%M:%S UTC')<br>" >> $INDEX_FILE
           echo "<strong>Binary:</strong> iccanalyzer-lite (ASAN + UBSAN + Coverage)<br>" >> $INDEX_FILE
           echo "<strong>Modes:</strong> -h (heuristics), -r (roundtrip), -a (comprehensive), -n (ninja), -nf (ninja-full)" >> $INDEX_FILE
           echo "</div>" >> $INDEX_FILE
-          
+
           echo "<div class='stats'>" >> $INDEX_FILE
           echo "<div class='stat-box'><div class='stat-value'>$grand_total</div><div class='stat-label'>Total Tests</div></div>" >> $INDEX_FILE
           echo "<div class='stat-box'><div class='stat-value' style='color: green;'>$grand_success</div><div class='stat-label'>Clean</div></div>" >> $INDEX_FILE
           echo "<div class='stat-box'><div class='stat-value' style='color: #cc6600;'>$grand_failed</div><div class='stat-label'>Findings</div></div>" >> $INDEX_FILE
           echo "</div>" >> $INDEX_FILE
-          
+
           # Per-mode results tables
           html_esc() { printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g'; }
 
@@ -421,19 +421,19 @@ jobs:
                 ninja)         FLAG="-n" ;;
                 ninja-full)    FLAG="-nf" ;;
               esac
-              
+
               echo "<h2>${MODE_NAME} Mode (${FLAG})</h2>" >> $INDEX_FILE
               echo "<table>" >> $INDEX_FILE
               echo "<tr><th>#</th><th>Profile</th><th>Status</th><th>Output</th><th>Size</th></tr>" >> $INDEX_FILE
-              
+
               NUM=1
               while IFS= read -r profile; do
                 PROFILE_NAME=$(basename "$profile")
                 OUTPUT_FILE="outputs/${MODE_NAME}/${PROFILE_NAME}.txt"
-                
+
                 if [ -f "$OUTPUT_FILE" ]; then
                   FILE_SIZE=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || echo 0)
-                  
+
                   if [ "$FILE_SIZE" -le 1 ]; then
                     STATUS="<span class='error'>ERROR</span>"
                   elif grep -qi "AddressSanitizer\|LeakSanitizer\|UndefinedBehaviorSanitizer\|UBSan\|SUMMARY:.*Sanitizer" "$OUTPUT_FILE" 2>/dev/null; then
@@ -443,7 +443,7 @@ jobs:
                   else
                     STATUS="<span class='clean'>CLEAN</span>"
                   fi
-                  
+
                   echo "<tr>" >> $INDEX_FILE
                   echo "<td>$NUM</td>" >> $INDEX_FILE
                   echo "<td><code>$(html_esc "$PROFILE_NAME")</code></td>" >> $INDEX_FILE
@@ -451,17 +451,17 @@ jobs:
                   echo "<td><a class='profile-link' href='$(html_esc "$OUTPUT_FILE")'>View Output</a></td>" >> $INDEX_FILE
                   echo "<td>$FILE_SIZE bytes</td>" >> $INDEX_FILE
                   echo "</tr>" >> $INDEX_FILE
-                  
+
                   NUM=$((NUM + 1))
                 fi
               done < selected-profiles.txt
-              
+
               echo "</table>" >> $INDEX_FILE
             fi
           done
-          
+
           echo "</div></body></html>" >> $INDEX_FILE
-          
+
           echo "Results index created: $INDEX_FILE"
 
       - name: Upload test results
@@ -479,19 +479,19 @@ jobs:
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           ## iccAnalyzer-lite CLI Test Suite Results
-          
+
           ### Test Configuration
           - **Binary:** iccanalyzer-lite (ASAN + UBSAN + Coverage)
           - **Modes:** `-h` (heuristics), `-r` (roundtrip), `-a` (comprehensive), `-n` (ninja), `-nf` (ninja-full)
           - **Timeout:** 30 seconds per profile per mode
-          
+
           ### Results Summary
           | Metric | Value |
           |--------|-------|
           | Total Tests | ${{ env.grand_total }} |
           | Clean | ${{ env.grand_success }} |
           | Findings | ${{ env.grand_failed }} |
-          
+
           ### Per-Mode Breakdown
           | Mode | Flag | Clean | Findings | Total |
           |------|------|-------|----------|-------|
@@ -500,15 +500,15 @@ jobs:
           | Comprehensive | `-a` | ${{ env.comprehensive_success }} | ${{ env.comprehensive_failed }} | ${{ env.comprehensive_total }} |
           | Ninja | `-n` | ${{ env.ninja_success }} | ${{ env.ninja_failed }} | ${{ env.ninja_total }} |
           | Ninja-full | `-nf` | ${{ env.ninja-full_success }} | ${{ env.ninja-full_failed }} | ${{ env.ninja-full_total }} |
-          
+
           ### Artifacts
           - Test results uploaded as `iccanalyzer-cli-test-suite-results`
           - Includes individual output files for each profile per mode
           - HTML index with clickable results
-          
+
           ### Status
           EOF
-          
+
           if [ "${{ env.grand_failed }}" -eq 0 ]; then
             echo "**ALL CLEAN** - No sanitizer findings detected across all modes" >> $GITHUB_STEP_SUMMARY
           else

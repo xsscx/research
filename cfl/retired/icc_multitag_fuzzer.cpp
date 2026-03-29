@@ -107,7 +107,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       if (pTag) {
         icTagTypeSignature type = pTag->GetType();
         (void)type;
-        
+
         // Validate individual tag
         std::string sigPath = "";
         std::string tagReport;

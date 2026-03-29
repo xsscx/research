@@ -754,7 +754,7 @@ iOS Simulator builds without coverage flags. The dlsym() approach works across a
 
 ### Mac Catalyst App Launch in CI
 Mac Catalyst binaries must be launched via open "" (bare Mach-O exits immediately).
-- open blocks until app exits — use open "" & ; disown 
+- open blocks until app exits — use open "" & ; disown
 - Pass env vars via open --env KEY=VALUE (macOS 13+) — launchctl setenv is unreliable
 - Mac Catalyst ignores osascript quit — use pgrep -f "App Name" + send signal
 - SIGTERM does NOT trigger atexit() — send SIGINT first for profraw flush

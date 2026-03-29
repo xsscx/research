@@ -116,7 +116,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     printf("Mode: FULL DUMP (entire file will be displayed)\n");
   }
   printf("\n");
-  
+
   // Open file with RAII handle (avoids TOCTOU, auto-closes)
   RawFileHandle fh = OpenRawFile(filename);
   if (!fh) {
@@ -124,28 +124,28 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     printf("   Check that the file exists and you have read permissions.\n\n");
     return -1;
   }
-  
+
   size_t fileSize = (size_t)fh.fileSize;
   if (fileSize == 0) {
     printf("Error: File is empty (0 bytes)\n");
     return -1;
   }
   printf("Raw file size: %zu bytes (0x%zX)\n\n", fileSize, fileSize);
-  
+
   std::vector<icUInt8Number> rawDataVec(fileSize);
   icUInt8Number *rawData = rawDataVec.data();
-  
+
   if (fread(rawData, 1, fileSize, fh.fp) != fileSize) {
     printf("Error: Cannot read file\n");
     return -1;
   }
-  
+
   // === RAW HEADER ANALYSIS ===
   printf("=== RAW HEADER DUMP (0x0000-0x007F) ===\n");
   if (fileSize >= 128) {
     PrintHexDump(rawData, 128, 0);
     printf("\n");
-    
+
     // Manual header parsing (no validation)
     icUInt32Number size = (static_cast<icUInt32Number>(rawData[0])<<24) | (static_cast<icUInt32Number>(rawData[1])<<16) | (static_cast<icUInt32Number>(rawData[2])<<8) | rawData[3];
     icUInt32Number cmmId = (static_cast<icUInt32Number>(rawData[4])<<24) | (static_cast<icUInt32Number>(rawData[5])<<16) | (static_cast<icUInt32Number>(rawData[6])<<8) | rawData[7];
@@ -153,14 +153,14 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     icUInt32Number deviceClass = (static_cast<icUInt32Number>(rawData[12])<<24) | (static_cast<icUInt32Number>(rawData[13])<<16) | (static_cast<icUInt32Number>(rawData[14])<<8) | rawData[15];
     icUInt32Number colorSpace = (static_cast<icUInt32Number>(rawData[16])<<24) | (static_cast<icUInt32Number>(rawData[17])<<16) | (static_cast<icUInt32Number>(rawData[18])<<8) | rawData[19];
     icUInt32Number pcs = (static_cast<icUInt32Number>(rawData[20])<<24) | (static_cast<icUInt32Number>(rawData[21])<<16) | (static_cast<icUInt32Number>(rawData[22])<<8) | rawData[23];
-    
+
     // Diagnostic: check raw header signatures for corruption
     ICC_SANITY_CHECK_SIGNATURE(deviceClass, "ninja.header.deviceClass");
     ICC_SANITY_CHECK_SIGNATURE(colorSpace, "ninja.header.colorSpace");
     ICC_SANITY_CHECK_SIGNATURE(pcs, "ninja.header.pcs");
 
     printf("Header Fields (RAW - no validation):\n");
-    printf("  Profile Size:    0x%08X (%u bytes) %s\n", size, size, 
+    printf("  Profile Size:    0x%08X (%u bytes) %s\n", size, size,
            (size != fileSize) ? "MISMATCH" : "OK");
     printf("  CMM:             0x%08X  '", cmmId);
     PrintSig4(cmmId);
@@ -325,17 +325,17 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
   } else {
     printf("WARNING: File too small for ICC header (need 128 bytes, got %zu)\n\n", fileSize);
   }
-  
+
   // === RAW TAG TABLE ANALYSIS ===
   printf("=== RAW TAG TABLE (0x0080+) ===\n");
   if (fileSize >= 132) {
     icUInt32Number tagCount = (static_cast<icUInt32Number>(rawData[128])<<24) | (static_cast<icUInt32Number>(rawData[129])<<16) | (static_cast<icUInt32Number>(rawData[130])<<8) | rawData[131];
     printf("Tag Count: %u (0x%08X)\n", tagCount, tagCount);
-    
+
     if (tagCount > 1000) {
       printf("WARNING: Suspicious tag count (>1000) - possible corruption\n");
     }
-    
+
     printf("\nTag Table Raw Data:\n");
     size_t tagTableSize = 4 + ((size_t)(tagCount > 0x0FFFFFFFU ? 0x0FFFFFFFU : tagCount) * 12);
     size_t dumpSize = (tagTableSize < 256) ? tagTableSize : 256;
@@ -343,47 +343,47 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       PrintHexDump(rawData + 128, dumpSize, 128);
       printf("\n");
     }
-    
+
     // Try to parse tag entries (no bounds checking - ninja mode!)
     printf("Tag Entries (RAW - no validation):\n");
     printf("Idx  Signature    FourCC       Offset       Size         TagType      Status\n");
     printf("---  ------------ ------------ ------------ ------------ ------------ ------\n");
-    
+
     size_t maxTags = (tagCount < 100) ? tagCount : 100;  // Limit display
     icUInt32Number tagArrayCount = 0;
-    
+
     for (size_t i = 0; i < maxTags && (132 + i*12 + 12) <= fileSize; i++) {
       size_t pos = 132 + i*12;
       icUInt32Number sig = (static_cast<icUInt32Number>(rawData[pos])<<24) | (static_cast<icUInt32Number>(rawData[pos+1])<<16) | (static_cast<icUInt32Number>(rawData[pos+2])<<8) | rawData[pos+3];
       icUInt32Number offset = (static_cast<icUInt32Number>(rawData[pos+4])<<24) | (static_cast<icUInt32Number>(rawData[pos+5])<<16) | (static_cast<icUInt32Number>(rawData[pos+6])<<8) | rawData[pos+7];
       icUInt32Number tagSize = (static_cast<icUInt32Number>(rawData[pos+8])<<24) | (static_cast<icUInt32Number>(rawData[pos+9])<<16) | (static_cast<icUInt32Number>(rawData[pos+10])<<8) | rawData[pos+11];
-      
+
       // Diagnostic: detect 0x3F corruption in raw tag signatures
       ICC_SANITY_CHECK_SIGNATURE(sig, "ninja.tagSig");
 
       char sigStr[5];
       SigToChars(sig, sigStr);
-      
+
       // Read tag TYPE (first 4 bytes of tag data)
       char typeStr[5] = "----";
       if (offset < fileSize && offset + 4 <= fileSize) {
-        icUInt32Number tagType = (static_cast<icUInt32Number>(rawData[offset])<<24) | (static_cast<icUInt32Number>(rawData[offset+1])<<16) | 
+        icUInt32Number tagType = (static_cast<icUInt32Number>(rawData[offset])<<24) | (static_cast<icUInt32Number>(rawData[offset+1])<<16) |
                                  (static_cast<icUInt32Number>(rawData[offset+2])<<8) | rawData[offset+3];
         SigToChars(static_cast<uint32_t>(tagType), typeStr);
-        
+
         // Check for TagArrayType (CRITICAL security issue)
         if (tagType == 0x74617279) {  // 'tary'
           tagArrayCount++;
         }
       }
-      
+
       const char *status = "OK";
       if (offset >= fileSize) status = "OOB offset";
       else if (tagSize > fileSize || offset > fileSize - tagSize) status = "OOB size";
       else if (offset < 128) status = "overlap";
       else if (tagSize == 0) status = "zero size";
       else if (tagSize > 10000000) status = "huge size";
-      
+
       // Highlight TagArrayType with critical warning
       if (strcmp(typeStr, "tary") == 0) {
         printf("%-4zu 0x%08X   '%-4s'        0x%08X   0x%08X   '%-4s'        *** UAF RISK!\n",
@@ -393,11 +393,11 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
                i, sig, sigStr, offset, tagSize, typeStr, status);
       }
     }
-    
+
     if (tagCount > maxTags) {
       printf("... (%u more tags not shown)\n", tagCount - (unsigned)maxTags);
     }
-    
+
     // TagArrayType summary
     if (tagArrayCount > 0) {
       printf("\n");
@@ -408,7 +408,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
       printf("   Impact: Code execution, memory corruption\n");
       printf("   DO NOT PROCESS WITH IccProfLib - potential exploit attempt\n");
     }
-    
+
     // Size inflation detection
     icUInt32Number claimedSize = (static_cast<icUInt32Number>(rawData[0])<<24) | (static_cast<icUInt32Number>(rawData[1])<<16) | (static_cast<icUInt32Number>(rawData[2])<<8) | rawData[3];
     if (claimedSize > 0 && claimedSize > fileSize * 16 && claimedSize > (128u << 20)) {
@@ -416,7 +416,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
              claimedSize, fileSize, (double)claimedSize / fileSize);
       printf("   Risk: OOM via tag-internal allocations based on inflated header size\n");
     }
-    
+
     // Tag overlap detection (raw)
     if (maxTags > 1) {
       int overlapCount = 0;
@@ -444,7 +444,7 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
   } else {
     printf("WARNING: File too small for tag table\n\n");
   }
-  
+
   // === FULL FILE HEX DUMP ===
   if (full_dump) {
     printf("=== FULL FILE HEX DUMP (all %zu bytes) ===\n", fileSize);
@@ -459,13 +459,13 @@ int NinjaModeAnalyze(const char *filename, bool full_dump)
     }
   }
   printf("\n");
-  
+
   // === SUMMARY ===
   printf("=== NINJA MODE ANALYSIS COMPLETE ===\n");
   printf("Raw data inspection complete. No validation performed.\n");
   printf("Use this information for debugging malformed profiles.\n");
   printf("\n");
-  
+
   return 0;
 }
 
@@ -495,10 +495,10 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   std::string logDir = "./xml-extraction-logs/" + sessionID;
   CreateLogDir("./xml-extraction-logs");
   CreateLogDir(logDir.c_str());
-  
+
   std::string logFile = logDir + "/session.log";
   std::ofstream log(logFile);
-  
+
   printf("\n");
   printf("=========================================================================\n");
   printf("|           *** REDUCED SECURITY MODE: XML EXTRACTION ***              |\n");
@@ -517,7 +517,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   printf("Extracting XML from: %s\n", filename);
   printf("Output file:         %s\n", output_xml);
   printf("\n");
-  
+
   log << "=========================================================================\n";
   log << "|              NINJA MODE: XML EXTRACTION SESSION                       |\n";
   log << "=========================================================================\n";
@@ -528,7 +528,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   log << "Output file:  " << output_xml << "\n";
   log << "Log directory: " << logDir << "\n";
   log << "\n";
-  
+
   std::ifstream file(filename, std::ios::binary);
   if (!file) {
     printf("[ERR] ERROR: Cannot open file: %s\n", filename);
@@ -544,10 +544,10 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   file.seekg(0, std::ios::end);
   size_t fileSize = file.tellg();
   file.seekg(0, std::ios::beg);
-  
+
   printf("File size: %zu bytes\n", fileSize);
   log << "File size: " << fileSize << " bytes\n";
-  
+
   if (fileSize < 132) {
     printf("[ERR] ERROR: File too small for ICC profile (min 132 bytes)\n");
     log << "ERROR: File too small for ICC profile\n";
@@ -558,14 +558,14 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
     log << "Exit code: 1\n";
     return -1;
   }
-  
+
   if (fileSize > ICCANALYZER_MAX_PROFILE_SIZE) {
     printf("[ERR] ERROR: File too large (%zu bytes, max %llu)\n",
            fileSize, (unsigned long long)ICCANALYZER_MAX_PROFILE_SIZE);
     log << "ERROR: File too large for safe processing\n";
     return -1;
   }
-  
+
   // Read entire file into memory for raw byte-level header/tag parsing
   unsigned char* data = new (std::nothrow) unsigned char[fileSize];
   if (!data) {
@@ -575,7 +575,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   }
   file.read(reinterpret_cast<char*>(data), fileSize);
   file.close();
-  
+
   std::ostringstream xml;
   xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
   xml << "<!-- Generated by iccAnalyzer -xml (Ninja Mode) -->\n";
@@ -583,7 +583,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   xml << "<!-- Timestamp: " << GetTimestamp() << " -->\n";
   xml << "<!-- WARNING: Unsafe extraction - data not validated -->\n";
   xml << "<IccProfile>\n";
-  
+
   // Parse 128-byte ICC header fields at fixed offsets per ICC spec
   icUInt32Number profSize = read32(data);
   icUInt32Number cmmType = read32(data + 4);
@@ -591,9 +591,9 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   icUInt32Number devClass = read32(data + 12);
   icUInt32Number colorSpace = read32(data + 16);
   icUInt32Number pcs = read32(data + 20);
-  
+
   char sigbuf[5];
-  
+
   xml << "  <Header>\n";
   xml << "    <Size>" << profSize << "</Size>\n";
   sig2str(sigbuf, cmmType);
@@ -605,44 +605,44 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   xml << "    <ColorSpace>" << sigbuf << "</ColorSpace>\n";
   sig2str(sigbuf, pcs);
   xml << "    <Pcs>" << sigbuf << "</Pcs>\n";
-  
+
   icUInt16Number year = read16(data + 24);
   icUInt16Number month = read16(data + 26);
   icUInt16Number day = read16(data + 28);
   icUInt16Number hours = read16(data + 30);
   icUInt16Number minutes = read16(data + 32);
   icUInt16Number seconds = read16(data + 34);
-  xml << "    <DateTime>" << year << "-" 
-      << std::setfill('0') << std::setw(2) << month << "-" 
+  xml << "    <DateTime>" << year << "-"
+      << std::setfill('0') << std::setw(2) << month << "-"
       << std::setw(2) << day << " "
       << std::setw(2) << hours << ":"
       << std::setw(2) << minutes << ":"
       << std::setw(2) << seconds << "</DateTime>\n";
-  
+
   icUInt32Number magic = read32(data + 36);
   sig2str(sigbuf, magic);
   xml << "    <Magic>" << sigbuf << "</Magic>\n";
-  
+
   icUInt32Number platform = read32(data + 40);
   sig2str(sigbuf, platform);
   xml << "    <Platform>" << sigbuf << "</Platform>\n";
-  
+
   icUInt32Number flags = read32(data + 44);
   xml << "    <Flags>0x" << std::hex << flags << std::dec << "</Flags>\n";
-  
+
   icUInt32Number manufacturer = read32(data + 48);
   sig2str(sigbuf, manufacturer);
   xml << "    <Manufacturer>" << sigbuf << "</Manufacturer>\n";
-  
+
   icUInt32Number model = read32(data + 52);
   xml << "    <Model>0x" << std::hex << model << std::dec << "</Model>\n";
-  
+
   icUInt64Number attributes = ((icUInt64Number)read32(data + 56) << 32) | read32(data + 60);
   xml << "    <Attributes>0x" << std::hex << attributes << std::dec << "</Attributes>\n";
-  
+
   icUInt32Number renderingIntent = read32(data + 64);
   xml << "    <RenderingIntent>" << renderingIntent << "</RenderingIntent>\n";
-  
+
   // PCS illuminant stored as s15Fixed16Number at offset 68 (D50 expected)
   icS15Fixed16Number illumX = read32(data + 68);
   icS15Fixed16Number illumY = read32(data + 72);
@@ -656,52 +656,52 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   xml << "      <Y>" << (illumY / 65536.0) << "</Y>\n";
   xml << "      <Z>" << (illumZ / 65536.0) << "</Z>\n";
   xml << "    </Illuminant>\n";
-  
+
   icUInt32Number creator = read32(data + 80);
   sig2str(sigbuf, creator);
   xml << "    <Creator>" << sigbuf << "</Creator>\n";
-  
+
   xml << "    <ProfileID>";
   for (int i = 0; i < 16; i++) {
     xml << std::hex << std::setfill('0') << std::setw(2) << (int)data[84 + i];
   }
   xml << "</ProfileID>\n" << std::dec;
-  
+
   xml << "  </Header>\n";
-  
+
   icUInt32Number tagCount = read32(data + 128);
   printf("Tag count: %u\n", tagCount);
   log << "Tag count: " << tagCount << "\n";
-  
+
   if (tagCount > 0 && tagCount < 1000 && fileSize >= 132 + tagCount * 12) {
     if (g_compatible_mode) {
       xml << "  <Tags>\n";
     } else {
       xml << "  <TagTable count=\"" << tagCount << "\">\n";
     }
-    
+
     for (icUInt32Number i = 0; i < tagCount; i++) {
       size_t offset = 132 + i * 12;
       if (offset + 12 > fileSize) break;
-      
+
       icUInt32Number tagSig = read32(data + offset);
       icUInt32Number tagOffset = read32(data + offset + 4);
       icUInt32Number tagSize = read32(data + offset + 8);
-      
+
       sig2str(sigbuf, tagSig);
-      log << "Tag " << (i+1) << "/" << tagCount << ": sig=" << sigbuf 
+      log << "Tag " << (i+1) << "/" << tagCount << ": sig=" << sigbuf
           << " offset=" << tagOffset << " size=" << tagSize << "\n";
-      
+
       if (g_compatible_mode) {
         // Compatible mode: use proper tag names and try to parse content
         const char* tag_xml_name = GetTagXMLName(tagSig);
         xml << "    <" << tag_xml_name << "> ";
-        
+
         bool parsed = false;
         if (tagOffset + tagSize <= fileSize && tagOffset >= 132 && tagSize >= 8) {
           std::ostringstream tag_content;
           unsigned char* tag_data = data + tagOffset;
-          
+
           // Try parsing common tag types
           if (ParseMLUCTag(tag_content, tag_data, tagSize, "")) {
             xml << tag_content.str();
@@ -729,7 +729,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
             log << "  Parsed as textType\n";
           }
         }
-        
+
         if (!parsed) {
           // Fallback: output type and note that we couldn't parse
           icUInt32Number tagType = read32(data + tagOffset);
@@ -737,42 +737,42 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
           xml << "<UnparsedTag type=\"" << sigbuf << "\" size=\"" << tagSize << "\"/>";
           log << "  Could not parse (type=" << sigbuf << "), left unparsed\n";
         }
-        
+
         xml << " </" << tag_xml_name << ">\n";
       } else {
         // Forensic mode: original behavior with binary files
-        xml << "    <Tag sig=\"" << sigbuf << "\" offset=\"" << tagOffset 
+        xml << "    <Tag sig=\"" << sigbuf << "\" offset=\"" << tagOffset
             << "\" size=\"" << tagSize << "\">\n";
-        
+
         if (tagOffset + tagSize <= fileSize && tagOffset >= 132 && tagSize >= 8) {
           icUInt32Number tagType = read32(data + tagOffset);
           sig2str(sigbuf, tagType);
           xml << "      <Type>" << sigbuf << "</Type>\n";
-          
+
           if (tagSize > 8) {
             icUInt32Number dataSize = tagSize - 8;
-            
+
             char tagSigStr[5];
             sig2str(tagSigStr, tagSig);
-            std::string binFile = logDir + "/tag_" + tagSigStr + "_offset" + 
+            std::string binFile = logDir + "/tag_" + tagSigStr + "_offset" +
                                   std::to_string(tagOffset) + ".bin";
-            
+
             std::ofstream binOut(binFile, std::ios::binary);
             if (binOut) {
               binOut.write(reinterpret_cast<const char*>(data + tagOffset), tagSize);
               binOut.close();
-              
-              xml << "      <DataFile size=\"" << dataSize << "\">" 
+
+              xml << "      <DataFile size=\"" << dataSize << "\">"
                   << binFile.substr(binFile.find("xml-extraction-logs")) << "</DataFile>\n";
               xml << "      <DataSummary>\n";
               xml << "        <TotalSize>" << tagSize << "</TotalSize>\n";
               xml << "        <DataSize>" << dataSize << "</DataSize>\n";
               xml << "        <FirstBytes encoding=\"hex\">";
-              
+
               size_t previewBytes = (dataSize < 64) ? dataSize : 64;
               for (size_t j = 8; j < 8 + previewBytes; j++) {
                 if (tagOffset + j >= fileSize) break;
-                xml << std::hex << std::setfill('0') << std::setw(2) 
+                xml << std::hex << std::setfill('0') << std::setw(2)
                     << static_cast<unsigned>(static_cast<unsigned char>(data[tagOffset + j]));
               }
               if (dataSize > 64) {
@@ -780,7 +780,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
               }
               xml << "</FirstBytes>\n" << std::dec;
               xml << "      </DataSummary>\n";
-              
+
               log << "  Extracted to: " << binFile << " (" << tagSize << " bytes)\n";
             } else {
               xml << "      <!-- ERROR: Could not create data file: " << binFile << " -->\n";
@@ -791,7 +791,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
         xml << "    </Tag>\n";
       }
     }
-    
+
     if (g_compatible_mode) {
       xml << "  </Tags>\n";
     } else {
@@ -800,13 +800,13 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   } else {
     xml << "  <!-- Invalid or missing tag table -->\n";
   }
-  
+
   xml << "</IccProfile>\n";
-  
+
   std::string xmlStr = xml.str();
   printf("Generated XML: %zu bytes\n", xmlStr.size());
   log << "Generated XML: " << xmlStr.size() << " bytes\n";
-  
+
   std::ofstream out(output_xml, std::ios::binary);
   if (!out) {
     printf("[ERR] ERROR: Cannot write output file: %s\n", output_xml);
@@ -821,12 +821,12 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   }
   out.write(xmlStr.c_str(), xmlStr.size());
   out.close();
-  
+
   std::string outputCopy = logDir + "/output.xml";
   std::ofstream outCopy(outputCopy, std::ios::binary);
   outCopy.write(xmlStr.c_str(), xmlStr.size());
   outCopy.close();
-  
+
   printf("\n=========================================================================\n");
   printf("|                    [OK] EXTRACTION COMPLETE [OK]                           |\n");
   printf("=========================================================================\n");
@@ -834,7 +834,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   printf("Backup copy:   %s\n", outputCopy.c_str());
   printf("Session log:   %s\n", logFile.c_str());
   printf("Exit timestamp: %s\n\n", GetTimestamp().c_str());
-  
+
   log << "\nOutput file: " << output_xml << "\n";
   log << "Backup copy: " << outputCopy << "\n";
   log << "\n=========================================================================\n";
@@ -842,7 +842,7 @@ int NinjaModeExtractXML(const char *filename, const char *output_xml)
   log << "=========================================================================\n";
   log << "Exit timestamp: " << GetTimestamp() << "\n";
   log << "Exit code: 0\n";
-  
+
   delete[] data;
   return 0;
 }
