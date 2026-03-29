@@ -48,8 +48,8 @@ Choose one or more analysis endpoints:
 
 | Endpoint | Purpose | Best For |
 |----------|---------|----------|
-| `/api/security?path=...` | 173-heuristic scan (text) | Human-readable report |
-| `/api/security-json?path=...` | 173-heuristic scan (JSON) | Programmatic processing |
+| `/api/security?path=...` | 180-heuristic scan (text) | Human-readable report |
+| `/api/security-json?path=...` | 180-heuristic scan (JSON) | Programmatic processing |
 | `/api/security-report?path=...` | Severity-sorted report | Professional output |
 | `/api/inspect?path=...` | Profile structure | Header/tag examination |
 | `/api/roundtrip?path=...` | AToB/BToA validation | LUT completeness check |
