@@ -4,6 +4,6 @@
 > [`docs/afl/index.md`](../afl/index.md).
 
 See also:
-- [`.github/instructions/afl.instructions.md`](../../.github/instructions/afl.instructions.md) — Agent instructions
-- [`afl/build.sh`](../../afl/build.sh) — Build script
-- [`afl/start.sh`](../../afl/start.sh) — Fuzzer launcher
+- [`.github/instructions/afl.instructions.md`](../../../.github/instructions/afl.instructions.md) — Agent instructions
+- [`afl/build.sh`](../../../afl/build.sh) — Build script
+- [`afl/start.sh`](../../../afl/start.sh) — Fuzzer launcher
