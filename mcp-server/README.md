@@ -19,7 +19,7 @@ Open <http://127.0.0.1:8080> — that's it. The bundled test corpus is pre-loade
 
 ```bash
 curl -s http://127.0.0.1:8080/api/health
-# {"ok":true,"tools":24}
+# {"ok":true,"tools":26,"engines":{"v1":true,"v2":true},"defaultAnalysisEngine":"v2","defaultStructuralEngine":"v1"}
 ```
 
 ---
@@ -156,7 +156,7 @@ docker run --rm -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web
 curl -s http://127.0.0.1:8080/api/health | python3 -m json.tool
 ```
 
-Expected: `{"ok": true, "tools": 24}`
+Expected: `ok: true`, `tools: 26`, `defaultAnalysisEngine: "v2"`, `defaultStructuralEngine: "v1"`
 
 **WebUI:** Open <http://127.0.0.1:8080>
 
@@ -288,7 +288,7 @@ Custom port: `docker run --rm -p 8083:8083 ghcr.io/xsscx/icc-profile-mcp web --p
 
 | Method | Endpoint | Parameters | Description |
 |--------|----------|------------|-------------|
-| `GET` | `/api/health` | — | Health check: `{"ok": true, "tools": 24}` |
+| `GET` | `/api/health` | — | Health check with tool and engine metadata (current container baseline: 26 tools) |
 | `GET` | `/api/list` | `directory` | List profiles: `test-profiles`, `extended-test-profiles` |
 | `GET` | `/api/inspect` | `path` | Structural dump (header + tag table) |
 | `GET` | `/api/security` | `path` | 173-check security scan |
