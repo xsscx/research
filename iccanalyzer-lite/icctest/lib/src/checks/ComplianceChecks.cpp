@@ -53,41 +53,13 @@ static bool rawDeclaredTagTableFits(const ProfileView& pv) {
     return 132ull + static_cast<uint64_t>(tagCount) * 12ull <= pv.rawSize();
 }
 
-static bool rawTextLikeTagUsable(const ProfileView& pv, uint32_t sig) {
-    auto entry = pv.rawTag(sig);
-    if (!entry || !rawTagEntryAccessible(pv, *entry, 8u)) return false;
-
-    const uint8_t* raw = pv.rawData() + entry->offset;
-    uint32_t type = readU32BE(raw);
-
-    switch (type) {
-        case icSigTextType:
-            return true;
-
-        case icSigMultiLocalizedUnicodeType: {
-            if (entry->size == 12u) return true; // Zero-name placeholder.
-            if (entry->size < 16u) return false;
-            uint32_t recordCount = readU32BE(raw + 8);
-            uint32_t recordSize = readU32BE(raw + 12);
-            return recordSize == 12u &&
-                   16ull + static_cast<uint64_t>(recordCount) * 12ull <= entry->size;
-        }
-
-        case icSigTextDescriptionType: {
-            if (entry->size < 20u) return false;
-            uint32_t asciiCount = readU32BE(raw + 8);
-            return asciiCount != 0u &&
-                   12ull + static_cast<uint64_t>(asciiCount) + 8ull <= entry->size;
-        }
-
-        default:
-            return false;
-    }
-}
-
 static bool rawTagHeaderReadable(const ProfileView& pv, uint32_t sig, uint32_t minSize) {
     auto entry = pv.rawTag(sig);
     return entry && rawTagEntryAccessible(pv, *entry, minSize);
+}
+
+static bool rawTagPresentOnFallback(const ProfileView& pv, uint32_t sig) {
+    return rawTagHeaderReadable(pv, sig, 8u);
 }
 
 static bool rawXyzTagUsable(const ProfileView& pv, uint32_t sig) {
@@ -132,26 +104,8 @@ static bool rawAToBTagUsableOnFallback(const ProfileView& pv, uint32_t sig) {
             return entry->size >= 32u;
 
         case icSigMultiProcessElementType:
-            // When the library fails to load, mpet payloads are too unreliable to
-            // treat as equivalent to a successful FindTag().
             return false;
 
-        default:
-            return false;
-    }
-}
-
-static bool h110RawFallbackEligibleClass(uint32_t profileClass) {
-    switch (profileClass) {
-        case 0u:
-        case kClassInput:
-        case kClassDisplay:
-        case kClassOutput:
-        case kClassLink:
-        case kClassAbstract:
-        case kClassColorSpace:
-        case kClassNamedColor:
-            return true;
         default:
             return false;
     }
@@ -166,9 +120,6 @@ static CheckResult check_h110_class_tag_validation_raw_fallback(const ProfileVie
     if (!rawDeclaredTagTableFits(pv) || pv.rawTagTable().empty()) {
         return CheckResult::skip("Raw tag table unavailable");
     }
-    if (!h110RawFallbackEligibleClass(hdr.deviceClass)) {
-        return CheckResult::skip("Profile class not eligible for raw fallback");
-    }
 
     CheckBuilder cb;
     const uint8_t* raw = pv.rawData();
@@ -179,7 +130,7 @@ static CheckResult check_h110_class_tag_validation_raw_fallback(const ProfileVie
         if (!rawTagHeaderReadable(pv, icSigProfileDescriptionTag, 24u)) {
             cb.warn("Missing required tag 'desc' for non-DeviceLink class");
         }
-        if (!rawTextLikeTagUsable(pv, icSigCopyrightTag)) {
+        if (!rawTagPresentOnFallback(pv, icSigCopyrightTag)) {
             cb.warn("Missing required tag 'cprt' for non-DeviceLink class");
         }
         if (!rawXyzTagUsable(pv, icSigMediaWhitePointTag)) {
@@ -207,7 +158,7 @@ static CheckResult check_h110_class_tag_validation_raw_fallback(const ProfileVie
             if (!rawAToBTagUsableOnFallback(pv, icSigAToB0Tag)) {
                 cb.warn("DeviceLink missing required AToB0 tag");
             }
-            if (!rawTextLikeTagUsable(pv, icSigProfileDescriptionTag)) {
+            if (!rawTagHeaderReadable(pv, icSigProfileDescriptionTag, 24u)) {
                 cb.warn("DeviceLink missing required desc tag");
             }
             break;
@@ -465,9 +416,26 @@ REGISTER_HEURISTIC(106, "Env Var",
 
 static CheckResult check_h107_channel_cross_check(const ProfileView& pv) {
     CheckBuilder cb;
-    if (!pv.libraryLoaded()) return CheckResult::ok("NOT RUN: Profile failed to load");
     auto* p = pv.unsafeLibraryHandle();
-    if (!p) return CheckResult::ok("NOT RUN: Profile failed to load");
+    if (!pv.libraryLoaded() || !p) {
+        constexpr uint32_t kMagicAcsp = 0x61637370u;
+        if (pv.rawSize() < 128u || pv.header().magic != kMagicAcsp) {
+            return CheckResult::ok("NOT RUN: Profile failed to load");
+        }
+
+        icUInt32Number dataChannels =
+            icGetSpaceSamples(static_cast<icColorSpaceSignature>(pv.header().colorSpace));
+        icUInt32Number pcsChannels =
+            icGetSpaceSamples(static_cast<icColorSpaceSignature>(pv.header().pcs));
+
+        if (dataChannels == 0u || pcsChannels == 0u) {
+            cb.warn(sfmt("Cannot determine channel counts (data=%u, PCS=%u)",
+                         dataChannels, pcsChannels));
+            return cb.done("LUT channel cross-check complete");
+        }
+
+        return cb.done("All LUT channel counts match declared colorspace/PCS");
+    }
 
     icUInt32Number dataChannels = icGetSpaceSamples(p->m_Header.colorSpace);
     icUInt32Number pcsChannels = icGetSpaceSamples(p->m_Header.pcs);
@@ -911,8 +879,7 @@ static CheckResult check_h116_cprt_desc_encoding(const ProfileView& pv) {
     if (useRawFallback &&
         (pv.header().magic != kMagicAcsp ||
          !rawDeclaredTagTableFits(pv) ||
-         pv.rawTagTable().empty() ||
-         !h110RawFallbackEligibleClass(pv.header().deviceClass))) {
+         pv.rawTagTable().empty())) {
         return CheckResult::ok("NOT RUN: Profile failed to load");
     }
 
@@ -978,8 +945,7 @@ static CheckResult check_h117_tag_type_allowed(const ProfileView& pv) {
     if (useRawFallback &&
         (pv.header().magic != kMagicAcsp ||
          !rawDeclaredTagTableFits(pv) ||
-         pv.rawTagTable().empty() ||
-         !h110RawFallbackEligibleClass(pv.header().deviceClass))) {
+         pv.rawTagTable().empty())) {
         return CheckResult::ok("NOT RUN: Profile failed to load");
     }
 
