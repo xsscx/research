@@ -545,6 +545,15 @@ def make_h20_tag_type_signature_profile_bytes(type_sig):
     return bytes(data)
 
 
+_H21_TAG_STRUCT_FIXTURE_HEX = """
+000002d0000000000500000063656e63524742200000000000000000000000000000000061637370000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000372666e6d000000a80000001463736e6d000000bc0000001063657074000000cc00000204757466380000000049534f2032323032382d3100757466380000000062672d73524742007473747200000000636570740000000f7258595a000000c4000000146758595a000000d8000000146258595a000000ec0000001466756e630000010000000070776c756d000001700000000c7758595a0000017c0000001065526e670000018c00000010626974730000019c0000000b696d7374000001a80000000c69626b67000001b40000000c73726e64000001c00000000c61696c6d000001cc0000000c6d77706c000001d80000000c6d777063000001e4000000106d627063000001f400000010666c3332000000003f23d70a3ea8f5c33cf5c28f666c3332000000003e99999a3f19999a3dcccccd666c3332000000003e19999a3d75c28f3f4a3d71637572660000000000030000bb4d2e1c3b4d2e1c70617266000000000003000043d55555bf870a3dbf80000000000000000000007061726600000000000000003f800000414eb85200000000000000007061726600000000000300003ed555553f870a3d3f8000000000000000000000666c33320000000042a00000666c3332000000003e870a3d3f8000000000000000000000666c33320000000042a00000666c3332000000003ea01a373ea872b0666c333200000000bf07ae143fd70a3d75693038000000000a0c10007369672000000000646f7263666c33320000000042a00000666c3332000000003ea01a373ea872b0666c3332000000003ea01a373ea872b0
+"""
+
+
+def make_h21_tag_struct_profile_bytes():
+    return bytes.fromhex(re.sub(r"\s+", "", _H21_TAG_STRUCT_FIXTURE_HEX))
+
+
 def make_h18_technology_signature_profile_bytes(tech_sig):
     data = bytearray(156)
     struct.pack_into(">I", data, 0, len(data))
@@ -1917,51 +1926,61 @@ def test_heuristic_detection(suite):
         r"\[H20\][\s\S]*All tag type signatures are valid ASCII"
     )
 
-    # H21: tagStruct member inspection
-    suite.assert_output_contains(
-        "heuristic.h21_struct_member_inventory",
-        ["-a", "--legacy", str(REPO_ROOT / "test-profiles" / "sbo-CIccTagStruct-GetElemNumberValue-IccTagComposite_cpp-Line737.icc")],
-        r"\[H21\][\s\S]*Tag 'cept' is tagStruct \(type='cept', 15 members\)[\s\S]*Member 'srnd': type='ui08' size=12 values=4"
-    )
+    with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
+        tmp.write(make_h21_tag_struct_profile_bytes())
+        h21_struct = tmp.name
 
-    suite.assert_output_contains(
-        "heuristic.h21_struct_member_clean",
-        ["-a", "--legacy", f"{corpus}/cf143-meas-valid.icc"],
-        r"\[H21\][\s\S]*Tag 'meas' is tagStruct \(type='meas', 0 members\)"
-    )
+    try:
+        # H21: tagStruct member inspection
+        suite.assert_output_contains(
+            "heuristic.h21_struct_member_inventory",
+            ["-a", "--legacy", h21_struct],
+            r"\[H21\][\s\S]*Tag 'cept' is tagStruct \(type='cept', 15 members\)[\s\S]*Member 'srnd': type='ui08' size=12 values=4"
+        )
 
-    # H22: NumArray scalar expectation
-    suite.assert_output_contains(
-        "heuristic.h22_scalar_expectation_warn",
-        ["-a", "--legacy", str(REPO_ROOT / "test-profiles" / "sbo-CIccTagStruct-GetElemNumberValue-IccTagComposite_cpp-Line737.icc")],
-        r"\[H22\][\s\S]*srnd \(ViewingSurround\) has 4 values \(expected 1 scalar\)"
-    )
+        suite.assert_output_contains(
+            "heuristic.h21_struct_member_clean",
+            ["-a", "--legacy", f"{corpus}/cf143-meas-valid.icc"],
+            r"\[H21\][\s\S]*Tag 'meas' is tagStruct \(type='meas', 0 members\)"
+        )
 
-    suite.assert_output_contains(
-        "heuristic.h22_scalar_expectation_na",
-        ["-a", "--legacy", f"{corpus}/cf143-meas-valid.icc"],
-        r"\[H22\][\s\S]*No cept \(ColorEncodingParams\) tag — check not applicable"
-    )
+        # H22: NumArray scalar expectation
+        suite.assert_output_contains(
+            "heuristic.h22_scalar_expectation_warn",
+            ["-a", "--legacy", h21_struct],
+            r"\[H22\][\s\S]*srnd \(ViewingSurround\) has 4 values \(expected 1 scalar\)"
+        )
 
-    # H23: NumArray value range
-    suite.assert_output_contains(
-        "heuristic.h23_numarray_clean",
-        ["-a", "--legacy", f"{corpus}/cf143-meas-valid.icc"],
-        r"\[H23\][\s\S]*All NumArray values within normal ranges"
-    )
+        suite.assert_output_contains(
+            "heuristic.h22_scalar_expectation_na",
+            ["-a", "--legacy", f"{corpus}/cf143-meas-valid.icc"],
+            r"\[H22\][\s\S]*No cept \(ColorEncodingParams\) tag — check not applicable"
+        )
 
-    # H24: tagStruct/tagArray nesting depth
-    suite.assert_output_contains(
-        "heuristic.h24_nesting_depth_warn_fixture",
-        ["-a", "--legacy", str(REPO_ROOT / "test-profiles" / "sbo-CIccTagStruct-GetElemNumberValue-IccTagComposite_cpp-Line737.icc")],
-        r"\[H24\][\s\S]*Max nesting depth: 1 \(safe limit: 4\)"
-    )
+        # H23: NumArray value range
+        suite.assert_output_contains(
+            "heuristic.h23_numarray_clean",
+            ["-a", "--legacy", f"{corpus}/cf143-meas-valid.icc"],
+            r"\[H23\][\s\S]*All NumArray values within normal ranges"
+        )
 
-    suite.assert_output_contains(
-        "heuristic.h24_nesting_depth_clean",
-        ["-a", "--legacy", f"{corpus}/cf143-meas-valid.icc"],
-        r"\[H24\][\s\S]*Max nesting depth: 0 \(safe limit: 4\)"
-    )
+        # H24: tagStruct/tagArray nesting depth
+        suite.assert_output_contains(
+            "heuristic.h24_nesting_depth_warn_fixture",
+            ["-a", "--legacy", h21_struct],
+            r"\[H24\][\s\S]*Max nesting depth: 1 \(safe limit: 4\)"
+        )
+
+        suite.assert_output_contains(
+            "heuristic.h24_nesting_depth_clean",
+            ["-a", "--legacy", f"{corpus}/cf143-meas-valid.icc"],
+            r"\[H24\][\s\S]*Max nesting depth: 0 \(safe limit: 4\)"
+        )
+    finally:
+        try:
+            os.unlink(h21_struct)
+        except OSError:
+            pass
 
     # H18: technology signature validation
     with tempfile.NamedTemporaryFile(suffix=".icc", delete=False) as tmp:
