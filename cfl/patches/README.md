@@ -1,8 +1,8 @@
 # CFL Library Patches — Active Security Fixes
 
-Last Updated: 2026-03-24
+Last Updated: 2026-03-29
 
-60 active patch files are currently present in this directory.
+45 active patch files are currently present in this directory.
 
 For analyzer/runtime review against the unpatched-library policy, the normalized
 source of truth is:
@@ -16,11 +16,10 @@ active patch files used by CFL.
 
 **Build**: `cd cfl && ./build.sh` applies all patches from this directory automatically.
 
-## Active Patches (stale summary table)
+## Active Patches
 
-The table below is preserved for patch-family detail, but it is not a complete
-inventory anymore. Use the matrix files above for current counts and analyzer
-coverage status.
+The table below is preserved as a patch-family quick reference. For current
+counts and analyzer coverage status, prefer the matrix files above.
 
 | # | Patch File | Bug | CWE | Files Modified |
 |---|-----------|-----|-----|----------------|

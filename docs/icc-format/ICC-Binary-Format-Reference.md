@@ -6,10 +6,12 @@
 >
 > **Sources**: ICC.1-2022-05, ICC.2-2019 (with September 2021 errata), ICC.2-2023,
 > ICS Parts 1–3, iccanalyzer-lite source code, CFL fuzzer corpus,
-> 113 iccDEV security advisories (87 CVEs + 95 GHSAs).
+> 93 iccDEV security advisories covering 87 CVEs + 95 GHSAs (182 unique refs).
 >
-> **Last verified**: 2026-03-23 16:25:00 UTC — 180 heuristics (H1–H180) +
-> 329 canonical conformance checks (CF-001..CF-329), 45 CFL patches, 13 fuzzers.
+> **Last verified**: 2026-03-29 19:30:00 UTC — V1 `iccanalyzer-lite` security
+> mode currently exposes 173 heuristics (H1–H173), while the V2 `icctest`
+> registry currently exposes 180 heuristics, plus 329 canonical conformance
+> checks (CF-001..CF-329), 45 CFL patches, and 13 fuzzers.
 >
 > **Count note**: these are current registry totals, not an ID-space ceiling.
 > V1 and V2 are expected to grow the `H-*` and `CF-*` namespaces toward `1000`
@@ -654,7 +656,7 @@ iCCP chunk:
   Compression method (1 byte, must be 0 = zlib)
   Compressed ICC profile data (zlib deflate)
 
-Extraction: png_get_iCCP() → inflate → temp file → 180-heuristic analysis
+Extraction: png_get_iCCP() → inflate → temp file → current-engine security analysis
 ```
 
 ### JPEG ICC Extraction
@@ -679,7 +681,7 @@ Multi-segment reassembly:
 
 ## 12. Security Patterns — CWE Catalog
 
-44 distinct CWE categories across 180 heuristics + 329 canonical conformance checks + 45 CFL patches:
+44 distinct CWE categories across the current heuristic registries + 329 canonical conformance checks + 45 CFL patches:
 
 | CWE | Name | Sources | Key References |
 |-----|------|---------|----------------|
@@ -1136,4 +1138,4 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite v3.7.0+ · 180 heuristics · 329 canonical conformance checks (331 wrapper entries) · 45 CFL patches · 13 fuzzers · 113 advisories*
+*iccanalyzer-lite / icctest current reference: V1 173 heuristics, V2 180 heuristics, 329 canonical conformance checks (331 wrapper entries), 45 CFL patches, 13 fuzzers, 113 advisories*

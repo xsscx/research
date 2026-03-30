@@ -21,7 +21,7 @@ local iccanalyzer-lite binaries or git commit round-trips.
 
 ```bash
 curl -s http://<host>:8080/api/health
-# Expected: {"ok":true,"tools":24}
+# Expected: {"ok":true,"tools":26,"engines":{"v1":true,"v2":true},"defaultAnalysisEngine":"v2","defaultStructuralEngine":"v1"}
 ```
 
 ### Step 2: Upload ICC/TIFF File
@@ -48,8 +48,8 @@ Choose one or more analysis endpoints:
 
 | Endpoint | Purpose | Best For |
 |----------|---------|----------|
-| `/api/security?path=...` | 180-heuristic scan (text) | Human-readable report |
-| `/api/security-json?path=...` | 180-heuristic scan (JSON) | Programmatic processing |
+| `/api/security?path=...` | Current-engine security scan (text) | Human-readable report |
+| `/api/security-json?path=...` | Current-engine security scan (JSON) | Programmatic processing |
 | `/api/security-report?path=...` | Severity-sorted report | Professional output |
 | `/api/inspect?path=...` | Profile structure | Header/tag examination |
 | `/api/roundtrip?path=...` | AToB/BToA validation | LUT completeness check |

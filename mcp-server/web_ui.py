@@ -2,7 +2,7 @@
 """
 ICC Profile MCP Server — Web UI Backend
 
-Thin REST API wrapping the 24 MCP tool functions (11 analysis + 7 maintainer + 6 operations).
+Thin REST API wrapping the MCP tool surface exposed by the server.
 Uses Starlette + uvicorn (already installed as MCP SDK dependencies).
 
 Usage:
