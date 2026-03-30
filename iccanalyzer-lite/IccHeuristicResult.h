@@ -101,6 +101,9 @@ public:
   bool quiet() const { return m_quiet; }
   void setQuiet(bool on) { m_quiet = on; }
 
+  /// Format a message into a std::string with printf-style semantics.
+  static std::string format(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
 private:
   HeuristicCollector();
 
@@ -114,5 +117,35 @@ private:
   // Format a va_list into a std::string
   static std::string vformat(const char *fmt, va_list ap);
 };
+
+// Preformat messages before passing them to the variadic logger wrappers.
+// This avoids scan-build taint false positives on literal-format call sites.
+template <typename... Args>
+inline void HcWarnFormatted(HeuristicCollector &hc, const char *fmt, Args... args)
+{
+  const std::string msg = HeuristicCollector::format(fmt, args...);
+  hc.warn("%s", msg.c_str());
+}
+
+template <typename... Args>
+inline void HcInfoFormatted(HeuristicCollector &hc, const char *fmt, Args... args)
+{
+  const std::string msg = HeuristicCollector::format(fmt, args...);
+  hc.info("%s", msg.c_str());
+}
+
+template <typename... Args>
+inline void HcCriticalFormatted(HeuristicCollector &hc, const char *fmt, Args... args)
+{
+  const std::string msg = HeuristicCollector::format(fmt, args...);
+  hc.critical("%s", msg.c_str());
+}
+
+template <typename... Args>
+inline void HcCweFormatted(HeuristicCollector &hc, const char *fmt, Args... args)
+{
+  const std::string msg = HeuristicCollector::format(fmt, args...);
+  hc.cweNote("%s", msg.c_str());
+}
 
 #endif // ICCHEURISTICRESULT_H

@@ -2432,12 +2432,12 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             uint64_t endPos = (uint64_t)tOffset + tSize;
             if (endPos > fileSize) {
               if (tOffset >= fileSize) {
-                hc.warn("Tag '%s': offset=0x%X past EOF (0x%lX) — fully inaccessible",
-                        tagSig, tOffset, (unsigned long)fileSize);
+                HcWarnFormatted(hc, "Tag '%s': offset=0x%X past EOF (0x%lX) — fully inaccessible",
+                                tagSig, tOffset, (unsigned long)fileSize);
               } else {
                 size_t accessible = fileSize - tOffset;
-                hc.warn("Tag '%s': offset=0x%X size=0x%X — only %zu/%u bytes accessible (truncated at EOF)",
-                        tagSig, tOffset, tSize, accessible, tSize);
+                HcWarnFormatted(hc, "Tag '%s': offset=0x%X size=0x%X — only %zu/%u bytes accessible (truncated at EOF)",
+                                tagSig, tOffset, tSize, accessible, tSize);
               }
               tagSizeIssues++;
             } else {
@@ -2445,14 +2445,14 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             }
 
             if (tSize > 16777216) {
-              hc.warn("Tag '%s': size %u bytes (>16MB) — potential OOM", tagSig, tSize);
+              HcWarnFormatted(hc, "Tag '%s': size %u bytes (>16MB) — potential OOM", tagSig, tSize);
               tagSizeIssues++;
             }
           }
           if (tagSizeIssues > 0 && tagsTotal > 0) {
             int inaccessible = tagsTotal - tagsAccessible;
-            hc.info("      Tag accessibility: %d/%d accessible (%d inaccessible due to truncation)",
-                    tagsAccessible, tagsTotal, inaccessible);
+            HcInfoFormatted(hc, "      Tag accessibility: %d/%d accessible (%d inaccessible due to truncation)",
+                            tagsAccessible, tagsTotal, inaccessible);
           }
           heuristicCount += tagSizeIssues;
         }
@@ -2476,15 +2476,15 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
 
             if (tOffset > fileSize) {
-              hc.warn("Tag '%s': offset 0x%08X past file end (0x%lX)",
-                      tagSig, tOffset, (unsigned long)fileSize);
+              HcWarnFormatted(hc, "Tag '%s': offset 0x%08X past file end (0x%lX)",
+                              tagSig, tOffset, (unsigned long)fileSize);
               hc.cweNote("CRITICAL: OOB read if parser follows this offset");
               oobIssues++;
             }
 
             if (declaredSize > 0 && (uint64_t)tOffset + tSize > declaredSize && (uint64_t)tOffset + tSize > fileSize) {
-              hc.warn("Tag '%s': extends past declared profile size (%u)",
-                      tagSig, declaredSize);
+              HcWarnFormatted(hc, "Tag '%s': extends past declared profile size (%u)",
+                              tagSig, declaredSize);
               oobIssues++;
             }
           }
@@ -2530,7 +2530,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             uint8_t nGrid = lutHdr[2];
 
             if (nInput == 0 || nOutput == 0) {
-              hc.warn("Tag '%s': LUT has 0 channels (in=%u out=%u)", tagSig, nInput, nOutput);
+              HcWarnFormatted(hc, "Tag '%s': LUT has 0 channels (in=%u out=%u)", tagSig, nInput, nOutput);
               lutIssues++;
             }
             if (nGrid > 0 && nInput > 0) {
@@ -2538,8 +2538,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
               for (uint8_t d = 0; d < nInput; d++) {
                 clutSize *= nGrid;
                 if (clutSize > 1073741824ULL) {
-                  hc.warn("Tag '%s': CLUT %u^%u x %u entries -> >1GB allocation",
-                          tagSig, nGrid, nInput, nOutput);
+                  HcWarnFormatted(hc, "Tag '%s': CLUT %u^%u x %u entries -> >1GB allocation",
+                                  tagSig, nGrid, nInput, nOutput);
                   hc.cweNote("Risk: OOM crash in CLUT allocation");
                   lutIssues++;
                   break;
@@ -2581,8 +2581,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
               }
             }
             if (!validType) {
-              hc.warn("Tag '%s' at 0x%08X: type signature 0x%02X%02X%02X%02X is non-printable",
-                      tagSig, tOffset, typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3]);
+              HcWarnFormatted(hc, "Tag '%s' at 0x%08X: type signature 0x%02X%02X%02X%02X is non-printable",
+                              tagSig, tOffset, typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3]);
               hc.cweNote("Risk: Type confusion -> wrong parser invoked -> memory corruption");
 
               // GAP-A: Quantify exploitation severity
@@ -2595,8 +2595,8 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
                   uint16_t pseudoOut = (static_cast<uint16_t>(mpetHdr[2]) << 8) | mpetHdr[3];
                   uint32_t pseudoElem = ReadU32BE(&mpetHdr[4]);
                   if (pseudoElem > 1000 || pseudoIn > 16 || pseudoOut > 16) {
-                    hc.cweNote("Exploitability: if parsed as mpet -> %u inputs, %u outputs, %u elements",
-                               pseudoIn, pseudoOut, pseudoElem);
+                    HcCweFormatted(hc, "Exploitability: if parsed as mpet -> %u inputs, %u outputs, %u elements",
+                                   pseudoIn, pseudoOut, pseudoElem);
                     hc.cweNote("CWE-131: Catastrophic OOB if element count used for allocation/iteration");
                   }
                 }
