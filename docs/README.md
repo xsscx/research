@@ -29,6 +29,10 @@ This directory mixes authored references, research writeups, test fixtures, and 
 | [callgraph/](callgraph/) | Call-graph generation notes and examination index |
 | [xnuimagefuzzer/](xnuimagefuzzer/) | ICC-specific analysis for the XNU image-fuzzer sibling project |
 
+Recent checkpoint worth bookmarking:
+
+- [analysis/ICCANALYZER_PARITY_AND_MCP_RELEASE_STATUS_2026-03-29.md](analysis/ICCANALYZER_PARITY_AND_MCP_RELEASE_STATUS_2026-03-29.md) captures the parity-closure state, saved `verify-parity` artifact, local Docker validation scope, and matching workflow runs from 2026-03-29.
+
 ## Maintenance Notes
 
 - Prefer linking readers to authored entry docs such as `README.md`, `INDEX.md`, or per-tool references instead of raw log files.
