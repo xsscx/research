@@ -122,26 +122,29 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          schema=v2
           if command -v sha256sum >/dev/null 2>&1; then
             deps_sha=$(sha256sum beyondrgb/backend/dependencies.txt | awk '{print $1}')
           else
             deps_sha=$(shasum -a 256 beyondrgb/backend/dependencies.txt | awk '{print $1}')
           fi
 
+          echo "cache_schema=${schema}" >> "${GITHUB_OUTPUT}"
           echo "dependencies_sha=${deps_sha}" >> "${GITHUB_OUTPUT}"
-          echo "bundle_artifact_name=beyondrgb-vcpkg-${{ matrix.platform }}-${{ matrix.arch }}-${deps_sha}" >> "${GITHUB_OUTPUT}"
+          echo "bundle_artifact_name=beyondrgb-vcpkg-${schema}-${{ matrix.platform }}-${{ matrix.arch }}-${deps_sha}" >> "${GITHUB_OUTPUT}"
 
       - name: Cache vcpkg
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-vcpkg-unix
         with:
           path: beyondrgb/backend/vcpkg
-          key: beyondrgb-vcpkg-${{ runner.os }}-${{ matrix.arch }}-${{ steps.vcpkg-meta.outputs.dependencies_sha }}
+          key: beyondrgb-vcpkg-${{ steps.vcpkg-meta.outputs.cache_schema }}-${{ runner.os }}-${{ matrix.arch }}-${{ steps.vcpkg-meta.outputs.dependencies_sha }}
           restore-keys: |
-            beyondrgb-vcpkg-${{ runner.os }}-${{ matrix.arch }}-
-            beyondrgb-vcpkg-${{ runner.os }}-
+            beyondrgb-vcpkg-${{ steps.vcpkg-meta.outputs.cache_schema }}-${{ runner.os }}-${{ matrix.arch }}-
+            beyondrgb-vcpkg-${{ steps.vcpkg-meta.outputs.cache_schema }}-${{ runner.os }}-
 
       - name: Restore prebuilt vcpkg export
+        id: restore-vcpkg-unix
         if: steps.cache-vcpkg-unix.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
@@ -158,12 +161,15 @@ jobs:
             mkdir -p "${artifact_root}"
             if gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" -n "${artifact_name}" -D "${artifact_root}" && \
               ./.github/scripts/restore-vcpkg-export.sh "${artifact_root}" "${artifact_name}" "beyondrgb/backend/vcpkg"; then
+              echo "restored=true" >> "${GITHUB_OUTPUT}"
               echo "Restored prebuilt vcpkg export from run ${run_id}."
             else
+              echo "restored=false" >> "${GITHUB_OUTPUT}"
               echo "Failed to restore prebuilt vcpkg export from run ${run_id}; falling back to bootstrap."
               rm -rf "${artifact_root}" "beyondrgb/backend/vcpkg"
             fi
           else
+            echo "restored=false" >> "${GITHUB_OUTPUT}"
             echo "No matching prebuilt vcpkg export found on main."
           fi
 
@@ -216,7 +222,7 @@ jobs:
             # shellcheck disable=SC1090
             source "$SANITIZER"
           fi
-          if [[ -f "vcpkg/.vcpkg-root" ]]; then
+          if [[ "${{ steps.cache-vcpkg-unix.outputs.cache-hit }}" == 'true' || "${{ steps.restore-vcpkg-unix.outputs.restored }}" == 'true' ]]; then
             echo "Using prebuilt vcpkg tree already present at $PWD/vcpkg."
             exit 0
           fi
@@ -503,21 +509,24 @@ jobs:
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
+          $schema = 'v2'
           $depsSha = (Get-FileHash -Algorithm SHA256 "$env:GITHUB_WORKSPACE\beyondrgb\backend\dependencies.txt").Hash.ToLower()
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "cache_schema=$schema"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "dependencies_sha=$depsSha"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "bundle_artifact_name=beyondrgb-vcpkg-windows-x86_64-$depsSha"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "bundle_artifact_name=beyondrgb-vcpkg-$schema-windows-x86_64-$depsSha"
 
       - name: Cache vcpkg
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-vcpkg-windows
         with:
           path: beyondrgb/backend/vcpkg
-          key: beyondrgb-vcpkg-${{ runner.os }}-x86_64-${{ steps.vcpkg-meta.outputs.dependencies_sha }}
+          key: beyondrgb-vcpkg-${{ steps.vcpkg-meta.outputs.cache_schema }}-${{ runner.os }}-x86_64-${{ steps.vcpkg-meta.outputs.dependencies_sha }}
           restore-keys: |
-            beyondrgb-vcpkg-${{ runner.os }}-x86_64-
-            beyondrgb-vcpkg-${{ runner.os }}-
+            beyondrgb-vcpkg-${{ steps.vcpkg-meta.outputs.cache_schema }}-${{ runner.os }}-x86_64-
+            beyondrgb-vcpkg-${{ steps.vcpkg-meta.outputs.cache_schema }}-${{ runner.os }}-
 
       - name: Restore prebuilt vcpkg export
+        id: restore-vcpkg-windows
         if: steps.cache-vcpkg-windows.outputs.cache-hit != 'true'
         shell: bash --noprofile --norc {0}
         env:
@@ -533,12 +542,15 @@ jobs:
             mkdir -p "${artifact_root}"
             if gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" -n "${artifact_name}" -D "${artifact_root}" && \
               ./.github/scripts/restore-vcpkg-export.sh "${artifact_root}" "${artifact_name}" "beyondrgb/backend/vcpkg"; then
+              echo "restored=true" >> "${GITHUB_OUTPUT}"
               echo "Restored prebuilt vcpkg export from run ${run_id}."
             else
+              echo "restored=false" >> "${GITHUB_OUTPUT}"
               echo "Failed to restore prebuilt vcpkg export from run ${run_id}; falling back to bootstrap."
               rm -rf "${artifact_root}" "beyondrgb/backend/vcpkg"
             fi
           else
+            echo "restored=false" >> "${GITHUB_OUTPUT}"
             echo "No matching prebuilt vcpkg export found on main."
           fi
 
@@ -595,11 +607,15 @@ jobs:
           if errorlevel 1 exit /b 1
           cd /d "$env:GITHUB_WORKSPACE\beyondrgb\backend"
           if errorlevel 1 exit /b 1
-          if exist vcpkg\.vcpkg-root (
+          if /I "${{ steps.cache-vcpkg-windows.outputs.cache-hit }}"=="true" (
             echo Using prebuilt vcpkg tree already present at %CD%\vcpkg.
           ) else (
-            call win_config_environment.bat
-            if errorlevel 1 exit /b 1
+            if /I "${{ steps.restore-vcpkg-windows.outputs.restored }}"=="true" (
+              echo Using prebuilt vcpkg tree already present at %CD%\vcpkg.
+            ) else (
+              call win_config_environment.bat
+              if errorlevel 1 exit /b 1
+            )
           )
           call win_build.bat -m Release
           if errorlevel 1 exit /b 1
