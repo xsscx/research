@@ -28,10 +28,9 @@ on:
       ref:
         description: 'iccDEV branch to build against'
         required: false
-        default: 'cfl'
+        default: 'master'
         type: choice
         options:
-          - cfl
           - master
 
 concurrency:
@@ -40,7 +39,7 @@ concurrency:
 
 jobs:
   single-profile-coverage:
-    name: "Coverage (${{ inputs.ref || 'cfl' }}): ${{ inputs.profile_path || 'random' }}"
+    name: "Coverage (${{ inputs.ref || 'master' }}): ${{ inputs.profile_path || 'random' }}"
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -112,44 +111,17 @@ jobs:
         id: cache-iccdev
         with:
           path: /tmp/iccdev
-          key: ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'cfl' }}-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'master' }}-${{ hashFiles('.github/workflows/iccdev-single-profile-coverage.yml') }}
           restore-keys: |
-            ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'cfl' }}-
+            ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'master' }}-
 
-      - name: "Clone iccDEV (${{ github.event.inputs.ref || 'cfl' }})"
+      - name: "Clone iccDEV (${{ github.event.inputs.ref || 'master' }})"
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          REF="${{ github.event.inputs.ref || 'cfl' }}"
+          REF="${{ github.event.inputs.ref || 'master' }}"
           if [ ! -d "/tmp/iccdev" ]; then
             git clone --depth 1 --branch "$REF" https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
-          fi
-
-      - name: "Apply CFL patches (cfl branch only)"
-        if: steps.cache-iccdev.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          REF="${{ github.event.inputs.ref || 'cfl' }}"
-
-          if [ "$REF" = "cfl" ]; then
-            echo "Applying CFL library patches to cfl branch..."
-            for p in cfl/patches/*.patch; do
-              if patch -p1 -d /tmp/iccdev --dry-run --forward -s < "$p" >/dev/null 2>&1; then
-            patch -p1 -d /tmp/iccdev --forward -s < "$p" >/dev/null 2>&1
-                echo "  [OK] $(basename "$p")"
-              else
-                echo "  [SKIP] $(basename "$p") (already applied or N/A)"
-              fi
-            done
-          else
-            echo "Testing master branch as-is — no CFL patches applied"
-          fi
-
-          # Strip stray U+FE0F (emoji variation selector) from upstream source
-          SIGUTILS="/tmp/iccdev/IccProfLib/IccSignatureUtils.h"
-          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
           fi
 
       - name: Cache iccDEV coverage build
@@ -157,9 +129,9 @@ jobs:
         id: cache-build
         with:
           path: /tmp/iccdev/build-coverage
-          key: ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'cfl' }}-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'master' }}-${{ hashFiles('.github/workflows/iccdev-single-profile-coverage.yml') }}
           restore-keys: |
-            ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'cfl' }}-
+            ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'master' }}-
 
       - name: Build iccDEV with coverage instrumentation
         if: steps.cache-build.outputs.cache-hit != 'true'
@@ -376,7 +348,7 @@ jobs:
           {
             echo "## iccDEV Single Profile Coverage"
             echo ""
-            echo "**Branch**: \`${{ github.event.inputs.ref || 'cfl' }}\`"
+            echo "**Branch**: \`${{ github.event.inputs.ref || 'master' }}\`"
             echo "**Profile**: \`$SAFE_PROFILE\`"
             echo ""
             echo "### Tool Outputs"

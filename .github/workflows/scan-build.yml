@@ -73,7 +73,7 @@ jobs:
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         with:
           path: iccDEV
-          key: ${{ runner.os }}-iccdev-scan-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-scan-${{ hashFiles('.github/workflows/scan-build.yml') }}
 
       - name: Cache iccDEV build artifacts
         id: cache-iccdev-build
@@ -84,7 +84,7 @@ jobs:
             iccDEV/Build/IccXML
             iccDEV/Build/CMakeCache.txt
             iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-scan-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-build-scan-${{ hashFiles('.github/workflows/scan-build.yml') }}
 
       - name: Clone and build iccDEV libraries
         run: |
@@ -100,21 +100,7 @@ jobs:
             cd ..
           fi
           if [ "${{ steps.cache-iccdev-build.outputs.cache-hit }}" != 'true' ]; then
-            echo "Applying CFL library patches..."
-            for p in cfl/patches/*.patch; do
-              if patch -p1 -d iccDEV --dry-run --forward -s < "$p" >/dev/null 2>&1; then
-            patch -p1 -d iccDEV --forward -s < "$p" >/dev/null 2>&1
-                echo "  [OK] $(basename "$p")"
-              else
-                echo "  [SKIP] $(basename "$p") (already applied or N/A)"
-              fi
-            done
-            # Strip stray U+FE0F (emoji variation selector) from upstream source
-            SIGUTILS="iccDEV/IccProfLib/IccSignatureUtils.h"
-            if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-              sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-              echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-            fi
+            echo "Building unpatched iccDEV for scan-build dependency analysis..."
             cd iccDEV/Build
             sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
             cmake Cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLS=OFF
