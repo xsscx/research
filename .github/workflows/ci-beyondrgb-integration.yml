@@ -1,0 +1,474 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: Build the imported BeyondRGB backend in this research
+#         monorepo across Linux, macOS, and Windows with the
+#         committed iccDEV/cpptrace/websocketpp submodules.
+#
+# Derived from:
+#   - InternationalColorConsortium/iccDEV demo-rit
+#     .github/workflows/ci-beyondrgb-integration.yml
+#   - InternationalColorConsortium/iccDEV
+#     .github/workflows/ci-pr-action.yml
+#
+# Security:
+#   - SHA-pinned marketplace actions
+#   - persist-credentials: false
+#   - bash --noprofile --norc and PowerShell strict mode
+#   - credential helper reset and token neutering
+#   - sanitized step summaries
+###############################################################
+
+name: CI BeyondRGB Integration
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".gitmodules"
+      - "beyondrgb/**"
+      - ".github/workflows/ci-beyondrgb-integration.yml"
+      - ".github/scripts/sanitize-sed.sh"
+      - ".github/scripts/sanitize.ps1"
+      - ".github/instructions/workflow-governance.instructions.md"
+
+concurrency:
+  group: beyondrgb-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GH_NO_UPDATE_NOTIFIER: 1
+  GH_PROMPT_DISABLED: 1
+  VCPKG_BINARY_SOURCES: clear;x-gha,readwrite
+
+jobs:
+  build-unix:
+    name: "BeyondRGB Unix - ${{ matrix.platform }} - ${{ matrix.arch }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          submodules: recursive
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Harden environment
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          fi
+
+      - name: Validate sanitize-sed.sh
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            echo "Missing sanitize-sed.sh" >&2
+            exit 1
+          fi
+
+          result="$(sanitize_line '<script>alert(1)</script>')"
+          expected='&lt;script&gt;alert(1)&lt;/script&gt;'
+          if [[ "$result" != "$expected" ]]; then
+            echo "Unexpected sanitizer output: [$result]" >&2
+            exit 1
+          fi
+
+      - name: Cache vcpkg
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        id: cache-vcpkg-unix
+        with:
+          path: beyondrgb/backend/vcpkg
+          key: beyondrgb-vcpkg-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('beyondrgb/backend/dependencies.txt') }}
+          restore-keys: |
+            beyondrgb-vcpkg-${{ runner.os }}-${{ matrix.arch }}-
+            beyondrgb-vcpkg-${{ runner.os }}-
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        env:
+          BASH_ENV: /dev/null
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          fi
+          sudo apt-get update -qq
+          # shellcheck disable=SC2046
+          sudo apt-get install -y --no-install-recommends $(cat beyondrgb/backend/apt-dependencies.txt)
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        env:
+          BASH_ENV: /dev/null
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          fi
+          brew install pkg-config autoconf automake libtool ninja
+
+      - name: Install vcpkg dependencies
+        working-directory: beyondrgb/backend
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          fi
+          chmod +x ./*.sh
+          export VCPKG_ROOT="$PWD/vcpkg"
+          ./unix_config_environment.sh
+
+      - name: Build BeyondRGB backend
+        working-directory: beyondrgb/backend
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          fi
+          ./unix_build.sh -m Release
+
+      - name: Verify build
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          fi
+
+          exe="beyondrgb/backend/build/Release/beyond-rgb-backend"
+          if [[ ! -f "$exe" ]]; then
+            echo "beyond-rgb-backend not found at $exe" >&2
+            exit 1
+          fi
+
+          if [[ -f "beyondrgb/backend/build/Release/IccProfLib/libIccProfLib2-static.a" ]]; then
+            ls -lh "beyondrgb/backend/build/Release/IccProfLib/libIccProfLib2-static.a"
+          elif [[ -f "beyondrgb/backend/build/IccProfLib/libIccProfLib2-static.a" ]]; then
+            ls -lh "beyondrgb/backend/build/IccProfLib/libIccProfLib2-static.a"
+          else
+            find beyondrgb/backend/build -name 'libIccProfLib2-static*.a' -print
+          fi
+
+          ls -lh "$exe"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: beyondrgb-backend-${{ matrix.platform }}-${{ matrix.arch }}
+          path: beyondrgb/backend/build/Release/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Write summary
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+          MATRIX_PLATFORM: ${{ matrix.platform }}
+          MATRIX_ARCH: ${{ matrix.arch }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}"
+              s="${s//</&lt;}"
+              s="${s//>/&gt;}"
+              s="${s//\"/&quot;}"
+              s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          exe="beyondrgb/backend/build/Release/beyond-rgb-backend"
+          binary_size="<missing>"
+          if [[ -f "$exe" ]]; then
+            binary_size="$(du -h "$exe" | cut -f1)"
+          fi
+
+          iccdev_commit="$(git -C beyondrgb/backend/submodules/iccDEV rev-parse --short HEAD)"
+
+          {
+            echo "## BeyondRGB Unix ($(sanitize_line "$MATRIX_PLATFORM")/$(sanitize_line "$MATRIX_ARCH"))"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Status | $(sanitize_line "$JOB_STATUS") |"
+            echo "| Commit | \`$(sanitize_line "$GITHUB_SHA")\` |"
+            echo "| iccDEV | \`$(sanitize_line "$iccdev_commit")\` |"
+            echo "| Binary size | $(sanitize_line "$binary_size") |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build-windows:
+    name: "BeyondRGB Windows - x86_64"
+    runs-on: windows-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          submodules: recursive
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Harden environment
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: "1"
+          POWERSHELL_UPDATECHECK: Off
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $ProgressPreference = 'SilentlyContinue'
+          git config --global --add safe.directory "$env:GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          foreach ($v in @('GITHUB_TOKEN','ACTIONS_RUNTIME_TOKEN','ACTIONS_ID_TOKEN_REQUEST_URL','ACTIONS_ID_TOKEN_REQUEST_TOKEN')) {
+            if (Test-Path "Env:$v") { Remove-Item "Env:$v" -ErrorAction SilentlyContinue }
+          }
+          . "$env:GITHUB_WORKSPACE\.github\scripts\sanitize.ps1"
+
+      - name: Validate sanitize.ps1
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: "1"
+          POWERSHELL_UPDATECHECK: Off
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          git config --global credential.helper ""
+          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+
+          . "$env:GITHUB_WORKSPACE\.github\scripts\sanitize.ps1"
+          $result = Sanitize-Line "<script>alert(1)</script>"
+          $expected = "&lt;script&gt;alert(1)&lt;/script&gt;"
+          if ($result -ne $expected) {
+            throw "Unexpected sanitizer output: [$result]"
+          }
+
+      - name: Cache vcpkg
+        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        id: cache-vcpkg-windows
+        with:
+          path: beyondrgb/backend/vcpkg
+          key: beyondrgb-vcpkg-${{ runner.os }}-x86_64-${{ hashFiles('beyondrgb/backend/dependencies.txt') }}
+          restore-keys: |
+            beyondrgb-vcpkg-${{ runner.os }}-x86_64-
+            beyondrgb-vcpkg-${{ runner.os }}-
+
+      - name: Install pkg-config-lite
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: "1"
+          POWERSHELL_UPDATECHECK: Off
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          git config --global credential.helper ""
+          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          . "$env:GITHUB_WORKSPACE\.github\scripts\sanitize.ps1"
+
+          winget install bloodrock.pkg-config-lite --disable-interactivity --accept-source-agreements --accept-package-agreements
+          if (-not (Get-Command pkg-config -ErrorAction SilentlyContinue)) {
+            throw "pkg-config was not found after winget install"
+          }
+
+      - name: Build BeyondRGB backend
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: "1"
+          POWERSHELL_UPDATECHECK: Off
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          git config --global credential.helper ""
+          foreach ($v in @('GITHUB_TOKEN','ACTIONS_RUNTIME_TOKEN','ACTIONS_ID_TOKEN_REQUEST_URL','ACTIONS_ID_TOKEN_REQUEST_TOKEN')) {
+            if (Test-Path "Env:$v") { Remove-Item "Env:$v" -ErrorAction SilentlyContinue }
+          }
+          . "$env:GITHUB_WORKSPACE\.github\scripts\sanitize.ps1"
+
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) {
+            throw "vswhere.exe not found"
+          }
+
+          $vsInstall = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1).Trim()
+          if (-not $vsInstall) {
+            throw "Unable to locate a Visual Studio installation with C++ tools"
+          }
+
+          $buildScript = Join-Path $env:RUNNER_TEMP 'build-beyondrgb.cmd'
+          @"
+          @echo off
+          setlocal enabledelayedexpansion
+          call "$vsInstall\VC\Auxiliary\Build\vcvars64.bat"
+          if errorlevel 1 exit /b 1
+          cd /d "$env:GITHUB_WORKSPACE\beyondrgb\backend"
+          if errorlevel 1 exit /b 1
+          call win_config_environment.bat
+          if errorlevel 1 exit /b 1
+          call win_build.bat -m Release
+          if errorlevel 1 exit /b 1
+          "@ | Out-File -FilePath $buildScript -Encoding ascii
+
+          cmd.exe /d /c "`"$buildScript`""
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows backend build failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Verify build
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: "1"
+          POWERSHELL_UPDATECHECK: Off
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          git config --global credential.helper ""
+          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+          . "$env:GITHUB_WORKSPACE\.github\scripts\sanitize.ps1"
+
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'beyondrgb\backend\build\Release\beyond-rgb-backend.exe'
+          if (-not (Test-Path $exe)) {
+            throw "beyond-rgb-backend.exe not found at $exe"
+          }
+
+          $lib = Get-ChildItem -Recurse -Path (Join-Path $env:GITHUB_WORKSPACE 'beyondrgb\backend\build') -Filter 'IccProfLib2-static.lib' | Select-Object -First 1
+          if ($lib) {
+            Get-Item $lib.FullName | Format-List FullName,Length
+          }
+
+          Get-Item $exe | Format-List FullName,Length
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: beyondrgb-backend-windows-x86_64
+          path: beyondrgb/backend/build/Release/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Write summary
+        if: always()
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: "1"
+          POWERSHELL_UPDATECHECK: Off
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          git config --global credential.helper ""
+          if (Test-Path Env:GITHUB_TOKEN) { Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue }
+
+          . "$env:GITHUB_WORKSPACE\.github\scripts\sanitize.ps1"
+
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'beyondrgb\backend\build\Release\beyond-rgb-backend.exe'
+          $binarySize = '<missing>'
+          if (Test-Path $exe) {
+            $binarySize = ('{0:N2} MB' -f ((Get-Item $exe).Length / 1MB))
+          }
+
+          $iccdevCommit = (git -C "$env:GITHUB_WORKSPACE\beyondrgb\backend\submodules\iccDEV" rev-parse --short HEAD).Trim()
+
+          @"
+          ## BeyondRGB Windows
+
+          | Field | Value |
+          |-------|-------|
+          | Status | $(Sanitize-Line $env:JOB_STATUS) |
+          | Commit | $(Sanitize-Line $env:GITHUB_SHA) |
+          | iccDEV | $(Sanitize-Line $iccdevCommit) |
+          | Binary size | $(Sanitize-Line $binarySize) |
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
