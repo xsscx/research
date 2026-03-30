@@ -1,0 +1,10 @@
+[submodule "beyondrgb/backend/submodules/cpptrace"]
+	path = beyondrgb/backend/submodules/cpptrace
+	url = https://github.com/jeremy-rifkin/cpptrace.git
+[submodule "beyondrgb/backend/submodules/websocketpp"]
+	path = beyondrgb/backend/submodules/websocketpp
+	url = https://github.com/zaphoyd/websocketpp.git
+[submodule "beyondrgb/backend/submodules/iccDEV"]
+	path = beyondrgb/backend/submodules/iccDEV
+	url = https://github.com/InternationalColorConsortium/iccDEV.git
+	branch = demo-rit

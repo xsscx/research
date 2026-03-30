@@ -1,0 +1,13 @@
+lcms
+libraw
+tiff
+asio
+jsoncons
+libpng
+cppcodec
+openssl
+zlib
+boost-lexical-cast
+boost-range
+opencv4
+catch2

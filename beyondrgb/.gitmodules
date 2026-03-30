@@ -1,0 +1,10 @@
+[submodule "backend/submodules/websocketpp"]
+	path = backend/submodules/websocketpp
+	url = https://github.com/zaphoyd/websocketpp.git
+[submodule "backend/submodules/cpptrace"]
+	path = backend/submodules/cpptrace
+	url = https://github.com/jeremy-rifkin/cpptrace.git
+[submodule "backend/submodules/iccDEV"]
+	path = backend/submodules/iccDEV
+	url = https://github.com/InternationalColorConsortium/iccDEV.git
+	branch = demo-rit
