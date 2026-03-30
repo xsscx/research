@@ -22,7 +22,6 @@ on:
     paths:
       - '.github/workflows/fuzz-sanitizer-corpus-scan.yml'
       - 'iccanalyzer-lite/**'
-      - 'cfl/patches/**'
   pull_request:
     paths:
       - '.github/workflows/fuzz-sanitizer-corpus-scan.yml'
@@ -83,7 +82,7 @@ jobs:
         id: cache-iccdev
         with:
           path: iccanalyzer-lite/iccDEV
-          key: ${{ runner.os }}-iccdev-fuzz-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-fuzz-${{ hashFiles('.github/workflows/fuzz-sanitizer-corpus-scan.yml') }}
           restore-keys: |
             ${{ runner.os }}-iccdev-fuzz-
 
@@ -96,24 +95,6 @@ jobs:
             git clone --depth=1 https://github.com/InternationalColorConsortium/iccDEV.git
           fi
 
-      - name: Apply CFL patches to iccDEV
-        if: steps.cache-iccdev.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          echo "Applying CFL patches..."
-          for p in cfl/patches/*.patch; do
-            if patch -p1 -d iccanalyzer-lite/iccDEV --dry-run --forward -s < "$p" >/dev/null 2>&1; then
-            patch -p1 -d iccanalyzer-lite/iccDEV --forward -s < "$p" >/dev/null 2>&1
-              echo "  [OK] $(basename "$p")"
-            else
-              echo "  [SKIP] $(basename "$p")"
-            fi
-          done
-          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
-          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-          fi
-
       - name: Cache iccDEV build
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev-build
@@ -123,7 +104,7 @@ jobs:
             iccanalyzer-lite/iccDEV/Build/IccXML
             iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
             iccanalyzer-lite/iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-fuzz-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-build-fuzz-${{ hashFiles('.github/workflows/fuzz-sanitizer-corpus-scan.yml') }}
           restore-keys: |
             ${{ runner.os }}-iccdev-build-fuzz-
 

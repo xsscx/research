@@ -23,10 +23,9 @@ on:
       ref:
         description: 'iccDEV branch to build against'
         required: false
-        default: 'cfl'
+        default: 'master'
         type: choice
         options:
-          - cfl
           - master
 
 concurrency:
@@ -35,7 +34,7 @@ concurrency:
 
 jobs:
   coverage:
-    name: "Coverage Report (${{ github.event.inputs.ref || 'cfl' }})"
+    name: "Coverage Report (${{ github.event.inputs.ref || 'master' }})"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -65,13 +64,13 @@ jobs:
             zlib1g-dev nlohmann-json3-dev \
             lcov
 
-      - name: "Clone and build iccDEV (${{ github.event.inputs.ref || 'cfl' }}) with coverage instrumentation"
+      - name: "Clone and build iccDEV (${{ github.event.inputs.ref || 'master' }}) with coverage instrumentation"
         env:
           CC: clang-18
           CXX: clang++-18
         run: |
           set -euo pipefail
-          REF="${{ github.event.inputs.ref || 'cfl' }}"
+          REF="${{ github.event.inputs.ref || 'master' }}"
 
           # Clone iccDEV
           if [ ! -d "/tmp/iccdev" ]; then
@@ -83,30 +82,6 @@ jobs:
 
           # Comment out wxWidgets requirement (no GUI needed for coverage)
           sed -i '/find_package(wxWidgets COMPONENTS core base REQUIRED)/,/endif()/ s/^/# /' Build/Cmake/CMakeLists.txt
-
-          # Strip stray U+FE0F (emoji variation selector) from upstream source
-          SIGUTILS="/tmp/iccdev/IccProfLib/IccSignatureUtils.h"
-          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-          fi
-
-          # Apply CFL patches (cfl branch only — master tested as-is)
-          if [ "$REF" = "cfl" ]; then
-            cd ${{ github.workspace }}
-            echo "Applying CFL library patches to cfl branch..."
-            for p in cfl/patches/*.patch; do
-              if patch -p1 -d /tmp/iccdev --dry-run --forward -s < "$p" >/dev/null 2>&1; then
-            patch -p1 -d /tmp/iccdev --forward -s < "$p" >/dev/null 2>&1
-                echo "  [OK] $(basename "$p")"
-              else
-                echo "  [SKIP] $(basename "$p") (already applied or N/A)"
-              fi
-            done
-            cd /tmp/iccdev
-          else
-            echo "Testing master branch as-is — no CFL patches applied"
-          fi
 
           mkdir -p build-coverage && cd build-coverage
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' ../Build/Cmake/CMakeLists.txt
@@ -705,7 +680,7 @@ jobs:
           {
             echo "## iccDEV Code Coverage Report"
             echo ""
-            echo "**Branch**: \`${{ github.event.inputs.ref || 'cfl' }}\`"
+            echo "**Branch**: \`${{ github.event.inputs.ref || 'master' }}\`"
             echo ""
             echo "### Test Execution"
             echo "| Metric | Value |"
