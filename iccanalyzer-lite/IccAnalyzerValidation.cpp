@@ -68,8 +68,8 @@ int RunIccLibraryValidation(const char *filename) {
   // pIcc may be NULL on critical error — that's OK, we still have the report
   delete pIcc;
 
-  const char *statusLabel = "UNKNOWN";
-  const char *statusColor = ColorInfo();
+  const char *statusLabel = nullptr;
+  const char *statusColor = nullptr;
   switch (status) {
     case icValidateOK:
       statusLabel = "OK — Profile conforms to ICC specification";
@@ -86,6 +86,10 @@ int RunIccLibraryValidation(const char *filename) {
     case icValidateCriticalError:
       statusLabel = "CRITICAL ERROR — Profile is not usable";
       statusColor = ColorCritical();
+      break;
+    default:
+      statusLabel = "UNKNOWN";
+      statusColor = ColorInfo();
       break;
   }
 
