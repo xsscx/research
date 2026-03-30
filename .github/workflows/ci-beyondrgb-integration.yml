@@ -24,6 +24,7 @@ name: CI BeyondRGB Integration
 
 permissions:
   contents: read
+  actions: read
 
 on:
   workflow_dispatch:
@@ -54,6 +55,7 @@ jobs:
     timeout-minutes: 180
     permissions:
       contents: read
+      actions: read
     defaults:
       run:
         shell: bash --noprofile --norc {0}
@@ -114,15 +116,56 @@ jobs:
             exit 1
           fi
 
+      - name: Compute vcpkg bundle metadata
+        id: vcpkg-meta
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          if command -v sha256sum >/dev/null 2>&1; then
+            deps_sha=$(sha256sum beyondrgb/backend/dependencies.txt | awk '{print $1}')
+          else
+            deps_sha=$(shasum -a 256 beyondrgb/backend/dependencies.txt | awk '{print $1}')
+          fi
+
+          echo "dependencies_sha=${deps_sha}" >> "${GITHUB_OUTPUT}"
+          echo "bundle_artifact_name=beyondrgb-vcpkg-${{ matrix.platform }}-${{ matrix.arch }}-${deps_sha}" >> "${GITHUB_OUTPUT}"
+
       - name: Cache vcpkg
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-vcpkg-unix
         with:
           path: beyondrgb/backend/vcpkg
-          key: beyondrgb-vcpkg-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('beyondrgb/backend/dependencies.txt') }}
+          key: beyondrgb-vcpkg-${{ runner.os }}-${{ matrix.arch }}-${{ steps.vcpkg-meta.outputs.dependencies_sha }}
           restore-keys: |
             beyondrgb-vcpkg-${{ runner.os }}-${{ matrix.arch }}-
             beyondrgb-vcpkg-${{ runner.os }}-
+
+      - name: Restore prebuilt vcpkg export
+        if: steps.cache-vcpkg-unix.outputs.cache-hit != 'true'
+        env:
+          BASH_ENV: /dev/null
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          artifact_name="${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}"
+          artifact_root=".github/tmp/vcpkg-import/${{ matrix.platform }}-${{ matrix.arch }}"
+          run_id="$(./.github/scripts/find-actions-artifact-run.sh "${GITHUB_REPOSITORY}" "ci-beyondrgb-integration.yml" "main" "${artifact_name}")"
+
+          if [[ -n "${run_id}" ]]; then
+            rm -rf "${artifact_root}"
+            mkdir -p "${artifact_root}"
+            if gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" -n "${artifact_name}" -D "${artifact_root}" && \
+              ./.github/scripts/restore-vcpkg-export.sh "${artifact_root}" "${artifact_name}" "beyondrgb/backend/vcpkg"; then
+              echo "Restored prebuilt vcpkg export from run ${run_id}."
+            else
+              echo "Failed to restore prebuilt vcpkg export from run ${run_id}; falling back to bootstrap."
+              rm -rf "${artifact_root}" "beyondrgb/backend/vcpkg"
+            fi
+          else
+            echo "No matching prebuilt vcpkg export found on main."
+          fi
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
@@ -172,6 +215,10 @@ jobs:
           if [[ -f "$SANITIZER" ]]; then
             # shellcheck disable=SC1090
             source "$SANITIZER"
+          fi
+          if [[ -f "vcpkg/.vcpkg-root" ]]; then
+            echo "Using prebuilt vcpkg tree already present at $PWD/vcpkg."
+            exit 0
           fi
           chmod +x ./*.sh
           export VCPKG_ROOT="$PWD/vcpkg"
@@ -292,18 +339,24 @@ jobs:
           fi
           export_dir="$RUNNER_TEMP/vcpkg-export"
           mkdir -p "$export_dir"
-          artifact_base="beyondrgb-vcpkg-${MATRIX_PLATFORM}-${MATRIX_ARCH}"
+          artifact_base="${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}"
           ./vcpkg/vcpkg export \
             --x-all-installed \
             --zip \
             --dereference-symlinks \
             --output-dir "$export_dir" \
             --output "$artifact_base"
+          if [[ -d vcpkg/.git ]]; then
+            vcpkg_commit="$(git -C vcpkg rev-parse HEAD)"
+          else
+            vcpkg_commit="unknown"
+          fi
           {
             echo "commit=$GITHUB_SHA"
             echo "platform=$MATRIX_PLATFORM"
             echo "arch=$MATRIX_ARCH"
-            echo "vcpkg_commit=$(git -C vcpkg rev-parse HEAD)"
+            echo "dependencies_sha=${{ steps.vcpkg-meta.outputs.dependencies_sha }}"
+            echo "vcpkg_commit=${vcpkg_commit}"
             echo "restore_path=beyondrgb/backend/vcpkg"
             echo "dependencies:"
             sed 's/^/- /' dependencies.txt
@@ -312,10 +365,10 @@ jobs:
       - name: Upload vcpkg dependency bundle
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
-          name: beyondrgb-vcpkg-${{ matrix.platform }}-${{ matrix.arch }}
+          name: ${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}
           path: |
-            ${{ runner.temp }}/vcpkg-export/beyondrgb-vcpkg-${{ matrix.platform }}-${{ matrix.arch }}.zip
-            ${{ runner.temp }}/vcpkg-export/beyondrgb-vcpkg-${{ matrix.platform }}-${{ matrix.arch }}.txt
+            ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.zip
+            ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.txt
           if-no-files-found: error
           retention-days: 30
 
@@ -367,7 +420,7 @@ jobs:
           fi
 
           vcpkg_bundle="not exported"
-          vcpkg_bundle_path="$RUNNER_TEMP/vcpkg-export/beyondrgb-vcpkg-${MATRIX_PLATFORM}-${MATRIX_ARCH}.zip"
+          vcpkg_bundle_path="$RUNNER_TEMP/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.zip"
           if [[ -f "$vcpkg_bundle_path" ]]; then
             vcpkg_bundle="$(du -h "$vcpkg_bundle_path" | cut -f1) zip exported"
           fi
@@ -393,6 +446,7 @@ jobs:
     timeout-minutes: 180
     permissions:
       contents: read
+      actions: read
 
     steps:
       - name: Checkout repository
@@ -440,15 +494,53 @@ jobs:
             throw "Unexpected sanitizer output: [$result]"
           }
 
+      - name: Compute vcpkg bundle metadata
+        id: vcpkg-meta
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: "1"
+          POWERSHELL_UPDATECHECK: Off
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $depsSha = (Get-FileHash -Algorithm SHA256 "$env:GITHUB_WORKSPACE\beyondrgb\backend\dependencies.txt").Hash.ToLower()
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "dependencies_sha=$depsSha"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "bundle_artifact_name=beyondrgb-vcpkg-windows-x86_64-$depsSha"
+
       - name: Cache vcpkg
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-vcpkg-windows
         with:
           path: beyondrgb/backend/vcpkg
-          key: beyondrgb-vcpkg-${{ runner.os }}-x86_64-${{ hashFiles('beyondrgb/backend/dependencies.txt') }}
+          key: beyondrgb-vcpkg-${{ runner.os }}-x86_64-${{ steps.vcpkg-meta.outputs.dependencies_sha }}
           restore-keys: |
             beyondrgb-vcpkg-${{ runner.os }}-x86_64-
             beyondrgb-vcpkg-${{ runner.os }}-
+
+      - name: Restore prebuilt vcpkg export
+        if: steps.cache-vcpkg-windows.outputs.cache-hit != 'true'
+        shell: bash --noprofile --norc {0}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifact_name="${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}"
+          artifact_root=".github/tmp/vcpkg-import/windows-x86_64"
+          run_id="$(./.github/scripts/find-actions-artifact-run.sh "${GITHUB_REPOSITORY}" "ci-beyondrgb-integration.yml" "main" "${artifact_name}")"
+
+          if [[ -n "${run_id}" ]]; then
+            rm -rf "${artifact_root}"
+            mkdir -p "${artifact_root}"
+            if gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" -n "${artifact_name}" -D "${artifact_root}" && \
+              ./.github/scripts/restore-vcpkg-export.sh "${artifact_root}" "${artifact_name}" "beyondrgb/backend/vcpkg"; then
+              echo "Restored prebuilt vcpkg export from run ${run_id}."
+            else
+              echo "Failed to restore prebuilt vcpkg export from run ${run_id}; falling back to bootstrap."
+              rm -rf "${artifact_root}" "beyondrgb/backend/vcpkg"
+            fi
+          else
+            echo "No matching prebuilt vcpkg export found on main."
+          fi
 
       - name: Install pkg-config-lite
         shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
@@ -503,8 +595,12 @@ jobs:
           if errorlevel 1 exit /b 1
           cd /d "$env:GITHUB_WORKSPACE\beyondrgb\backend"
           if errorlevel 1 exit /b 1
-          call win_config_environment.bat
-          if errorlevel 1 exit /b 1
+          if exist vcpkg\.vcpkg-root (
+            echo Using prebuilt vcpkg tree already present at %CD%\vcpkg.
+          ) else (
+            call win_config_environment.bat
+            if errorlevel 1 exit /b 1
+          )
           call win_build.bat -m Release
           if errorlevel 1 exit /b 1
           "@ | Out-File -FilePath $buildScript -Encoding ascii
@@ -602,18 +698,23 @@ jobs:
 
           $exportDir = Join-Path $env:RUNNER_TEMP 'vcpkg-export'
           New-Item -ItemType Directory -Force -Path $exportDir | Out-Null
-          $artifactBase = 'beyondrgb-vcpkg-windows-x86_64'
+          $artifactBase = "${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}"
 
           & "$env:GITHUB_WORKSPACE\beyondrgb\backend\vcpkg\vcpkg.exe" export --x-all-installed --zip --output-dir $exportDir --output $artifactBase
           if ($LASTEXITCODE -ne 0) {
             throw "vcpkg export failed with exit code $LASTEXITCODE"
           }
 
-          $vcpkgCommit = (git -C "$env:GITHUB_WORKSPACE\beyondrgb\backend\vcpkg" rev-parse HEAD).Trim()
+          if (Test-Path "$env:GITHUB_WORKSPACE\beyondrgb\backend\vcpkg\.git") {
+            $vcpkgCommit = (git -C "$env:GITHUB_WORKSPACE\beyondrgb\backend\vcpkg" rev-parse HEAD).Trim()
+          } else {
+            $vcpkgCommit = 'unknown'
+          }
           $metadata = @(
             "commit=$env:GITHUB_SHA"
             'platform=windows'
             'arch=x86_64'
+            "dependencies_sha=${{ steps.vcpkg-meta.outputs.dependencies_sha }}"
             "vcpkg_commit=$vcpkgCommit"
             'restore_path=beyondrgb/backend/vcpkg'
             'dependencies:'
@@ -623,10 +724,10 @@ jobs:
       - name: Upload vcpkg dependency bundle
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
-          name: beyondrgb-vcpkg-windows-x86_64
+          name: ${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}
           path: |
-            ${{ runner.temp }}/vcpkg-export/beyondrgb-vcpkg-windows-x86_64.zip
-            ${{ runner.temp }}/vcpkg-export/beyondrgb-vcpkg-windows-x86_64.txt
+            ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.zip
+            ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.txt
           if-no-files-found: error
           retention-days: 30
 
@@ -663,7 +764,7 @@ jobs:
             $frontendStatus = 'squirrel package built'
           }
           $vcpkgBundle = 'not exported'
-          $vcpkgBundlePath = Join-Path $env:RUNNER_TEMP 'vcpkg-export\beyondrgb-vcpkg-windows-x86_64.zip'
+          $vcpkgBundlePath = Join-Path $env:RUNNER_TEMP "vcpkg-export\${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.zip"
           if (Test-Path $vcpkgBundlePath) {
             $vcpkgBundle = ('{0:N2} MB zip exported' -f ((Get-Item $vcpkgBundlePath).Length / 1MB))
           }
