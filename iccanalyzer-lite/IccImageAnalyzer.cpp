@@ -612,8 +612,8 @@ int RunHeuristic_H149_TiffIfdChainCycle(TIFF *tif, const char *filepath) {
 
   while (ifdOffset != 0 && ifdOffset < fileSize && chainLen < kMaxChainDepth) {
     if (visited.count(ifdOffset)) {
-      hc.critical("HEURISTIC: Circular IFD chain — offset %llu revisited at depth %d",
-                  (unsigned long long)ifdOffset, chainLen);
+      HcCriticalFormatted(hc, "HEURISTIC: Circular IFD chain — offset %llu revisited at depth %d",
+                          (unsigned long long)ifdOffset, chainLen);
       hc.cweNote("CWE-835: Infinite loop via circular IFD next-pointer");
       break;
     }

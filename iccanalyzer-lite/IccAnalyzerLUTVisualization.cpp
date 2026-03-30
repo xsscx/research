@@ -525,14 +525,6 @@ static bool WriteTIFF(const char *name, float dpi, int colorModel,
     ok &= PutIFDLong(kTIFF_BPS, kTIFF_SHORT, static_cast<uint32_t>(channels), bitsOff, out);
   ok &= PutIFDLong(kTIFF_COMPRESSION, kTIFF_LONG, 1, kTIFF_COMPRESS_NONE, out);
 
-  size_t nrowBytes = 0;
-  if (!SafeMulSz3(static_cast<size_t>(channels), width, static_cast<size_t>(depth), nrowBytes)) {
-    fprintf(stderr, "[LUTViz] Row size overflow\n");
-    fclose(out);
-    return false;
-  }
-  nrowBytes = (nrowBytes + 7) / 8;
-
   uint32_t stripOffOff = yresOff + 8;
   uint32_t stripBcOff = stripOffOff + 4;
   uint32_t pixelOff = stripBcOff + 4;
@@ -726,30 +718,40 @@ static void Output3DLUT(CIccProfile *pIcc, CIccTag *tag,
         break;
       }
 
+      const size_t tileCount = static_cast<size_t>(tiles);
+      const size_t tileWCount = static_cast<size_t>(tileW);
+      const size_t tileHCount = static_cast<size_t>(tileH);
+      const size_t outStride = static_cast<size_t>(outCh);
+
       size_t clutSize = 0;
-      if (!SafeMulSz4(static_cast<size_t>(tiles), static_cast<size_t>(tileW),
-                      static_cast<size_t>(tileH), static_cast<size_t>(outCh), clutSize)) {
+      if (!SafeMulSz4(tileCount, tileWCount, tileHCount, outStride, clutSize)) {
         fprintf(stderr, "[LUTViz] CLUT size overflow\n");
         break;
       }
 
-      double sqrtTiles = sqrt(static_cast<double>(tiles));
-      int tilesWide = (std::isfinite(sqrtTiles) && sqrtTiles > 0.0)
-                      ? static_cast<int>(ceil(sqrtTiles)) : 1;
-      if (tilesWide < 1) tilesWide = 1;
-      int tilesHigh = (tiles + (tilesWide - 1)) / tilesWide;
+      double sqrtTiles = sqrt(static_cast<double>(tileCount));
+      size_t tilesWide = (std::isfinite(sqrtTiles) && sqrtTiles > 0.0)
+                         ? static_cast<size_t>(ceil(sqrtTiles)) : 1u;
+      if (tilesWide == 0) tilesWide = 1;
+      size_t tilesHigh = (tileCount + (tilesWide - 1)) / tilesWide;
 
-      int imgW = tilesWide * tileW;
-      int imgH = tilesHigh * tileH;
+      size_t imgW = 0;
+      size_t imgH = 0;
+      if (!SafeMulSz(tilesWide, tileWCount, imgW) ||
+          !SafeMulSz(tilesHigh, tileHCount, imgH)) {
+        fprintf(stderr, "[LUTViz] Image dimension overflow\n");
+        break;
+      }
 
       size_t bufSize = 0;
-      if (!SafeMulSz4(static_cast<size_t>(imgW), static_cast<size_t>(imgH),
-                      static_cast<size_t>(outCh), static_cast<size_t>(bytes), bufSize)) {
+      if (!SafeMulSz4(imgW, imgH, outStride, static_cast<size_t>(bytes), bufSize)) {
         fprintf(stderr, "[LUTViz] Buffer size overflow\n");
         break;
       }
 
-      if (clutSize > clut->NumPoints() * static_cast<size_t>(outCh)) {
+      size_t availableClutElems = 0;
+      if (!SafeMulSz(clut->NumPoints(), outStride, availableClutElems) ||
+          clutSize > availableClutElems) {
         fprintf(stderr, "[LUTViz] CLUT data exceeds available data\n");
         break;
       }
@@ -773,55 +775,72 @@ static void Output3DLUT(CIccProfile *pIcc, CIccTag *tag,
       }
 
       // Copy CLUT → tiled image buffer
-      size_t n001 = static_cast<size_t>(tileW) * static_cast<size_t>(tileH) * static_cast<size_t>(outCh);
-      size_t n010 = static_cast<size_t>(tileW) * static_cast<size_t>(outCh);
-      size_t n100 = static_cast<size_t>(outCh);
-      size_t outTileV = static_cast<size_t>(imgW) * static_cast<size_t>(tileH) * static_cast<size_t>(outCh);
-      size_t outTileH = static_cast<size_t>(tileW) * static_cast<size_t>(outCh);
-      size_t outRow = static_cast<size_t>(imgW) * static_cast<size_t>(outCh);
+      size_t n001 = tileWCount * tileHCount * outStride;
+      size_t n010 = tileWCount * outStride;
+      size_t n100 = outStride;
+      size_t outTileV = imgW * tileHCount * outStride;
+      size_t outTileH = tileWCount * outStride;
+      size_t outRow = imgW * outStride;
+      size_t imgSamples = bufSize / static_cast<size_t>(bytes);
+      bool copyOk = (clutSize >= outStride && imgSamples >= outStride);
 
-      for (int x = 0; x < tileW; ++x)
-        for (int y = 0; y < tileH; ++y)
-          for (int z = 0; z < tiles; ++z) {
-            size_t inIdx = static_cast<size_t>(z) * n001 +
-                           static_cast<size_t>(y) * n010 +
-                           static_cast<size_t>(x) * n100;
-            int z2 = z % tilesWide;
-            int z3 = z / tilesWide;
-            size_t outIdx = static_cast<size_t>(z3) * outTileV +
-                            static_cast<size_t>(z2) * outTileH +
-                            static_cast<size_t>(y) * outRow +
-                            static_cast<size_t>(x) * static_cast<size_t>(outCh);
+      if (!copyOk) {
+        fprintf(stderr, "[LUTViz] CLUT/image buffers too small for output stride\n");
+        break;
+      }
+
+      for (size_t x = 0; x < tileWCount && copyOk; ++x)
+        for (size_t y = 0; y < tileHCount && copyOk; ++y)
+          for (size_t z = 0; z < tileCount; ++z) {
+            size_t inIdx = z * n001 + y * n010 + x * n100;
+            size_t z2 = z % tilesWide;
+            size_t z3 = z / tilesWide;
+            size_t outIdx = z3 * outTileV + z2 * outTileH + y * outRow + x * outStride;
+
+            if (inIdx > clutSize - outStride || outIdx > imgSamples - outStride) {
+              fprintf(stderr, "[LUTViz] CLUT tiling index exceeded buffer bounds\n");
+              copyOk = false;
+              break;
+            }
+
+            const icFloatNumber *src = clutData + inIdx;
             if (bytes == 4 || bytes == 8) {
-              for (int c = 0; c < outCh; ++c)
-                buf32[outIdx + static_cast<size_t>(c)] = clutData[inIdx + static_cast<size_t>(c)];
+              float *dst32 = buf32 + outIdx;
+              for (size_t c = 0; c < outStride; ++c)
+                dst32[c] = src[c];
             } else if (bytes == 2) {
-              for (int c = 0; c < outCh; ++c) {
-                float v = clutData[inIdx + static_cast<size_t>(c)];
+              uint16_t *dst16 = buf16 + outIdx;
+              for (size_t c = 0; c < outStride; ++c) {
+                float v = src[c];
                 if (!std::isfinite(v)) v = 0.0f;
                 else if (v < 0.0f) v = 0.0f;
                 else if (v > 1.0f) v = 1.0f;
-                buf16[outIdx + static_cast<size_t>(c)] = static_cast<uint16_t>(v * 65535.0f);
+                dst16[c] = static_cast<uint16_t>(v * 65535.0f);
               }
             } else {
-              for (int c = 0; c < outCh; ++c) {
-                float v = clutData[inIdx + static_cast<size_t>(c)];
+              uint8_t *dst8 = buf8 + outIdx;
+              for (size_t c = 0; c < outStride; ++c) {
+                float v = src[c];
                 if (!std::isfinite(v)) v = 0.0f;
                 else if (v < 0.0f) v = 0.0f;
                 else if (v > 1.0f) v = 1.0f;
-                buf8[outIdx + static_cast<size_t>(c)] = static_cast<uint8_t>(v * 255.0f);
+                dst8[c] = static_cast<uint8_t>(v * 255.0f);
               }
             }
           }
 
+      if (!copyOk) {
+        break;
+      }
+
       std::string tiffPath = basename + "_" + sigDesc + ".tif";
       int tiffColor = TIFFColorModelFromICC(outSpace);
       if (!WriteTIFF(tiffPath.c_str(), 100.0f, tiffColor, buf8,
-                     static_cast<size_t>(imgW), static_cast<size_t>(imgH),
+                     imgW, imgH,
                      outCh, 8 * bytes)) {
         fprintf(stderr, "[LUTViz] Failed to write TIFF: %s\n", tiffPath.c_str());
       } else {
-        printf("  [LUTViz] Wrote 3D CLUT TIFF: %s (%dx%d, %d ch, %d-bit)\n",
+        printf("  [LUTViz] Wrote 3D CLUT TIFF: %s (%zux%zu, %d ch, %d-bit)\n",
                tiffPath.c_str(), imgW, imgH, outCh, 8 * bytes);
       }
       break;

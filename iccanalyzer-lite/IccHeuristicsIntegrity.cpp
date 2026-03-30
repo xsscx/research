@@ -815,7 +815,7 @@ int RunHeuristic_H130_TagAlignment(const char *filename) {
                       ((uint32_t)tcBuf[2] << 8)  | tcBuf[3];
 
   if (tagCount > 1000) {
-    hc.warn("Tag count %u too large — skipping", tagCount);
+    HcWarnFormatted(hc, "Tag count %u too large — skipping", tagCount);
     return hc.end(nullptr);
   }
 
@@ -838,8 +838,8 @@ int RunHeuristic_H130_TagAlignment(const char *filename) {
       char sigStr[5] = {};
       sigStr[0] = (char)entry[0]; sigStr[1] = (char)entry[1];
       sigStr[2] = (char)entry[2]; sigStr[3] = (char)entry[3];
-      hc.warn("Tag '%s': offset %u not 4-byte aligned (mod 4 = %u)",
-              sigStr, offset, offset % 4);
+      HcWarnFormatted(hc, "Tag '%s': offset %u not 4-byte aligned (mod 4 = %u)",
+                      sigStr, offset, offset % 4);
       misaligned++;
     }
   }
@@ -1007,12 +1007,12 @@ int RunHeuristic_H133_FlagsReservedBits(const char *filename) {
   bool independentFlag = (flags >> 1) & 1;
   icUInt32Number reservedBits = flags & 0xFFFFFFFC; // bits 2-31
 
-  hc.info("Flags: 0x%08X (embedded=%d, independent=%d)",
-          flags, embeddedFlag, independentFlag);
+  HcInfoFormatted(hc, "Flags: 0x%08X (embedded=%d, independent=%d)",
+                  flags, embeddedFlag, independentFlag);
 
   if (reservedBits != 0) {
-    hc.warn("HEURISTIC: Reserved flag bits non-zero (0x%08X) — ICC.1-2022-05 §7.2.11",
-            reservedBits);
+    HcWarnFormatted(hc, "HEURISTIC: Reserved flag bits non-zero (0x%08X) — ICC.1-2022-05 §7.2.11",
+                    reservedBits);
     hc.cweNote("CWE-20: Bits 2-31 must be zero per spec");
   }
 
@@ -1087,8 +1087,8 @@ int RunHeuristic_H134_TagTypeReservedBytes(CIccProfile *pIcc, const char *filena
       sigCC[2] = static_cast<char>(static_cast<unsigned char>(tagEntry[2]));
       sigCC[3] = static_cast<char>(static_cast<unsigned char>(tagEntry[3]));
       sigCC[4] = '\0';
-      hc.warn("Tag '%s' (offset %u): reserved bytes 4-7 = %02X %02X %02X %02X (should be 00)",
-              sigCC, offset, reserved[0], reserved[1], reserved[2], reserved[3]);
+      HcWarnFormatted(hc, "Tag '%s' (offset %u): reserved bytes 4-7 = %02X %02X %02X %02X (should be 00)",
+                      sigCC, offset, reserved[0], reserved[1], reserved[2], reserved[3]);
       violations++;
     }
   }

@@ -85,6 +85,15 @@ std::string HeuristicCollector::vformat(const char *fmt, va_list ap)
   return result;
 }
 
+std::string HeuristicCollector::format(const char *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  std::string result = vformat(fmt, ap);
+  va_end(ap);
+  return result;
+}
+
 // ── begin / warn / cweNote / critical / info / end / skip ──
 
 void HeuristicCollector::begin(int id, const char *title)
