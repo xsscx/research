@@ -90,17 +90,21 @@ if [ -d ../frontend/ ]; then
     # frontend does not automatically start the old executable.
     echo "Removing old versions of the backend from the frontend."
     if [ -d ../frontend/lib/ ]; then rm -rf ../frontend/lib/; fi
-    if [ -d ../frontend/res/ ]; then rm -rf ../frontend/res/; fi
 
     echo "Copying executable to the frontend."
     # Copy executable over
     mkdir ../frontend/lib/
     cp -v "build/${mode}/beyond-rgb-backend" ../frontend/lib/
 
-    echo "Copying resources to the frontend."
-    # Copy resource files over.
-    mkdir ../frontend/res/
-    cp -rv ./res/* ../frontend/res/
+    if [ -d ./res ]; then
+        echo "Copying resources to the frontend."
+        # Copy resource files over when the imported checkout includes them.
+        if [ -d ../frontend/res/ ]; then rm -rf ../frontend/res/; fi
+        mkdir ../frontend/res/
+        cp -rv ./res/. ../frontend/res/
+    else
+        echo "No backend resources found; skipping frontend resource copy."
+    fi
 else
     echo "! Could not find the frontend files to copy the backend into..."
 fi
