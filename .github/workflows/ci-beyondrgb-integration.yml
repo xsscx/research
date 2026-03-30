@@ -28,6 +28,11 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      force_export_restore:
+        description: "Bypass actions/cache and require restore from a published vcpkg export"
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -134,6 +139,7 @@ jobs:
           echo "bundle_artifact_name=beyondrgb-vcpkg-${schema}-${{ matrix.platform }}-${{ matrix.arch }}-${deps_sha}" >> "${GITHUB_OUTPUT}"
 
       - name: Cache vcpkg
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_export_restore) }}
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-vcpkg-unix
         with:
@@ -145,7 +151,7 @@ jobs:
 
       - name: Restore prebuilt vcpkg export
         id: restore-vcpkg-unix
-        if: steps.cache-vcpkg-unix.outputs.cache-hit != 'true'
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.force_export_restore) || steps.cache-vcpkg-unix.outputs.cache-hit != 'true' }}
         env:
           BASH_ENV: /dev/null
           GH_TOKEN: ${{ github.token }}
@@ -171,6 +177,17 @@ jobs:
           else
             echo "restored=false" >> "${GITHUB_OUTPUT}"
             echo "No matching prebuilt vcpkg export found on main."
+          fi
+
+      - name: Require restored vcpkg export
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.force_export_restore }}
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.restore-vcpkg-unix.outputs.restored }}" != 'true' ]]; then
+            echo "force_export_restore=true requires a published vcpkg export for ${{ matrix.platform }}-${{ matrix.arch }}." >&2
+            exit 1
           fi
 
       - name: Install dependencies (Linux)
@@ -516,6 +533,7 @@ jobs:
           Add-Content -Path $env:GITHUB_OUTPUT -Value "bundle_artifact_name=beyondrgb-vcpkg-$schema-windows-x86_64-$depsSha"
 
       - name: Cache vcpkg
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_export_restore) }}
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-vcpkg-windows
         with:
@@ -527,7 +545,7 @@ jobs:
 
       - name: Restore prebuilt vcpkg export
         id: restore-vcpkg-windows
-        if: steps.cache-vcpkg-windows.outputs.cache-hit != 'true'
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.force_export_restore) || steps.cache-vcpkg-windows.outputs.cache-hit != 'true' }}
         shell: bash --noprofile --norc {0}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -553,6 +571,19 @@ jobs:
             echo "restored=false" >> "${GITHUB_OUTPUT}"
             echo "No matching prebuilt vcpkg export found on main."
           fi
+
+      - name: Require restored vcpkg export
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.force_export_restore }}
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: "1"
+          POWERSHELL_UPDATECHECK: Off
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          if ("${{ steps.restore-vcpkg-windows.outputs.restored }}" -ne 'true') {
+            throw "force_export_restore=true requires a published vcpkg export for windows-x86_64."
+          }
 
       - name: Install pkg-config-lite
         shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
