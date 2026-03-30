@@ -763,13 +763,13 @@ hc.begin(25, "Tag Offset/Size Out-of-Bounds Detection");
           sig25[2] = static_cast<char>((tSig>>8)&0xff);  sig25[3] = static_cast<char>(tSig&0xff); sig25[4] = '\0';
 
           if (tOff >= bound) {
-            hc.warn("Tag '%s' offset 0x%X beyond file/profile bounds (%zu bytes)",
-                   sig25, tOff, bound);
+            HcWarnFormatted(hc, "Tag '%s' offset 0x%X beyond file/profile bounds (%zu bytes)",
+                            sig25, tOff, bound);
             oobCount++;
           } else if (tagEnd > bound) {
-            hc.warn("Tag '%s' [offset=0x%X, size=%u] extends %llu bytes past bounds (%zu)",
-                   sig25, tOff, tSz,
-                   (unsigned long long)(tagEnd - bound), bound);
+            HcWarnFormatted(hc, "Tag '%s' [offset=0x%X, size=%u] extends %llu bytes past bounds (%zu)",
+                            sig25, tOff, tSz,
+                            (unsigned long long)(tagEnd - bound), bound);
             oobCount++;
           }
         }
@@ -1005,6 +1005,7 @@ hc.begin(28, "LUT Dimension Validation (OOM Risk)");
 
           // Check for LUT8 (0x6D667431='mft1') or LUT16 (0x6D667432='mft2')
           if (lutType != 0x6D667431 && lutType != 0x6D667432) continue;
+          const char *lutKind = (lutType == 0x6D667431) ? "LUT8" : "LUT16";
 
           icUInt8Number nInput28  = lutHdr[8];
           icUInt8Number nOutput28 = lutHdr[9];
@@ -1016,9 +1017,8 @@ hc.begin(28, "LUT Dimension Validation (OOM Risk)");
 
           // Spec max: nInput ≤ 16, nOutput ≤ 16
           if (nInput28 > 16 || nOutput28 > 16) {
-            hc.warn("Tag '%s' (%s): nInput=%u nOutput=%u exceeds spec max (16)",
-                   sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
-                   nInput28, nOutput28);
+            HcWarnFormatted(hc, "Tag '%s' (%s): nInput=%u nOutput=%u exceeds spec max (16)",
+                            sig28, lutKind, nInput28, nOutput28);
             hc.cweNote("Risk: Buffer overflow in grid point arrays (max 16 channels)");
             continue;
           }
@@ -1040,16 +1040,16 @@ hc.begin(28, "LUT Dimension Validation (OOM Risk)");
           // 16M entries × 4 bytes = 64MB — generous limit
           const uint64_t MAX_LUT_POINTS = 16ULL * 1024 * 1024;
           if (overflow28 || points > MAX_LUT_POINTS) {
-            hc.warn("Tag '%s' (%s): nInput=%u nOutput=%u nGrid=%u -> %s CLUT points",
-                   sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
-                   nInput28, nOutput28, nGrid28,
-                   overflow28 ? "OVERFLOW" : std::to_string(points).c_str());
-            hc.cweNote("Risk: OOM — allocation of %s bytes in CIccCLUT::Init()",
-                   overflow28 ? ">2^64" : std::to_string(points * 4).c_str());
+            const std::string pointsLabel = overflow28 ? "OVERFLOW" : std::to_string(points);
+            const std::string allocLabel = overflow28 ? ">2^64" : std::to_string(points * 4);
+            HcWarnFormatted(hc, "Tag '%s' (%s): nInput=%u nOutput=%u nGrid=%u -> %s CLUT points",
+                            sig28, lutKind, nInput28, nOutput28, nGrid28, pointsLabel.c_str());
+            HcCweFormatted(hc, "Risk: OOM — allocation of %s bytes in CIccCLUT::Init()",
+                           allocLabel.c_str());
           } else if (nInput28 > 0 && nGrid28 > 0) {
-            hc.info("[OK] Tag '%s' (%s): %ux%ux%u -> %llu points",
-                   sig28, (lutType == 0x6D667431) ? "LUT8" : "LUT16",
-                   nInput28, nOutput28, nGrid28, (unsigned long long)points);
+            HcInfoFormatted(hc, "[OK] Tag '%s' (%s): %ux%ux%u -> %llu points",
+                            sig28, lutKind, nInput28, nOutput28, nGrid28,
+                            (unsigned long long)points);
           }
         }
       }
@@ -1182,16 +1182,16 @@ hc.begin(30, "GamutBoundaryDesc Allocation Validation");
       uint64_t totalAlloc = triAlloc + vertAlloc + 24;
 
       if (totalAlloc > (uint64_t)logicalSize * 4) {
-        hc.warn("Tag '%s' (gbd): %u vertices, %u triangles, PCS=%u Dev=%u",
-                ownerSig, nVerts, nTris, nPCSCh, nDevCh);
+        HcWarnFormatted(hc, "Tag '%s' (gbd): %u vertices, %u triangles, PCS=%u Dev=%u",
+                        ownerSig, nVerts, nTris, nPCSCh, nDevCh);
         hc.cweNote("Allocation: %llu bytes vs tag size %u bytes",
                    (unsigned long long)totalAlloc, logicalSize);
         hc.cweNote("Risk: OOM in CIccTagGamutBoundaryDesc::Read()");
       }
 
       if (nPCSCh > 3 || nDevCh > 15) {
-        hc.warn("Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range",
-                ownerSig, nPCSCh, nDevCh);
+        HcWarnFormatted(hc, "Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range",
+                        ownerSig, nPCSCh, nDevCh);
         hc.cweNote("Risk: Signed/unsigned confusion in allocation size");
       }
     };
