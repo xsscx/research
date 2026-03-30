@@ -1,0 +1,98 @@
+{
+  "tool": "verify-parity",
+  "paths": {
+    "v1Binary": "/home/h02332/po/research/iccanalyzer-lite/iccanalyzer-lite",
+    "v2Binary": "/home/h02332/po/research/iccanalyzer-lite/icctest/build/tools/icctest-parity",
+    "unitBinary": "/home/h02332/po/research/iccanalyzer-lite/icctest/build/lib/tests/icctest_unit_tests",
+    "heuristicRemap": "/home/h02332/po/research/iccanalyzer-lite/icctest/tools/heuristic-remap.tsv",
+    "rawInputs": [
+      "/home/h02332/po/research/iccanalyzer-lite/tests/corpus"
+    ],
+    "imageInputs": [
+      "/home/h02332/po/research/iccanalyzer-lite/tests/corpus"
+    ],
+    "iccFixture": "/home/h02332/po/research/iccanalyzer-lite/tests/corpus/valid_srgb.icc",
+    "outputDir": "/home/h02332/po/research/iccanalyzer-lite/icctest/build/parity-artifacts"
+  },
+  "summary": {
+    "status": "pass",
+    "failureCount": 0,
+    "failures": [],
+    "unitTests": {
+      "binary": "/home/h02332/po/research/iccanalyzer-lite/icctest/build/lib/tests/icctest_unit_tests",
+      "status": "pass",
+      "summaryLine": "Results: 1822/1822 passed"
+    },
+    "rawParity": {
+      "inputCount": 127,
+      "laneCount": 254,
+      "counts": {
+        "advisoryMatch": 348,
+        "applicabilityMatch": 11661,
+        "coverageImprovement": 17,
+        "delta": 0,
+        "exportOmissionMatch": 21,
+        "implicitSkipMatch": 15135,
+        "knownGap": 0,
+        "knownGapMatch": 0,
+        "match": 33068,
+        "quarantined": 4125
+      },
+      "issueCounts": {}
+    },
+    "imageParity": {
+      "inputCount": 2,
+      "outerImage": {
+        "counts": {
+          "containerOpenMatch": 2,
+          "embeddedPresenceMatch": 2,
+          "match": 10
+        },
+        "issueCounts": {}
+      },
+      "embeddedRaw": {
+        "counts": {
+          "advisoryMatch": 2,
+          "applicabilityMatch": 108,
+          "coverageImprovement": 0,
+          "delta": 0,
+          "exportOmissionMatch": 0,
+          "implicitSkipMatch": 109,
+          "knownGap": 0,
+          "knownGapMatch": 0,
+          "match": 263,
+          "quarantined": 33
+        },
+        "issueCounts": {}
+      }
+    },
+    "generatedImageSmoke": {
+      "status": "pass",
+      "summary": {
+        "inputCount": 2,
+        "outerImage": {
+          "counts": {
+            "containerOpenMatch": 2,
+            "embeddedPresenceMatch": 2
+          },
+          "issueCounts": {}
+        },
+        "embeddedRaw": {
+          "counts": {
+            "advisoryMatch": 4,
+            "applicabilityMatch": 216,
+            "coverageImprovement": 0,
+            "delta": 0,
+            "exportOmissionMatch": 0,
+            "implicitSkipMatch": 218,
+            "knownGap": 0,
+            "knownGapMatch": 0,
+            "match": 526,
+            "quarantined": 66
+          },
+          "issueCounts": {}
+        }
+      }
+    }
+  }
+}

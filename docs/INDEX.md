@@ -27,12 +27,14 @@ Use this file as the fast path into `docs/`. For a fuller directory guide, see [
 - Reproduction notes and PoC techniques: [pocs/](pocs/)
 - Static-analysis workflow: [iccDEV/codeql/maintainer-workflow.md](iccDEV/codeql/maintainer-workflow.md)
 - Runtime analyzer notes: [analysis/ICCANALYZER_LITE_ANALYSIS.md](analysis/ICCANALYZER_LITE_ANALYSIS.md)
+- Latest parity + MCP release checkpoint: [analysis/ICCANALYZER_PARITY_AND_MCP_RELEASE_STATUS_2026-03-29.md](analysis/ICCANALYZER_PARITY_AND_MCP_RELEASE_STATUS_2026-03-29.md)
 
 ### Understand Generated Research Artifacts
 
 - LLVM call graph notes: [callgraph/CALLGRAPH_EXAMINATION_INDEX.md](callgraph/CALLGRAPH_EXAMINATION_INDEX.md)
 - Doxygen config for graph generation: [doxygen/Doxyfile](doxygen/Doxyfile)
 - XNU image fuzzer ICC analysis: [xnuimagefuzzer/ICC_PROFILE_ANALYSIS.md](xnuimagefuzzer/ICC_PROFILE_ANALYSIS.md)
+- Saved parity artifact snapshot: [Testing/results/icctest-verify-parity-summary-2026-03-29.json](Testing/results/icctest-verify-parity-summary-2026-03-29.json)
 
 ## Notes
 

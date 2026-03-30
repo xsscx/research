@@ -552,7 +552,7 @@ async def inspect_profile(path: str, engine: str = DEFAULT_STRUCTURAL_ENGINE) ->
 
 @mcp.tool()
 async def analyze_security(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
-    """Run 173-heuristic security analysis on an ICC profile.
+    """Run the current registry-backed security analysis on an ICC profile.
 
     Validates against ICC.1-2022-05 specification constraints and detects:
     fingerprint matches, tag anomalies, overflow indicators, malformed
@@ -594,7 +594,7 @@ async def validate_roundtrip(path: str, engine: str = DEFAULT_STRUCTURAL_ENGINE)
 
 @mcp.tool()
 async def analyze_security_json(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
-    """Run 173-heuristic security analysis with structured JSON output.
+    """Run the current registry-backed security analysis with structured JSON output.
 
     Returns machine-readable JSON with per-heuristic results including
     severity (CRITICAL/HIGH/MEDIUM/LOW/INFO), security classifications, CVE
