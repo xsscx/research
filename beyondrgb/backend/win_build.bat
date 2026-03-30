@@ -93,8 +93,12 @@ echo Copy to ".\build\%releaseMode%\"
 xcopy /y ".\build\%releaseMode%\" "..\frontend\lib\"
 
 :: Copy all backend resource files
-mkdir "..\frontend\res\"
-xcopy /y /e ".\res\" "..\frontend\res\"
+if exist ".\res\" (
+    mkdir "..\frontend\res\" >nul 2>&1
+    xcopy /y /e ".\res\" "..\frontend\res\"
+) else (
+    echo No backend resources found. Skipping frontend resource copy.
+)
 
 goto :eof
 
