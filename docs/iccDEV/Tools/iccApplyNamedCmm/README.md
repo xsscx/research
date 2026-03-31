@@ -129,6 +129,59 @@ iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0 0 \
   test-profiles/sRGB_D65_MAT.icc 3
 ```
 
+### Packed `Rendering_intent` Encoding
+
+The `Rendering_intent` argument supports an extended packed encoding that controls
+transform behavior beyond the basic 0–3 intent values. The tool decodes the integer
+value using successive modular arithmetic:
+
+```
+Rendering_intent = [useHToS * 100000] + [useV5SubProfile * 10000]
+                 + [adjustPcsLuminance * 1000] + [nType * 10] + [intent]
+```
+
+| Digit Position | Field | Values |
+|----------------|-------|--------|
+| 100000s | useHToS | 0=off, 1=on (then mod 100000) |
+| 10000s | useV5SubProfile | 0=off, 1=on (then mod 10000) |
+| 1000s | adjustPcsLuminance | 0=off, 1=on (then mod 1000) |
+| 10s | nType | 0–9 (transform type selector) |
+| 1s | intent | 0–3 (rendering intent) |
+
+**nType Values:**
+
+| nType | Effect | xformType |
+|-------|--------|-----------|
+| 0 | Default | icXformLutColor |
+| 1 | Disable D2Bx/B2Dx | icXformLutColor + useD2BxB2DxTags=false |
+| 2 | Preview | icXformLutPreview |
+| 3 | Gamut check | icXformLutGamut |
+| 4 | BPC (Black Point Compensation) | icXformLutColor + BPC hint |
+| 5 | BRDF/MCS Parameter | icXformLutBRDFMcsParam |
+| 6 | MCS | icXformLutMCS |
+| 7–9 | Passthrough | (icXformLutType)nType |
+
+**Examples:**
+
+```bash
+# nType=0, intent=1 (Relative Colorimetric, default transform)
+iccApplyNamedCmm data.txt 0 0 profile.icc 1
+
+# nType=4, intent=0 (Perceptual with BPC)
+iccApplyNamedCmm data.txt 0 0 profile.icc 40
+
+# nType=5, intent=0 (BRDF/MCS Parameter transform)
+iccApplyNamedCmm data.txt 0 0 profile.icc 50
+
+# adjustPcsLuminance + nType=0 + intent=1
+iccApplyNamedCmm data.txt 0 0 profile.icc 1001
+
+# useV5SubProfile + nType=0 + intent=1
+iccApplyNamedCmm data.txt 0 0 profile.icc 10001
+```
+
+> **Source**: `IccCmmConfig.cpp:780-808` — `CIccCfgProfile::fromLegacy()` decoder.
+
 ### Chained profile transforms
 
 ```bash
