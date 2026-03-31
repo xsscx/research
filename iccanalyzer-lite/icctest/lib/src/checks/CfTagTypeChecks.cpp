@@ -2652,10 +2652,11 @@ static CheckResult check_cf264_parametric_curve_func_type_in_mbb(const ProfileVi
         CIccTagLutAtoB *pLut = dynamic_cast<CIccTagLutAtoB *>(pTag);
         if (!pLut) continue;
 
-        // Check A curves
+        // Check A curves (bound by actual channel count, not hardcoded 16)
         CIccCurve *const *aCurves = pLut->GetCurvesA();
-        if (aCurves) {
-            for (int c = 0; c < 16; c++) {
+        int nACurves = !pLut->IsInputB() ? pLut->InputChannels() : pLut->OutputChannels();
+        if (aCurves && nACurves > 0) {
+            for (int c = 0; c < nACurves; c++) {
                 if (!aCurves[c]) break;
                 CIccTagParametricCurve *pPC = dynamic_cast<CIccTagParametricCurve *>(aCurves[c]);
                 if (pPC) {
