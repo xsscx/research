@@ -346,6 +346,7 @@ jobs:
           retention-days: 30
 
       - name: Export vcpkg dependency bundle
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_export_restore) }}
         working-directory: beyondrgb/backend
         env:
           BASH_ENV: /dev/null
@@ -386,6 +387,7 @@ jobs:
           } > "$export_dir/${artifact_base}.txt"
 
       - name: Upload vcpkg dependency bundle
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_export_restore) }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: ${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}
@@ -728,6 +730,7 @@ jobs:
           retention-days: 30
 
       - name: Export vcpkg dependency bundle
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_export_restore) }}
         shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
         env:
           POWERSHELL_TELEMETRY_OPTOUT: "1"
@@ -769,6 +772,7 @@ jobs:
           $metadata | Out-File -FilePath (Join-Path $exportDir "$artifactBase.txt") -Encoding ascii
 
       - name: Upload vcpkg dependency bundle
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_export_restore) }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: ${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}
