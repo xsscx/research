@@ -25,7 +25,7 @@ fuzzing, and an MCP/Web delivery surface for local and remote workflows.
 | **scan-build** | 0 bugs | 14 modules (12 `iccanalyzer-lite` + 2 `colorbleed_tools`) |
 | **Action Pinning** | 100% | All actions SHA-pinned (actions/checkout v5.0.0: `08c6903`) |
 | **Fuzzers** | 13/13 | Build + smoke test pass, aligned to project tool scope |
-| **CFL Patches** | 45 active, 93 retired | Current patch catalog in [`cfl/patches/README.md`](cfl/patches/README.md) and the analyzer coverage matrix in [`docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`](docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md) |
+| **CFL Patches** | 44 active, 93 retired | Current patch catalog in [`cfl/patches/README.md`](cfl/patches/README.md) and the analyzer coverage matrix in [`docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`](docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md) |
 
 ## Build
 

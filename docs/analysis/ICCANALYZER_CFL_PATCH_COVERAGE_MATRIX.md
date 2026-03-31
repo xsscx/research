@@ -14,7 +14,7 @@ preserving the analyzer policy:
 ## Scope
 
 - Inventory source: active `.patch` files in `cfl/patches/`
-- Current active patch files on disk: **60**
+- Current active patch files on disk: **44**
 - Matrix file: [ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv](ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv)
 
 Current reachability split from the CSV:
