@@ -1,6 +1,8 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index a61a0d0..c4a702f 100644
 --- a/IccProfLib/IccMpeBasic.cpp
 +++ b/IccProfLib/IccMpeBasic.cpp
-@@ -152,6 +152,9 @@
+@@ -152,6 +152,9 @@ CIccFormulaCurveSegment::CIccFormulaCurveSegment(const CIccFormulaCurveSegment &
   ******************************************************************************/
  CIccFormulaCurveSegment &CIccFormulaCurveSegment::operator=(const CIccFormulaCurveSegment &seg)
  {
@@ -10,7 +12,7 @@
    if (m_params)
      free(m_params);
  
-@@ -924,6 +927,9 @@
+@@ -911,6 +914,9 @@ CIccSampledCurveSegment::CIccSampledCurveSegment(const CIccSampledCurveSegment &
   ******************************************************************************/
  CIccSampledCurveSegment &CIccSampledCurveSegment::operator=(const CIccSampledCurveSegment &curve)
  {
@@ -20,7 +22,7 @@
    if (m_pSamples)
      free(m_pSamples);
  
-@@ -1357,6 +1363,9 @@
+@@ -1343,6 +1349,9 @@ CIccSingleSampledCurve::CIccSingleSampledCurve(const CIccSingleSampledCurve &cur
  ******************************************************************************/
  CIccSingleSampledCurve &CIccSingleSampledCurve::operator=(const CIccSingleSampledCurve &curve)
  {
@@ -30,33 +32,3 @@
    if (m_pSamples)
      free(m_pSamples);
  
-@@ -4953,6 +4962,9 @@
-  ******************************************************************************/
- CIccMpeMatrix &CIccMpeMatrix::operator=(const CIccMpeMatrix &matrix)
- {
-+  if (&matrix == this)
-+    return *this;
-+
-   m_nReserved = matrix.m_nReserved;
- 
-   m_nInputChannels = matrix.m_nInputChannels;
-@@ -6400,6 +6412,9 @@
- 
- CIccMpeJabToXYZ &CIccMpeJabToXYZ::operator=(const CIccMpeJabToXYZ &cam)
- {
-+  if (&cam == this)
-+    return *this;
-+
-   if (cam.m_pCAM) {
-     if (m_pCAM)
-       delete m_pCAM;
-@@ -6455,6 +6470,9 @@
- 
- CIccMpeXYZToJab &CIccMpeXYZToJab::operator=(const CIccMpeXYZToJab &cam)
- {
-+  if (&cam == this)
-+    return *this;
-+
-   if (cam.m_pCAM) {
-     if (m_pCAM)
-       delete m_pCAM;
