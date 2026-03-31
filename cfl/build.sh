@@ -37,8 +37,12 @@ INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccCommon"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
 
+# Upstream cmake may set CMAKE_DEBUG_POSTFIX="d" for Debug builds
 LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-static.a"
 LIB_XML="$BUILD_DIR/IccXML/libIccXML2-static.a"
+# Fall back to debug-postfixed names if non-postfixed don't exist
+[ ! -f "$LIB_PROF" ] && LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-staticd.a"
+[ ! -f "$LIB_XML" ] && LIB_XML="$BUILD_DIR/IccXML/libIccXML2-staticd.a"
 
 # Core fuzzers (IccProfLib only) — 1:1 mapping to upstream iccDEV tools
 CORE_FUZZERS=(
