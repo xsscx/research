@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-29
 
-45 active patch files are currently present in this directory.
+44 active patch files are currently present in this directory.
 
 For analyzer/runtime review against the unpatched-library policy, the normalized
 source of truth is:
@@ -43,6 +43,8 @@ counts and analyzer coverage status, prefer the matrix files above.
 | 030 | `030-fixednum-getvalues-sbo.patch` | GetValues loop uses m_nSize instead of nVectorSize | CWE-121 | IccTagBasic.cpp |
 | 031 | `031-loadjsonfrom-ftell-overflow.patch` | ftell() unchecked return on non-seekable fd → pointer overflow | CWE-190/CWE-252 | IccJsonUtil.cpp |
 | 032 | `032-icxforminterp-enum-range.patch` | icXformInterp enum out-of-range from unchecked CLI atoi() | CWE-20/CWE-681 | IccCmmConfig.cpp, iccApplyToLink.cpp |
+| 033-077 | *(see cfl.instructions.md for full table)* | Various (JSON, CMM, spectral, math, format) | Various | Various |
+| 078 | `078-addxform-cenc-uaf-guard.patch` | HUAF via cenc profile ownership in 4 AddXform overloads | CWE-416 | IccCmm.cpp |
 
 ### CFL-019 Detail — Cross-Tool Validation
 

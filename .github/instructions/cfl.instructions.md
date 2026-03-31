@@ -124,6 +124,7 @@ for historical reference.
 | 067 | icIsS15Fixed16NumberNear float overflow | Float-to-unsigned cast overflow in D50 illuminant check | CWE-681 | IccUtil.cpp |
 | 076 | GBD signed channel type confusion | icInt16Number→icUInt16Number for m_nPCSChannels/m_nDeviceChannels | CWE-681 | IccTagLut.h |
 | 077 | CAM CalcCoefficients div-by-zero guard | Guard 3 division chains when m_La=0 or m_WhitePoint[1]=0 | CWE-369 | IccCAM.cpp |
+| 078 | AddXform cenc UAF guard | Save deviceClass before AddXform; skip delete for cenc profiles (ownership transferred to icConvertEncodingProfile) | CWE-416 | IccCmm.cpp |
 
 ### Retired Patches (accepted upstream)
 
@@ -147,8 +148,8 @@ for historical reference.
 | 039 | SearchApply toJson dead guards | upstream c2ea9da |
 
 - File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (next: inspect live inventory; current active files run through **075**)
-- 60 active patch files are currently present in `cfl/patches/`
+- Numbering: zero-padded 3-digit, sequential (current active files run through **078**)
+- 44 active patch files are currently present in `cfl/patches/`
 - Format: unified diff (`git diff`) against `cfl/iccDEV/`
 - **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
   and handles all user-controllable inputs via its own defensive programming

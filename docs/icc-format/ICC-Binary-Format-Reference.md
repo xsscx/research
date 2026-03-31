@@ -719,10 +719,10 @@ Multi-segment reassembly:
 
 ---
 
-## 13. CFL Patch Catalog (45 Active)
+## 13. CFL Patch Catalog (44 Active)
 
 Active patches in `cfl/patches/` targeting verified upstream iccDEV bugs.
-The current active patch-file count is **45**, and the normalized analyzer-facing
+The current active patch-file count is **44**, and the normalized analyzer-facing
 inventory now lives in:
 
 - `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
