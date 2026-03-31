@@ -40,8 +40,6 @@ observed in session 2026-03-31 and must not recur.
    write. Must say `ASCII text`. Never use heredocs or Python string escaping.
 2. **Claims**: VERIFY -> CITE -> CLAIM. No success without command output evidence.
 3. **THE LOOP**: If fixing the same thing twice, stop and switch approach entirely.
-4. **Governance bootstrap**: `git clone https://github.com/xsscx/governance` then
-   `copilot -i "Run ./governance/session-start.sh"` to front-load session rules.
 5. **Tool convergence**: Use proven winners -- do not re-evaluate each session.
 
 Reference: https://github.com/xsscx/governance (LLMCJF, 374 files, 90K lines)
