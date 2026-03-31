@@ -39,315 +39,315 @@
 <path fill="none" stroke="#4a6fa5" d="M65.76,-761.3C70.08,-856.12 94.71,-1290.74 186,-1381 213.63,-1408.32 257.53,-1414.87 292.81,-1414.97"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="292.86,-1417.07 298.85,-1414.93 292.83,-1412.87 292.86,-1417.07"/>
 </g>
-<!-- Node0x55555577b140 -->
+<!-- Node0x55555577ad80 -->
 <g id="node4" class="node">
-<title>Node0x55555577b140</title>
+<title>Node0x55555577ad80</title>
 <path fill="#f0f4ff" stroke="black" d="M376,-1370C376,-1370 324,-1370 324,-1370 318,-1370 312,-1364 312,-1358 312,-1358 312,-1346 312,-1346 312,-1340 318,-1334 324,-1334 324,-1334 376,-1334 376,-1334 382,-1334 388,-1340 388,-1346 388,-1346 388,-1358 388,-1358 388,-1364 382,-1370 376,-1370"/>
 <text text-anchor="middle" x="350" y="-1349.8" font-family="Courier,monospace" font-size="9.00">shared_ptr()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x55555577b140 -->
+<!-- Node0x555555766060&#45;&gt;Node0x55555577ad80 -->
 <g id="edge3" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x55555577b140</title>
+<title>Node0x555555766060&#45;&gt;Node0x55555577ad80</title>
 <path fill="none" stroke="#4a6fa5" d="M66.12,-761.1C72.02,-850.27 102.42,-1241.86 186,-1323 217.29,-1353.38 268.74,-1357.93 305.47,-1356.61"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="305.79,-1358.69 311.69,-1356.32 305.6,-1354.5 305.79,-1358.69"/>
 </g>
-<!-- Node0x555555664d60 -->
+<!-- Node0x555555765250 -->
 <g id="node5" class="node">
-<title>Node0x555555664d60</title>
+<title>Node0x555555765250</title>
 <path fill="#f0f4ff" stroke="black" d="M365,-1312C365,-1312 335,-1312 335,-1312 329,-1312 323,-1306 323,-1300 323,-1300 323,-1288 323,-1288 323,-1282 329,-1276 335,-1276 335,-1276 365,-1276 365,-1276 371,-1276 377,-1282 377,-1288 377,-1288 377,-1300 377,-1300 377,-1306 371,-1312 365,-1312"/>
 <text text-anchor="middle" x="350" y="-1291.8" font-family="Courier,monospace" font-size="9.00">mkstemp</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555664d60 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555765250 -->
 <g id="edge4" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555664d60</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555765250</title>
 <path fill="none" stroke="#4a6fa5" d="M66.58,-761.22C74.23,-845.09 110.19,-1193.01 186,-1265 220.97,-1298.21 280.13,-1300.34 316.74,-1297.87"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="317.03,-1299.96 322.86,-1297.4 316.71,-1295.77 317.03,-1299.96"/>
 </g>
-<!-- Node0x555555777bb0 -->
+<!-- Node0x555555778c20 -->
 <g id="node6" class="node">
-<title>Node0x555555777bb0</title>
+<title>Node0x555555778c20</title>
 <path fill="#f0f4ff" stroke="black" d="M386.5,-1254C386.5,-1254 313.5,-1254 313.5,-1254 307.5,-1254 301.5,-1248 301.5,-1242 301.5,-1242 301.5,-1230 301.5,-1230 301.5,-1224 307.5,-1218 313.5,-1218 313.5,-1218 386.5,-1218 386.5,-1218 392.5,-1218 398.5,-1224 398.5,-1230 398.5,-1230 398.5,-1242 398.5,-1242 398.5,-1248 392.5,-1254 386.5,-1254"/>
 <text text-anchor="middle" x="350" y="-1233.8" font-family="Courier,monospace" font-size="9.00">SaveIccProfile()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555777bb0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555778c20 -->
 <g id="edge5" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555777bb0</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555778c20</title>
 <path fill="none" stroke="#4a6fa5" d="M67.11,-761C76.61,-838.67 117.82,-1144.01 186,-1207 215.04,-1233.83 259.93,-1240.2 295.25,-1240.35"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="295.29,-1242.45 301.28,-1240.32 295.27,-1238.25 295.29,-1242.45"/>
 </g>
-<!-- Node0x555555777af0 -->
+<!-- Node0x555555776080 -->
 <g id="node7" class="node">
-<title>Node0x555555777af0</title>
+<title>Node0x555555776080</title>
 <path fill="#f0f4ff" stroke="black" d="M407.5,-1196C407.5,-1196 292.5,-1196 292.5,-1196 286.5,-1196 280.5,-1190 280.5,-1184 280.5,-1184 280.5,-1172 280.5,-1172 280.5,-1166 286.5,-1160 292.5,-1160 292.5,-1160 407.5,-1160 407.5,-1160 413.5,-1160 419.5,-1166 419.5,-1172 419.5,-1172 419.5,-1184 419.5,-1184 419.5,-1190 413.5,-1196 407.5,-1196"/>
 <text text-anchor="middle" x="350" y="-1175.8" font-family="Courier,monospace" font-size="9.00">CIccProfile::AttachTag()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555777af0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555776080 -->
 <g id="edge6" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555777af0</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555776080</title>
 <path fill="none" stroke="#4a6fa5" d="M64.27,-761.44C62.8,-825.9 67.19,-1042.98 186,-1149 209.82,-1170.26 243.67,-1178.53 274.35,-1181.08"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="274.3,-1183.18 280.44,-1181.52 274.6,-1178.99 274.3,-1183.18"/>
 </g>
-<!-- Node0x5555557787a0 -->
+<!-- Node0x555555777c30 -->
 <g id="node8" class="node">
-<title>Node0x5555557787a0</title>
+<title>Node0x555555777c30</title>
 <path fill="#f0f4ff" stroke="black" d="M502,-1138C502,-1138 198,-1138 198,-1138 192,-1138 186,-1132 186,-1126 186,-1126 186,-1114 186,-1114 186,-1108 192,-1102 198,-1102 198,-1102 502,-1102 502,-1102 508,-1102 514,-1108 514,-1114 514,-1114 514,-1126 514,-1126 514,-1132 508,-1138 502,-1138"/>
 <text text-anchor="middle" x="350" y="-1117.8" font-family="Courier,monospace" font-size="9.00">CIccTagFixedNum&lt;int, (icTagTypeSignature)1936077618&gt;::ope...</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x5555557787a0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555777c30 -->
 <g id="edge7" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x5555557787a0</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555777c30</title>
 <path fill="none" stroke="#4a6fa5" d="M65.31,-761.26C67.34,-819.53 82.09,-1002.39 186,-1091 189.16,-1093.69 192.48,-1096.17 195.93,-1098.46"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="195.26,-1100.51 201.46,-1101.89 197.47,-1096.94 195.26,-1100.51"/>
 </g>
-<!-- Node0x555555778b60 -->
+<!-- Node0x5555557787a0 -->
 <g id="node9" class="node">
-<title>Node0x555555778b60</title>
+<title>Node0x5555557787a0</title>
 <path fill="#f0f4ff" stroke="black" d="M365.5,-1080C365.5,-1080 334.5,-1080 334.5,-1080 328.5,-1080 322.5,-1074 322.5,-1068 322.5,-1068 322.5,-1056 322.5,-1056 322.5,-1050 328.5,-1044 334.5,-1044 334.5,-1044 365.5,-1044 365.5,-1044 371.5,-1044 377.5,-1050 377.5,-1056 377.5,-1056 377.5,-1068 377.5,-1068 377.5,-1074 371.5,-1080 365.5,-1080"/>
 <text text-anchor="middle" x="350" y="-1059.8" font-family="Courier,monospace" font-size="9.00">icDtoF()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555778b60 -->
+<!-- Node0x555555766060&#45;&gt;Node0x5555557787a0 -->
 <g id="edge8" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555778b60</title>
+<title>Node0x555555766060&#45;&gt;Node0x5555557787a0</title>
 <path fill="none" stroke="#4a6fa5" d="M66.7,-761.15C72.57,-812.81 96.83,-961.51 186,-1033 223.05,-1062.7 280.17,-1066.15 316.02,-1064.85"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="316.56,-1066.93 322.46,-1064.56 316.37,-1062.73 316.56,-1066.93"/>
 </g>
-<!-- Node0x555555763ac0 -->
+<!-- Node0x555555759ec0 -->
 <g id="node10" class="node">
-<title>Node0x555555763ac0</title>
+<title>Node0x555555759ec0</title>
 <path fill="#f0f4ff" stroke="black" d="M386.5,-1022C386.5,-1022 313.5,-1022 313.5,-1022 307.5,-1022 301.5,-1016 301.5,-1010 301.5,-1010 301.5,-998 301.5,-998 301.5,-992 307.5,-986 313.5,-986 313.5,-986 386.5,-986 386.5,-986 392.5,-986 398.5,-992 398.5,-998 398.5,-998 398.5,-1010 398.5,-1010 398.5,-1016 392.5,-1022 386.5,-1022"/>
 <text text-anchor="middle" x="350" y="-1001.8" font-family="Courier,monospace" font-size="9.00">ReadIccProfile()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555763ac0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555759ec0 -->
 <g id="edge9" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555763ac0</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555759ec0</title>
 <path fill="none" stroke="#4a6fa5" d="M68.7,-761.04C78.81,-805.4 111.29,-920.17 186,-975 217.31,-997.97 260.96,-1004.78 295.22,-1006.08"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="295.44,-1008.18 301.5,-1006.26 295.56,-1003.99 295.44,-1008.18"/>
 </g>
-<!-- Node0x555555778d60 -->
+<!-- Node0x5555557789e0 -->
 <g id="node11" class="node">
-<title>Node0x555555778d60</title>
+<title>Node0x5555557789e0</title>
 <path fill="#f0f4ff" stroke="black" d="M389,-964C389,-964 311,-964 311,-964 305,-964 299,-958 299,-952 299,-952 299,-940 299,-940 299,-934 305,-928 311,-928 311,-928 389,-928 389,-928 395,-928 401,-934 401,-940 401,-940 401,-952 401,-952 401,-958 395,-964 389,-964"/>
 <text text-anchor="middle" x="350" y="-943.8" font-family="Courier,monospace" font-size="9.00">CIccTagFixedNum()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555778d60 -->
+<!-- Node0x555555766060&#45;&gt;Node0x5555557789e0 -->
 <g id="edge10" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555778d60</title>
+<title>Node0x555555766060&#45;&gt;Node0x5555557789e0</title>
 <path fill="none" stroke="#4a6fa5" d="M71.93,-761.06C86.8,-797.19 125.42,-878.21 186,-917 217.56,-937.21 259.25,-944.36 292.57,-946.5"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="292.58,-948.61 298.69,-946.85 292.82,-944.41 292.58,-948.61"/>
 </g>
-<!-- Node0x555555776080 -->
+<!-- Node0x555555776640 -->
 <g id="node12" class="node">
-<title>Node0x555555776080</title>
+<title>Node0x555555776640</title>
 <path fill="#f0f4ff" stroke="black" d="M444,-906C444,-906 256,-906 256,-906 250,-906 244,-900 244,-894 244,-894 244,-882 244,-882 244,-876 250,-870 256,-870 256,-870 444,-870 444,-870 450,-870 456,-876 456,-882 456,-882 456,-894 456,-894 456,-900 450,-906 444,-906"/>
 <text text-anchor="middle" x="350" y="-885.8" font-family="Courier,monospace" font-size="9.00">CIccTagCurve::operator[](unsigned int)</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555776080 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555776640 -->
 <g id="edge11" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555776080</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555776640</title>
 <path fill="none" stroke="#4a6fa5" d="M78.31,-761.33C98.45,-787.56 139.3,-835.27 186,-859 202,-867.13 219.89,-873.02 237.8,-877.28"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="237.56,-879.38 243.87,-878.66 238.49,-875.28 237.56,-879.38"/>
 </g>
-<!-- Node0x555555777430 -->
+<!-- Node0x555555645f30 -->
 <g id="node13" class="node">
-<title>Node0x555555777430</title>
+<title>Node0x555555645f30</title>
 <path fill="#f0f4ff" stroke="black" d="M418,-848C418,-848 282,-848 282,-848 276,-848 270,-842 270,-836 270,-836 270,-824 270,-824 270,-818 276,-812 282,-812 282,-812 418,-812 418,-812 424,-812 430,-818 430,-824 430,-824 430,-836 430,-836 430,-842 424,-848 418,-848"/>
 <text text-anchor="middle" x="350" y="-827.8" font-family="Courier,monospace" font-size="9.00">CIccTagCurve::CIccTagCurve()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555777430 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555645f30 -->
 <g id="edge12" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555777430</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555645f30</title>
 <path fill="none" stroke="#4a6fa5" d="M96.63,-761.09C120.49,-774.01 154.4,-790.82 186,-801 210.7,-808.95 238.24,-814.9 263.56,-819.27"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="263.33,-821.36 269.6,-820.29 264.03,-817.22 263.33,-821.36"/>
 </g>
-<!-- Node0x555555668aa0 -->
+<!-- Node0x555555756f50 -->
 <g id="node14" class="node">
-<title>Node0x555555668aa0</title>
+<title>Node0x555555756f50</title>
 <path fill="#f0f4ff" stroke="black" d="M418,-790C418,-790 282,-790 282,-790 276,-790 270,-784 270,-778 270,-778 270,-766 270,-766 270,-760 276,-754 282,-754 282,-754 418,-754 418,-754 424,-754 430,-760 430,-766 430,-766 430,-778 430,-778 430,-784 424,-790 418,-790"/>
 <text text-anchor="middle" x="350" y="-769.8" font-family="Courier,monospace" font-size="9.00">CIccProfile::FindTagOfType()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555668aa0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555756f50 -->
 <g id="edge13" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555668aa0</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555756f50</title>
 <path fill="none" stroke="#4a6fa5" d="M128.03,-749.44C167.98,-753.52 220.17,-758.84 263.79,-763.3"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="263.71,-765.4 269.89,-763.92 264.13,-761.22 263.71,-765.4"/>
 </g>
-<!-- Node0x555555645b40 -->
+<!-- Node0x555555645d00 -->
 <g id="node15" class="node">
-<title>Node0x555555645b40</title>
+<title>Node0x555555645d00</title>
 <path fill="#f0f4ff" stroke="black" d="M446.5,-732C446.5,-732 253.5,-732 253.5,-732 247.5,-732 241.5,-726 241.5,-720 241.5,-720 241.5,-708 241.5,-708 241.5,-702 247.5,-696 253.5,-696 253.5,-696 446.5,-696 446.5,-696 452.5,-696 458.5,-702 458.5,-708 458.5,-708 458.5,-720 458.5,-720 458.5,-726 452.5,-732 446.5,-732"/>
 <text text-anchor="middle" x="350" y="-711.8" font-family="Courier,monospace" font-size="9.00">CIccTagMultiLocalizedUnicode::SetText()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555645b40 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555645d00 -->
 <g id="edge14" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555645b40</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555645d00</title>
 <path fill="none" stroke="#4a6fa5" d="M128.03,-736.56C159.47,-733.35 198.47,-729.37 234.92,-725.65"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="235.47,-727.7 241.22,-725.01 235.04,-723.53 235.47,-727.7"/>
 </g>
-<!-- Node0x555555644600 -->
+<!-- Node0x5555557727d0 -->
 <g id="node16" class="node">
-<title>Node0x555555644600</title>
+<title>Node0x5555557727d0</title>
 <path fill="#f0f4ff" stroke="black" d="M502,-674C502,-674 198,-674 198,-674 192,-674 186,-668 186,-662 186,-662 186,-650 186,-650 186,-644 192,-638 198,-638 198,-638 502,-638 502,-638 508,-638 514,-644 514,-650 514,-650 514,-662 514,-662 514,-668 508,-674 502,-674"/>
 <text text-anchor="middle" x="350" y="-653.8" font-family="Courier,monospace" font-size="9.00">CIccTagMultiLocalizedUnicode::CIccTagMultiLocalizedUnicode()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555644600 -->
+<!-- Node0x555555766060&#45;&gt;Node0x5555557727d0 -->
 <g id="edge15" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555644600</title>
+<title>Node0x555555766060&#45;&gt;Node0x5555557727d0</title>
 <path fill="none" stroke="#4a6fa5" d="M96.63,-724.91C120.49,-711.99 154.4,-695.18 186,-685 197.07,-681.44 208.71,-678.27 220.46,-675.48"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="221.25,-677.45 226.61,-674.05 220.29,-673.36 221.25,-677.45"/>
 </g>
-<!-- Node0x555555756ec0 -->
+<!-- Node0x5555556720b0 -->
 <g id="node17" class="node">
-<title>Node0x555555756ec0</title>
+<title>Node0x5555556720b0</title>
 <path fill="#f0f4ff" stroke="black" d="M452,-616C452,-616 248,-616 248,-616 242,-616 236,-610 236,-604 236,-604 236,-592 236,-592 236,-586 242,-580 248,-580 248,-580 452,-580 452,-580 458,-580 464,-586 464,-592 464,-592 464,-604 464,-604 464,-610 458,-616 452,-616"/>
 <text text-anchor="middle" x="350" y="-595.8" font-family="Courier,monospace" font-size="9.00">CIccTagMultiProcessElement::NumElements()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555756ec0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x5555556720b0 -->
 <g id="edge16" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555756ec0</title>
+<title>Node0x555555766060&#45;&gt;Node0x5555556720b0</title>
 <path fill="none" stroke="#4a6fa5" d="M78.31,-724.67C98.45,-698.44 139.3,-650.73 186,-627 199.57,-620.1 214.51,-614.82 229.66,-610.77"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="230.41,-612.75 235.7,-609.23 229.37,-608.68 230.41,-612.75"/>
 </g>
-<!-- Node0x55555563ed00 -->
+<!-- Node0x555555712330 -->
 <g id="node18" class="node">
-<title>Node0x55555563ed00</title>
+<title>Node0x555555712330</title>
 <path fill="#f0f4ff" stroke="black" d="M465,-558C465,-558 235,-558 235,-558 229,-558 223,-552 223,-546 223,-546 223,-534 223,-534 223,-528 229,-522 235,-522 235,-522 465,-522 465,-522 471,-522 477,-528 477,-534 477,-534 477,-546 477,-546 477,-552 471,-558 465,-558"/>
 <text text-anchor="middle" x="350" y="-537.8" font-family="Courier,monospace" font-size="9.00">CIccTagMultiProcessElement::NumInputChannels()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x55555563ed00 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555712330 -->
 <g id="edge17" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x55555563ed00</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555712330</title>
 <path fill="none" stroke="#4a6fa5" d="M71.93,-724.94C86.8,-688.81 125.42,-607.79 186,-569 195.58,-562.86 206.1,-557.93 217.04,-553.97"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="217.8,-555.93 222.79,-552 216.44,-551.96 217.8,-555.93"/>
 </g>
-<!-- Node0x555555765db0 -->
+<!-- Node0x555555676bb0 -->
 <g id="node19" class="node">
-<title>Node0x555555765db0</title>
+<title>Node0x555555676bb0</title>
 <path fill="#f0f4ff" stroke="black" d="M467.5,-500C467.5,-500 232.5,-500 232.5,-500 226.5,-500 220.5,-494 220.5,-488 220.5,-488 220.5,-476 220.5,-476 220.5,-470 226.5,-464 232.5,-464 232.5,-464 467.5,-464 467.5,-464 473.5,-464 479.5,-470 479.5,-476 479.5,-476 479.5,-488 479.5,-488 479.5,-494 473.5,-500 467.5,-500"/>
 <text text-anchor="middle" x="350" y="-479.8" font-family="Courier,monospace" font-size="9.00">CIccTagMultiProcessElement::NumOutputChannels()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555765db0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555676bb0 -->
 <g id="edge18" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555765db0</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555676bb0</title>
 <path fill="none" stroke="#4a6fa5" d="M68.7,-724.96C78.81,-680.6 111.29,-565.83 186,-511 194.7,-504.62 204.36,-499.48 214.5,-495.36"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="215.33,-497.29 220.18,-493.18 213.83,-493.37 215.33,-497.29"/>
 </g>
-<!-- Node0x555555712330 -->
+<!-- Node0x555555675380 -->
 <g id="node20" class="node">
-<title>Node0x555555712330</title>
+<title>Node0x555555675380</title>
 <path fill="#f0f4ff" stroke="black" d="M449.5,-442C449.5,-442 250.5,-442 250.5,-442 244.5,-442 238.5,-436 238.5,-430 238.5,-430 238.5,-418 238.5,-418 238.5,-412 244.5,-406 250.5,-406 250.5,-406 449.5,-406 449.5,-406 455.5,-406 461.5,-412 461.5,-418 461.5,-418 461.5,-430 461.5,-430 461.5,-436 455.5,-442 449.5,-442"/>
 <text text-anchor="middle" x="350" y="-421.8" font-family="Courier,monospace" font-size="9.00">CIccTagMultiProcessElement::GetElement()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555712330 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555675380 -->
 <g id="edge19" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555712330</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555675380</title>
 <path fill="none" stroke="#4a6fa5" d="M66.7,-724.85C72.57,-673.19 96.83,-524.49 186,-453 199.38,-442.27 215.38,-434.97 232.05,-430.08"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="232.99,-432 238.22,-428.38 231.88,-427.95 232.99,-432"/>
 </g>
-<!-- Node0x555555645d80 -->
+<!-- Node0x555555774be0 -->
 <g id="node21" class="node">
-<title>Node0x555555645d80</title>
+<title>Node0x555555774be0</title>
 <path fill="#f0f4ff" stroke="black" d="M365,-384C365,-384 335,-384 335,-384 329,-384 323,-378 323,-372 323,-372 323,-360 323,-360 323,-354 329,-348 335,-348 335,-348 365,-348 365,-348 371,-348 377,-354 377,-360 377,-360 377,-372 377,-372 377,-378 371,-384 365,-384"/>
 <text text-anchor="middle" x="350" y="-363.8" font-family="Courier,monospace" font-size="9.00">c_str()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555645d80 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555774be0 -->
 <g id="edge20" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555645d80</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555774be0</title>
 <path fill="none" stroke="#4a6fa5" d="M65.31,-724.74C67.34,-666.47 82.09,-483.61 186,-395 222.49,-363.88 280.65,-361.01 316.74,-362.78"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="316.66,-364.88 322.77,-363.13 316.9,-360.69 316.66,-364.88"/>
 </g>
-<!-- Node0x555555776640 -->
+<!-- Node0x555555645d80 -->
 <g id="node22" class="node">
-<title>Node0x555555776640</title>
+<title>Node0x555555645d80</title>
 <path fill="#f0f4ff" stroke="black" d="M381,-326C381,-326 319,-326 319,-326 313,-326 307,-320 307,-314 307,-314 307,-302 307,-302 307,-296 313,-290 319,-290 319,-290 381,-290 381,-290 387,-290 393,-296 393,-302 393,-302 393,-314 393,-314 393,-320 387,-326 381,-326"/>
 <text text-anchor="middle" x="350" y="-305.8" font-family="Courier,monospace" font-size="9.00">icGetTagText()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555776640 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555645d80 -->
 <g id="edge21" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555776640</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555645d80</title>
 <path fill="none" stroke="#4a6fa5" d="M64.27,-724.56C62.8,-660.1 67.19,-443.02 186,-337 216.92,-309.41 264.7,-303.7 300.55,-303.97"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="300.62,-306.07 306.65,-304.08 300.69,-301.87 300.62,-306.07"/>
 </g>
-<!-- Node0x555555644580 -->
+<!-- Node0x555555773cf0 -->
 <g id="node23" class="node">
-<title>Node0x555555644580</title>
+<title>Node0x555555773cf0</title>
 <path fill="#f0f4ff" stroke="black" d="M402,-268C402,-268 298,-268 298,-268 292,-268 286,-262 286,-256 286,-256 286,-244 286,-244 286,-238 292,-232 298,-232 298,-232 402,-232 402,-232 408,-232 414,-238 414,-244 414,-244 414,-256 414,-256 414,-262 408,-268 402,-268"/>
 <text text-anchor="middle" x="350" y="-247.8" font-family="Courier,monospace" font-size="9.00">CIccProfile::FindTag()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555644580 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555773cf0 -->
 <g id="edge22" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555644580</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555773cf0</title>
 <path fill="none" stroke="#4a6fa5" d="M67.11,-725C76.61,-647.33 117.82,-341.99 186,-279 210.84,-256.05 247.28,-248.07 279.4,-246.15"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="279.88,-248.23 285.77,-245.84 279.67,-244.03 279.88,-248.23"/>
 </g>
-<!-- Node0x555555774be0 -->
+<!-- Node0x555555644600 -->
 <g id="node24" class="node">
-<title>Node0x555555774be0</title>
+<title>Node0x555555644600</title>
 <path fill="#f0f4ff" stroke="black" d="M410,-210C410,-210 290,-210 290,-210 284,-210 278,-204 278,-198 278,-198 278,-186 278,-186 278,-180 284,-174 290,-174 290,-174 410,-174 410,-174 416,-174 422,-180 422,-186 422,-186 422,-198 422,-198 422,-204 416,-210 410,-210"/>
 <text text-anchor="middle" x="350" y="-189.8" font-family="Courier,monospace" font-size="9.00">CIccProfile::InitHeader()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555774be0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555644600 -->
 <g id="edge23" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555774be0</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555644600</title>
 <path fill="none" stroke="#4a6fa5" d="M66.58,-724.78C74.23,-640.91 110.19,-292.99 186,-221 208.67,-199.48 241.49,-191.01 271.75,-188.38"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="271.94,-190.47 277.77,-187.93 271.63,-186.29 271.94,-190.47"/>
 </g>
-<!-- Node0x55555563fb40 -->
+<!-- Node0x555555640cf0 -->
 <g id="node25" class="node">
-<title>Node0x55555563fb40</title>
+<title>Node0x555555640cf0</title>
 <path fill="#f0f4ff" stroke="black" d="M412.5,-152C412.5,-152 287.5,-152 287.5,-152 281.5,-152 275.5,-146 275.5,-140 275.5,-140 275.5,-128 275.5,-128 275.5,-122 281.5,-116 287.5,-116 287.5,-116 412.5,-116 412.5,-116 418.5,-116 424.5,-122 424.5,-128 424.5,-128 424.5,-140 424.5,-140 424.5,-146 418.5,-152 412.5,-152"/>
 <text text-anchor="middle" x="350" y="-131.8" font-family="Courier,monospace" font-size="9.00">CIccProfile::CIccProfile()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x55555563fb40 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555640cf0 -->
 <g id="edge24" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x55555563fb40</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555640cf0</title>
 <path fill="none" stroke="#4a6fa5" d="M66.12,-724.9C72.02,-635.73 102.42,-244.14 186,-163 207.85,-141.78 239.54,-133.16 269.18,-130.35"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="269.66,-132.41 275.47,-129.83 269.32,-128.23 269.66,-132.41"/>
 </g>
-<!-- Node0x555555676bb0 -->
+<!-- Node0x555555765db0 -->
 <g id="node26" class="node">
-<title>Node0x555555676bb0</title>
+<title>Node0x555555765db0</title>
 <path fill="#f0f4ff" stroke="black" d="M365,-94C365,-94 335,-94 335,-94 329,-94 323,-88 323,-82 323,-82 323,-70 323,-70 323,-64 329,-58 335,-58 335,-58 365,-58 365,-58 371,-58 377,-64 377,-70 377,-70 377,-82 377,-82 377,-88 371,-94 365,-94"/>
 <text text-anchor="middle" x="350" y="-73.8" font-family="Courier,monospace" font-size="9.00">get()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555676bb0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x555555765db0 -->
 <g id="edge25" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555676bb0</title>
+<title>Node0x555555766060&#45;&gt;Node0x555555765db0</title>
 <path fill="none" stroke="#4a6fa5" d="M65.76,-724.7C70.08,-629.88 94.71,-195.26 186,-105 220.39,-71 279.99,-69.16 316.81,-71.9"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="316.8,-74.01 322.96,-72.42 317.15,-69.82 316.8,-74.01"/>
 </g>
-<!-- Node0x555555640cf0 -->
+<!-- Node0x55555563ea50 -->
 <g id="node27" class="node">
-<title>Node0x555555640cf0</title>
+<title>Node0x55555563ea50</title>
 <path fill="#f0f4ff" stroke="black" d="M441.5,-36C441.5,-36 258.5,-36 258.5,-36 252.5,-36 246.5,-30 246.5,-24 246.5,-24 246.5,-12 246.5,-12 246.5,-6 252.5,0 258.5,0 258.5,0 441.5,0 441.5,0 447.5,0 453.5,-6 453.5,-12 453.5,-12 453.5,-24 453.5,-24 453.5,-30 447.5,-36 441.5,-36"/>
 <text text-anchor="middle" x="350" y="-15.8" font-family="Courier,monospace" font-size="9.00">CIccApplyTagMpe::GetList[abi:cxx11]()</text>
 </g>
-<!-- Node0x555555766060&#45;&gt;Node0x555555640cf0 -->
+<!-- Node0x555555766060&#45;&gt;Node0x55555563ea50 -->
 <g id="edge26" class="edge">
-<title>Node0x555555766060&#45;&gt;Node0x555555640cf0</title>
+<title>Node0x555555766060&#45;&gt;Node0x55555563ea50</title>
 <path fill="none" stroke="#4a6fa5" d="M65.45,-724.73C68.27,-624.92 86.9,-146.49 186,-47 200.68,-32.26 220.08,-23.54 240.36,-18.61"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="241,-20.62 246.39,-17.26 240.08,-16.52 241,-20.62"/>
 </g>
-<!-- Node0x55555577dc40 -->
+<!-- Node0x555555780800 -->
 <g id="node28" class="node">
-<title>Node0x55555577dc40</title>
+<title>Node0x555555780800</title>
 <path fill="#f0f4ff" stroke="black" d="M646,-1370C646,-1370 584,-1370 584,-1370 578,-1370 572,-1364 572,-1358 572,-1358 572,-1346 572,-1346 572,-1340 578,-1334 584,-1334 584,-1334 646,-1334 646,-1334 652,-1334 658,-1340 658,-1346 658,-1346 658,-1358 658,-1358 658,-1364 652,-1370 646,-1370"/>
 <text text-anchor="middle" x="615" y="-1349.8" font-family="Courier,monospace" font-size="9.00">__shared_ptr()</text>
 </g>
-<!-- Node0x55555577b140&#45;&gt;Node0x55555577dc40 -->
+<!-- Node0x55555577ad80&#45;&gt;Node0x555555780800 -->
 <g id="edge27" class="edge">
-<title>Node0x55555577b140&#45;&gt;Node0x55555577dc40</title>
+<title>Node0x55555577ad80&#45;&gt;Node0x555555780800</title>
 <path fill="none" stroke="#4a6fa5" d="M388.12,-1352C434.66,-1352 514.52,-1352 565.75,-1352"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="565.85,-1354.1 571.85,-1352 565.85,-1349.9 565.85,-1354.1"/>
 </g>
-<!-- Node0x555555776280 -->
+<!-- Node0x55555577af40 -->
 <g id="node29" class="node">
-<title>Node0x555555776280</title>
+<title>Node0x55555577af40</title>
 <path fill="#f0f4ff" stroke="black" d="M801,-1370C801,-1370 728,-1370 728,-1370 722,-1370 716,-1364 716,-1358 716,-1358 716,-1346 716,-1346 716,-1340 722,-1334 728,-1334 728,-1334 801,-1334 801,-1334 807,-1334 813,-1340 813,-1346 813,-1346 813,-1358 813,-1358 813,-1364 807,-1370 801,-1370"/>
 <text text-anchor="middle" x="764.5" y="-1349.8" font-family="Courier,monospace" font-size="9.00">__shared_count()</text>
 </g>
-<!-- Node0x55555577dc40&#45;&gt;Node0x555555776280 -->
+<!-- Node0x555555780800&#45;&gt;Node0x55555577af40 -->
 <g id="edge28" class="edge">
-<title>Node0x55555577dc40&#45;&gt;Node0x555555776280</title>
+<title>Node0x555555780800&#45;&gt;Node0x55555577af40</title>
 <path fill="none" stroke="#4a6fa5" d="M658.27,-1352C674.27,-1352 692.7,-1352 709.62,-1352"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="709.78,-1354.1 715.78,-1352 709.78,-1349.9 709.78,-1354.1"/>
 </g>

@@ -21,9 +21,9 @@
 <path fill="#f0f4ff" stroke="black" d="M615,-3330C615,-3330 485,-3330 485,-3330 479,-3330 473,-3324 473,-3318 473,-3318 473,-3306 473,-3306 473,-3300 479,-3294 485,-3294 485,-3294 615,-3294 615,-3294 621,-3294 627,-3300 627,-3306 627,-3306 627,-3318 627,-3318 627,-3324 621,-3330 615,-3330"/>
 <text text-anchor="middle" x="550" y="-3309.8" font-family="Courier,monospace" font-size="9.00">CTiffImg::GetExtraSamples()</text>
 </g>
-<!-- Node0x5555557a9080 -->
+<!-- Node0x5555557a8dd0 -->
 <g id="node3" class="node">
-<title>Node0x5555557a9080</title>
+<title>Node0x5555557a8dd0</title>
 <path fill="#f0f4ff" stroke="black" d="M1379,-1187C1379,-1187 1170,-1187 1170,-1187 1164,-1187 1158,-1181 1158,-1175 1158,-1175 1158,-1163 1158,-1163 1158,-1157 1164,-1151 1170,-1151 1170,-1151 1379,-1151 1379,-1151 1385,-1151 1391,-1157 1391,-1163 1391,-1163 1391,-1175 1391,-1175 1391,-1181 1385,-1187 1379,-1187"/>
 <text text-anchor="middle" x="1274.5" y="-1166.8" font-family="Courier,monospace" font-size="9.00">IIccCreateXformHint::IIccCreateXformHint()</text>
 </g>
@@ -747,39 +747,39 @@
 <path fill="none" stroke="#4a6fa5" d="M651.14,-1271.05C686.15,-1267.22 726.5,-1262.8 765.59,-1258.53"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="766.11,-1260.58 771.85,-1257.84 765.65,-1256.41 766.11,-1260.58"/>
 </g>
-<!-- Node0x555555785150&#45;&gt;Node0x5555557a9080 -->
+<!-- Node0x555555785150&#45;&gt;Node0x5555557a8dd0 -->
 <g id="edge61" class="edge">
-<title>Node0x555555785150&#45;&gt;Node0x5555557a9080</title>
+<title>Node0x555555785150&#45;&gt;Node0x5555557a8dd0</title>
 <path fill="none" stroke="#4a6fa5" d="M1022.35,-1116.01C1071.09,-1126.29 1132.2,-1139.19 1181.94,-1149.68"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="1181.65,-1151.77 1187.95,-1150.95 1182.51,-1147.66 1181.65,-1151.77"/>
 </g>
-<!-- Node0x5555557a3730&#45;&gt;Node0x5555557a9080 -->
+<!-- Node0x5555557a3730&#45;&gt;Node0x5555557a8dd0 -->
 <g id="edge59" class="edge">
-<title>Node0x5555557a3730&#45;&gt;Node0x5555557a9080</title>
+<title>Node0x5555557a3730&#45;&gt;Node0x5555557a8dd0</title>
 <path fill="none" stroke="#4a6fa5" d="M1022.35,-1221.99C1071.09,-1211.71 1132.2,-1198.81 1181.94,-1188.32"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="1182.51,-1190.34 1187.95,-1187.05 1181.65,-1186.23 1182.51,-1190.34"/>
 </g>
-<!-- Node0x555555792310 -->
+<!-- Node0x5555557921d0 -->
 <g id="node65" class="node">
-<title>Node0x555555792310</title>
+<title>Node0x5555557921d0</title>
 <path fill="#f0f4ff" stroke="black" d="M702,-3446C702,-3446 398,-3446 398,-3446 392,-3446 386,-3440 386,-3434 386,-3434 386,-3422 386,-3422 386,-3416 392,-3410 398,-3410 398,-3410 702,-3410 702,-3410 708,-3410 714,-3416 714,-3422 714,-3422 714,-3434 714,-3434 714,-3440 708,-3446 702,-3446"/>
 <text text-anchor="middle" x="550" y="-3425.8" font-family="Courier,monospace" font-size="9.00">CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHi...</text>
 </g>
-<!-- Node0x5555557aa1b0 -->
+<!-- Node0x5555557a9f20 -->
 <g id="node66" class="node">
-<title>Node0x5555557aa1b0</title>
+<title>Node0x5555557a9f20</title>
 <path fill="#f0f4ff" stroke="black" d="M1043,-3417C1043,-3417 829,-3417 829,-3417 823,-3417 817,-3411 817,-3405 817,-3405 817,-3393 817,-3393 817,-3387 823,-3381 829,-3381 829,-3381 1043,-3381 1043,-3381 1049,-3381 1055,-3387 1055,-3393 1055,-3393 1055,-3405 1055,-3405 1055,-3411 1049,-3417 1043,-3417"/>
 <text text-anchor="middle" x="936" y="-3396.8" font-family="Courier,monospace" font-size="9.00">IIccCreateXformHint::~IIccCreateXformHint()</text>
 </g>
-<!-- Node0x555555792310&#45;&gt;Node0x5555557aa1b0 -->
+<!-- Node0x5555557921d0&#45;&gt;Node0x5555557a9f20 -->
 <g id="edge62" class="edge">
-<title>Node0x555555792310&#45;&gt;Node0x5555557aa1b0</title>
+<title>Node0x5555557921d0&#45;&gt;Node0x5555557a9f20</title>
 <path fill="none" stroke="#4a6fa5" d="M714.13,-3415.68C746.49,-3413.24 779.98,-3410.71 810.79,-3408.38"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="811.09,-3410.46 816.92,-3407.92 810.77,-3406.28 811.09,-3410.46"/>
 </g>
-<!-- Node0x5555557a9320 -->
+<!-- Node0x5555557a91d0 -->
 <g id="node67" class="node">
-<title>Node0x5555557a9320</title>
+<title>Node0x5555557a91d0</title>
 <path fill="#f0f4ff" stroke="black" d="M316,-3446C316,-3446 12,-3446 12,-3446 6,-3446 0,-3440 0,-3434 0,-3434 0,-3422 0,-3422 0,-3416 6,-3410 12,-3410 12,-3410 316,-3410 316,-3410 322,-3410 328,-3416 328,-3422 328,-3422 328,-3434 328,-3434 328,-3440 322,-3446 316,-3446"/>
 <text text-anchor="middle" x="164" y="-3425.8" font-family="Courier,monospace" font-size="9.00">CIccCreateAdjustPCSXformHint::~CIccCreateAdjustPCSXformHi...</text>
 </g>
@@ -789,9 +789,9 @@
 <path fill="#f0f4ff" stroke="black" d="M271,-3504C271,-3504 57,-3504 57,-3504 51,-3504 45,-3498 45,-3492 45,-3492 45,-3480 45,-3480 45,-3474 51,-3468 57,-3468 57,-3468 271,-3468 271,-3468 277,-3468 283,-3474 283,-3480 283,-3480 283,-3492 283,-3492 283,-3498 277,-3504 271,-3504"/>
 <text text-anchor="middle" x="164" y="-3483.8" font-family="Courier,monospace" font-size="9.00">CIccCreateAdjustPCSXformHint::GetHintType()</text>
 </g>
-<!-- Node0x55555564cf60 -->
+<!-- Node0x55555564fd60 -->
 <g id="node69" class="node">
-<title>Node0x55555564cf60</title>
+<title>Node0x55555564fd60</title>
 <path fill="#f0f4ff" stroke="black" d="M271,-3562C271,-3562 57,-3562 57,-3562 51,-3562 45,-3556 45,-3550 45,-3550 45,-3538 45,-3538 45,-3532 51,-3526 57,-3526 57,-3526 271,-3526 271,-3526 277,-3526 283,-3532 283,-3538 283,-3538 283,-3550 283,-3550 283,-3556 277,-3562 271,-3562"/>
 <text text-anchor="middle" x="164" y="-3541.8" font-family="Courier,monospace" font-size="9.00">IIccCreateXformHint::~IIccCreateXformHint()</text>
 </g>
@@ -801,9 +801,9 @@
 <path fill="#f0f4ff" stroke="black" d="M688.5,-3388C688.5,-3388 411.5,-3388 411.5,-3388 405.5,-3388 399.5,-3382 399.5,-3376 399.5,-3376 399.5,-3364 399.5,-3364 399.5,-3358 405.5,-3352 411.5,-3352 411.5,-3352 688.5,-3352 688.5,-3352 694.5,-3352 700.5,-3358 700.5,-3364 700.5,-3364 700.5,-3376 700.5,-3376 700.5,-3382 694.5,-3388 688.5,-3388"/>
 <text text-anchor="middle" x="550" y="-3367.8" font-family="Courier,monospace" font-size="9.00">CIccLuminanceMatchingHint::~CIccLuminanceMatchingHint()</text>
 </g>
-<!-- Node0x5555556554a0&#45;&gt;Node0x5555557aa1b0 -->
+<!-- Node0x5555556554a0&#45;&gt;Node0x5555557a9f20 -->
 <g id="edge63" class="edge">
-<title>Node0x5555556554a0&#45;&gt;Node0x5555557aa1b0</title>
+<title>Node0x5555556554a0&#45;&gt;Node0x5555557a9f20</title>
 <path fill="none" stroke="#4a6fa5" d="M700.56,-3381.3C736.99,-3384.05 775.57,-3386.96 810.68,-3389.61"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="810.6,-3391.71 816.74,-3390.07 810.92,-3387.52 810.6,-3391.71"/>
 </g>
@@ -819,9 +819,9 @@
 <path fill="none" stroke="#4a6fa5" d="M314.56,-3370C340.3,-3370 367.1,-3370 393,-3370"/>
 <polygon fill="#4a6fa5" stroke="#4a6fa5" points="393.21,-3372.1 399.21,-3370 393.21,-3367.9 393.21,-3372.1"/>
 </g>
-<!-- Node0x55555565e1e0 -->
+<!-- Node0x55555565ead0 -->
 <g id="node72" class="node">
-<title>Node0x55555565e1e0</title>
+<title>Node0x55555565ead0</title>
 <path fill="#f0f4ff" stroke="black" d="M263.5,-3620C263.5,-3620 64.5,-3620 64.5,-3620 58.5,-3620 52.5,-3614 52.5,-3608 52.5,-3608 52.5,-3596 52.5,-3596 52.5,-3590 58.5,-3584 64.5,-3584 64.5,-3584 263.5,-3584 263.5,-3584 269.5,-3584 275.5,-3590 275.5,-3596 275.5,-3596 275.5,-3608 275.5,-3608 275.5,-3614 269.5,-3620 263.5,-3620"/>
 <text text-anchor="middle" x="164" y="-3599.8" font-family="Courier,monospace" font-size="9.00">CIccLuminanceMatchingHint::GetHintType()</text>
 </g>
