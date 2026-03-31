@@ -272,8 +272,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         icEncodeValue, icEncodePercent, icEncodeUnitFloat, icEncodeFloat,
         icEncode8Bit, icEncode16Bit, icEncode16BitV2
     };
-    icFloatColorEncoding srcEncoding = kEncodings[ctrl_enc & 0x07];
-    icFloatColorEncoding destEncoding = kEncodings[(ctrl_enc >> 4) & 0x07];
+    icFloatColorEncoding srcEncoding = kEncodings[ctrl_enc % 7];
+    icFloatColorEncoding destEncoding = kEncodings[(ctrl_enc >> 4) % 7];
 
     if (SrcspaceSig == icSigNamedData)
         srcEncoding = icEncodeValue;
