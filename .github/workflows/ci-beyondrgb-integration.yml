@@ -159,7 +159,7 @@ jobs:
           set -euo pipefail
           git config --global credential.helper ""
           artifact_name="${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}"
-          artifact_root=".github/tmp/vcpkg-import/${{ matrix.platform }}-${{ matrix.arch }}"
+          artifact_root="$RUNNER_TEMP/vcpkg-import/${{ matrix.platform }}-${{ matrix.arch }}"
           run_id="$(./.github/scripts/find-actions-artifact-run.sh "${GITHUB_REPOSITORY}" "ci-beyondrgb-integration.yml" "main" "${artifact_name}")"
 
           if [[ -n "${run_id}" ]]; then
@@ -385,6 +385,11 @@ jobs:
             echo "dependencies:"
             sed 's/^/- /' dependencies.txt
           } > "$export_dir/${artifact_base}.txt"
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$export_dir/${artifact_base}.zip" > "$export_dir/${artifact_base}.zip.sha256"
+          else
+            shasum -a 256 "$export_dir/${artifact_base}.zip" > "$export_dir/${artifact_base}.zip.sha256"
+          fi
 
       - name: Upload vcpkg dependency bundle
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_export_restore) }}
@@ -394,6 +399,7 @@ jobs:
           path: |
             ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.zip
             ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.txt
+            ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.zip.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -554,7 +560,7 @@ jobs:
         run: |
           set -euo pipefail
           artifact_name="${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}"
-          artifact_root=".github/tmp/vcpkg-import/windows-x86_64"
+          artifact_root="$RUNNER_TEMP/vcpkg-import/windows-x86_64"
           run_id="$(./.github/scripts/find-actions-artifact-run.sh "${GITHUB_REPOSITORY}" "ci-beyondrgb-integration.yml" "main" "${artifact_name}")"
 
           if [[ -n "${run_id}" ]]; then
@@ -770,6 +776,9 @@ jobs:
             'dependencies:'
           ) + (Get-Content "$env:GITHUB_WORKSPACE\beyondrgb\backend\dependencies.txt" | ForEach-Object { "- $_" })
           $metadata | Out-File -FilePath (Join-Path $exportDir "$artifactBase.txt") -Encoding ascii
+          $zipPath = Join-Path $exportDir "$artifactBase.zip"
+          $zipHash = (Get-FileHash -Algorithm SHA256 $zipPath).Hash.ToLowerInvariant()
+          "$zipHash  $artifactBase.zip" | Out-File -FilePath (Join-Path $exportDir "$artifactBase.zip.sha256") -Encoding ascii
 
       - name: Upload vcpkg dependency bundle
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_export_restore) }}
@@ -779,6 +788,7 @@ jobs:
           path: |
             ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.zip
             ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.txt
+            ${{ runner.temp }}/vcpkg-export/${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}.zip.sha256
           if-no-files-found: error
           retention-days: 30
 
