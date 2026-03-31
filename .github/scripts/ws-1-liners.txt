@@ -1,226 +1,107 @@
-# BeyondRGB WebSocket 1-liner tests — port 9500
+#!/usr/bin/env bash
+# BeyondRGB WebSocket test runner
+# Usage: bash ws-1-liners.txt [PORT] [CORPUS_DIR]
 # Requires: pip install websocket-client
-# Each sends a request, prints response type, and formats any stack trace
+set -euo pipefail
 
-# Helper: recv all responses (JSON + binary), print formatted trace on error
-# Usage: copy the _h() helper first, then run any test line
+PORT="${1:-9500}"
+CORPUS="${2:-$HOME/work/copilot/pr-418/test-corpus}"
+FUZZ="${3:-$(cd "$(dirname "$0")/../.." && pwd)/fuzz/graphics/tif}"
 
-# 1. 16-bit TIFF (expected: success — native format)
-python3 -c "
-import websocket,json,sys
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(10)
-ws.send(json.dumps({'RequestID':1,'RequestType':'HalfSizePreview','RequestData':{'names':['/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_16bit_depth.tiff']}}))
-resps=[]
+echo "=== BeyondRGB WebSocket Tests ==="
+echo "Port:   $PORT"
+echo "Corpus: $CORPUS"
+echo "Fuzz:   $FUZZ"
+echo ""
+
+# Shared helper — sends request, collects all frames, prints result
+ws_test() {
+  local label="$1" expect="$2" payload="$3"
+  echo "--- [$label] (expect: $expect) ---"
+  python3 -c "
+import websocket, json, sys
 try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
-ws.close()
-"
-
-# 2. Standard RGB TIFF (expected: success)
-python3 -c "
-import websocket,json
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(10)
-ws.send(json.dumps({'RequestID':2,'RequestType':'HalfSizePreview','RequestData':{'names':['/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_standard_rgb.tiff']}}))
-resps=[]
+    ws = websocket.create_connection('ws://localhost:${PORT}', timeout=10)
+except Exception as e:
+    print(f'CONNECT FAILED: {e}'); sys.exit(1)
+ws.send(json.dumps(${payload}))
+resps, binary_total = [], 0
 try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
+    while True:
+        op, r = ws.recv_data()
+        if op == websocket.ABNF.OPCODE_TEXT:
+            try:
+                resps.append(json.loads(r))
+            except Exception:
+                resps.append({'_raw_text': r.decode('utf-8', errors='replace')[:200]})
+        else:
+            binary_total += len(r)
+except Exception:
+    pass
 ws.close()
-"
+for r in resps:
+    rd = r.get('ResponseData', {})
+    if rd.get('critical') or 'message' in rd:
+        print(f'  ERROR: {rd.get(\"message\", \"(no message)\")}')
+        trace = rd.get('trace', '')
+        if trace:
+            for line in trace.strip().split('\n')[:8]:
+                print(f'    {line}')
+            total = len(trace.strip().split('\n'))
+            if total > 8: print(f'    ... ({total} frames total)')
+    elif '_raw_text' in r:
+        print(f'  TEXT: {r[\"_raw_text\"]}')
+    else:
+        keys = list(rd.keys()) if rd else []
+        print(f'  JSON: RequestID={r.get(\"RequestID\")}, keys={keys}')
+if binary_total:
+    print(f'  BINARY: {binary_total} bytes received')
+if not resps and not binary_total:
+    print(f'  NO RESPONSE (server may have crashed)')
+" 2>&1
+  echo ""
+}
 
-# 3. Big-endian TIFF (expected: success — tests byte order handling)
-python3 -c "
-import websocket,json
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(10)
-ws.send(json.dumps({'RequestID':3,'RequestType':'HalfSizePreview','RequestData':{'names':['/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_Big_Endian.tiff']}}))
-resps=[]
-try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
-ws.close()
-"
+# --- Tests ---
 
-# 4. CMYK TIFF (expected: error — BeyondRGB requires RGB)
-python3 -c "
-import websocket,json
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(10)
-ws.send(json.dumps({'RequestID':4,'RequestType':'HalfSizePreview','RequestData':{'names':['/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_cmyk.tiff']}}))
-resps=[]
-try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
-ws.close()
-"
+# 1. 16-bit TIFF — native format, should succeed
+ws_test "1: 16-bit TIFF" "success" \
+  "{'RequestID':1,'RequestType':'HalfSizePreview','RequestData':{'names':['${CORPUS}/fuzzed_image_16bit_depth.tiff']}}"
 
-# 5. 32-bit float TIFF (expected: error — must be 16-bit)
-python3 -c "
-import websocket,json
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(10)
-ws.send(json.dumps({'RequestID':5,'RequestType':'HalfSizePreview','RequestData':{'names':['/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_32bit_float4.tiff']}}))
-resps=[]
-try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
-ws.close()
-"
+# 2. Standard RGB TIFF — should succeed
+ws_test "2: Standard RGB" "success" \
+  "{'RequestID':2,'RequestType':'HalfSizePreview','RequestData':{'names':['${CORPUS}/fuzzed_image_standard_rgb.tiff']}}"
 
-# 6. Grayscale TIFF (expected: error — single channel, not RGB)
-python3 -c "
-import websocket,json
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(10)
-ws.send(json.dumps({'RequestID':6,'RequestType':'HalfSizePreview','RequestData':{'names':['/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_grayscale.tiff']}}))
-resps=[]
-try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
-ws.close()
-"
+# 3. Big-endian TIFF — tests byte order handling
+ws_test "3: Big-endian TIFF" "success" \
+  "{'RequestID':3,'RequestType':'HalfSizePreview','RequestData':{'names':['${CORPUS}/fuzzed_image_Big_Endian.tiff']}}"
 
-# 7. Alpha channel TIFF (expected: may succeed — tests RGBA→RGB strip)
-python3 -c "
-import websocket,json
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(10)
-ws.send(json.dumps({'RequestID':7,'RequestType':'HalfSizePreview','RequestData':{'names':['/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_alpha_channel.tiff']}}))
-resps=[]
-try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
-ws.close()
-"
+# 4. Little-endian TIFF
+ws_test "4: Little-endian TIFF" "success" \
+  "{'RequestID':4,'RequestType':'HalfSizePreview','RequestData':{'names':['${CORPUS}/fuzzed_image_Little_Endian.tiff']}}"
 
-# 8. Malformed TIFF from fuzz corpus (expected: error or crash — sanitizer test)
-python3 -c "
-import websocket,json
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(10)
-ws.send(json.dumps({'RequestID':8,'RequestType':'HalfSizePreview','RequestData':{'names':['/home/h02332/po/research/fuzz/graphics/tif/bar.tif']}}))
-resps=[]
-try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
-ws.close()
-"
+# 5. CMYK TIFF — BeyondRGB requires RGB
+ws_test "5: CMYK TIFF" "error" \
+  "{'RequestID':5,'RequestType':'HalfSizePreview','RequestData':{'names':['${CORPUS}/fuzzed_image_cmyk.tiff']}}"
 
-# 9. Thumbnail request (different RequestType — batch of 3)
-python3 -c "
-import websocket,json
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(10)
-ws.send(json.dumps({'RequestID':9,'RequestType':'Thumbnails','RequestData':{'names':['/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_standard_rgb.tiff','/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_16bit_depth.tiff','/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_Big_Endian.tiff']}}))
-resps=[]
-try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
-ws.close()
-"
+# 6. 32-bit float TIFF — must be 16-bit integer
+ws_test "6: 32-bit float" "error" \
+  "{'RequestID':6,'RequestType':'HalfSizePreview','RequestData':{'names':['${CORPUS}/fuzzed_image_32bit_float4.tiff']}}"
 
-# 10. Process pipeline (full calibration request with two images)
-python3 -c "
-import websocket,json
-ws=websocket.create_connection('ws://localhost:9500');ws.settimeout(15)
-ws.send(json.dumps({'RequestID':10,'RequestType':'Process','RequestData':{'batch':False,'images':[{'art':'/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_16bit_depth.tiff','white':'/home/h02332/work/copilot/pr-418/test-corpus/fuzzed_image_standard_rgb.tiff','dark':''}],'outputFileName':'ws_test_10','destinationDirectory':'/tmp/fuzz_out'}}))
-resps=[]
-try:
- while True:
-  r=ws.recv()
-  try: resps.append(json.loads(r))
-  except: resps.append({'_binary':True,'_size':len(r)})
-except: pass
-for r in resps:
- if isinstance(r,dict) and r.get('ResponseType')=='Error':
-  d=r.get('ResponseData',{});print(f\"ERROR: {d.get('message','')}\");t=d.get('trace','')
-  if t:
-   for line in t.split('\n'): print(f'  {line}')
- elif isinstance(r,dict) and r.get('_binary'): print(f\"OK: received {r['_size']} bytes binary data\")
- else: print(f\"RESP: {json.dumps(r,indent=2)[:400]}\")
-ws.close()
-"
+# 7. Grayscale TIFF — single channel, not RGB
+ws_test "7: Grayscale" "error" \
+  "{'RequestID':7,'RequestType':'HalfSizePreview','RequestData':{'names':['${CORPUS}/fuzzed_image_grayscale.tiff']}}"
+
+# 8. Alpha channel TIFF — tests RGBA handling
+ws_test "8: Alpha channel" "error-or-success" \
+  "{'RequestID':8,'RequestType':'HalfSizePreview','RequestData':{'names':['${CORPUS}/fuzzed_image_alpha_channel.tiff']}}"
+
+# 9. Malformed fuzz TIFF — sanitizer stress test
+ws_test "9: Fuzz TIFF" "error" \
+  "{'RequestID':9,'RequestType':'HalfSizePreview','RequestData':{'names':['${FUZZ}/bar.tif']}}"
+
+# 10. Thumbnails batch — 3 images, multiple binary frames expected
+ws_test "10: Thumbnails batch" "binary-frames" \
+  "{'RequestID':10,'RequestType':'Thumbnails','RequestData':{'names':['${CORPUS}/fuzzed_image_16bit_depth.tiff','${CORPUS}/fuzzed_image_standard_rgb.tiff','${CORPUS}/fuzzed_image_Big_Endian.tiff']}}"
+
+echo "=== Done ==="
