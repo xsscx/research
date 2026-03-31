@@ -3,14 +3,14 @@
 Last Updated: 2026-03-28 18:50:00 UTC
 
 Security fuzzing toolkit for [iccDEV](https://github.com/InternationalColorConsortium/iccDEV) (formerly DemoIccMAX).
-13 LibFuzzer harnesses, 45 active security patches, 93 retired patches, and automated ramdisk workflows.
+13 LibFuzzer harnesses, 44 active security patches, 93 retired patches, and automated ramdisk workflows.
 
 Upstream: iccDEV v2.3.1.5 (commit e62525a)
 
 ## Quick Start
 
 ```bash
-# Build (clones iccDEV, applies 45 patches, compiles 13 fuzzers)
+# Build (clones iccDEV, applies 44 patches, compiles 13 fuzzers)
 ./build.sh
 
 # Smoke test (60 seconds on tmpfs ramdisk)
@@ -38,11 +38,11 @@ sudo ./ramdisk-fuzz.sh 60
 | 12 | `icc_toxml_fuzzer` | IccToXml | `CIccProfile::Read` then `ToXml` |
 | 13 | `icc_v5dspobs_fuzzer` | IccV5DspObsToV4Dsp | v5 display observer conversion |
 
-## Patch Kit (45 active, 93 retired)
+## Patch Kit (44 active, 93 retired)
 
 Security patches applied to iccDEV before building. Retired patches are in `patches-retired/` — accepted upstream in v2.3.1.5/v2.3.1.6 or superseded by LibFuzzer runtime limits.
 
-### Active Patches (45)
+### Active Patches (44)
 
 | # | Patch | CWE | Files |
 |---|-------|-----|-------|
@@ -85,12 +85,11 @@ Security patches applied to iccDEV before building. Retired patches are in `patc
 | 068 | MpeCurveSet operator= self-assignment | CWE-824 | IccMpeBasic.cpp |
 | 069 | operator= self-assignment guards | CWE-824 | Multiple files |
 | 070 | Missing member copies operator=/copy-ctor | CWE-665 | Multiple files |
-| 071 | Uninit default ctor members | CWE-908 | Multiple files |
 | 072 | printf format + unused fn | CWE-134 | Multiple files |
 | 073 | IccProfileXml implicit fallthrough | CWE-484 | IccProfileXml.cpp |
-| 074 | IccUtilXml clipTypeRange if-constexpr | CWE-681 | IccUtilXml.cpp |
 | 075 | IccCmmConfig uninit + format fixes | CWE-908 | IccCmmConfig.cpp |
 | 077 | CAM CalcCoefficients div-by-zero guard | CWE-369 | IccCAM.cpp |
+| 078 | AddXform cenc UAF guard | CWE-416 | IccCmm.cpp |
 
 ### Upstream Status
 
@@ -98,6 +97,7 @@ Security patches applied to iccDEV before building. Retired patches are in `patc
 |-------|--------|-----------|
 | CFL-004 | **PoC-validated** — ASAN HBO at IccMpeBasic.cpp:3988, SCARINESS=17 | `test-profiles/CIccToneMapFunc-Describe-heap-oob-IccMpeBasic_cpp.icc` |
 | CFL-077 | **PoC-validated** — UBSAN div-by-zero at IccCAM.cpp:266,283 | [PR #754](https://github.com/InternationalColorConsortium/iccDEV/pull/754) (open, Merge Ready) |
+| CFL-078 | **PoC-validated** — HUAF at IccCmm.cpp:10564 via cenc profile ownership | [Issue #763](https://github.com/InternationalColorConsortium/iccDEV/issues/763) (open) |
 
 ### Retired Patches (93 in `patches-retired/`)
 
@@ -131,7 +131,7 @@ See `patches-retired/` for the complete archive.
 **What `build.sh` does:**
 1. Clones `iccDEV` (or reuses existing checkout)
 2. Resets to clean state (`git checkout .`)
-3. Applies all 45 patches from `patches/`
+3. Applies all 44 patches from `patches/`
 4. Builds static libraries (`IccProfLib2-static.a`, `IccXML2-static.a`)
 5. Compiles 13 fuzzers with ASAN + UBSAN + coverage instrumentation
 6. Outputs binaries to `bin/`
@@ -235,8 +235,8 @@ cfl/
 ├── corpus-icc_*_fuzzer/      # Per-fuzzer seed corpora (11 active dirs)
 ├── corpus/                   # Shared ICC profiles
 ├── corpus-xml/               # XML seed corpus for fromxml fuzzer
-├── patches/                  # 45 active security patches
-│   ├── 004-*.patch ... 077-*.patch
+├── patches/                  # 44 active security patches
+│   ├── 004-*.patch ... 078-*.patch
 │   └── README.md             # Full patch documentation
 ├── patches-retired/          # 93 retired patches (accepted upstream or superseded)
 ├── icc_*_fuzzer.cpp          # Fuzzer source files (13)

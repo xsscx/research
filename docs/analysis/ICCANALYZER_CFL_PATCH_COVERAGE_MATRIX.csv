@@ -59,3 +59,4 @@ patch_id,patch_file,reachability,v1_defense,v1_reporting,v2_defense,v2_reporting
 073,073-IccProfileXml-implicit-fallthrough.patch,xml-runtime,partial,partial,partial,partial,P3,inferred,"XML runtime correctness patch; H142 covers the path broadly but not this site explicitly"
 074,074-IccUtilXml-clipTypeRange-if-constexpr.patch,xml-runtime,partial,partial,partial,partial,P3,inferred,"XML helper correctness patch; analyzer XML coverage is broad but not site-specific here"
 075,075-IccCmmConfig-uninit-format-fixes.patch,tool-only,oos,oos,oos,oos,OOS,verified,"Tool/config correctness patch; out of analyzer runtime"
+078,078-addxform-cenc-uaf-guard.patch,cmm-runtime,partial,no,no,no,P2,verified,"CWE-416 HUAF in 4 AddXform overloads via cenc profile ownership; H159 detects UAF patterns but not this specific site; iccDEV#763"

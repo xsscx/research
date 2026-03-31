@@ -144,7 +144,7 @@ icc_v5dspobs_fuzzer              (v5 display/observer profiles)
 ```
 
 ### Patch Directory
-**patches/** — 60 active patch files currently present in `cfl/patches/`:
+**patches/** — 44 active patch files currently present in `cfl/patches/`:
 - historical summary counts in older docs are stale
 - analyzer-facing coverage status now lives in
   `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
