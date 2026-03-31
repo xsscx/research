@@ -649,6 +649,23 @@ a non-existent target directory. User had to spend a second turn explaining the 
 3. Test with the **exact failing command** the user reported, against a fresh path
 4. One end-to-end test > ten unit-logic tests
 
+## Known Product Defect -- Copilot CLI TUI Output Encoding
+
+See `AGENTS.md` for the full defect description, double anti-pattern (CJF-20),
+and session optimization rules. TL;DR: TUI emits BOM/smart-quotes/em-dashes.
+All agent file output MUST be ASCII. Use `edit`/`create` tools (exact bytes),
+never shell heredocs. Verify with `file FILENAME`.
+
+## Session Governance Bootstrap
+
+Front-load session rules to prevent correction loops (120x waste ratio):
+```bash
+git clone https://github.com/xsscx/governance /tmp/governance
+# Then at session start: copilot -i "Run /tmp/governance/session-start.sh"
+```
+Core workflow: VERIFY -> CITE -> CLAIM. No success claims without evidence.
+See `AGENTS.md` "Agent Session Optimization" for the 5-point checklist.
+
 ## Cross-Repository Structure
 
 This project spans multiple git repositories. All are siblings under the same workspace:

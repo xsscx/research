@@ -17,6 +17,35 @@ Start with `docs/INDEX.md` for task-based navigation and `docs/README.md` for th
 ## Coding Style & Naming Conventions
 Follow the local style; there is no enforced repo-wide formatter at the root. Use 4-space indentation in C++ and Python, keep Bash portable, and use tabs only in `Makefile`s. Prefer `snake_case` for Python helpers, `test_*.py` and `test_*.cpp` for tests, and existing C++ naming patterns such as `Icc*.cpp` and `CIcc*` types.
 
+## Known Copilot CLI Defect -- TUI Output Encoding (BOM / Non-ASCII)
+
+The TUI emits BOM, smart quotes, em-dashes that corrupt pasted commands.
+
+**Agent rule**: All generated files MUST be ASCII. Verify: `file FILENAME` must
+say `ASCII text`. Use `edit`/`create` tools for file writes (exact byte control),
+never shell heredocs or Python string escaping. ALWAYS verify after writing.
+
+**Double anti-pattern**: Acknowledging this defect then immediately producing the
+same defect in output files. The shell and Python string-escaping pipelines
+re-introduce the encoding corruption the agent just documented. This pattern was
+observed in session 2026-03-31 and must not recur.
+
+**User workaround**: `clean() { sed 's/\xEF\xBB\xBF//g' "${1:--}" | LC_ALL=C tr -cd '\11\12\15\40-\176'; }`
+
+## Agent Session Optimization (from xsscx/governance LLMCJF)
+
+**Core principle**: The expensive part is not the work -- it is the correction loops.
+
+1. **File writes**: Use `create`/`edit` tools only. Run `file FILENAME` after every
+   write. Must say `ASCII text`. Never use heredocs or Python string escaping.
+2. **Claims**: VERIFY -> CITE -> CLAIM. No success without command output evidence.
+3. **THE LOOP**: If fixing the same thing twice, stop and switch approach entirely.
+4. **Governance bootstrap**: `git clone https://github.com/xsscx/governance` then
+   `copilot -i "Run ./governance/session-start.sh"` to front-load session rules.
+5. **Tool convergence**: Use proven winners -- do not re-evaluate each session.
+
+Reference: https://github.com/xsscx/governance (LLMCJF, 374 files, 90K lines)
+
 ## Testing Guidelines
 Any behavior change should update tests in the nearest suite. Analyzer tests live under `iccanalyzer-lite/tests/`; V2 library and parity tests live under `iccanalyzer-lite/icctest/`; MCP tests are `mcp-server/test_mcp.py` and `mcp-server/test_web_ui.py`. Do not commit generated `.profraw`, coverage HTML, virtualenv contents, or crash artifacts unless the change is explicitly about test data.
 
