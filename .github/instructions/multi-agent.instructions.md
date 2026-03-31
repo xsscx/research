@@ -661,7 +661,7 @@ never shell heredocs. Verify with `file FILENAME`.
 Front-load session rules to prevent correction loops (120x waste ratio):
 ```bash
 git clone https://github.com/xsscx/governance /tmp/governance
-# Then at session start: copilot -i "Run /tmp/governance/session-start.sh"
+# Then process documentation
 ```
 Core workflow: VERIFY -> CITE -> CLAIM. No success claims without evidence.
 See `AGENTS.md` "Agent Session Optimization" for the 5-point checklist.
