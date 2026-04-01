@@ -129,77 +129,41 @@ jobs:
           idx2=$(( (idx1 + 1 + RANDOM % (${#PROFILES[@]} - 1)) % ${#PROFILES[@]} ))
           SELECTED=("${PROFILES[$idx1]}" "${PROFILES[$idx2]}")
 
-          echo "### iccDumpAll and iccDiagnosticLoad Test Results" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Selected profiles:**" >> "$GITHUB_STEP_SUMMARY"
-          for p in "${SELECTED[@]}"; do
-            echo "- \`$(basename "$p")\` ($(stat -c%s "$p" 2>/dev/null || echo '?') bytes)" >> "$GITHUB_STEP_SUMMARY"
-          done
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-
           TOOL_DIR="$GITHUB_WORKSPACE/colorbleed_tools"
           PASS=0
           FAIL=0
+          RESULTS=""
 
           for profile in "${SELECTED[@]}"; do
             pname="$(basename "$profile" .icc)"
 
             # ──── iccDumpAll tests ────
-            for mode in "" "--diag" "--read" "--diag --read"; do
+            for mode in "" "--diag" "--read" "--diag --read" "-v"; do
               label="iccDumpAll ${mode:-default}"
-              logfile="$LOGDIR/dumpall-${pname}-${mode// /-}.log"
-              logfile="${logfile:-$LOGDIR/dumpall-${pname}-default.log}"
+              slug="${mode// /-}"
+              slug="${slug:-default}"
+              logfile="$LOGDIR/dumpall-${pname}-${slug}.log"
 
               echo "--- $label on $pname ---"
               rc=0
-              timeout 30 "$TOOL_DIR/iccDumpAll" $mode "$profile" ALL \
-                > "$logfile" 2>&1 || rc=$?
-
-              if [ "$rc" -eq 0 ]; then
-                PASS=$((PASS + 1))
-                status="PASS (exit 0)"
+              if [ "$slug" = "-v" ]; then
+                timeout 30 "$TOOL_DIR/iccDumpAll" -v "$profile" ALL \
+                  > "$logfile" 2>&1 || rc=$?
               else
-                FAIL=$((FAIL + 1))
-                status="EXIT $rc"
+                timeout 30 "$TOOL_DIR/iccDumpAll" $mode "$profile" ALL \
+                  > "$logfile" 2>&1 || rc=$?
               fi
 
               lines=$(wc -l < "$logfile")
-              echo "#### $label -- \`$pname\` -- $status ($lines lines)" >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo '<details><summary>Output (first 100 lines)</summary>' >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
-              head -100 "$logfile" | while IFS= read -r line; do
-                sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
-                echo "" >> "$GITHUB_STEP_SUMMARY"
-              done
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
-              echo '</details>' >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
+              bytes=$(stat -c%s "$logfile" 2>/dev/null || echo 0)
+              if [ "$rc" -eq 0 ]; then
+                PASS=$((PASS + 1))
+                RESULTS="${RESULTS}| $label | $pname | 0 | $lines | $bytes |\n"
+              else
+                FAIL=$((FAIL + 1))
+                RESULTS="${RESULTS}| $label | $pname | $rc | $lines | $bytes |\n"
+              fi
             done
-
-            # iccDumpAll validation mode
-            label="iccDumpAll -v"
-            logfile="$LOGDIR/dumpall-${pname}-validate.log"
-            echo "--- $label on $pname ---"
-            rc=0
-            timeout 30 "$TOOL_DIR/iccDumpAll" -v "$profile" ALL \
-              > "$logfile" 2>&1 || rc=$?
-            if [ "$rc" -eq 0 ]; then PASS=$((PASS + 1)); status="PASS (exit 0)"
-            else FAIL=$((FAIL + 1)); status="EXIT $rc"; fi
-            lines=$(wc -l < "$logfile")
-            echo "#### $label -- \`$pname\` -- $status ($lines lines)" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo '<details><summary>Output (first 100 lines)</summary>' >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            head -100 "$logfile" | while IFS= read -r line; do
-              sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-            done
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            echo '</details>' >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
 
             # ──── iccDiagnosticLoad tests ────
             for mode in "--raw" "--compare" "--trace" "--dump" "--all"; do
@@ -211,33 +175,35 @@ jobs:
               timeout 30 "$TOOL_DIR/iccDiagnosticLoad" $mode "$profile" \
                 > "$logfile" 2>&1 || rc=$?
 
+              lines=$(wc -l < "$logfile")
+              bytes=$(stat -c%s "$logfile" 2>/dev/null || echo 0)
               if [ "$rc" -eq 0 ]; then
                 PASS=$((PASS + 1))
-                status="PASS (exit 0)"
+                RESULTS="${RESULTS}| $label | $pname | 0 | $lines | $bytes |\n"
               else
                 FAIL=$((FAIL + 1))
-                status="EXIT $rc"
+                RESULTS="${RESULTS}| $label | $pname | $rc | $lines | $bytes |\n"
               fi
-
-              lines=$(wc -l < "$logfile")
-              echo "#### $label -- \`$pname\` -- $status ($lines lines)" >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo '<details><summary>Output (first 100 lines)</summary>' >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
-              head -100 "$logfile" | while IFS= read -r line; do
-                sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
-                echo "" >> "$GITHUB_STEP_SUMMARY"
-              done
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
-              echo '</details>' >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
             done
           done
 
-          echo "---" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Results: $PASS passed, $FAIL non-zero exit**" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
+          # Write compact summary table
+          {
+            echo "### iccDumpAll and iccDiagnosticLoad Test Results"
+            echo ""
+            echo "**Selected profiles:**"
+            for p in "${SELECTED[@]}"; do
+              echo "- \`$(basename "$p")\` ($(stat -c%s "$p" 2>/dev/null || echo '?') bytes)"
+            done
+            echo ""
+            echo "| Tool + Mode | Profile | Exit | Lines | Bytes |"
+            echo "|---|---|---|---|---|"
+            printf '%b' "$RESULTS"
+            echo ""
+            echo "**Results: $PASS passed, $FAIL non-zero exit**"
+            echo ""
+            echo "> Full tool output is in the uploaded \`tool-test-logs/\` artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate Checksums
         env:
