@@ -35,7 +35,37 @@ info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
-# ── Detect clang++ ──────────────────────────────────────────────────
+iccdev_static_lib_exists() {
+  local dir="$1"
+  local base="$2"
+
+  [ -f "$dir/${base}-static.a" ] || [ -f "$dir/${base}-staticd.a" ]
+}
+
+iccdev_build_ready() {
+  local build_dir="$1"
+  local cache="$build_dir/CMakeCache.txt"
+  local tool=""
+
+  iccdev_static_lib_exists "$build_dir/IccProfLib" "libIccProfLib2" || return 1
+  iccdev_static_lib_exists "$build_dir/IccXML" "libIccXML2" || return 1
+
+  for tool in \
+    "$build_dir/Tools/IccDumpProfile/iccDumpProfile" \
+    "$build_dir/Tools/IccToXml/iccToXml" \
+    "$build_dir/Tools/IccFromXml/iccFromXml" \
+    "$build_dir/Tools/IccRoundTrip/iccRoundTrip" \
+    "$build_dir/Tools/IccApplyNamedCmm/iccApplyNamedCmm"; do
+    [ -x "$tool" ] || return 1
+  done
+
+  [ -f "$cache" ] || return 1
+  grep -Eq '^CMAKE_INTERPROCEDURAL_OPTIMIZATION(:[A-Z_]+)?=OFF$' "$cache" || return 1
+
+  return 0
+}
+
+# -- Detect clang++ --------------------------------------------------
 find_clang() {
   if command -v clang++ >/dev/null 2>&1; then
     echo "clang++"
@@ -48,12 +78,13 @@ find_clang() {
   fi
 }
 
-# ── Build iccDEV libraries ─────────────────────────────────────────
+# -- Build iccDEV libraries ------------------------------------------
 build_iccdev() {
   local iccdev_dir="$ANALYZER_DIR/iccDEV"
+  local build_dir="$iccdev_dir/Build"
 
-  if [ -f "$iccdev_dir/Build/IccProfLib/libIccProfLib2-static.a" ]; then
-    info "iccDEV libraries already built (skip)"
+  if iccdev_build_ready "$build_dir"; then
+    info "iccDEV libraries and tools already built (skip)"
     return 0
   fi
 
@@ -72,23 +103,30 @@ build_iccdev() {
   CXX=$(find_clang)
 
   info "Building iccDEV with $CXX (ASAN+UBSAN)..."
-  cd "$iccdev_dir/Build"
+  mkdir -p "$build_dir"
+  rm -f "$build_dir/CMakeCache.txt"
+  rm -rf "$build_dir/CMakeFiles"
+  rm -f \
+    "$build_dir/IccProfLib/libIccProfLib2-static.a" \
+    "$build_dir/IccXML/libIccXML2-static.a"
+  cd "$build_dir"
   cmake Cmake \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_C_COMPILER="${CXX/++/}" \
     -DCMAKE_CXX_COMPILER="$CXX" \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
     -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1" \
     -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1 -std=c++17" \
-    -DENABLE_TOOLS=OFF \
+    -DENABLE_TOOLS=ON \
     -DENABLE_STATIC_LIBS=ON \
     -Wno-dev
   make -j"$(nproc)"
   cd "$SCRIPT_DIR"
 
-  info "iccDEV libraries built"
+  info "iccDEV libraries and tools built"
 }
 
-# ── Build iccanalyzer-lite ──────────────────────────────────────────
+# -- Build iccanalyzer-lite ------------------------------------------
 build_analyzer() {
   if [ -x "$ANALYZER_DIR/iccanalyzer-lite" ]; then
     info "iccanalyzer-lite already built (skip)"
@@ -105,7 +143,7 @@ build_analyzer() {
   info "iccanalyzer-lite built"
 }
 
-# ── Build colorbleed_tools (optional) ──────────────────────────────
+# -- Build colorbleed_tools (optional) -------------------------------
 build_colorbleed() {
   if [ -x "$COLORBLEED_DIR/iccToXml_unsafe" ]; then
     info "colorbleed_tools already built (skip)"
@@ -113,7 +151,7 @@ build_colorbleed() {
   fi
 
   if [ ! -d "$COLORBLEED_DIR" ]; then
-    warn "colorbleed_tools/ not found (skip — XML conversion will use safe iccToXml)"
+    warn "colorbleed_tools/ not found (skip - XML conversion will use safe iccToXml)"
     return 0
   fi
 
@@ -126,11 +164,11 @@ build_colorbleed() {
   cd "$COLORBLEED_DIR"
   make CXXFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1 -std=c++17" \
        LINK_LIBS="-fsanitize=address,undefined -lxml2 -lz -llzma -lm" 2>/dev/null || \
-  warn "colorbleed_tools build failed (non-fatal — safe iccToXml still available)"
+  warn "colorbleed_tools build failed (non-fatal - safe iccToXml still available)"
   cd "$SCRIPT_DIR"
 }
 
-# ── Setup Python venv ──────────────────────────────────────────────
+# -- Setup Python venv -----------------------------------------------
 setup_venv() {
   if [ -f "$VENV_DIR/bin/activate" ]; then
     info "Python venv already exists (skip)"
@@ -146,7 +184,7 @@ setup_venv() {
   info "Python venv ready"
 }
 
-# ── Activate venv helper ───────────────────────────────────────────
+# -- Activate venv helper --------------------------------------------
 activate_venv() {
   if [ ! -f "$VENV_DIR/bin/activate" ]; then
     setup_venv
@@ -155,7 +193,7 @@ activate_venv() {
   source "$VENV_DIR/bin/activate"
 }
 
-# ── Commands ───────────────────────────────────────────────────────
+# -- Commands --------------------------------------------------------
 
 cmd_build() {
   info "Building all components..."
@@ -165,8 +203,8 @@ cmd_build() {
   setup_venv
   echo ""
   info "Build complete. Next steps:"
-  echo "  ./build.sh web              # Web UI → http://127.0.0.1:8000 (localhost)"
-  echo "  ./build.sh web 8080         # Web UI → http://127.0.0.1:8080"
+  echo "  ./build.sh web              # Web UI -> http://127.0.0.1:8000 (localhost)"
+  echo "  ./build.sh web 8080         # Web UI -> http://127.0.0.1:8080"
   echo "  ./build.sh web 8080 1.2.3.4 # Web UI on specific IP and port"
   echo "  ./build.sh mcp              # Start MCP server (stdio)"
   echo "  ./build.sh test             # Run test suite"
@@ -176,7 +214,7 @@ cmd_web() {
   local port="${1:-8000}"
   local host="${2:-127.0.0.1}"
   activate_venv
-  info "Starting Web UI → http://$host:$port"
+  info "Starting Web UI -> http://$host:$port"
   ASAN_OPTIONS=detect_leaks=0 python "$SCRIPT_DIR/web_ui.py" --host "$host" --port "$port"
 }
 
@@ -210,11 +248,11 @@ cmd_clean() {
   rm -rf "$VENV_DIR"
   rm -f "$ANALYZER_DIR"/iccanalyzer-lite "$ANALYZER_DIR"/*.o "$ANALYZER_DIR"/*.gcno "$ANALYZER_DIR"/*.gcda
   [ -d "$COLORBLEED_DIR" ] && (cd "$COLORBLEED_DIR" && make clean 2>/dev/null || true)
-  info "Clean complete (iccDEV clone preserved — use 'rm -rf iccanalyzer-lite/iccDEV' to remove)"
+  info "Clean complete (iccDEV clone preserved - use 'rm -rf iccanalyzer-lite/iccDEV' to remove)"
 }
 
 cmd_help() {
-  echo "ICC Profile MCP Server — Build & Run"
+  echo "ICC Profile MCP Server - Build & Run"
   echo ""
   echo "Usage: ./build.sh <command> [args]"
   echo ""
@@ -228,15 +266,15 @@ cmd_help() {
   echo ""
   echo "Examples:"
   echo "  ./build.sh                        # Build everything"
-  echo "  ./build.sh web                    # Web UI → http://127.0.0.1:8000"
-  echo "  ./build.sh web 9000               # Web UI → http://127.0.0.1:9000"
+  echo "  ./build.sh web                    # Web UI -> http://127.0.0.1:8000"
+  echo "  ./build.sh web 9000               # Web UI -> http://127.0.0.1:9000"
   echo "  ./build.sh web 8080 192.168.1.5   # Web UI on specific IP"
   echo "  ./build.sh web 8080 127.0.0.1     # Web UI on localhost only"
   echo "  ./build.sh mcp                    # MCP stdio server"
   echo "  ./build.sh test                   # Run 432 tests"
 }
 
-# ── Main ───────────────────────────────────────────────────────────
+# -- Main ------------------------------------------------------------
 case "${1:-build}" in
   build)   cmd_build ;;
   web)     cmd_web "$2" "$3" ;;

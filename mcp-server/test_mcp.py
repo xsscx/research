@@ -24,6 +24,7 @@ _BULK_FULL_TIMEOUT = int(os.environ.get("MCP_BULK_FULL_TIMEOUT", "30"))
 
 sys.path.insert(0, os.path.dirname(__file__))
 import icc_profile_mcp as mcp_mod
+import launch as launch_mod
 from icc_profile_mcp import (
     ANALYZER_BIN,
     ANALYZER_V2_BIN,
@@ -152,6 +153,50 @@ def test_security_text_engine_resolution():
     if ANALYZER_V2_BIN.is_file():
         full_analyzer = mcp_mod._get_analyzer("auto")
         T.ok("auto full analysis still prefers v2", full_analyzer == ANALYZER_V2_BIN, str(full_analyzer))
+
+    T.section_summary()
+
+
+def test_launcher_wsl_bridge():
+    """Verify the Windows launcher can delegate into the WSL repo."""
+    T.section("Launcher: WSL Bridge")
+
+    calls: list[list[str]] = []
+
+    class ProbeResult:
+        def __init__(self, stdout: str, returncode: int = 0):
+            self.stdout = stdout
+            self.returncode = returncode
+
+    def fake_run(cmd, capture_output=False, text=False, timeout=None):
+        calls.append(cmd)
+        return ProbeResult("/home/test/po/research\n")
+
+    root = launch_mod._discover_wsl_root(
+        {"ICC_MCP_WSL_ROOT": "/home/test/po/research"},
+        platform="nt",
+        runner=fake_run,
+    )
+    T.ok("env root discovered", root == "/home/test/po/research", repr(root))
+    T.ok("discovery uses wsl.exe", bool(calls) and calls[0][:3] == ["wsl.exe", "bash", "-lc"], repr(calls[:1]))
+
+    script = launch_mod._build_wsl_delegate_command(
+        "/home/test/po/research",
+        "web",
+        ["--host", "127.0.0.1", "--port", "8000"],
+    )[3]
+    T.ok("delegate command cds into repo", "cd /home/test/po/research" in script, script)
+    T.ok(
+        "delegate command reuses repo launcher",
+        "python3 mcp-server/launch.py web --host 127.0.0.1 --port 8000" in script,
+        script,
+    )
+    disabled = launch_mod._discover_wsl_root(
+        {"ICC_MCP_NO_WSL": "1", "ICC_MCP_WSL_ROOT": "/home/test/po/research"},
+        platform="nt",
+        runner=fake_run,
+    )
+    T.ok("disable flag bypasses wsl bridge", disabled is None, repr(disabled))
 
     T.section_summary()
 
@@ -1463,6 +1508,7 @@ async def main():
     # Security tests (synchronous)
     test_path_traversal()
     test_security_text_engine_resolution()
+    test_launcher_wsl_bridge()
     test_absolute_path_escape()
     test_null_byte_injection()
     test_symlink_escape()
