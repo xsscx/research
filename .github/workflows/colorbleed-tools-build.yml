@@ -1,25 +1,32 @@
 ###############################################################
 # Copyright (c) 2026 David H Hoyt LLC
 #
-# Intent: build colorbleed tools
+# Intent: build and test colorbleed tools
 #
-# Last Updated: 04-FEB-2026 1751Z by David Hoyt
-# Bots unable to undo the matrix
+# Last Updated: 01-APR-2026 by David Hoyt
 ###############################################################
 
-name: opus-4.5-failure-001
+name: ColorBleed Tools Build
 
 permissions:
   contents: read
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'colorbleed_tools/**'
+      - '.github/workflows/colorbleed-tools-build.yml'
+  pull_request:
+    paths:
+      - 'colorbleed_tools/**'
+      - '.github/workflows/colorbleed-tools-build.yml'
 
 jobs:
   linux:
     name: "Linux ${{ matrix.compiler }}"
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -35,7 +42,6 @@ jobs:
           persist-credentials: false
 
       - name: Install Dependencies
-        shell: bash --noprofile --norc {0}
         env:
           BASH_ENV: /dev/null
         run: |
@@ -49,24 +55,25 @@ jobs:
             libpng-dev libxml2 libxml2-dev libtiff-dev \
             nlohmann-json3-dev libwxgtk3.2-dev wx-common \
             python3 python3-pip curl git llvm
+
       - name: Set Compiler
-        shell: bash --noprofile --norc {0}
         env:
           BASH_ENV: /dev/null
+          MATRIX_COMPILER: ${{ matrix.compiler }}
         run: |
           set -euo pipefail
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+          if [ "$MATRIX_COMPILER" = "gcc" ]; then
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
           else
             echo "CC=clang" >> "$GITHUB_ENV"
             echo "CXX=clang++" >> "$GITHUB_ENV"
           fi
+
       - name: Print Compiler Version
-        shell: bash --noprofile --norc {0}
         env:
           BASH_ENV: /dev/null
         run: |
@@ -77,8 +84,8 @@ jobs:
           unset GITHUB_TOKEN || true
           echo "Compiler Version:" >> "$GITHUB_STEP_SUMMARY"
           sanitize_codeblock "$($CC --version 2>&1)" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build
-        shell: bash --noprofile --norc {0}
         env:
           BASH_ENV: /dev/null
         run: |
@@ -89,8 +96,150 @@ jobs:
           cd colorbleed_tools
           make setup
           make test
+
+      - name: Test iccDumpAll and iccDiagnosticLoad
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+
+          LOGDIR="$GITHUB_WORKSPACE/colorbleed_tools/tool-test-logs"
+          mkdir -p "$LOGDIR"
+
+          # Collect candidate profiles from test-profiles/ and iccDEV/Testing/
+          mapfile -t PROFILES < <(find test-profiles/ -maxdepth 1 -name '*.icc' -size +128c -size -2M 2>/dev/null | sort)
+          if [ -d colorbleed_tools/iccDEV/Testing ]; then
+            while IFS= read -r p; do
+              PROFILES+=("$p")
+            done < <(find colorbleed_tools/iccDEV/Testing -maxdepth 1 -name '*.icc' -size +128c -size -2M 2>/dev/null | sort)
+          fi
+
+          if [ "${#PROFILES[@]}" -lt 2 ]; then
+            echo "::error::Need at least 2 test profiles, found ${#PROFILES[@]}"
+            exit 1
+          fi
+
+          # Pick 2 random profiles using RANDOM
+          idx1=$((RANDOM % ${#PROFILES[@]}))
+          idx2=$(( (idx1 + 1 + RANDOM % (${#PROFILES[@]} - 1)) % ${#PROFILES[@]} ))
+          SELECTED=("${PROFILES[$idx1]}" "${PROFILES[$idx2]}")
+
+          echo "### iccDumpAll and iccDiagnosticLoad Test Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Selected profiles:**" >> "$GITHUB_STEP_SUMMARY"
+          for p in "${SELECTED[@]}"; do
+            echo "- \`$(basename "$p")\` ($(stat -c%s "$p" 2>/dev/null || echo '?') bytes)" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          TOOL_DIR="$GITHUB_WORKSPACE/colorbleed_tools"
+          PASS=0
+          FAIL=0
+
+          for profile in "${SELECTED[@]}"; do
+            pname="$(basename "$profile" .icc)"
+
+            # ──── iccDumpAll tests ────
+            for mode in "" "--diag" "--read" "--diag --read"; do
+              label="iccDumpAll ${mode:-default}"
+              logfile="$LOGDIR/dumpall-${pname}-${mode// /-}.log"
+              logfile="${logfile:-$LOGDIR/dumpall-${pname}-default.log}"
+
+              echo "--- $label on $pname ---"
+              rc=0
+              timeout 30 "$TOOL_DIR/iccDumpAll" $mode "$profile" ALL \
+                > "$logfile" 2>&1 || rc=$?
+
+              if [ "$rc" -eq 0 ]; then
+                PASS=$((PASS + 1))
+                status="PASS (exit 0)"
+              else
+                FAIL=$((FAIL + 1))
+                status="EXIT $rc"
+              fi
+
+              lines=$(wc -l < "$logfile")
+              echo "#### $label -- \`$pname\` -- $status ($lines lines)" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '<details><summary>Output (first 100 lines)</summary>' >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              head -100 "$logfile" | while IFS= read -r line; do
+                sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+              done
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              echo '</details>' >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            done
+
+            # iccDumpAll validation mode
+            label="iccDumpAll -v"
+            logfile="$LOGDIR/dumpall-${pname}-validate.log"
+            echo "--- $label on $pname ---"
+            rc=0
+            timeout 30 "$TOOL_DIR/iccDumpAll" -v "$profile" ALL \
+              > "$logfile" 2>&1 || rc=$?
+            if [ "$rc" -eq 0 ]; then PASS=$((PASS + 1)); status="PASS (exit 0)"
+            else FAIL=$((FAIL + 1)); status="EXIT $rc"; fi
+            lines=$(wc -l < "$logfile")
+            echo "#### $label -- \`$pname\` -- $status ($lines lines)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '<details><summary>Output (first 100 lines)</summary>' >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            head -100 "$logfile" | while IFS= read -r line; do
+              sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo '</details>' >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            # ──── iccDiagnosticLoad tests ────
+            for mode in "--raw" "--compare" "--trace" "--dump" "--all"; do
+              label="iccDiagnosticLoad $mode"
+              logfile="$LOGDIR/diagload-${pname}-${mode#--}.log"
+
+              echo "--- $label on $pname ---"
+              rc=0
+              timeout 30 "$TOOL_DIR/iccDiagnosticLoad" $mode "$profile" \
+                > "$logfile" 2>&1 || rc=$?
+
+              if [ "$rc" -eq 0 ]; then
+                PASS=$((PASS + 1))
+                status="PASS (exit 0)"
+              else
+                FAIL=$((FAIL + 1))
+                status="EXIT $rc"
+              fi
+
+              lines=$(wc -l < "$logfile")
+              echo "#### $label -- \`$pname\` -- $status ($lines lines)" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '<details><summary>Output (first 100 lines)</summary>' >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              head -100 "$logfile" | while IFS= read -r line; do
+                sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+              done
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              echo '</details>' >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            done
+          done
+
+          echo "---" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Results: $PASS passed, $FAIL non-zero exit**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Generate Checksums
-        shell: bash --noprofile --norc {0}
         env:
           BASH_ENV: /dev/null
         run: |
@@ -99,40 +248,52 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           cd colorbleed_tools
-          sha256sum iccToXml_unsafe iccFromXml_unsafe > SHA256SUMS
+          sha256sum iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad > SHA256SUMS
           cat SHA256SUMS
-      - name: Upload Linux Artifacts
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: colorbleed-linux-${{ matrix.compiler }}
           path: |
             colorbleed_tools/iccToXml_unsafe
             colorbleed_tools/iccFromXml_unsafe
+            colorbleed_tools/iccDumpAll
+            colorbleed_tools/iccDiagnosticLoad
             colorbleed_tools/SHA256SUMS
             colorbleed_tools/test.xml
             colorbleed_tools/roundtrip.icc
+            colorbleed_tools/tool-test-logs/
+
       - name: Summary Report
         if: always()
-        shell: bash --noprofile --norc {0}
         env:
           BASH_ENV: /dev/null
+          MATRIX_COMPILER: ${{ matrix.compiler }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          echo "### Linux Build Summary (${{ matrix.compiler }})" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Compiler: ${{ matrix.compiler }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: [OK] Success" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Linux Build Summary ($MATRIX_COMPILER)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Compiler: $MATRIX_COMPILER" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: [OK] Build complete" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "#### Artifacts" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          sanitize_codeblock "$(ls -lh colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe)" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe \
+                 colorbleed_tools/iccDumpAll colorbleed_tools/iccDiagnosticLoad 2>&1 | \
+            while IFS= read -r line; do
+              sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            done
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "#### SHA256 Checksums" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          sanitize_codeblock "$(cat colorbleed_tools/SHA256SUMS)" >> "$GITHUB_STEP_SUMMARY"
+          cat colorbleed_tools/SHA256SUMS | while IFS= read -r line; do
+            sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          done
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-
