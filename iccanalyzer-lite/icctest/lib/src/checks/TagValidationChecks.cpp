@@ -1,5 +1,5 @@
 /*
- * IccTest Library — TagValidationChecks.cpp
+ * IccTest Library - TagValidationChecks.cpp
  * Heuristic checks H9-H32: Tag table structure validation.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC. All Rights Reserved.
@@ -21,10 +21,11 @@
 #include <algorithm>
 #include <cmath>
 #include <set>
+#include <vector>
 
 namespace icctest {
 
-// ── H9: Tag Count Validation ──
+// -- H9: Tag Count Validation --
 static CheckResult check_h9_tag_count(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.rawSize() < 132) return CheckResult::skip("File too small for tag table");
@@ -36,7 +37,7 @@ static CheckResult check_h9_tag_count(const ProfileView& pv) {
         cb.warn("Zero tags in tag table");
     }
     if (tagCount > 1000) {
-        cb.high(sfmt("Excessive tag count %u (>1000) — potential DoS", tagCount),
+        cb.high(sfmt("Excessive tag count %u (>1000) - potential DoS", tagCount),
                 "CWE-400: Uncontrolled Resource Consumption");
     }
 
@@ -51,7 +52,7 @@ static CheckResult check_h9_tag_count(const ProfileView& pv) {
     return cb.done("Tag count validated");
 }
 
-// ── H10: Tag Offset/Size Bounds ──
+// -- H10: Tag Offset/Size Bounds --
 static CheckResult check_h10_tag_bounds(const ProfileView& pv) {
     CheckBuilder cb;
     const auto& tags = pv.rawTagTable();
@@ -74,7 +75,7 @@ static CheckResult check_h10_tag_bounds(const ProfileView& pv) {
     return cb.done("Tag offset/size bounds validated");
 }
 
-// ── H11: Duplicate Tag Signatures ──
+// -- H11: Duplicate Tag Signatures --
 static CheckResult check_h11_dup_tags(const ProfileView& pv) {
     CheckBuilder cb;
     std::set<uint32_t> seen;
@@ -89,19 +90,19 @@ static CheckResult check_h11_dup_tags(const ProfileView& pv) {
     return cb.done("No duplicate tags");
 }
 
-// ── H12: Tag Alignment ──
+// -- H12: Tag Alignment --
 static CheckResult check_h12_alignment(const ProfileView& pv) {
     CheckBuilder cb;
     for (const auto& t : pv.rawTagTable()) {
         if (t.offset % 4 != 0) {
-            cb.warn(sfmt("Tag '%s' offset %u not 4-byte aligned — ICC.1-2022-05 §7.3",
+            cb.warn(sfmt("Tag '%s' offset %u not 4-byte aligned - ICC.1-2022-05 Sec.7.3",
                           sigStr(t.signature).c_str(), t.offset));
         }
     }
     return cb.done("Tag alignment validated");
 }
 
-// ── H13: Required Tags Per Class ──
+// -- H13: Required Tags Per Class --
 static CheckResult check_h13_required_tags(const ProfileView& pv) {
     CheckBuilder cb;
 
@@ -119,7 +120,7 @@ static CheckResult check_h13_required_tags(const ProfileView& pv) {
     return cb.done("Required tags present");
 }
 
-// ── H14: Tag Type Signature Validation ──
+// -- H14: Tag Type Signature Validation --
 static CheckResult check_h14_tag_type(const ProfileView& pv) {
     CheckBuilder cb;
 
@@ -143,7 +144,7 @@ static CheckResult check_h14_tag_type(const ProfileView& pv) {
     return cb.done("Tag type signatures valid");
 }
 
-// ── H19: Tag Overlap Detection ──
+// -- H19: Tag Overlap Detection --
 static CheckResult check_h19_overlap(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.rawSize() < 132) return CheckResult::skip("File too small for tag table");
@@ -182,38 +183,38 @@ static CheckResult check_h19_overlap(const ProfileView& pv) {
     return cb.done("No tag overlaps");
 }
 
-// ── Registration (representative subset, H9-H14, H19) ──
+// -- Registration (representative subset, H9-H14, H19) --
 
 REGISTER_HEURISTIC(9, "Tag Count Validation",
-    "ICC.1-2022-05 §7.3", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.3", "ICC.1-2022-05",
     "CWE-400", "", Severity::HIGH, CheckPhase::TAG_TABLE, check_h9_tag_count);
 
 REGISTER_HEURISTIC(10, "Tag Offset/Size Bounds",
-    "ICC.1-2022-05 §7.3", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.3", "ICC.1-2022-05",
     "CWE-125", "", Severity::CRITICAL, CheckPhase::TAG_TABLE, check_h10_tag_bounds);
 
 REGISTER_HEURISTIC(11, "Duplicate Tag Detection",
-    "ICC.1-2022-05 §7.3", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.3", "ICC.1-2022-05",
     "CWE-694", "", Severity::HIGH, CheckPhase::TAG_TABLE, check_h11_dup_tags);
 
 REGISTER_HEURISTIC(12, "Tag Alignment Validation",
-    "ICC.1-2022-05 §7.3.2", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.3.2", "ICC.1-2022-05",
     "CWE-188", "", Severity::LOW, CheckPhase::TAG_TABLE, check_h12_alignment);
 
 REGISTER_HEURISTIC(13, "Required Tags Per Class",
-    "ICC.1-2022-05 §7.2.5", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.5", "ICC.1-2022-05",
     "CWE-20", "", Severity::HIGH, CheckPhase::TAG_TABLE, check_h13_required_tags);
 
 REGISTER_HEURISTIC(14, "Tag Type Signature Validation",
-    "ICC.1-2022-05 §10", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.10", "ICC.1-2022-05",
     "CWE-20", "", Severity::MEDIUM, CheckPhase::TAG_TABLE, check_h14_tag_type);
 
 REGISTER_HEURISTIC(19, "Tag Offset Overlap",
-    "ICC.1-2022-05 §7.3", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.3", "ICC.1-2022-05",
     "CWE-119", "", Severity::CRITICAL, CheckPhase::TAG_TABLE, check_h19_overlap);
 
 
-// ── Additional registrations for TagValidationChecks ──
+// -- Additional registrations for TagValidationChecks --
 
 static bool raw_has_tag_signature(const ProfileView& pv, uint32_t sig) {
     for (const auto& tag : pv.rawTagTable()) {
@@ -293,7 +294,7 @@ static CheckResult check_h18_technology_signature(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(18, "Technology Signature",
-    "§9.2.27", "ICC.1-2022-05",
+    "Sec.9.2.27", "ICC.1-2022-05",
     "CWE-20", "",
     Severity::LOW, CheckPhase::TAG_TABLE,
     check_h18_technology_signature);
@@ -323,13 +324,13 @@ static CheckResult check_h20_tag_type_signature(const ProfileView& pv) {
             cb.warn(
                 sfmt("Tag '%s' has null type signature (0x00000000)",
                      sigStr(tag.signature).c_str()),
-                "Risk: Corrupted tag data — parser may misinterpret");
+                "Risk: Corrupted tag data - parser may misinterpret");
         } else if (!allPrintable) {
             cb.warn(
                 sfmt("Tag '%s' has non-ASCII type: 0x%02X%02X%02X%02X",
                      sigStr(tag.signature).c_str(),
                      typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3]),
-                "Risk: Malformed type bytes — possible type confusion");
+                "Risk: Malformed type bytes - possible type confusion");
         }
 
     }
@@ -341,7 +342,7 @@ static CheckResult check_h20_tag_type_signature(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(20, "Tag Type Signature",
-    "§10", "ICC.1-2022-05",
+    "Sec.10", "ICC.1-2022-05",
     "CWE-843", "CVE-2026-21505,CVE-2026-24856,GHSA-j577-8285-qrf9,GHSA-w585-cv3v-c396",
     Severity::HIGH, CheckPhase::TAG_TABLE,
     check_h20_tag_type_signature);
@@ -365,7 +366,18 @@ static CheckResult check_h21_tag_struct_member_inspection(const ProfileView& pv)
         foundStruct = true;
 
         TagEntryList* elems = pStruct->GetElemList();
-        int memberCount = elems ? static_cast<int>(elems->size()) : 0;
+        struct StructMemberInfo {
+            icTagSignature sig;
+            icUInt32Number size;
+        };
+        std::vector<StructMemberInfo> members;
+        if (elems) {
+            members.reserve(elems->size());
+            for (const auto& elem : *elems) {
+                members.push_back({elem.TagInfo.sig, elem.TagInfo.size});
+            }
+        }
+        int memberCount = static_cast<int>(members.size());
         if (memberCount > 100) {
             cb.warn(sfmt("Tag '%s': excessive member count %d (limit 100)",
                          sigStr(static_cast<uint32_t>(entry->TagInfo.sig)).c_str(),
@@ -373,15 +385,13 @@ static CheckResult check_h21_tag_struct_member_inspection(const ProfileView& pv)
                     "Risk: Resource exhaustion via struct expansion");
         }
 
-        if (!elems) continue;
-        for (auto eit = elems->begin(); eit != elems->end(); ++eit) {
-            IccTagEntry* me = &(*eit);
-            std::string memberSig = sigStr(static_cast<uint32_t>(me->TagInfo.sig));
-            CIccTag* mTag = pStruct->FindElem(me->TagInfo.sig);
+        for (const auto& member : members) {
+            std::string memberSig = sigStr(static_cast<uint32_t>(member.sig));
+            CIccTag* mTag = pStruct->FindElem(member.sig);
             if (!mTag) {
                 cb.warn(sfmt("Member '%s': size=%u [UNREADABLE]",
                              memberSig.c_str(),
-                             static_cast<unsigned>(me->TagInfo.size)));
+                             static_cast<unsigned>(member.size)));
                 continue;
             }
 
@@ -412,7 +422,7 @@ static CheckResult check_h21_tag_struct_member_inspection(const ProfileView& pv)
 }
 
 REGISTER_HEURISTIC(21, "Tag Struct Member Inspection",
-    "§10.32", "ICC.1-2022-05",
+    "Sec.10.32", "ICC.1-2022-05",
     "CWE-843", "",
     Severity::MEDIUM, CheckPhase::TAG_TABLE,
     check_h21_tag_struct_member_inspection);
@@ -421,7 +431,7 @@ static CheckResult check_h22_num_array_scalar_expectation(const ProfileView& pv)
     CheckBuilder cb;
     if (!pv.libraryLoaded()) {
         if (!raw_has_tag_signature(pv, static_cast<uint32_t>(icSigColorEncodingParamsTag))) {
-            return cb.done("No cept (ColorEncodingParams) tag — check not applicable");
+            return cb.done("No cept (ColorEncodingParams) tag - check not applicable");
         }
         return CheckResult::skip("Library parse failed");
     }
@@ -430,7 +440,7 @@ static CheckResult check_h22_num_array_scalar_expectation(const ProfileView& pv)
 
     auto* pCept = dynamic_cast<CIccTagStruct*>(p->FindTag(icSigColorEncodingParamsTag));
     if (!pCept) {
-        return cb.done("No cept (ColorEncodingParams) tag — check not applicable");
+        return cb.done("No cept (ColorEncodingParams) tag - check not applicable");
     }
 
     struct ScalarMember {
@@ -455,7 +465,7 @@ static CheckResult check_h22_num_array_scalar_expectation(const ProfileView& pv)
         if (numVals > 1) {
             cb.warn(sfmt("%s has %u values (expected 1 scalar)",
                          member.name, static_cast<unsigned>(numVals)),
-                    "Risk: Stack buffer overflow in GetElemNumberValue → GetValues");
+                    "Risk: Stack buffer overflow in GetElemNumberValue -> GetValues");
         }
     }
 
@@ -463,7 +473,7 @@ static CheckResult check_h22_num_array_scalar_expectation(const ProfileView& pv)
 }
 
 REGISTER_HEURISTIC(22, "Num Array Scalar Expectation",
-    "§10.21", "ICC.1-2022-05",
+    "Sec.10.21", "ICC.1-2022-05",
     "CWE-20", "",
     Severity::LOW, CheckPhase::TAG_TABLE,
     check_h22_num_array_scalar_expectation);
@@ -535,12 +545,12 @@ static CheckResult check_h23_num_array_value_range(const ProfileView& pv) {
             if (nanCount) {
                 cb.warn(sfmt("Tag '%s': %d NaN value(s) in NumArray",
                              sigStr(ownerSig).c_str(), nanCount),
-                        "CWE-681: NaN/Inf propagation → UB in IccIO Write");
+                        "CWE-681: NaN/Inf propagation -> UB in IccIO Write");
             }
             if (infCount) {
                 cb.warn(sfmt("Tag '%s': %d Inf value(s) in NumArray",
                              sigStr(ownerSig).c_str(), infCount),
-                        "CWE-681: NaN/Inf propagation → UB in IccIO Write");
+                        "CWE-681: NaN/Inf propagation -> UB in IccIO Write");
             }
             return;
         }
@@ -551,7 +561,7 @@ static CheckResult check_h23_num_array_value_range(const ProfileView& pv) {
         if (nanCount) detail += sfmt(" %d NaN", nanCount);
         if (infCount) detail += sfmt(" %d Inf", infCount);
         detail += " value(s)";
-        cb.warn(detail, "CWE-681: NaN/Inf propagation → UB in IccIO Write");
+        cb.warn(detail, "CWE-681: NaN/Inf propagation -> UB in IccIO Write");
     };
 
     for (auto it = p->m_Tags.begin(); it != p->m_Tags.end(); ++it) {
@@ -585,7 +595,7 @@ static CheckResult check_h23_num_array_value_range(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(23, "Num Array Value Range",
-    "§10.21", "ICC.1-2022-05",
+    "Sec.10.21", "ICC.1-2022-05",
     "CWE-681", "",
     Severity::MEDIUM, CheckPhase::TAG_TABLE,
     check_h23_num_array_value_range);
@@ -691,7 +701,7 @@ static CheckResult check_h24_tag_struct_nesting_depth(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(24, "Tag Struct Nesting Depth",
-    "§10.32", "ICC.1-2022-05",
+    "Sec.10.32", "ICC.1-2022-05",
     "CWE-674", "CVE-2026-30980,GHSA-w478-77q7-2hc2",
     Severity::HIGH, CheckPhase::TAG_TABLE,
     check_h24_tag_struct_nesting_depth);
@@ -729,7 +739,7 @@ static CheckResult check_h25_tag_offset_oob(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(25, "Tag Offset OOB",
-    "§7.3.1", "ICC.1-2022-05",
+    "Sec.7.3.1", "ICC.1-2022-05",
     "CWE-125", "CVE-2026-21487,GHSA-xq7x-9524-f7cp",
     Severity::CRITICAL, CheckPhase::TAG_TABLE,
     check_h25_tag_offset_oob);
@@ -816,7 +826,7 @@ static CheckResult check_h26_named_color2string_validation(const ProfileView& pv
 }
 
 REGISTER_HEURISTIC(26, "Named Color2String Validation",
-    "§10.20", "ICC.1-2022-05",
+    "Sec.10.20", "ICC.1-2022-05",
     "CWE-170", "",
     Severity::HIGH, CheckPhase::TAG_TABLE,
     check_h26_named_color2string_validation);
@@ -847,7 +857,7 @@ static CheckResult check_h27_mpe_matrix_output_channel(const ProfileView& pv) {
                 icUInt16Number numOut = pMatrix->NumOutputChannels();
                 icUInt16Number numIn = pMatrix->NumInputChannels();
                 if (numOut == 0 || numIn == 0) {
-                    cb.warn(sfmt("Tag '%s' elem %u: Matrix %ux%u — zero dimension",
+                    cb.warn(sfmt("Tag '%s' elem %u: Matrix %ux%u - zero dimension",
                                  sigStr(sig).c_str(), static_cast<unsigned>(ei),
                                  static_cast<unsigned>(numIn),
                                  static_cast<unsigned>(numOut)),
@@ -866,7 +876,7 @@ static CheckResult check_h27_mpe_matrix_output_channel(const ProfileView& pv) {
                 icUInt16Number calcOut = pCalc->NumOutputChannels();
                 icUInt16Number calcIn = pCalc->NumInputChannels();
                 if (calcOut == 0 || calcIn == 0) {
-                    cb.warn(sfmt("Tag '%s' elem %u: Calculator %ux%u — zero dimension",
+                    cb.warn(sfmt("Tag '%s' elem %u: Calculator %ux%u - zero dimension",
                                  sigStr(sig).c_str(),
                                  static_cast<unsigned>(ei),
                                  static_cast<unsigned>(calcIn),
@@ -880,7 +890,7 @@ static CheckResult check_h27_mpe_matrix_output_channel(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(27, "MPE Matrix Output Channel",
-    "§10.26", "ICC.1-2022-05",
+    "Sec.10.26", "ICC.1-2022-05",
     "CWE-131", "CVE-2026-27692,GHSA-3869-prw8-gjqr",
     Severity::CRITICAL, CheckPhase::TAG_TABLE,
     check_h27_mpe_matrix_output_channel);
@@ -938,7 +948,7 @@ static CheckResult check_h28_lut_dimension_validation(const ProfileView& pv) {
                      sigStr(tag.signature).c_str(), lutName, nInput, nOutput, nGrid,
                      overflow ? "OVERFLOW" : sfmt("%llu",
                          static_cast<unsigned long long>(points)).c_str()),
-                sfmt("Risk: OOM — allocation of %s bytes in CIccCLUT::Init()",
+                sfmt("Risk: OOM - allocation of %s bytes in CIccCLUT::Init()",
                      overflow ? ">2^64" : sfmt("%llu",
                          static_cast<unsigned long long>(points * 4ull)).c_str()));
         }
@@ -948,7 +958,7 @@ static CheckResult check_h28_lut_dimension_validation(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(28, "LUT Dimension Validation",
-    "§10.10", "ICC.1-2022-05",
+    "Sec.10.10", "ICC.1-2022-05",
     "CWE-400", "CVE-2026-21490,CVE-2026-21494,GHSA-9q9c-699q-xr2q,GHSA-hjxv-xr7w-84fc,GHSA-x9hr-pxxc-h38p",
     Severity::HIGH, CheckPhase::TAG_TABLE,
     check_h28_lut_dimension_validation);
@@ -969,7 +979,7 @@ static CheckResult check_h29_colorant_table_string_validation(const ProfileView&
 
         uint32_t colorantCount = readU32BE(ptr + 8);
         if (colorantCount > 256) {
-            cb.warn(sfmt("ColorantTable: count=%u (>256) — excessive allocation risk",
+            cb.warn(sfmt("ColorantTable: count=%u (>256) - excessive allocation risk",
                          colorantCount));
             continue;
         }
@@ -1001,7 +1011,7 @@ static CheckResult check_h29_colorant_table_string_validation(const ProfileView&
             cb.critical(
                 sfmt("%u/%u colorant entries lack null terminator",
                      unterminatedCount, colorantCount),
-                sfmt("Allocation: calloc(%u, 38) = %zu bytes — strlen reads past entire buffer",
+                sfmt("Allocation: calloc(%u, 38) = %zu bytes - strlen reads past entire buffer",
                      colorantCount, allocSize));
         }
     }
@@ -1013,8 +1023,8 @@ static CheckResult check_h29_colorant_table_string_validation(const ProfileView&
 }
 
 REGISTER_HEURISTIC(29, "Colorant Table String Validation",
-    "§10.4", "ICC.1-2022-05",
-    "CWE-125/CWE-170", "GHSA-4wqv-pvm8-5h27",
+    "Sec.10.4", "ICC.1-2022-05",
+    "CWE-125/CWE-170", "CVE-2026-34556,GHSA-4wqv-pvm8-5h27,GHSA-p9wm-xfv4-43qg",
     Severity::CRITICAL, CheckPhase::TAG_TABLE,
     check_h29_colorant_table_string_validation);
 
@@ -1043,7 +1053,7 @@ static CheckResult check_h30_gamut_boundary_desc_allocation(const ProfileView& p
                          static_cast<unsigned long long>(totalAlloc), logicalSize));
         }
         if (nPCSCh > 3 || nDevCh > 15) {
-            cb.warn(sfmt("Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range",
+            cb.warn(sfmt("Tag '%s' (gbd): PCS channels=%u, Device channels=%u - out of range",
                          ownerSig.c_str(), nPCSCh, nDevCh),
                     "Risk: Signed/unsigned confusion in allocation size");
         }
@@ -1107,7 +1117,7 @@ static CheckResult check_h30_gamut_boundary_desc_allocation(const ProfileView& p
 }
 
 REGISTER_HEURISTIC(30, "Gamut Boundary Desc Allocation",
-    "§10.12", "ICC.1-2022-05",
+    "Sec.10.12", "ICC.1-2022-05",
     "CWE-400", "GHSA-rc3h-95ph-j363",
     Severity::HIGH, CheckPhase::TAG_TABLE,
     check_h30_gamut_boundary_desc_allocation);
@@ -1160,7 +1170,7 @@ static CheckResult check_h31_mpe_channel_count(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(31, "MPE Channel Count",
-    "§10.26", "ICC.1-2022-05",
+    "Sec.10.26", "ICC.1-2022-05",
     "CWE-131", "",
     Severity::CRITICAL, CheckPhase::TAG_TABLE,
     check_h31_mpe_channel_count);
@@ -1276,7 +1286,7 @@ static CheckResult check_h32_tag_data_type_confusion(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(32, "Tag Data Type Confusion",
-    "§10", "ICC.1-2022-05",
+    "Sec.10", "ICC.1-2022-05",
     "CWE-843", "CVE-2021-30942,CVE-2026-21683,CVE-2026-21688,CVE-2026-21691,CVE-2026-25503,GHSA-3r2x-j7v3-pg6f,GHSA-c9q5-x498-jv92,GHSA-f2wp-j3fr-938w,GHSA-pf84-4c7q-x764",
     Severity::CRITICAL, CheckPhase::TAG_TABLE,
     check_h32_tag_data_type_confusion);

@@ -259,19 +259,19 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     if (rawTagCount > 1000) {
       skipLibraryPhase = true;
       printf("=======================================================================\n");
-      printf("[PREFLIGHT] Tag count = %u (>1000) — profile is severely malformed\n", rawTagCount);
+      printf("[PREFLIGHT] Tag count = %u (>1000) - profile is severely malformed\n", rawTagCount);
       printf("            Library-API heuristics will be skipped to avoid crash/hang\n");
       printf("=======================================================================\n\n");
     }
   }
 
   // Truncation gate: if header.size > actualFileSize, tag data lies beyond EOF.
-  // Library lazy-loading will read garbage → UBSAN enum loads, ASAN OOB reads.
-  // CWE-125: Out-of-bounds Read. Defensive programming — skip library phase.
+  // Library lazy-loading will read garbage -> UBSAN enum loads, ASAN OOB reads.
+  // CWE-125: Out-of-bounds Read. Defensive programming - skip library phase.
   if (actualFileSize > 0 && header.size > 0 && header.size > actualFileSize) {
     skipLibraryPhase = true;
     printf("=======================================================================\n");
-    printf("[PREFLIGHT] Profile TRUNCATED — header claims %u bytes, file is %zu bytes\n",
+    printf("[PREFLIGHT] Profile TRUNCATED - header claims %u bytes, file is %zu bytes\n",
            header.size, actualFileSize);
     printf("            Library-API heuristics skipped (tag data extends beyond EOF)\n");
     printf("            CWE-125: Tags will read out-of-bounds on lazy load\n");
@@ -331,7 +331,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   printf("%sEXTERNAL FILE METADATA%s\n", ColorHeader(), ColorReset());
   printf("=======================================================================\n\n");
 
-  // file(1) — magic-based type identification
+  // file(1) - magic-based type identification
   {
     std::string out = RunExternalTool("file", "-b", filename, 3);
     if (!out.empty()) {
@@ -339,7 +339,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     }
   }
 
-  // exiftool — structured metadata extraction
+  // exiftool - structured metadata extraction
   {
     std::string out = RunExternalTool("exiftool", "", filename, 30);
     if (!out.empty()) {
@@ -347,7 +347,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     }
   }
 
-  // exiftool -b — binary ICC profile extraction
+  // exiftool -b - binary ICC profile extraction
   {
     // Extract embedded ICC profile to temp file for cross-validation
     char tmpPath[] = "/tmp/iccanalyzer-exiftool-XXXXXX.icc";
@@ -386,7 +386,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     }
   }
 
-  // tiffinfo — TIFF IFD structure (only for TIFF-wrapped profiles)
+  // tiffinfo - TIFF IFD structure (only for TIFF-wrapped profiles)
   {
     // Check for TIFF magic at file start (II\x2a or MM\x00\x2a)
     icUInt8Number tiffMagic[4] = {};
@@ -404,7 +404,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     io.Seek(0, icSeekSet); // Reset file position
   }
 
-  // identify (ImageMagick) — image structure analysis
+  // identify (ImageMagick) - image structure analysis
   {
     std::string out = RunExternalTool("identify", "-verbose", filename, 40);
     if (!out.empty()) {
@@ -412,7 +412,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     }
   }
 
-  // xxd — hex dump of first 128 bytes (ICC header)
+  // xxd - hex dump of first 128 bytes (ICC header)
   {
     std::string out = RunExternalTool("xxd", "-l 128", filename, 10);
     if (!out.empty()) {
@@ -480,7 +480,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("=======================================================================\n");
     printf("[NOT RUN] Profile structurally unsafe for library loading (%u tags, %zu bytes)\n",
            rawTagCount, actualFileSize);
-    printf("       Library-API heuristics not run — raw analysis continues below\n");
+    printf("       Library-API heuristics not run - raw analysis continues below\n");
     printf("=======================================================================\n\n");
   } else {
   // Now open profile with IccProfLib for tag-level analysis
@@ -493,7 +493,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   } else {
     libraryAnalyzed = true;
 
-    // ICC Library Conformance Validation — CIccProfile::ReadValidate()
+    // ICC Library Conformance Validation - CIccProfile::ReadValidate()
     // Runs header, required tags, tag types, and per-tag content checks
     heuristicCount += RunIccLibraryValidation(filename);
 
@@ -511,7 +511,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
 
     // Profile integrity heuristics (H121-H135, H137-H138)
     // Sub-dispatched via RunIntegrityHeuristics()
-    // NOTE: H136 excluded — raw-file scan, called separately below.
+    // NOTE: H136 excluded - raw-file scan, called separately below.
     heuristicCount += RunIntegrityHeuristics(pIcc, filename);
 
     // XML serialization safety heuristics (H142-H145)
@@ -529,7 +529,7 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
   // Extracted to IccHeuristicsRawPost.cpp
   heuristicCount += RunRawPostLibraryHeuristics(filename);
 
-  // H136: CWE-400 ResponseCurve measurement count — raw file scan, ALWAYS runs.
+  // H136: CWE-400 ResponseCurve measurement count - raw file scan, ALWAYS runs.
   // This is intentionally outside the library phase because the most dangerous
   // profiles (those that crash the library) are too malformed for library loading.
   // Validation-time safety must not depend on runtime library success.
@@ -556,9 +556,9 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %s- Suspicious fill patterns enabling OOB traversal%s\n", ColorWarning(), ColorReset());
     printf("\n");
     RegistryStats regStats = ComputeRegistryStats();
-    printf("  %sCVE Coverage: %d heuristics covering patterns from %d CVEs + %d GHSAs across 93 iccDEV security advisories (%d heuristics with CVE/GHSA cross-references)%s\n",
+    printf("  %sCVE Coverage: %d heuristics covering patterns from %d CVEs + %d GHSAs across 100 iccDEV security advisories (%d heuristics with CVE/GHSA cross-references)%s\n",
            ColorInfo(), kTotalHeuristics, regStats.uniqueCVEs, regStats.uniqueGHSAs, regStats.heuristicsWithCVE, ColorReset());
-    printf("  %sSpec conformance: ICC.1-2022-05, ICC.2-2023 — heuristics cite §section references%s\n", ColorInfo(), ColorReset());
+    printf("  %sSpec conformance: ICC.1-2022-05, ICC.2-2023 - heuristics cite spec section references%s\n", ColorInfo(), ColorReset());
     printf("  %sKey CVE categories: HBO, OOB, OOM, UAF, SBO, type confusion, integer overflow%s\n", ColorInfo(), ColorReset());
     printf("  %sH33-H36: mBA/mAB structural analysis (OOB offsets, integer overflow, fill patterns)%s\n", ColorInfo(), ColorReset());
     printf("  %sH37-H45: CFL fuzzer dictionary analysis (calc, curves, v5, BRDF, sparse matrix)%s\n", ColorInfo(), ColorReset());
@@ -579,23 +579,23 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
     printf("  %sH107-H115: LUT/colorspace channel cross-check, private tag scan, shellcode patterns,%s\n", ColorInfo(), ColorReset());
     printf("  %s           class-required tags, reserved bytes, wtpt validation, round-trip fidelity,%s\n", ColorInfo(), ColorReset());
     printf("  %s           TRC monotonicity, characterization data%s\n", ColorInfo(), ColorReset());
-    printf("  %sH116-H127: ICC Technical Secretary feedback — cprt/desc encoding, tag-type validation,%s\n", ColorInfo(), ColorReset());
-    printf("  %s           computation cost, ΔE round-trip, curve invertibility, characterization RT,%s\n", ColorInfo(), ColorReset());
+    printf("  %sH116-H127: ICC Technical Secretary feedback - cprt/desc encoding, tag-type validation,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           computation cost, DeltaE round-trip, curve invertibility, characterization RT,%s\n", ColorInfo(), ColorReset());
     printf("  %s           deep encoding, non-required tags, version-tag, smoothness, malware scan, registry%s\n", ColorInfo(), ColorReset());
-    printf("  %sH128-H132: ICC.1-2022-05 spec compliance — version BCD, PCS D50, tag alignment,%s\n", ColorInfo(), ColorReset());
-    printf("  %s           Profile ID MD5, chromaticAdaptation matrix (§7.2.4, §7.2.16, §7.3.1, §7.2.18, Annex G)%s\n", ColorInfo(), ColorReset());
-    printf("  %sH133-H135: ICC.1-2022-05 additional — flags reserved bits (§7.2.11), tag type reserved%s\n", ColorInfo(), ColorReset());
-    printf("  %s           bytes (§10.1), duplicate tag signatures (§7.3.1)%s\n", ColorInfo(), ColorReset());
-    printf("  %sH136-H138: CWE-400 systemic — ResponseCurve measurement counts, high-dimensional%s\n", ColorInfo(), ColorReset());
+    printf("  %sH128-H132: ICC.1-2022-05 spec compliance - version BCD, PCS D50, tag alignment,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           Profile ID MD5, chromaticAdaptation matrix (Sec.7.2.4, Sec.7.2.16, Sec.7.3.1, Sec.7.2.18, Annex G)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH133-H135: ICC.1-2022-05 additional - flags reserved bits (Sec.7.2.11), tag type reserved%s\n", ColorInfo(), ColorReset());
+    printf("  %s           bytes (Sec.10.1), duplicate tag signatures (Sec.7.3.1)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH136-H138: CWE-400 systemic - ResponseCurve measurement counts, high-dimensional%s\n", ColorInfo(), ColorReset());
     printf("  %s           grid complexity, calculator branching depth (CFL-074/075/076 findings)%s\n", ColorInfo(), ColorReset());
-    printf("  %sH142-H145: XML serialization safety — fork-isolated ToXml(), array bounds precheck,%s\n", ColorInfo(), ColorReset());
-    printf("  %s           string termination validation, curve type consistency (25 XML advisories)%s\n", ColorInfo(), ColorReset());
+    printf("  %sH142-H145: XML serialization safety - fork-isolated ToXml(), array bounds precheck,%s\n", ColorInfo(), ColorReset());
+    printf("  %s           string termination validation, curve type consistency (27 XML advisories)%s\n", ColorInfo(), ColorReset());
     printf("\n");
     printf("  %sRecommendations:%s\n", ColorInfo(), ColorReset());
-    printf("  • Validate profile with official ICC tools\n");
-    printf("  • Use -n (ninja mode) for detailed byte-level analysis\n");
-    printf("  • Do NOT use in production color workflows\n");
-    printf("  • Consider as potential security test case\n");
+    printf("  - Validate profile with official ICC tools\n");
+    printf("  - Use -n (ninja mode) for detailed byte-level analysis\n");
+    printf("  - Do NOT use in production color workflows\n");
+    printf("  - Consider as potential security test case\n");
   }
 
   printf("\n");

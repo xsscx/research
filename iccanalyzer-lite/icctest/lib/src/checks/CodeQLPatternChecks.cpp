@@ -1,5 +1,5 @@
 /*
- * IccTest Library — CodeQLPatternChecks.cpp
+ * IccTest Library - CodeQLPatternChecks.cpp
  * Heuristic checks H154-H161: CodeQL-derived vulnerability patterns.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC. All Rights Reserved.
@@ -11,7 +11,7 @@
 
 namespace icctest {
 
-// ── H154: Uncontrolled Tag Allocation Size ──
+// -- H154: Uncontrolled Tag Allocation Size --
 static CheckResult check_h154_uncontrolled_alloc(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -63,7 +63,7 @@ static CheckResult check_h154_uncontrolled_alloc(const ProfileView& pv) {
     return cb.done("Allocation sizes validated");
 }
 
-// ── H155: Integer Overflow in Tag Dimensions ──
+// -- H155: Integer Overflow in Tag Dimensions --
 static CheckResult check_h155_dimension_overflow(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -197,7 +197,7 @@ static CheckResult check_h155_dimension_overflow(const ProfileView& pv) {
     return cb.done("Dimension overflow checks complete");
 }
 
-// ── H156: Allocation Failure Path Profiles ──
+// -- H156: Allocation Failure Path Profiles --
 static CheckResult check_h156_alloc_failure(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -225,7 +225,7 @@ static CheckResult check_h156_alloc_failure(const ProfileView& pv) {
 
     if (largeTagCount >= 3) {
         cb.warn(
-            sfmt("%d tags exceed 10MB — high concurrent allocation demand", largeTagCount),
+            sfmt("%d tags exceed 10MB - high concurrent allocation demand", largeTagCount),
             "CWE-252: Multiple large allocations increase NULL-deref risk");
     }
 
@@ -239,7 +239,7 @@ static CheckResult check_h156_alloc_failure(const ProfileView& pv) {
     return cb.done("Allocation failure paths checked");
 }
 
-// ── H158: Enum Range Violation Detection ──
+// -- H158: Enum Range Violation Detection --
 static CheckResult check_h158_enum_range(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -327,7 +327,7 @@ static CheckResult check_h158_enum_range(const ProfileView& pv) {
     return cb.done("Enum ranges validated");
 }
 
-// ── H160: Format String Injection in Text Tags ──
+// -- H160: Format String Injection in Text Tags --
 static CheckResult check_h160_format_string(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -366,7 +366,7 @@ static CheckResult check_h160_format_string(const ProfileView& pv) {
     return cb.done("Format string injection checked");
 }
 
-// ── Registration ──
+// -- Registration --
 
 REGISTER_HEURISTIC(154, "Uncontrolled Tag Allocation Size",
     "CodeQL cpp/new-array-with-large-size", "CWE-789",
@@ -389,7 +389,7 @@ REGISTER_HEURISTIC(160, "Format String Injection in Text Tags",
     "CWE-134", "", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h160_format_string);
 
 
-// ── Additional registrations for CodeQLPatternChecks ──
+// -- Additional registrations for CodeQLPatternChecks --
 
 static CheckResult check_h157_alloc_dealloc_mismatch_tag_patterns(const ProfileView& pv) {
     CheckBuilder cb;
@@ -414,19 +414,19 @@ static CheckResult check_h157_alloc_dealloc_mismatch_tag_patterns(const ProfileV
 
     if (hasTagArray) {
         cb.critical(
-            "Profile contains TagArray ('tary') — triggers CIccTagArray copy ctor new[]/free() mismatch",
-            "CWE-762: CFL-003 — CIccTagArray(const&) uses new[] but Cleanup() calls free() (IccTagComposite.cpp:1037,1523)");
+            "Profile contains TagArray ('tary') - triggers CIccTagArray copy ctor new[]/free() mismatch",
+            "CWE-762: CFL-003 - CIccTagArray(const&) uses new[] but Cleanup() calls free() (IccTagComposite.cpp:1037,1523)");
     }
 
     if (hasNamedColor2) {
         cb.warn(
-            "Profile contains NamedColor2 ('ncl2') — CIccApplyNamedCmm uses new[]/delete mismatch",
+            "Profile contains NamedColor2 ('ncl2') - CIccApplyNamedCmm uses new[]/delete mismatch",
             "CWE-762: m_vals allocated with new icFloatNumber[] but freed with delete (IccCmm.cpp:4785)");
     }
 
     if (hasFormulaCurve) {
         cb.warn(
-            "Profile contains CurveSet ('curf') — formula segments use new[]/delete mismatch",
+            "Profile contains CurveSet ('curf') - formula segments use new[]/delete mismatch",
             "CWE-762: m_dParam allocated with new[] but freed with delete (IccTagLut.cpp:984)");
     }
 
@@ -434,7 +434,7 @@ static CheckResult check_h157_alloc_dealloc_mismatch_tag_patterns(const ProfileV
 }
 
 REGISTER_HEURISTIC(157, "Alloc-Dealloc Mismatch Tag Patterns",
-    "§10.14", "ICC.1-2022-05",
+    "Sec.10.14", "ICC.1-2022-05",
     "CWE-762", "",
     Severity::CRITICAL, CheckPhase::RAW_SCAN,
     check_h157_alloc_dealloc_mismatch_tag_patterns);
@@ -473,15 +473,15 @@ static CheckResult check_h159_uaf_tag_ownership_chain_detection(const ProfileVie
 
     if (hasNamedColor2) {
         cb.warn(
-            "Profile contains NamedColor2 ('ncl2') — potential m_NamedColor UAF after Cleanup",
-            "CWE-416: IccTagBasic.cpp:2879 — m_NamedColor accessed after CIccTagNamedColor2::Cleanup() frees it");
+            "Profile contains NamedColor2 ('ncl2') - potential m_NamedColor UAF after Cleanup",
+            "CWE-416: IccTagBasic.cpp:2879 - m_NamedColor accessed after CIccTagNamedColor2::Cleanup() frees it");
     }
 
     return cb.done("No UAF-triggering ownership patterns detected");
 }
 
 REGISTER_HEURISTIC(159, "UAF Tag Ownership Chain Detection",
-    "§7.3", "ICC.1-2022-05",
+    "Sec.7.3", "ICC.1-2022-05",
     "CWE-416", "",
     Severity::CRITICAL, CheckPhase::RAW_SCAN,
     check_h159_uaf_tag_ownership_chain_detection);
@@ -544,7 +544,7 @@ static CheckResult check_h161_stack_address_escape_deep_apply_chains(const Profi
 
                 if (nElements > 4 && (nInputChannels > 8 || nOutputChannels > 8)) {
                     cb.warn(
-                        sfmt("HEURISTIC: Tag '%s' MPE chain: %u elements x %u->%u channels — deep Apply() stack risk — ICC.1-2022-05 §10.14",
+                        sfmt("HEURISTIC: Tag '%s' MPE chain: %u elements x %u->%u channels - deep Apply() stack risk - ICC.1-2022-05 Sec.10.14",
                              sigStr(tag.signature).c_str(),
                              nElements,
                              nInputChannels,
@@ -567,7 +567,7 @@ static CheckResult check_h161_stack_address_escape_deep_apply_chains(const Profi
                 if (nOutput > 16 || (nOutput > 0 && nInput > 0 &&
                                      static_cast<uint32_t>(nInput) * static_cast<uint32_t>(nOutput) > 256U)) {
                     cb.warn(
-                        sfmt("HEURISTIC: LUT %ux%u channels — local buffer overflow risk in Apply() tmpPixel — ICC.1-2022-05 §10.6",
+                        sfmt("HEURISTIC: LUT %ux%u channels - local buffer overflow risk in Apply() tmpPixel - ICC.1-2022-05 Sec.10.6",
                              nInput,
                              nOutput),
                         sfmt("CWE-121: Stack buffer sized for declared channels (%d) may be overwritten by LUT output (%u)",
@@ -581,7 +581,7 @@ static CheckResult check_h161_stack_address_escape_deep_apply_chains(const Profi
 
     if (nChannels > 8 && mpetCount >= 2) {
         cb.warn(
-            sfmt("HEURISTIC: %d-channel profile with %d MPE tags — deep Apply() stack chain risk — ICC.1-2022-05 §10.14",
+            sfmt("HEURISTIC: %d-channel profile with %d MPE tags - deep Apply() stack chain risk - ICC.1-2022-05 Sec.10.14",
                  nChannels,
                  mpetCount),
             "CWE-121: High channel count amplifies local buffer size across stack frames");
@@ -591,12 +591,12 @@ static CheckResult check_h161_stack_address_escape_deep_apply_chains(const Profi
 }
 
 REGISTER_HEURISTIC(161, "Stack Address Escape Deep Apply Chains",
-    "§10.14", "ICC.1-2022-05",
+    "Sec.10.14", "ICC.1-2022-05",
     "CWE-121", "",
     Severity::CRITICAL, CheckPhase::RAW_SCAN,
     check_h161_stack_address_escape_deep_apply_chains);
 
-// ── H173: Signature Conversion Shift Overflow ──
+// -- H173: Signature Conversion Shift Overflow --
 // Detects the UBSAN pattern in iccDEV IccUtil.cpp signature-formatting helpers
 // where sig<<=8 on a uint32 with first byte >= 0x01 overflows.
 // Every valid FourCC signature (printable ASCII) has first byte >= 0x20 and
@@ -647,7 +647,7 @@ static CheckResult check_h173_sig_conversion_shift_overflow(const ProfileView& p
     if (overflowCount > 0) {
         cb.warn(sfmt("%d/%d FourCC signatures trigger UBSAN shift overflow "
                      "in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() "
-                     "— IccUtil.cpp:1088,1130,1167,1187,1228,1253",
+                     "- IccUtil.cpp:1088,1130,1167,1187,1228,1253",
                      overflowCount, totalSigs),
                 "CWE-190: sig<<=8 on uint32 with first byte non-zero "
                 "produces value > UINT32_MAX");
@@ -659,7 +659,7 @@ static CheckResult check_h173_sig_conversion_shift_overflow(const ProfileView& p
 
 REGISTER_HEURISTIC(173, "Signature Conversion Shift Overflow",
     "IccUtil.cpp:1088/1130/1167/1187/1228/1253", "CWE Pattern",
-    "CWE-190", "",
+    "CWE-190", "CVE-2026-34549,GHSA-v7qh-f995-p2fq",
     Severity::MEDIUM, CheckPhase::RAW_SCAN,
     check_h173_sig_conversion_shift_overflow);
 
@@ -790,7 +790,7 @@ static CheckResult check_h174_half_float_conversion_unsigned_underflow(const Pro
 
     CheckBuilder cb;
     cb.warn(sfmt("HEURISTIC: %d half-float value(s) would trigger UBSAN unsigned-wrap "
-                 "in icF16toF() — IccUtil.cpp:665,677 / IccIO.cpp:328",
+                 "in icF16toF() - IccUtil.cpp:665,677 / IccIO.cpp:328",
                  result.hitCount),
             "CWE-190: exponent rebias uses unsigned subtraction for non-zero "
             "half-floats with exponent < 15 (values below 1.0)");

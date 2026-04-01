@@ -1,5 +1,5 @@
 /*
- * IccTest Library — XmlSafetyChecks.cpp
+ * IccTest Library - XmlSafetyChecks.cpp
  * Heuristic checks H142-H145, H180: XML serialization safety.
  *
  * H142 performs fork-isolated XML serialization directly, matching V1.
@@ -25,7 +25,7 @@
 
 namespace icctest {
 
-// ── H142: XML Serialization Safety ──
+// -- H142: XML Serialization Safety --
 // Exercise the XML serializer under fork isolation, matching V1 semantics.
 static CheckResult check_h142_xml_safety(const ProfileView& pv) {
     CheckBuilder cb;
@@ -38,7 +38,7 @@ static CheckResult check_h142_xml_safety(const ProfileView& pv) {
     std::fflush(stderr);
     pid_t pid = fork();
     if (pid < 0) {
-        cb.high(sfmt("fork() failed (errno=%d) — XML safety check skipped", errno),
+        cb.high(sfmt("fork() failed (errno=%d) - XML safety check skipped", errno),
                 "CWE-271: Cannot isolate XML serialization");
         return cb.done("Fork failed");
     }
@@ -103,7 +103,7 @@ static CheckResult check_h142_xml_safety(const ProfileView& pv) {
     if (!waited) {
         kill(pid, SIGKILL);
         waitpid(pid, &status, 0);
-        cb.high("XML serialization timed out (>15s) — potential resource exhaustion",
+        cb.high("XML serialization timed out (>15s) - potential resource exhaustion",
                 "CWE-400: Uncontrolled Resource Consumption");
         return cb.done("XML serialization timed out");
     }
@@ -134,14 +134,14 @@ static CheckResult check_h142_xml_safety(const ProfileView& pv) {
             return CheckResult::ok("XML serialization completed safely (ToXml succeeded)");
         }
         return CheckResult::ok(
-            sfmt("XML serialization returned error (ToXml=false, exit %d) — no crash",
+            sfmt("XML serialization returned error (ToXml=false, exit %d) - no crash",
                  exitCode));
     }
 
     return CheckResult::ok(sfmt("XML serialization check completed (status=0x%x)", status));
 }
 
-// ── H143: XML Array Bounds Precheck ──
+// -- H143: XML Array Bounds Precheck --
 static CheckResult check_h143_xml_array_bounds(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -168,7 +168,7 @@ static CheckResult check_h143_xml_array_bounds(const ProfileView& pv) {
             uint32_t dataBytes = t.size - 8; // subtract type + reserved
             uint32_t elemCount = dataBytes / at.elemSize;
             if (elemCount > 1000000) {
-                cb.high(sfmt("Tag '%s' (%s) has %u elements — ToXml would produce enormous output",
+                cb.high(sfmt("Tag '%s' (%s) has %u elements - ToXml would produce enormous output",
                               sigStr(t.signature).c_str(), at.name, elemCount),
                         "CWE-131: Incorrect Calculation of Buffer Size");
             }
@@ -178,7 +178,7 @@ static CheckResult check_h143_xml_array_bounds(const ProfileView& pv) {
     return cb.done("XML array bounds validated");
 }
 
-// ── H144: XML String Termination Precheck ──
+// -- H144: XML String Termination Precheck --
 static CheckResult check_h144_xml_string_term(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -206,7 +206,7 @@ static CheckResult check_h144_xml_string_term(const ProfileView& pv) {
             }
             if (!hasNull) {
                 cb.high(sfmt("Colorant entry #%u has unterminated 32-byte name "
-                              "— strlen overflow in XML serialization", i),
+                              "- strlen overflow in XML serialization", i),
                         "CWE-170: Improper Null Termination");
             }
         }
@@ -215,7 +215,7 @@ static CheckResult check_h144_xml_string_term(const ProfileView& pv) {
     return cb.done("XML string termination validated");
 }
 
-// ── H145: XML Curve Type Consistency ──
+// -- H145: XML Curve Type Consistency --
 static CheckResult check_h145_xml_curve_type(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -236,11 +236,12 @@ static CheckResult check_h145_xml_curve_type(const ProfileView& pv) {
     return cb.done("XML curve type consistency validated");
 }
 
-// ── Registration ──
+// -- Registration --
 
 REGISTER_HEURISTIC(142, "XML Serialization Safety",
-    "CWE-787/CWE-125 Pattern", "25 iccDEV XML advisories",
-    "CWE-787", "", Severity::CRITICAL, CheckPhase::LIBRARY, check_h142_xml_safety);
+    "CWE-787/CWE-125 Pattern", "27 iccDEV XML advisories",
+    "CWE-787", "CVE-2026-34548,CVE-2026-34556,GHSA-p9wm-xfv4-43qg,GHSA-prwp-9gv6-ccxv",
+    Severity::CRITICAL, CheckPhase::LIBRARY, check_h142_xml_safety);
 
 REGISTER_HEURISTIC(143, "XML Array Bounds Precheck",
     "CIccXmlArrayType::DumpArray", "CWE-131",
@@ -248,13 +249,14 @@ REGISTER_HEURISTIC(143, "XML Array Bounds Precheck",
 
 REGISTER_HEURISTIC(144, "XML String Termination Precheck",
     "CIccTagColorantTable::ToXml", "CWE-170",
-    "CWE-170", "", Severity::HIGH, CheckPhase::RAW_SCAN, check_h144_xml_string_term);
+    "CWE-170", "CVE-2026-34556,GHSA-p9wm-xfv4-43qg",
+    Severity::HIGH, CheckPhase::RAW_SCAN, check_h144_xml_string_term);
 
 REGISTER_HEURISTIC(145, "XML Curve Type Consistency",
     "CIccXmlMpeCurveSet::ToXml", "CWE-843",
     "CWE-843", "", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h145_xml_curve_type);
 
-// ── H180: XML Round-Trip Fidelity ──
+// -- H180: XML Round-Trip Fidelity --
 // Fork-isolated: ICC -> ToXml -> LoadXml -> compare header + tag structure.
 // Match V1: header mismatches and missing tags are findings even if tag counts
 // happen to stay the same after round-trip.
@@ -349,6 +351,7 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
         // Step 4: LoadXml
         CIccProfileXml rtProfile;
         std::string parseErr;
+        // lgtm[icc/xml-external-entity-attacks] - the XML file is produced locally by ToXml() for this profile round-trip check.
         if (!rtProfile.LoadXml(tmpPath, nullptr, &parseErr)) {
             unlink(tmpPath);
             close(pipeFd[1]);
