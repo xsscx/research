@@ -11,7 +11,7 @@
  *
  *  Adapted from iccanalyzer-lite heuristics (H1-H30) for use in
  *  colorbleed tools. Unlike iccanalyzer-lite, this does NOT reject
- *  profiles — it logs warnings and returns a risk assessment so the
+ *  profiles -- it logs warnings and returns a risk assessment so the
  *  sandbox can make informed decisions about resource limits.
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -35,20 +35,20 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-// ── Resource limits (aligned with iccanalyzer-lite) ──
+// -- Resource limits (aligned with iccanalyzer-lite) --
 static constexpr uint64_t CB_MAX_PROFILE_SIZE   = 1ULL << 30;   // 1 GiB
 static constexpr uint64_t CB_MAX_TAG_SIZE       = 64ULL << 20;  // 64 MiB per tag
 static constexpr uint32_t CB_MAX_TAG_COUNT      = 200;
 static constexpr uint64_t CB_MAX_CLUT_ENTRIES   = 16ULL << 20;  // 16M entries
 static constexpr uint32_t CB_MAX_MPE_ELEMENTS   = 1024;
 
-// ── icRealloc OOM guard ──
+// -- icRealloc OOM guard --
 // iccDEV routes all tag allocations through icRealloc() (IccUtil.cpp:112).
 // To override, compile ColorBleedAlloc.cpp as a separate object linked
 // BEFORE libIccProfLib2-static.a. See build.sh for link order.
 // Cap: 256 MB per single allocation.
 
-// ── Safe arithmetic ──
+// -- Safe arithmetic --
 static inline bool SafeMul64(uint64_t *r, uint64_t a, uint64_t b) {
   if (a == 0 || b == 0) { *r = 0; return true; }
   if (a > UINT64_MAX / b) return false;
@@ -56,7 +56,7 @@ static inline bool SafeMul64(uint64_t *r, uint64_t a, uint64_t b) {
   return true;
 }
 
-// ── Sanitize a 4-byte ICC signature for safe display ──
+// -- Sanitize a 4-byte ICC signature for safe display --
 static inline void SanitizeSig4(const uint8_t* raw, char out[5]) {
   for (int i = 0; i < 4; i++) {
     uint8_t c = raw[i];
@@ -65,7 +65,7 @@ static inline void SanitizeSig4(const uint8_t* raw, char out[5]) {
   out[4] = '\0';
 }
 
-// ── Big-endian readers ──
+// -- Big-endian readers --
 static inline uint32_t ReadBE32(const uint8_t *p) {
   return ((uint32_t)p[0]<<24) | ((uint32_t)p[1]<<16) |
          ((uint32_t)p[2]<<8)  |  (uint32_t)p[3];
@@ -75,7 +75,7 @@ static inline uint16_t ReadBE16(const uint8_t *p) {
   return ((uint16_t)p[0]<<8) | (uint16_t)p[1];
 }
 
-// ── Preflight result ──
+// -- Preflight result --
 enum class PreflightSeverity { CLEAN, WARNING, CRITICAL };
 
 struct PreflightWarning {
@@ -113,8 +113,8 @@ struct PreflightResult {
   }
 };
 
-// ── Core pre-flight validation ──
-// Reads only raw bytes — no iccDEV library calls.
+// -- Core pre-flight validation --
+// Reads only raw bytes -- no iccDEV library calls.
 #ifndef COLORBLEED_SKIP_ICC_PREFLIGHT
 static PreflightResult PreflightValidateICC(const char* filename) {
   PreflightResult result;
@@ -158,7 +158,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     return result;
   }
 
-  // ── H1: Profile Size ──
+  // -- H1: Profile Size --
   uint32_t profileSize = ReadBE32(hdr + 0);
   result.profile_size = profileSize;
 
@@ -178,13 +178,13 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     result.AddWarning("H1", buf, PreflightSeverity::CRITICAL);
   }
 
-  // ── H2: Magic Bytes (offset 36 = 0x24) ──
+  // -- H2: Magic Bytes (offset 36 = 0x24) --
   if (memcmp(hdr + 36, "acsp", 4) != 0) {
     result.AddWarning("H2", "Invalid magic bytes (expected 'acsp' at offset 0x24)",
                       PreflightSeverity::CRITICAL);
   }
 
-  // ── H3: Data ColorSpace (offset 16) ──
+  // -- H3: Data ColorSpace (offset 16) --
   uint32_t colorSpace = ReadBE32(hdr + 16);
   {
     uint8_t cs[4] = {(uint8_t)(colorSpace>>24), (uint8_t)(colorSpace>>16),
@@ -199,7 +199,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H4: PCS (offset 20) ──
+  // -- H4: PCS (offset 20) --
   uint32_t pcs = ReadBE32(hdr + 20);
   // 'XYZ ' = 0x58595A20, 'Lab ' = 0x4C616220
   if (pcs != 0x58595A20 && pcs != 0x4C616220) {
@@ -212,7 +212,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H6: Rendering Intent (offset 64) ──
+  // -- H6: Rendering Intent (offset 64) --
   uint32_t intent = ReadBE32(hdr + 64);
   if (intent > 3) {
     char buf[80];
@@ -220,7 +220,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     result.AddWarning("H6", buf, PreflightSeverity::WARNING);
   }
 
-  // ── H8: Illuminant XYZ (offset 68, 3×4 bytes = s15Fixed16Number) ──
+  // -- H8: Illuminant XYZ (offset 68, 3x4 bytes = s15Fixed16Number) --
   {
     int32_t illumX = (int32_t)ReadBE32(hdr + 68);
     int32_t illumY = (int32_t)ReadBE32(hdr + 72);
@@ -240,7 +240,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H15: Date Validation (offset 24, 6×2 bytes) ──
+  // -- H15: Date Validation (offset 24, 6x2 bytes) --
   {
     uint16_t year   = ReadBE16(hdr + 24);
     uint16_t month  = ReadBE16(hdr + 26);
@@ -256,7 +256,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H16: Signature Pattern Analysis ──
+  // -- H16: Signature Pattern Analysis --
   {
     uint32_t devClass = ReadBE32(hdr + 12);
     uint32_t platform = ReadBE32(hdr + 40);
@@ -274,11 +274,11 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── Tag Table Validation ──
+  // -- Tag Table Validation --
   uint32_t tagCount = ReadBE32(hdr + 128);
   result.tag_count = tagCount;
 
-  // ── H10: Tag Count ──
+  // -- H10: Tag Count --
   if (tagCount == 0) {
     result.AddWarning("H10", "Zero tags (invalid profile)", PreflightSeverity::WARNING);
   } else if (tagCount > CB_MAX_TAG_COUNT) {
@@ -310,7 +310,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H13: Per-Tag Size Check ──
+  // -- H13: Per-Tag Size Check --
   for (const auto& t : tags) {
     if (t.size > CB_MAX_TAG_SIZE) {
       char buf[128];
@@ -322,7 +322,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H14: TagArrayType Detection (UAF Risk) ──
+  // -- H14: TagArrayType Detection (UAF Risk) --
   for (const auto& t : tags) {
     if (t.offset >= 128 && t.size >= 4 && t.size <= fileSize &&
         t.offset <= fileSize - t.size) {
@@ -335,7 +335,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
           char sig4[5]; SanitizeSig4(raw4, sig4);
           char buf[128];
           snprintf(buf, sizeof(buf),
-                   "TagArrayType ('tary') under signature '%.4s' — UAF in CIccTagArray::Cleanup()",
+                   "TagArrayType ('tary') under signature '%.4s' -- UAF in CIccTagArray::Cleanup()",
                    sig4);
           result.AddWarning("H14", buf, PreflightSeverity::CRITICAL);
           result.has_tag_array = true;
@@ -344,7 +344,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H19: Tag Overlap Detection ──
+  // -- H19: Tag Overlap Detection --
   {
     int overlapCount = 0;
     for (size_t a = 0; a < tags.size(); a++) {
@@ -377,7 +377,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── Tag bounds check: offsets within file ──
+  // -- Tag bounds check: offsets within file --
   // CVE refs: CVE-2026-25583 (HBO in CIccFileIO::Read8), CVE-2026-24852
   for (const auto& t : tags) {
     if (t.offset > 0 && t.size > 0) {
@@ -394,7 +394,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H28: LUT Dimension Validation (OOM Risk) ──
+  // -- H28: LUT Dimension Validation (OOM Risk) --
   // CVE refs: GHSA-x9hr-pxxc-h38p (OOM in CIccCLUT::Init via extreme nInput^nGrid)
   for (const auto& t : tags) {
     if (t.offset >= 128 && t.size >= 11 && t.size <= fileSize &&
@@ -443,7 +443,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H29: ColorantTable String Validation ──
+  // -- H29: ColorantTable String Validation --
   // CVE refs: GHSA-4wqv-pvm8-5h27 (OOB read via unterminated colorant name[32])
   for (const auto& t : tags) {
     if (t.offset >= 128 && t.size >= 12 && t.size <= fileSize &&
@@ -484,7 +484,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H30: GamutBoundaryDesc Allocation Validation ──
+  // -- H30: GamutBoundaryDesc Allocation Validation --
   // CVE refs: GHSA-rc3h-95ph-j363 (OOM via unvalidated triangle count)
   for (const auto& t : tags) {
     if (t.offset >= 128 && t.size >= 24 && t.size <= fileSize &&
@@ -508,7 +508,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
         uint8_t raw4[4] = {(uint8_t)(t.sig>>24),(uint8_t)(t.sig>>16),(uint8_t)(t.sig>>8),(uint8_t)t.sig};
         char sig4[5]; SanitizeSig4(raw4, sig4);
         char buf[160];
-        snprintf(buf, sizeof(buf), "Tag '%.4s' gbd: %u verts, %u tris → alloc %llu vs tag %u bytes",
+        snprintf(buf, sizeof(buf), "Tag '%.4s' gbd: %u verts, %u tris -> alloc %llu vs tag %u bytes",
                  sig4, nVerts, nTris, (unsigned long long)totalAlloc, t.size);
         result.AddWarning("H30", buf, PreflightSeverity::CRITICAL);
       }
@@ -523,7 +523,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H31: NamedColor2 Name String Safety (SBO in icFixXml) ──
+  // -- H31: NamedColor2 Name String Safety (SBO in icFixXml) --
   // When NamedColor2 tag has names with XML-special chars (', ", <, >, &)
   // that aren't null-terminated, icFixXml() expands each to 4-6 chars,
   // overflowing the fixed 256-byte `fix` buffer in IccTagXml.cpp:699.
@@ -592,7 +592,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     }
   }
 
-  // ── H50: Circular Struct / Self-Reference Detection (Stack Overflow Risk) ──
+  // -- H50: Circular Struct / Self-Reference Detection (Stack Overflow Risk) --
   // CIccTagStruct::Read recursion exhausts stack when a struct tag embeds
   // another struct that points back, or when struct tags reference data
   // regions that overlap their parent.
@@ -631,7 +631,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
         }
       }
     }
-    // Also flag cenc/spac class profiles with 'cept' tags — these are
+    // Also flag cenc/spac class profiles with 'cept' tags -- these are
     // the specific crash pattern from CIccBasicStructFactory::CreateStruct
     uint32_t profileClass = ReadBE32(hdr + 12);
     if (profileClass == 0x63656e63 || profileClass == 0x73706163) { // cenc or spac
@@ -649,7 +649,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
             char sig4[5]; SanitizeSig4(raw4, sig4);
             char buf[128];
             snprintf(buf, sizeof(buf),
-                     "Tag '%.4s' tstr in cenc/spac profile — recursive struct risk",
+                     "Tag '%.4s' tstr in cenc/spac profile -- recursive struct risk",
                      sig4);
             result.AddWarning("H50", buf, PreflightSeverity::CRITICAL);
           }
@@ -663,7 +663,7 @@ static PreflightResult PreflightValidateICC(const char* filename) {
 }
 #endif // COLORBLEED_SKIP_ICC_PREFLIGHT
 
-// ── XML pre-flight for IccFromXml ──
+// -- XML pre-flight for IccFromXml --
 #ifndef COLORBLEED_SKIP_XML_PREFLIGHT
 static PreflightResult PreflightValidateXML(const char* filename) {
   PreflightResult result;
@@ -699,7 +699,7 @@ static PreflightResult PreflightValidateXML(const char* filename) {
     return result;
   }
 
-  // Check for XXE indicators — scan up to 1MB
+  // Check for XXE indicators -- scan up to 1MB
   FILE* fp = fdopen(fd, "rb");
   if (!fp) {
     result.AddWarning("X0", "Cannot open file stream", PreflightSeverity::CRITICAL);
@@ -711,10 +711,11 @@ static PreflightResult PreflightValidateXML(const char* filename) {
   std::vector<uint8_t> head(checkSize);
   if (fread(head.data(), 1, checkSize, fp) == checkSize) {
     // Case-insensitive search for XXE patterns
-    std::string preview(head.begin(), head.end());
-    // Convert to lowercase for case-insensitive matching
-    std::string lower = preview;
-    for (auto& c : lower) c = (char)tolower((unsigned char)c);
+    std::string lower;
+    lower.reserve(head.size());
+    for (uint8_t byte : head) {
+      lower.push_back((char)tolower(byte));
+    }
 
     if (lower.find("<!entity") != std::string::npos) {
       result.AddWarning("X2", "XML contains <!ENTITY declaration (XXE risk)",

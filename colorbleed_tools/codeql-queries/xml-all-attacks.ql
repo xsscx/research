@@ -302,7 +302,7 @@ class XmlStringConcatenation extends FunctionCall {
     exists(Function f | 
       this.getEnclosingFunction() = f and
       f.getName().matches(["%Xml%", "%XML%", "%ToXml%"]) and
-      // Exclude preflight validation functions — they format warnings, not XML
+      // Exclude preflight validation functions -- they format warnings, not XML
       not f.getName().matches(["%Preflight%", "%Validate%"])
     )
   }

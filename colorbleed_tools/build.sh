@@ -1,21 +1,22 @@
 #!/bin/bash
 #
-# ColorBleed Tools Build — Vanilla iccDEV + Sandboxed Unsafe Tools
+# ColorBleed Tools Build - Vanilla iccDEV + Sandboxed Unsafe Tools
 #
 # Clones vanilla upstream iccDEV (NO security patches), builds static
 # libraries in three configurations, then compiles the sandboxed
 # iccToXml_unsafe and iccFromXml_unsafe tools for each.
 #
 # Configurations:
-#   release    — -O2 -DNDEBUG, no sanitizers, no coverage
-#   debug      — -g -O0, no sanitizers, no coverage
-#   sanitizer  — -g -O0 ASan+UBSan+integer+float (comprehensive) + coverage (default)
+#   release    - -O2 -DNDEBUG, no sanitizers, no coverage
+#   debug      - -g -O0, no sanitizers, no coverage
+#   sanitizer  - -g -O0 ASan+UBSan+integer+float (comprehensive) + coverage (default)
 #
 # Usage:  ./build.sh              # build all three configurations
 #         ./build.sh sanitizer    # build only sanitizer config
 #         ./build.sh release      # build only release config
 #         ./build.sh debug        # build only debug config
 #         ./build.sh clean        # remove build artifacts
+# Env:    ICCDEV_REF=<ref>        # optional upstream branch/tag/commit to pin
 #
 # Output:  bin/release/    bin/debug/    bin/sanitizer/
 #
@@ -37,6 +38,7 @@ CC="${CC:-clang}"
 
 TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe IccDumpAll IccDiagnosticLoad)
 TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad)
+SANITIZER_IGNORELIST="$REPO_ROOT/sanitizer-ignorelist.txt"
 
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
@@ -46,9 +48,9 @@ LINK_LIBS="-Wl,--allow-multiple-definition $LINK_LIBS"
 
 banner() {
   echo ""
-  echo "════════════════════════════════════════"
+  echo "========================================"
   echo "  $1"
-  echo "════════════════════════════════════════"
+  echo "========================================"
 }
 
 resolve_static_lib() {
@@ -115,10 +117,23 @@ else
   rm -rf "$ICCDEV_DIR"
   git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
 fi
+
+if [ -n "${ICCDEV_REF:-}" ]; then
+  echo "Pinning iccDEV to ref: $ICCDEV_REF"
+  if (cd "$ICCDEV_DIR" && git rev-parse --verify --quiet "$ICCDEV_REF^{commit}" >/dev/null); then
+    (cd "$ICCDEV_DIR" && git checkout -q "$ICCDEV_REF")
+  else
+    (cd "$ICCDEV_DIR" && git fetch --depth 1 origin "$ICCDEV_REF" && git checkout -q FETCH_HEAD)
+  fi || {
+    echo "[FAIL] Unable to pin iccDEV to '$ICCDEV_REF'" >&2
+    exit 1
+  }
+fi
+
 echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 
 # --- Step 2: Vanilla upstream (NO patches) ---
-banner "Step 2: Vanilla upstream — no CFL patches applied"
+banner "Step 2: Vanilla upstream - no CFL patches applied"
 echo "ColorBleed tools deliberately use unpatched iccDEV to detect crashes."
 
 # Strip stray U+FE0F (emoji variation selector) from upstream source
@@ -148,9 +163,9 @@ else
   echo "LTO already patched"
 fi
 
-# ─────────────────────────────────────────────────────
+# -----------------------------------------------------
 # Build function: cmake libs + link tools for one config
-# ─────────────────────────────────────────────────────
+# -----------------------------------------------------
 build_config() {
   local config="$1"
   local build_dir="$ICCDEV_DIR/Build-$config"
@@ -174,6 +189,9 @@ build_config() {
       cmake_type="Debug"
       local san="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined"
       local cov="-fprofile-instr-generate -fcoverage-mapping"
+      if [ -f "$SANITIZER_IGNORELIST" ]; then
+        san="$san -fsanitize-ignorelist=$SANITIZER_IGNORELIST"
+      fi
       c_flags="-g -O0 -fno-omit-frame-pointer -fno-optimize-sibling-calls $san $cov"
       cxx_flags="$c_flags -frtti"
       tool_flags="-g -O0 -fno-omit-frame-pointer -fno-optimize-sibling-calls $san $cov -std=gnu++17 -Wall -Wformat=2 -Wformat-security -frtti"
@@ -224,7 +242,7 @@ build_config() {
     echo "    Coverage: $cov_sym symbols"
 
     if [ "$asan_sym" -eq 0 ] || [ "$ubsan_sym" -eq 0 ] || [ "$cov_sym" -eq 0 ]; then
-      echo "  [FAIL] Missing instrumentation — aborting"
+      echo "  [FAIL] Missing instrumentation - aborting"
       exit 1
     fi
   fi
@@ -233,7 +251,9 @@ build_config() {
   # Compile OOM guard (icRealloc override) as separate object.
   # Linked BEFORE static libs so our definition takes precedence.
   local alloc_obj="$build_dir/ColorBleedAlloc.o"
+  local compat_obj="$build_dir/ColorBleedCompat.o"
   $CXX $tool_flags -c "$REPO_ROOT/ColorBleedAlloc.cpp" -o "$alloc_obj"
+  $CXX $tool_flags $INCLUDE_FLAGS -c "$REPO_ROOT/ColorBleedCompat.cpp" -o "$compat_obj"
 
   mkdir -p "$out_dir"
   cd "$REPO_ROOT"
@@ -250,11 +270,12 @@ build_config() {
     echo "  Building $bin..."
     $CXX $tool_flags $INCLUDE_FLAGS "$src" \
       "$alloc_obj" \
+      "$compat_obj" \
       "$lib_prof" "$lib_xml" \
       $LINK_LIBS \
       -o "$out_dir/$bin"
     chmod +x "$out_dir/$bin"
-    echo "    [OK] $(ls -lh "$out_dir/$bin" | awk '{print $5}') → $out_dir/$bin"
+    echo "    [OK] $(ls -lh "$out_dir/$bin" | awk '{print $5}') -> $out_dir/$bin"
   done
 
   # Symlink as default if this is the only config being built,
@@ -270,20 +291,20 @@ build_config() {
     for bin in "${TOOL_BINS[@]}"; do
       ln -sf "bin/$config/$bin" "$REPO_ROOT/$bin"
     done
-    echo "  Symlinked $config → ./iccToXml_unsafe, ./iccFromXml_unsafe, ./iccDumpAll"
+    echo "  Symlinked $config -> ./iccToXml_unsafe, ./iccFromXml_unsafe, ./iccDumpAll"
   fi
 }
 
-# ─────────────────────────────────────────────────────
+# -----------------------------------------------------
 # Build each requested configuration
-# ─────────────────────────────────────────────────────
+# -----------------------------------------------------
 for cfg in "${CONFIGS_TO_BUILD[@]}"; do
   build_config "$cfg"
 done
 
-# ─────────────────────────────────────────────────────
+# -----------------------------------------------------
 # Summary
-# ─────────────────────────────────────────────────────
+# -----------------------------------------------------
 banner "Build Summary"
 
 for cfg in release debug sanitizer; do
