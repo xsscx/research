@@ -46,6 +46,11 @@ cd mcp-server && ./build.sh test
 - For editor and MCP integration on either platform, use
   `python mcp-server/launch.py mcp`. For the local Web UI, use
   `python mcp-server/launch.py web --host 127.0.0.1 --port 8000`.
+- On Windows, `launch.py` auto-delegates into
+  `~/work/codex/current/research` in WSL first, then falls back to
+  `~/work/codex/research` or `~/po/research`. Override the target with
+  `ICC_MCP_WSL_ROOT=/some/wsl/path` or disable delegation with
+  `ICC_MCP_NO_WSL=1`.
 - Windows-native build notes for upstream `iccDEV` live in
   `docs/iccDEV/shell-helpers/windows.md`.
 

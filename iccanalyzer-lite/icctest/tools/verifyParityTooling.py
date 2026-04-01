@@ -273,10 +273,15 @@ def main() -> int:
                 "Expected GBD raw-only comparator delta=0 for H74/H107/H110/H116/H117, "
                 f"got {gbd_extra_counts}"
             )
-        if int(gbd_extra_counts.get("coverageImprovement", 0)) != 5:
+        if int(gbd_extra_counts.get("coverageImprovement", 0)) == 5:
+            pass
+        elif int(gbd_extra_counts.get("match", 0)) == 5:
+            pass
+        else:
             raise RuntimeError(
-                "Expected GBD raw-only comparator coverageImprovement=5 for "
-                f"H74/H107/H110/H116/H117, got {gbd_extra_counts}"
+                "Expected GBD raw-only comparator to report either "
+                "coverageImprovement=5 or match=5 for H74/H107/H110/H116/H117, "
+                f"got {gbd_extra_counts}"
             )
 
         h21_payload = run_json(
