@@ -956,7 +956,7 @@ class TestSuite:
         self.debug = debug
         self._results_list = []
         self.results = _RecordingList(self)
-        self._section_results = {}  # section_name → list of TestResult
+        self._section_results = {}  # section_name -> list of TestResult
         self._current_section = None
         self._stop_requested = False
         self.env = os.environ.copy()
@@ -1047,15 +1047,15 @@ class TestSuite:
 
         if result.skipped:
             if self.verbose:
-                print(f"  {C.yellow('⊘')} {result.name} {C.dim('(skipped)')}")
+                print(f"  {C.yellow('o')} {result.name} {C.dim('(skipped)')}")
         elif result.passed:
             slow = ""
             if result.duration >= SLOW_TEST_THRESHOLD:
-                slow = C.yellow(f" ⚠ slow ({dur_str})")
+                slow = C.yellow(f" ! slow ({dur_str})")
             if self.verbose:
-                print(f"  {C.green('✓')} {result.name} {C.dim(f'({dur_str})')}{slow}")
+                print(f"  {C.green('+')} {result.name} {C.dim(f'({dur_str})')}{slow}")
         else:
-            print(f"  {C.red('✗')} {C.red(result.name)} {C.dim(f'({dur_str})')}")
+            print(f"  {C.red('x')} {C.red(result.name)} {C.dim(f'({dur_str})')}")
             print(f"    {result.message}")
             if result.stderr:
                 stderr_lines = result.stderr.splitlines()
@@ -1208,14 +1208,14 @@ class TestSuite:
         if slow:
             print(f"\n{C.yellow('Slow tests (>' + str(SLOW_TEST_THRESHOLD) + 's):')}")
             for r in sorted(slow, key=lambda x: -x.duration):
-                print(f"  {C.yellow('⚠')} {r.name} ({r.duration:.2f}s)")
+                print(f"  {C.yellow('!')} {r.name} ({r.duration:.2f}s)")
 
         # Failures detail
         if failed > 0:
             print(f"\n{C.red(C.bold('FAILURES:'))}")
             for r in self.results:
                 if not r.passed and not r.skipped:
-                    print(f"  {C.red('✗')} {C.red(r.name)}")
+                    print(f"  {C.red('x')} {C.red(r.name)}")
                     print(f"    {r.message}")
                     if r.stderr:
                         for line in r.stderr.splitlines()[:10]:
@@ -1225,11 +1225,11 @@ class TestSuite:
             print(f"\n{C.bold('ALL TESTS:')}")
             for r in self.results:
                 if r.skipped:
-                    print(f"  {C.yellow('⊘')} {r.name} {C.dim('(skipped)')}")
+                    print(f"  {C.yellow('o')} {r.name} {C.dim('(skipped)')}")
                 elif r.passed:
-                    print(f"  {C.green('✓')} {r.name} {C.dim(f'({r.duration:.2f}s)')}")
+                    print(f"  {C.green('+')} {r.name} {C.dim(f'({r.duration:.2f}s)')}")
                 else:
-                    print(f"  {C.red('✗')} {r.name} {C.dim(f'({r.duration:.2f}s)')}")
+                    print(f"  {C.red('x')} {r.name} {C.dim(f'({r.duration:.2f}s)')}")
 
         if xml_path:
             self._write_junit_xml(xml_path, total_time)
@@ -1493,28 +1493,28 @@ def test_heuristic_detection(suite):
 
     # --- H175-H178: ICC.2:2023 Extended Device Colour Space ---
 
-    # H175: valid dsrn tag provides range source → OK
+    # H175: valid dsrn tag provides range source -> OK
     suite.assert_output_contains(
         "heuristic.h175_valid_dsrn",
         ["-a", "--legacy", f"{corpus}/h175_spectral_device_valid_dsrn.icc"],
         r"Device spectral range defined by dsrn tag"
     )
 
-    # H175: header fallback when no dsrn tag → OK
+    # H175: header fallback when no dsrn tag -> OK
     suite.assert_output_contains(
         "heuristic.h175_header_fallback",
         ["-a", "--legacy", f"{corpus}/h175_spectral_device_header_fallback.icc"],
         r"header spectral PCS range fields"
     )
 
-    # H175: spectral device with NO range source → CRITICAL
+    # H175: spectral device with NO range source -> CRITICAL
     suite.assert_output_contains(
         "heuristic.h175_no_range",
         ["-a", "--legacy", f"{corpus}/h175_spectral_device_no_range.icc"],
         r"CRITICAL.*NO spectral range definition"
     )
 
-    # H176: valid dsrn tag encoding → OK
+    # H176: valid dsrn tag encoding -> OK
     suite.assert_output_contains(
         "heuristic.h176_valid_dsrn",
         ["-a", "--legacy", f"{corpus}/h176_dsrn_valid.icc"],
@@ -1542,28 +1542,28 @@ def test_heuristic_detection(suite):
         r"CRITICAL.*end.*380.*<=.*start.*780.*inverted"
     )
 
-    # H177: valid dpcc tag with all sub-tags → OK
+    # H177: valid dpcc tag with all sub-tags -> OK
     suite.assert_output_contains(
         "heuristic.h177_valid_dpcc",
         ["-a", "--legacy", f"{corpus}/h177_dpcc_valid.icc"],
         r"dpcc tag structure validation complete"
     )
 
-    # H177: dpcc with missing sub-tags → WARN/CRITICAL
+    # H177: dpcc with missing sub-tags -> WARN/CRITICAL
     suite.assert_output_contains(
         "heuristic.h177_missing_subtags",
         ["-a", "--legacy", f"{corpus}/h177_dpcc_missing_subtags.icc"],
         r"CRITICAL: Required PCC sub-tag 'svcn'"
     )
 
-    # H178: NaN wavelength → CRITICAL
+    # H178: NaN wavelength -> CRITICAL
     suite.assert_output_contains(
         "heuristic.h178_nan_wavelength",
         ["-a", "--legacy", f"{corpus}/h178_srng_nan_wavelength.icc"],
         r"CRITICAL.*srng spectral range has NaN"
     )
 
-    # H178: low steps → CRITICAL
+    # H178: low steps -> CRITICAL
     suite.assert_output_contains(
         "heuristic.h178_low_steps",
         ["-a", "--legacy", f"{corpus}/h178_srng_low_steps.icc"],
@@ -1866,7 +1866,7 @@ def test_heuristic_detection(suite):
         suite.assert_output_contains(
             "heuristic.h100_many_entries",
             ["-a", "--legacy", h100_many],
-            r"\[H100\][\s\S]*Excessive sequence entries \(101\) — DoS risk"
+            "\\[H100\\][\\s\\S]*Excessive sequence entries \\(101\\) (?:-|\\u2014) DoS risk"
         )
     finally:
         try:
@@ -1889,7 +1889,7 @@ def test_heuristic_detection(suite):
         suite.assert_output_contains(
             "heuristic.h89_many_entries",
             ["-a", "--legacy", h89_many],
-            r"\[H89\][\s\S]*Profile sequence has 257 descriptions \(>256\) — OOM risk"
+            "\\[H89\\][\\s\\S]*Profile sequence has 257 descriptions \\(>256\\) (?:-|\\u2014) OOM risk"
         )
     finally:
         try:
@@ -1954,7 +1954,7 @@ def test_heuristic_detection(suite):
         suite.assert_output_contains(
             "heuristic.h22_scalar_expectation_na",
             ["-a", "--legacy", f"{corpus}/cf143-meas-valid.icc"],
-            r"\[H22\][\s\S]*No cept \(ColorEncodingParams\) tag — check not applicable"
+            "\\[H22\\][\\s\\S]*No cept \\(ColorEncodingParams\\) tag (?:-|\\u2014) check not applicable"
         )
 
         # H23: NumArray value range
@@ -2205,7 +2205,7 @@ def test_heuristic_detection(suite):
         suite.assert_output_contains(
             "heuristic.h87_zero_curve",
             ["-a", "--legacy", h87_zero],
-            r"\[H87\][\s\S]*Tag 'redTRCTag': TRC curve all-zero \(3 points\) — clipped output"
+            "\\[H87\\][\\s\\S]*Tag 'redTRCTag': TRC curve all-zero \\(3 points\\) (?:-|\\u2014) clipped output"
         )
     finally:
         try:
@@ -2720,7 +2720,7 @@ def test_heuristic_detection(suite):
         suite.assert_output_contains(
             "heuristic.h169_dictionary_size",
             ["-a", "--legacy", h169_path],
-            r"H169|3 entries × 8 bytes/rec = 24 bytes exceeds 16-byte tag|CWE-789"
+            r"H169|3 entries x 8 bytes/rec = 24 bytes exceeds 16-byte tag|CWE-789"
         )
     finally:
         try:
@@ -3136,7 +3136,7 @@ def test_heuristic_detection(suite):
         except OSError:
             pass
 
-    # --- H151 float→int cast operator detection (CWE-681) ---
+    # --- H151 float->int cast operator detection (CWE-681) ---
 
     # H151: truncate operator in calculator element
     suite.assert_output_contains(
@@ -3147,7 +3147,7 @@ def test_heuristic_detection(suite):
 
     # --- H73 shared tag pointer detection ---
 
-    # H73: shared curve tag pointers (immutable type → safe)
+    # H73: shared curve tag pointers (immutable type -> safe)
     suite.assert_output_contains(
         "heuristic.h73_shared_pointers",
         ["-a", "--legacy", f"{corpus}/tag_shared_pointers.icc"],
@@ -5133,9 +5133,9 @@ def test_conformance_checks(suite):
         r"CF-102.*Characterization.*avg DeltaE00|Characterization DeltaE00 metrics recorded"
     )
 
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # CF-103..CF-122: Deep ICC Specification Conformance Checks
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
 
     # CF-103: Tag Alignment & Offset Validity
     suite.assert_output_contains(
@@ -5144,7 +5144,7 @@ def test_conformance_checks(suite):
         r"CF-103.*Tag Alignment"
     )
 
-    # CF-104: DeviceLink PCS Consistency — missing AToB0Tag
+    # CF-104: DeviceLink PCS Consistency - missing AToB0Tag
     suite.assert_output_contains(
         "cf.104.devicelink_missing_atob",
         ["-a", f"{corpus}/cf_devicelink_no_atob.icc"],
@@ -5158,14 +5158,14 @@ def test_conformance_checks(suite):
         r"CF-105.*Channel.*Symmetr"
     )
 
-    # CF-106: Curve Monotonicity — non-monotonic TRC
+    # CF-106: Curve Monotonicity - non-monotonic TRC
     suite.assert_output_contains(
         "cf.106.non_monotonic_trc",
         ["-a", f"{corpus}/cf_non_monotonic_trc.icc"],
         r"CF-106.*[Mm]onoton|not mono"
     )
 
-    # CF-107: Tag Table Ordering — duplicate signatures
+    # CF-107: Tag Table Ordering - duplicate signatures
     suite.assert_output_contains(
         "cf.107.tag_table_ordering",
         ["-a", f"{corpus}/valid_srgb.icc"],
@@ -5205,7 +5205,7 @@ def test_conformance_checks(suite):
         r"CF-111.*Required.*Version"
     )
 
-    # CF-112: XYZ Triplet Normalization — negative Y
+    # CF-112: XYZ Triplet Normalization - negative Y
     suite.assert_output_contains(
         "cf.112.xyz_negative_y",
         ["-a", f"{corpus}/cf_xyz_negative_y.icc"],
@@ -5217,7 +5217,7 @@ def test_conformance_checks(suite):
         r"CF-112.*XYZ"
     )
 
-    # CF-113..CF-115: v5/iccMAX (skipped on v4 profiles — verify skip message)
+    # CF-113..CF-115: v5/iccMAX (skipped on v4 profiles - verify skip message)
     suite.assert_output_contains(
         "cf.113.spectral_range",
         ["-a", f"{corpus}/valid_srgb.icc"],
@@ -5241,7 +5241,7 @@ def test_conformance_checks(suite):
         r"CF-116.*Segment.*Continu"
     )
 
-    # CF-117: Rendering Intent Tags per Class — rig0 on Input class
+    # CF-117: Rendering Intent Tags per Class - rig0 on Input class
     suite.assert_output_contains(
         "cf.117.rig0_wrong_class",
         ["-a", f"{corpus}/cf_rig0_wrong_class.icc"],
@@ -5269,28 +5269,28 @@ def test_conformance_checks(suite):
         r"CF-120.*Named.*Color"
     )
 
-    # CF-121: Illuminant Metadata Consistency — v4 wtpt ≠ D50
+    # CF-121: Illuminant Metadata Consistency - v4 wtpt != D50
     suite.assert_output_contains(
         "cf.121.v4_wtpt_not_d50",
         ["-a", f"{corpus}/cf_v4_wtpt_not_d50.icc"],
         r"CF-121.*Illuminant|wtpt.*D50"
     )
 
-    # CF-122: Profile Date/Time Plausibility — year 1800
+    # CF-122: Profile Date/Time Plausibility - year 1800
     suite.assert_output_contains(
         "cf.122.implausible_date",
         ["-a", f"{corpus}/cf_implausible_date.icc"],
         r"CF-122.*Date|implaus|1800"
     )
 
-    # CF-011: Profile ID MD5 Verification — mismatch
+    # CF-011: Profile ID MD5 Verification - mismatch
     suite.assert_output_contains(
         "cf.011.md5_mismatch",
         ["-a", f"{corpus}/cf_md5_mismatch.icc"],
         r"CF-011.*\[WARN\]|MD5.*mismatch|Stored.*Computed"
     )
 
-    # CF-011: Valid profile — MD5 check runs
+    # CF-011: Valid profile - MD5 check runs
     suite.assert_output_contains(
         "cf.011.valid_profile",
         ["-a", f"{corpus}/valid_srgb.icc"],
@@ -5304,7 +5304,7 @@ def test_conformance_checks(suite):
         r"CF-021.*\[FAIL\]|reserved.*non-zero|must be zero"
     )
 
-    # CF-021: Valid profile — reserved bytes OK
+    # CF-021: Valid profile - reserved bytes OK
     suite.assert_output_contains(
         "cf.021.valid_profile",
         ["-a", f"{corpus}/valid_srgb.icc"],
@@ -5315,10 +5315,10 @@ def test_conformance_checks(suite):
     suite.assert_output_contains(
         "cf.030.bad_record_size",
         ["-a", f"{corpus}/cf_mluc_bad_record_size.icc"],
-        r"CF-030.*\[WARN\]|duplicate.*language|§10.13"
+        r"CF-030.*\[WARN\]|duplicate.*language|Sec.10.13"
     )
 
-    # CF-030: Valid profile — mluc structure OK
+    # CF-030: Valid profile - mluc structure OK
     suite.assert_output_contains(
         "cf.030.valid_profile",
         ["-a", f"{corpus}/valid_srgb.icc"],
@@ -5570,7 +5570,7 @@ def test_conformance_checks(suite):
         r"CF-162.*Dictionary Entry"
     )
 
-    # --- CF-175..CF-177: ICC.2-in-ICC.1 Embedding — additional (v5 profile) ---
+    # --- CF-175..CF-177: ICC.2-in-ICC.1 Embedding - additional (v5 profile) ---
     suite.assert_output_contains(
         "cf.175.pcs_compat",
         ["-a", v5_profile],
@@ -5732,49 +5732,49 @@ def test_conformance_checks(suite):
     )
 
     # --- CF-191..CF-198: ICS Interoperability Conformance Specifications ---
-    # CF-191: ICS Sub-Class Signature Registry — runs on any v5 profile
+    # CF-191: ICS Sub-Class Signature Registry - runs on any v5 profile
     suite.assert_output_contains(
         "cf.191.ics_subclass_registry",
         ["-a", v5_profile],
         r"CF-191.*ICS Sub-Class"
     )
 
-    # CF-192: Colorimetric ICS Required Tags — non-pcc profiles report not applicable
+    # CF-192: Colorimetric ICS Required Tags - non-pcc profiles report not applicable
     suite.assert_output_contains(
         "cf.192.colorimetric_ics_na",
         ["-a", v5_profile],
         r"CF-192.*Colorimetric ICS"
     )
 
-    # CF-194: Spectral Reflectance ICS — non-sref profiles report not applicable
+    # CF-194: Spectral Reflectance ICS - non-sref profiles report not applicable
     suite.assert_output_contains(
         "cf.194.spectral_reflectance_na",
         ["-a", v5_profile],
         r"CF-194.*Spectral Reflectance"
     )
 
-    # CF-195: Extended Range Radiance White Point — runs when extended range PCS set
+    # CF-195: Extended Range Radiance White Point - runs when extended range PCS set
     suite.assert_output_contains(
         "cf.195.extended_range_radiance",
         ["-a", v5_profile],
         r"CF-195.*Extended.*Radiance"
     )
 
-    # CF-196: ICS MPE Calculator Restriction — reports Part 1/Part 2 status
+    # CF-196: ICS MPE Calculator Restriction - reports Part 1/Part 2 status
     suite.assert_output_contains(
         "cf.196.mpe_calculator_restriction",
         ["-a", v5_profile],
         r"CF-196.*MPE Calculator"
     )
 
-    # CF-197: ICS PCC Transform Pair — runs on v5 profiles
+    # CF-197: ICS PCC Transform Pair - runs on v5 profiles
     suite.assert_output_contains(
         "cf.197.pcc_transform_pair",
         ["-a", v5_profile],
         r"CF-197.*PCC Transform Pair"
     )
 
-    # CF-198: Extended Range Sub-Class — non-xrng profiles report not applicable
+    # CF-198: Extended Range Sub-Class - non-xrng profiles report not applicable
     suite.assert_output_contains(
         "cf.198.extended_range_subclass",
         ["-a", v5_profile],
@@ -5782,43 +5782,43 @@ def test_conformance_checks(suite):
     )
 
     # --- CF-199..CF-205: SampleICC Compliance Framework Extended Checks ---
-    # CF-199: CMM Type Signature Registration — runs on any profile
+    # CF-199: CMM Type Signature Registration - runs on any profile
     suite.assert_output_contains(
         "cf.cmm_registration",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-199.*CMM Type Signature"
     )
-    # CF-200: Device Manufacturer/Model Signature — runs on any profile
+    # CF-200: Device Manufacturer/Model Signature - runs on any profile
     suite.assert_output_contains(
         "cf.manufacturer_model",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-200.*Manufacturer.*Model"
     )
-    # CF-201: Profile Creator Signature — runs on any profile
+    # CF-201: Profile Creator Signature - runs on any profile
     suite.assert_output_contains(
         "cf.creator_signature",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-201.*Creator Signature"
     )
-    # CF-202: Tag Data Padding Zero-Fill — runs on any profile with file access
+    # CF-202: Tag Data Padding Zero-Fill - runs on any profile with file access
     suite.assert_output_contains(
         "cf.padding_zerofill",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-202.*Padding Zero"
     )
-    # CF-203: Profile Flags Semantic Validation — runs on any profile
+    # CF-203: Profile Flags Semantic Validation - runs on any profile
     suite.assert_output_contains(
         "cf.flags_semantics",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-203.*Flags Semantic"
     )
-    # CF-204: Device Attributes Semantic Validation — runs on any profile
+    # CF-204: Device Attributes Semantic Validation - runs on any profile
     suite.assert_output_contains(
         "cf.device_attributes",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-204.*Device Attributes"
     )
-    # CF-205: Tag Data Region Gap Analysis — runs on any profile
+    # CF-205: Tag Data Region Gap Analysis - runs on any profile
     suite.assert_output_contains(
         "cf.gap_analysis",
         ["-a", f"{corpus}/valid_srgb.icc"],
@@ -5827,56 +5827,56 @@ def test_conformance_checks(suite):
 
     # --- CF-206..CF-213: Spec Gap Coverage Batch ---
 
-    # CF-206: Profile File Signature 'acsp' — runs on any profile
+    # CF-206: Profile File Signature 'acsp' - runs on any profile
     suite.assert_output_contains(
         "cf.acsp_signature",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-206.*Profile File Signature"
     )
 
-    # CF-207: mediaWhitePointTag Value Range — runs on profiles with wtpt
+    # CF-207: mediaWhitePointTag Value Range - runs on profiles with wtpt
     suite.assert_output_contains(
         "cf.wtpt_value_range",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-207.*mediaWhitePointTag"
     )
 
-    # CF-208: Tag Type Version Compatibility — runs on any profile
+    # CF-208: Tag Type Version Compatibility - runs on any profile
     suite.assert_output_contains(
         "cf.tag_type_version",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-208.*Tag Type Version"
     )
 
-    # CF-209: Colorspace Channel Count vs LUT Dimensions — runs on any profile
+    # CF-209: Colorspace Channel Count vs LUT Dimensions - runs on any profile
     suite.assert_output_contains(
         "cf.colorspace_lut_channel",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-209.*Colorspace.*Channel"
     )
 
-    # CF-210: DeviceLink PCS Space Validation — runs on any profile
+    # CF-210: DeviceLink PCS Space Validation - runs on any profile
     suite.assert_output_contains(
         "cf.devicelink_pcs",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-210.*DeviceLink PCS"
     )
 
-    # CF-211: AToB/BToA Tag Pair Completeness — runs on any profile
+    # CF-211: AToB/BToA Tag Pair Completeness - runs on any profile
     suite.assert_output_contains(
         "cf.atob_btoa_pairs",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-211.*AToB.*BToA"
     )
 
-    # CF-212: textType Null Termination — runs on any profile
+    # CF-212: textType Null Termination - runs on any profile
     suite.assert_output_contains(
         "cf.text_null_term",
         ["-a", f"{corpus}/valid_srgb.icc"],
         r"CF-212.*textType.*Null"
     )
 
-    # CF-213: viewingConditionsType Completeness — runs on any profile
+    # CF-213: viewingConditionsType Completeness - runs on any profile
     suite.assert_output_contains(
         "cf.viewing_conditions",
         ["-a", f"{corpus}/valid_srgb.icc"],
@@ -6531,7 +6531,7 @@ def test_conformance_checks(suite):
     )
 
     # --- CF-301..CF-307: ICC.2:2019 Errata Enforcement ---
-    # CF-301: §9.2.86/87 measurementInfo tagStructType Enforcement
+    # CF-301: Sec.9.2.86/87 measurementInfo tagStructType Enforcement
     suite.assert_output_contains(
         "cf.301.measurement_tagstruct",
         ["-a", v5_profile],
@@ -6632,7 +6632,7 @@ def test_conformance_checks(suite):
 
     # --- CF-317..CF-320: K.2.9 HDR-to-SDR Transform Conformance ---
 
-    # CF-317: Flag-Tag Consistency — consistent (flag + tags both present)
+    # CF-317: Flag-Tag Consistency - consistent (flag + tags both present)
     suite.assert_output_contains(
         "cf.317.htos_flag_tags_ok",
         ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
@@ -6644,14 +6644,14 @@ def test_conformance_checks(suite):
         r"\[OK\].*Extended Range PCS flag set with 1 HToS"
     )
 
-    # CF-317: Flag set but no tags → WARN
+    # CF-317: Flag set but no tags -> WARN
     suite.assert_output_contains(
         "cf.317.htos_flag_only.warn",
         ["-a", f"{corpus}/cf_htos_flag_only.icc"],
         r"\[WARN\].*Extended Range PCS flag.*bit 3.*is set but no HToS tags"
     )
 
-    # CF-317: Tags present but flag not set → WARN (orphan tags)
+    # CF-317: Tags present but flag not set -> WARN (orphan tags)
     suite.assert_output_contains(
         "cf.317.htos_tags_no_flag.warn",
         ["-a", f"{corpus}/cf_htos_tags_no_flag.icc"],
@@ -6663,7 +6663,7 @@ def test_conformance_checks(suite):
         r"Orphan tag: H2S0"
     )
 
-    # CF-318: Tag Type — valid mpet
+    # CF-318: Tag Type - valid mpet
     suite.assert_output_contains(
         "cf.318.htos_type_ok",
         ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
@@ -6675,14 +6675,14 @@ def test_conformance_checks(suite):
         r"\[OK\].*H2S0 tag type is multiProcessElementsType"
     )
 
-    # CF-318: Wrong type → WARN
+    # CF-318: Wrong type -> WARN
     suite.assert_output_contains(
         "cf.318.htos_bad_type.warn",
         ["-a", f"{corpus}/cf_htos_bad_type.icc"],
         r"\[WARN\].*H2S0 tag type.*curv.*expected multiProcessElementsType"
     )
 
-    # CF-319: Channel consistency — matching PCS
+    # CF-319: Channel consistency - matching PCS
     suite.assert_output_contains(
         "cf.319.htos_channels_ok",
         ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
@@ -6694,7 +6694,7 @@ def test_conformance_checks(suite):
         r"\[OK\].*H2S0 channels 3.*3 match PCS"
     )
 
-    # CF-319: Channel mismatch → WARN
+    # CF-319: Channel mismatch -> WARN
     suite.assert_output_contains(
         "cf.319.htos_channel_mismatch.warn_in",
         ["-a", f"{corpus}/cf_htos_channel_mismatch.icc"],
@@ -6706,14 +6706,14 @@ def test_conformance_checks(suite):
         r"\[WARN\].*H2S0 output channels=4.*expected PCS channels=3"
     )
 
-    # CF-320: Intent coverage — all 4 intents
+    # CF-320: Intent coverage - all 4 intents
     suite.assert_output_contains(
         "cf.320.htos_all_intents.ok",
         ["-a", f"{corpus}/cf_htos_all_intents.icc"],
         r"\[OK\].*All 4 rendering intents have HToS coverage"
     )
 
-    # CF-320: Partial coverage — 1 of 4 intents
+    # CF-320: Partial coverage - 1 of 4 intents
     suite.assert_output_contains(
         "cf.320.htos_partial.info",
         ["-a", f"{corpus}/cf_htos_flag_and_tags.icc"],
@@ -6797,13 +6797,13 @@ def test_conformance_checks(suite):
         ["-a", spectral_valid_dsrn],
         r"CF-330.*Device Spectral Colour Space"
     )
-    # CF-331: missing range → FAIL
+    # CF-331: missing range -> FAIL
     suite.assert_output_contains(
         "cf.331.no_range_fail",
         ["-a", spectral_no_range],
         r"Spectral device colour space has no spectral range"
     )
-    # CF-331: dsrn present → pass
+    # CF-331: dsrn present -> pass
     suite.assert_output_contains(
         "cf.331.dsrn_present",
         ["-a", spectral_valid_dsrn],
@@ -6815,19 +6815,19 @@ def test_conformance_checks(suite):
         ["-a", spectral_valid_dsrn],
         r"dsrn tag found.*reserved field validation"
     )
-    # CF-333: no dpcc → skip
+    # CF-333: no dpcc -> skip
     suite.assert_output_contains(
         "cf.333.no_dpcc_skip",
         ["-a", spectral_valid_dsrn],
         r"No dpcc tag present"
     )
-    # CF-337: no range → FAIL
+    # CF-337: no range -> FAIL
     suite.assert_output_contains(
         "cf.337.no_range_fail",
         ["-a", spectral_no_range],
         r"No spectral range source for spectral device"
     )
-    # CF-337: dsrn only → pass
+    # CF-337: dsrn only -> pass
     suite.assert_output_contains(
         "cf.337.dsrn_only",
         ["-a", spectral_valid_dsrn],
@@ -6839,7 +6839,7 @@ def test_conformance_checks(suite):
         ["-a", spectral_valid_dsrn],
         r"Non-bi-spectral.*correctly zero"
     )
-    # CF-339: non-abstract → skip
+    # CF-339: non-abstract -> skip
     suite.assert_output_contains(
         "cf.339.non_abstract_skip",
         ["-a", spectral_valid_dsrn],
@@ -6907,11 +6907,11 @@ def test_conformance_checks(suite):
             r"\[FAIL\].*CF-"
         )
 
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
     # CF-163..CF-168: v4 Matrix Entries TN Conformance
-    # ═══════════════════════════════════════════════════════════════════════
+    # =======================================================================
 
-    # CF-163: LUT Matrix Coefficient Finite — banner runs on LUT profiles
+    # CF-163: LUT Matrix Coefficient Finite - banner runs on LUT profiles
     suite.assert_output_contains(
         "cf.163.matrix_coeff_finite_banner",
         ["-a", f"{corpus}/lut8_atob_btoa.icc"],
@@ -6963,21 +6963,21 @@ def test_conformance_checks(suite):
     # --- CF-169..CF-174: Negative PCSXYZ Values TN Conformance ---
     displayp3 = str(Path(__file__).resolve().parent.parent.parent / "test-profiles" / "ios-gen-DisplayP3.icc")
 
-    # CF-169: Negative PCSXYZ Encoding Capability — DisplayP3 has negative rXYZ Z
+    # CF-169: Negative PCSXYZ Encoding Capability - DisplayP3 has negative rXYZ Z
     suite.assert_output_contains(
         "cf.169.negative_pcsxyz_encoding",
         ["-a", displayp3],
         r"CF-169.*Negative.*PCSXYZ.*Encoding"
     )
 
-    # CF-169: DisplayP3 uses s15Fixed16 for negative values → conformant
+    # CF-169: DisplayP3 uses s15Fixed16 for negative values -> conformant
     suite.assert_output_contains(
         "cf.169.s15fixed16_conformant",
         ["-a", displayp3],
         r"s15Fixed16.*conformant"
     )
 
-    # CF-170: Chad + negative consistency — DisplayP3 has chad tag
+    # CF-170: Chad + negative consistency - DisplayP3 has chad tag
     suite.assert_output_contains(
         "cf.170.chad_negative_consistency",
         ["-a", displayp3],
@@ -6991,7 +6991,7 @@ def test_conformance_checks(suite):
         r"CF-171.*White.*Point.*Non.*Negative"
     )
 
-    # CF-172: Colorant sum ≈ white point
+    # CF-172: Colorant sum ~= white point
     suite.assert_output_contains(
         "cf.172.colorant_sum_whitept",
         ["-a", displayp3],
@@ -7413,7 +7413,7 @@ examples:
             if not suite.verbose:
                 # Compact: show pass/fail count per section
                 if section_fail == 0:
-                    print(f"  {C.green('✓')} {section_pass}/{section_count} passed")
+                    print(f"  {C.green('+')} {section_pass}/{section_count} passed")
                 # failures already printed by _record
 
     wall_time = time.monotonic() - t_start

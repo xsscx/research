@@ -1,5 +1,5 @@
 /*
- * IccHeuristicsTagValidation.cpp — Tag structure validation heuristics (H9-H32)
+ * IccHeuristicsTagValidation.cpp - Tag structure validation heuristics (H9-H32)
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -93,7 +93,7 @@ if (tagCount == 0) {
 int RunHeuristic_H11_CLUTEntryLimit(CIccProfile *pIcc) {
   auto &hc = HeuristicCollector::instance();
 
-// 11. CLUT Size Limit Check (Resource Exhaustion) — walk actual LUT tags
+// 11. CLUT Size Limit Check (Resource Exhaustion) - walk actual LUT tags
 // CVE refs: CVE-2026-21490, CVE-2026-21494 (LUT8/LUT16 OOM via extreme CLUT dimensions)
 hc.begin(11, "CLUT Entry Limit Check");
 hc.info("Max safe CLUT entries per tag: %llu (16M)",
@@ -138,7 +138,7 @@ hc.info("Max safe CLUT entries per tag: %llu (16M)",
 int RunHeuristic_H12_MPEChainDepth(CIccProfile *pIcc) {
   auto &hc = HeuristicCollector::instance();
 
-// 12. MPE Element Chain Depth — walk actual MPE tags
+// 12. MPE Element Chain Depth - walk actual MPE tags
 hc.begin(12, "MPE Chain Depth Check");
 hc.info("Max MPE elements per chain: %u", ICCANALYZER_MAX_MPE_ELEMENTS);
 
@@ -174,7 +174,7 @@ hc.info("Max MPE elements per chain: %u", ICCANALYZER_MAX_MPE_ELEMENTS);
 int RunHeuristic_H13_PerTagSizeCheck(CIccProfile *pIcc) {
   auto &hc = HeuristicCollector::instance();
 
-// 13. Per-Tag Size Check — inspect actual tag sizes
+// 13. Per-Tag Size Check - inspect actual tag sizes
 hc.begin(13, "Per-Tag Size Check");
 hc.info("Max tag size: %llu MB (%llu bytes)",
        (unsigned long long)(ICCANALYZER_MAX_TAG_SIZE >> 20),
@@ -207,11 +207,11 @@ int RunHeuristic_H14_TagArrayDetection(CIccProfile *pIcc, const char *filename) 
   auto &hc = HeuristicCollector::instance();
 
 // 14. TagArrayType Detection (CRITICAL - Heap-Use-After-Free)
-// CVE refs: CVE-2026-21677 (UAF in CIccTagArray::Cleanup)
+// CVE refs: CVE-2026-34535, GHSA-965q-9pp6-6vw5 (CIccTagArray::Cleanup)
 // Based on fuzzer findings 2026-01-30: TagArray can appear under ANY signature
 hc.begin(14, "TagArrayType Detection (UAF Risk)");
 hc.info("Checking for TagArrayType (0x74617279 = 'tary')");
-hc.info("Note: Tag signature ≠ tag type - must check tag DATA");
+hc.info("Note: Tag signature != tag type - must check tag DATA");
 
 // Re-read file for raw tag type validation
 RawFileHandle fh = OpenRawFile(filename);
@@ -346,7 +346,7 @@ hc.begin(19, "Tag Offset/Size Overlap Detection");
     }
   }
   if (overlapCount > 0) {
-    hc.cweNote("Risk: %d tag overlap(s) — possible data corruption or exploitation", overlapCount);
+    hc.cweNote("Risk: %d tag overlap(s) - possible data corruption or exploitation", overlapCount);
   }
 }
 
@@ -383,12 +383,12 @@ hc.begin(20, "Tag Type Signature Validation");
 
         if (allZero) {
           hc.warn("Tag '%s' has null type signature (0x00000000)", sigFCC);
-          hc.info("Risk: Corrupted tag data — parser may misinterpret");
+          hc.info("Risk: Corrupted tag data - parser may misinterpret");
         } else if (!allPrintable) {
           hc.warn("Tag '%s' has non-ASCII type: 0x%02X%02X%02X%02X",
                  sigFCC,
                  typeBuf[0], typeBuf[1], typeBuf[2], typeBuf[3]);
-          hc.info("Risk: Malformed type bytes — possible type confusion");
+          hc.info("Risk: Malformed type bytes - possible type confusion");
         }
       }
     }
@@ -509,7 +509,7 @@ hc.begin(22, "NumArray Scalar Expectation (cept struct)");
   CIccTagStruct *pCept = FindAndCast<CIccTagStruct>(pIcc, icSigColorEncodingParamsTag);
 
   if (!pCept) {
-    return hc.end("No cept (ColorEncodingParams) tag — check not applicable");
+    return hc.end("No cept (ColorEncodingParams) tag - check not applicable");
   } else {
     // Members consumed as scalars by GetElemNumberValue() in IccEncoding.cpp
     struct ScalarMember {
@@ -534,8 +534,8 @@ hc.begin(22, "NumArray Scalar Expectation (cept struct)");
       icUInt32Number numVals = pNum->GetNumValues();
       if (numVals > 1) {
         hc.warn("%s has %u values (expected 1 scalar)", scalarMembers[s].name, numVals);
-        hc.cweNote("Risk: Stack buffer overflow in GetElemNumberValue → GetValues");
-        hc.cweNote("(SCARINESS: 51 — 4-byte-write-stack-buffer-overflow, CFL-030)");
+        hc.cweNote("Risk: Stack buffer overflow in GetElemNumberValue -> GetValues");
+        hc.cweNote("(SCARINESS: 51 - 4-byte-write-stack-buffer-overflow, CFL-030)");
       } else {
         hc.info("[OK] %s: %u value (scalar)", scalarMembers[s].name, numVals);
       }
@@ -573,7 +573,7 @@ hc.begin(23, "NumArray Value Range Validation");
       continue;
     }
 
-    // Allocate full numVals buffer — unpatched GetValues loops over m_nSize
+    // Allocate full numVals buffer - unpatched GetValues loops over m_nSize
     icUInt32Number sampleSize = (numVals < 64) ? numVals : 64;
     std::vector<icFloatNumber> vals(numVals);
 
@@ -593,7 +593,7 @@ hc.begin(23, "NumArray Value Range Validation");
           hc.warn("Tag '%s': %d Inf value(s) in NumArray", sigFCC, infCount);
         }
         hc.info("Risk: Floating-point exceptions, division-by-zero");
-        hc.cweNote("CWE-681: NaN/Inf propagation → UB in IccIO Write (iccDEV #536)");
+        hc.cweNote("CWE-681: NaN/Inf propagation -> UB in IccIO Write (iccDEV #536)");
       }
     }
   }
@@ -790,7 +790,7 @@ hc.begin(25, "Tag Offset/Size Out-of-Bounds Detection");
 int RunHeuristic_H26_NamedColor2StringValidation(CIccProfile *pIcc, const char *filename) {
   auto &hc = HeuristicCollector::instance();
 
-// 26. NamedColor2 String Validation (raw scan — checks tag TYPE, not signature)
+// 26. NamedColor2 String Validation (raw scan - checks tag TYPE, not signature)
 // CVE refs: CVE-2026-21488 (non-null-terminated strings), CVE-2026-24852 (text overflow)
 hc.begin(26, "NamedColor2 String Validation");
 {
@@ -931,7 +931,7 @@ hc.begin(27, "MPE Matrix Output Channel Validation");
         SignatureToFourCC(sig, sigStr27);
 
         if (numOut == 0 || numIn == 0) {
-          hc.warn("Tag '%s' elem %d: Matrix %ux%u — zero dimension",
+          hc.warn("Tag '%s' elem %d: Matrix %ux%u - zero dimension",
                  sigStr27, elemIdx, numIn, numOut);
           hc.cweNote("Risk: Division by zero or null-pointer in matrix operations");
         } else if (numOut < 3) {
@@ -951,7 +951,7 @@ hc.begin(27, "MPE Matrix Output Channel Validation");
         SignatureToFourCC(sig, sigStr27c);
 
         if (calcOut == 0 || calcIn == 0) {
-          hc.warn("Tag '%s' elem %d: Calculator %ux%u — zero dimension",
+          hc.warn("Tag '%s' elem %d: Calculator %ux%u - zero dimension",
                  sigStr27c, elemIdx, calcIn, calcOut);
         }
       }
@@ -1015,7 +1015,7 @@ hc.begin(28, "LUT Dimension Validation (OOM Risk)");
           sig28[0] = (e28[0]); sig28[1] = (e28[1]);
           sig28[2] = (e28[2]); sig28[3] = (e28[3]); sig28[4] = '\0';
 
-          // Spec max: nInput ≤ 16, nOutput ≤ 16
+          // Spec max: nInput <= 16, nOutput <= 16
           if (nInput28 > 16 || nOutput28 > 16) {
             HcWarnFormatted(hc, "Tag '%s' (%s): nInput=%u nOutput=%u exceeds spec max (16)",
                             sig28, lutKind, nInput28, nOutput28);
@@ -1037,14 +1037,14 @@ hc.begin(28, "LUT Dimension Validation (OOM Risk)");
             if (nOutput28 > 0 && points / nOutput28 != prev) overflow28 = true;
           }
 
-          // 16M entries × 4 bytes = 64MB — generous limit
+          // 16M entries x 4 bytes = 64MB - generous limit
           const uint64_t MAX_LUT_POINTS = 16ULL * 1024 * 1024;
           if (overflow28 || points > MAX_LUT_POINTS) {
             const std::string pointsLabel = overflow28 ? "OVERFLOW" : std::to_string(points);
             const std::string allocLabel = overflow28 ? ">2^64" : std::to_string(points * 4);
             HcWarnFormatted(hc, "Tag '%s' (%s): nInput=%u nOutput=%u nGrid=%u -> %s CLUT points",
                             sig28, lutKind, nInput28, nOutput28, nGrid28, pointsLabel.c_str());
-            HcCweFormatted(hc, "Risk: OOM — allocation of %s bytes in CIccCLUT::Init()",
+            HcCweFormatted(hc, "Risk: OOM - allocation of %s bytes in CIccCLUT::Init()",
                            allocLabel.c_str());
           } else if (nInput28 > 0 && nGrid28 > 0) {
             HcInfoFormatted(hc, "[OK] Tag '%s' (%s): %ux%ux%u -> %llu points",
@@ -1066,8 +1066,8 @@ int RunHeuristic_H29_ColorantTableStringValidation(CIccProfile *pIcc, const char
   auto &hc = HeuristicCollector::instance();
 
 // 29. ColorantTable String Validation (raw file bytes)
-// CVE refs: GHSA-4wqv-pvm8-5h27 (OOB read via unterminated colorant name[32])
-// CVE-2026-27692 (HBO in TextDescription from unterminated strings)
+// CVE refs: GHSA-4wqv-pvm8-5h27, GHSA-p9wm-xfv4-43qg,
+//           CVE-2026-34556 (OOB read via unterminated colorant name[32])
 hc.begin(29, "ColorantTable String Validation");
 {
   RawFileHandle fh29 = OpenRawFile(filename);
@@ -1105,13 +1105,13 @@ hc.begin(29, "ColorantTable String Validation");
           // 'clrt' = 0x636C7274
           if (tagType29 != 0x636C7274) continue;
 
-          // ColorantTable layout: type(4)+reserved(4)+count(4) then count × entry(38)
+          // ColorantTable layout: type(4)+reserved(4)+count(4) then count x entry(38)
           // Each entry: name[32] + data[6]
           icUInt32Number colorantCount = (static_cast<icUInt32Number>(typeCheck29[8])<<24) | (static_cast<icUInt32Number>(typeCheck29[9])<<16) |
                                           (static_cast<icUInt32Number>(typeCheck29[10])<<8) | typeCheck29[11];
 
           if (colorantCount > 256) {
-            hc.warn("ColorantTable: count=%u (>256) — excessive allocation risk", colorantCount);
+            hc.warn("ColorantTable: count=%u (>256) - excessive allocation risk", colorantCount);
             continue;
           }
 
@@ -1131,8 +1131,8 @@ hc.begin(29, "ColorantTable String Validation");
             }
             if (!hasNull) {
               hc.critical("HEURISTIC: Colorant[%u] name not null-terminated (all 32 bytes non-zero)", ci);
-              hc.cweNote("CWE-125: Out-of-bounds Read — strlen() reads past allocation");
-              hc.cweNote("CWE-170: Improper Null Termination — ICC.1-2022-05 §10.4");
+              hc.cweNote("CWE-125: Out-of-bounds Read - strlen() reads past allocation");
+              hc.cweNote("CWE-170: Improper Null Termination - ICC.1-2022-05 Sec.10.4");
               hc.cweNote("GHSA-4wqv-pvm8-5h27: HBO read via unterminated colorant name[32]");
               unterminatedCount++;
             }
@@ -1142,7 +1142,7 @@ hc.begin(29, "ColorantTable String Validation");
           if (unterminatedCount > 1) {
             size_t allocSize = (size_t)colorantCount * 38;
             hc.critical("HEURISTIC: %u/%u colorant entries lack null terminator", unterminatedCount, colorantCount);
-            hc.cweNote("Allocation: calloc(%u, 38) = %zu bytes — strlen reads past entire buffer", colorantCount, allocSize);
+            hc.cweNote("Allocation: calloc(%u, 38) = %zu bytes - strlen reads past entire buffer", colorantCount, allocSize);
             hc.cweNote("PoC: iccDumpProfile triggers heap-buffer-overflow READ in Describe()");
           }
         }
@@ -1190,7 +1190,7 @@ hc.begin(30, "GamutBoundaryDesc Allocation Validation");
       }
 
       if (nPCSCh > 3 || nDevCh > 15) {
-        HcWarnFormatted(hc, "Tag '%s' (gbd): PCS channels=%u, Device channels=%u — out of range",
+        HcWarnFormatted(hc, "Tag '%s' (gbd): PCS channels=%u, Device channels=%u - out of range",
                         ownerSig, nPCSCh, nDevCh);
         hc.cweNote("Risk: Signed/unsigned confusion in allocation size");
       }
@@ -1397,7 +1397,7 @@ hc.begin(31, "MPE Channel Count Validation");
     char sigStr31[5];
     SignatureToFourCC(sig31, sigStr31);
 
-    // MPE with extreme channel counts → memcpy overlap on stack buffers
+    // MPE with extreme channel counts -> memcpy overlap on stack buffers
     if (mpeIn > 32 || mpeOut > 32) {
       hc.warn("Tag '%s': MPE channels in=%u out=%u (>32)", sigStr31, mpeIn, mpeOut);
       hc.cweNote("Risk: memcpy-param-overlap in Apply(), stack buffer overflow");
@@ -1543,7 +1543,7 @@ hc.begin(32, "Tag Data Type Confusion Detection");
 
             hc.warn("Tag '%s': unknown type signature '%s' (0x%08X)",
                    sigStr32, typeStr32, dataType32);
-            hc.cweNote("Risk: Type confusion → wrong parser invoked → memory corruption");
+            hc.cweNote("Risk: Type confusion -> wrong parser invoked -> memory corruption");
           }
         }
       }
