@@ -146,6 +146,8 @@ COPY --from=builder --chown=mcp:mcp /build/iccanalyzer-lite/iccanalyzer-lite icc
 COPY --from=builder --chown=mcp:mcp /build/iccanalyzer-lite/icctest/build/cli/icctest iccanalyzer-lite/icctest/build/cli/icctest
 COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccToXml_unsafe
 COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccFromXml_unsafe colorbleed_tools/iccFromXml_unsafe
+COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccDumpAll colorbleed_tools/iccDumpAll
+COPY --from=builder --chown=mcp:mcp /build/colorbleed_tools/iccDiagnosticLoad colorbleed_tools/iccDiagnosticLoad
 COPY --from=builder --chown=mcp:mcp /build/mcp-venv/ mcp-venv/
 COPY --from=builder --chown=mcp:mcp /build/mcp-server/ mcp-server/
 COPY --from=builder --chown=mcp:mcp /build/call-graph/knowledge-graph.json call-graph/knowledge-graph.json
