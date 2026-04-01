@@ -1,6 +1,6 @@
 # Hoyt's ColorBleed Tooling
 
-Last Updated: 2026-02-09 UTC by David Hoyt
+Last Updated: 2026-04-01 UTC by David Hoyt
 
 ICC Color Profile research tools to load & store unsafe file representations.
 
@@ -10,6 +10,43 @@ ICC Color Profile research tools to load & store unsafe file representations.
 |--------|-------------|
 | `iccToXml_unsafe` | ICC Profile → XML (unsafe load) |
 | `iccFromXml_unsafe` | XML → ICC Profile blob (unsafe store) |
+| `iccDumpAll` | Enhanced ICC profile dump with full v5/iccMAX MPE element detail |
+| `iccDiagnosticLoad` | Deep diagnostic ICC profile loader with IO tracing (build from source) |
+
+### iccDumpAll
+
+Enhanced replacement for upstream `iccDumpProfile`. Core behavior is function-identical
+to the upstream tool with layered enhancements for security research:
+
+- MPE element type signatures shown per PROCESS_ELEMENT
+- v5 profile summary section (spectral, BRDF, MCS tags)
+- Element chain I/O channel flow visualization
+- Late-binding spectral element identification
+- `--diag` mode: file stat, sanitizer config, tag load tracking
+- `--read` mode: ReadIccProfile (eager) vs OpenIccProfile (lazy)
+
+```
+Usage: iccDumpAll {--diag} {--read} {-v} {int} profile {tagId/"ALL"}
+```
+
+### iccDiagnosticLoad
+
+Deep diagnostic loader that traces every IO operation during profile loading.
+Designed for CFL patch PoC development and A/B testing.
+
+```
+Usage: iccDiagnosticLoad [options] <profile.icc>
+
+Options:
+  --raw      Raw binary analysis + hex dump (no library)
+  --compare  A/B: OpenIccProfile vs ReadIccProfile vs ValidateIccProfile
+  --trace    Full IO position trace for each tag load
+  --dump     Library-based tag dump (like iccDumpProfile)
+  --all      Enable all modes
+```
+
+Note: `iccDiagnosticLoad` is not included in the default `make` targets.
+Build manually: `make iccDiagnosticLoad` or compile directly against iccDEV.
 
 ## Use Cases
 - Fuzzing
