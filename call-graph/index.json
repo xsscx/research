@@ -5,7 +5,7 @@
       {
         "name": "IccApplyNamedCmm",
         "ast_functions": 17126,
-        "cg_edges": 2041,
+        "cg_edges": 2040,
         "cg_method": "llvm-ir"
       },
       {
@@ -17,7 +17,7 @@
       {
         "name": "IccApplySearch",
         "ast_functions": 17815,
-        "cg_edges": 2087,
+        "cg_edges": 2086,
         "cg_method": "llvm-ir"
       },
       {
@@ -84,8 +84,8 @@
     "iccdev/proflib": [
       {
         "name": "IccProfLib",
-        "ast_functions": 213568,
-        "cg_edges": 13593,
+        "ast_functions": 213133,
+        "cg_edges": 13580,
         "cg_method": "llvm-ir"
       }
     ],
@@ -100,8 +100,8 @@
     "cfl": [
       {
         "name": "icc_applynamedcmm_fuzzer",
-        "ast_functions": 6772,
-        "cg_edges": 26,
+        "ast_functions": 7207,
+        "cg_edges": 42,
         "cg_method": "llvm-ir"
       },
       {
@@ -209,6 +209,6 @@
   "totals": {
     "targets": 32,
     "total_functions": 827002,
-    "total_edges": 58483
+    "total_edges": 58484
   }
 }
