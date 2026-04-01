@@ -1,5 +1,5 @@
 /*
- * IccAnalyzerReport.cpp — Professional severity-sorted report output
+ * IccAnalyzerReport.cpp - Professional severity-sorted report output
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
@@ -7,8 +7,8 @@
  * [BSD 3-Clause License - see IccAnalyzerSecurity.h for full text]
  *
  * Uses shared CaptureAndParseAnalysis() to capture stdout, parse [H##] markers,
- * then emits a professional report sorted by severity (CRITICAL → HIGH → MEDIUM →
- * LOW → INFO) with banner header, CWE category summary, and CVE cross-references.
+ * then emits a professional report sorted by severity (CRITICAL -> HIGH -> MEDIUM ->
+ * LOW -> INFO) with banner header, CWE category summary, and CVE cross-references.
  */
 
 #include "IccAnalyzerReport.h"
@@ -227,7 +227,7 @@ int RunWithReportOutput(const char *profilePath, const char *fingerprint_db,
   printf("  Heuristics with CVE:  %d\n", regStats.heuristicsWithCVE);
   printf("  Unique CVEs:          %d\n", regStats.uniqueCVEs);
   printf("  Unique GHSAs:         %d\n", regStats.uniqueGHSAs);
-  printf("  Advisory Total:       93 iccDEV security advisories\n");
+  printf("  Advisory Total:       100 iccDEV security advisories\n");
   printf("  Out of Scope:         0 XML parser (covered by H142-H145) + 0 tool-specific (iccFromCube now in scope via H34)\n");
 
   printf("\n");

@@ -1,5 +1,5 @@
 /*
- * IccTest Library — ComplianceChecks.cpp
+ * IccTest Library - ComplianceChecks.cpp
  * Heuristic checks H103-H120: ICC specification compliance.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC. All Rights Reserved.
@@ -226,7 +226,7 @@ static CheckResult check_h110_class_tag_validation_raw_fallback(const ProfileVie
     return cb.done("Profile class and required tags are consistent");
 }
 
-// ── H103: Profile ID (MD5) Validation ──
+// -- H103: Profile ID (MD5) Validation --
 static CheckResult check_h103_profile_id(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.rawSize() < 100) return CheckResult::skip("File too small");
@@ -246,7 +246,7 @@ static CheckResult check_h103_profile_id(const ProfileView& pv) {
     return cb.done("Profile ID checked");
 }
 
-// ── H104: CMM Type Validation ──
+// -- H104: CMM Type Validation --
 static CheckResult check_h104_cmm(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.rawSize() < 8) return CheckResult::skip("File too small");
@@ -268,7 +268,7 @@ static CheckResult check_h104_cmm(const ProfileView& pv) {
     return cb.done("CMM type validated");
 }
 
-// ── H105: Data Color Space vs PCS Consistency ──
+// -- H105: Data Color Space vs PCS Consistency --
 static CheckResult check_h105_cs_pcs(const ProfileView& pv) {
     CheckBuilder cb;
     const auto& hdr = pv.header();
@@ -286,7 +286,7 @@ static CheckResult check_h105_cs_pcs(const ProfileView& pv) {
     return cb.done("ColorSpace/PCS consistency validated");
 }
 
-// ── H108: Encoding Validation ──
+// -- H108: Encoding Validation --
 static CheckResult check_h108_encoding(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.rawSize() < 128) return CheckResult::skip("File too small");
@@ -301,7 +301,7 @@ static CheckResult check_h108_encoding(const ProfileView& pv) {
     return cb.done("Encoding validated");
 }
 
-// ── H111: Reserved Bytes (100-127) All Zeros ──
+// -- H111: Reserved Bytes (100-127) All Zeros --
 static CheckResult check_h111_reserved_zeros(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.rawSize() < 128) return CheckResult::skip("File too small");
@@ -324,13 +324,13 @@ static CheckResult check_h111_reserved_zeros(const ProfileView& pv) {
     return cb.done("Reserved bytes validated");
 }
 
-// ── H112: D50 Illuminant Precision ──
+// -- H112: D50 Illuminant Precision --
 static CheckResult check_h112_d50_precision(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.rawSize() < 80) return CheckResult::skip("File too small");
     const uint8_t* d = pv.rawData();
 
-    // D50 at bytes 68-79 (3 × s15Fixed16Number)
+    // D50 at bytes 68-79 (3 x s15Fixed16Number)
     int32_t xi = readS32BE(d + 68);
     int32_t yi = readS32BE(d + 72);
     int32_t zi = readS32BE(d + 76);
@@ -345,34 +345,34 @@ static CheckResult check_h112_d50_precision(const ProfileView& pv) {
     return cb.done("D50 precision validated");
 }
 
-// ── Registration ──
+// -- Registration --
 
 REGISTER_HEURISTIC(103, "Profile ID Validation",
-    "ICC.1-2022-05 §7.2.18", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.18", "ICC.1-2022-05",
     "CWE-345", "", Severity::LOW, CheckPhase::LIBRARY, check_h103_profile_id);
 
 REGISTER_HEURISTIC(104, "CMM Type Validation",
-    "ICC.1-2022-05 §7.2.3", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.3", "ICC.1-2022-05",
     "CWE-20", "", Severity::LOW, CheckPhase::HEADER, check_h104_cmm);
 
 REGISTER_HEURISTIC(105, "ColorSpace/PCS Consistency",
-    "ICC.1-2022-05 §7.2.6-7", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.6-7", "ICC.1-2022-05",
     "CWE-20", "", Severity::HIGH, CheckPhase::HEADER, check_h105_cs_pcs);
 
 REGISTER_HEURISTIC(108, "Encoding Validation",
-    "ICC.1-2022-05 §7.2.15", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.15", "ICC.1-2022-05",
     "", "", Severity::INFO, CheckPhase::HEADER, check_h108_encoding);
 
 REGISTER_HEURISTIC(111, "Reserved Bytes",
-    "ICC.1-2022-05 §7.2.19", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.19", "ICC.1-2022-05",
     "CWE-20", "", Severity::LOW, CheckPhase::HEADER, check_h111_reserved_zeros);
 
 REGISTER_HEURISTIC(112, "D50 Illuminant Precision",
-    "ICC.1-2022-05 §7.2.16", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.16", "ICC.1-2022-05",
     "CWE-682", "", Severity::MEDIUM, CheckPhase::HEADER, check_h112_d50_precision);
 
 
-// ── Additional registrations for ComplianceChecks ──
+// -- Additional registrations for ComplianceChecks --
 
 static CheckResult check_h106_env_var(const ProfileView& pv) {
     CheckBuilder cb;
@@ -410,7 +410,7 @@ static CheckResult check_h106_env_var(const ProfileView& pv) {
 
 REGISTER_HEURISTIC(106, "Env Var",
     "", "",
-    "CWE-131", "",
+    "CWE-131", "CVE-2026-34537,GHSA-3m63-c4jf-592f",
     Severity::MEDIUM, CheckPhase::RAW_SCAN,
     check_h106_env_var);
 
@@ -718,7 +718,7 @@ static CheckResult check_h110_class_tag_validation(const ProfileView& pv) {
 }
 
 REGISTER_HEURISTIC(110, "Class Tag Validation",
-    "§8", "ICC.1-2022-05",
+    "Sec.8", "ICC.1-2022-05",
     "CWE-20", "",
     Severity::LOW, CheckPhase::RAW_SCAN,
     check_h110_class_tag_validation);
@@ -992,7 +992,7 @@ static CheckResult check_h117_tag_type_allowed(const ProfileView& pv) {
     int checked = 0;
     for (size_t t = 0; t < sizeof(table) / sizeof(table[0]); ++t) {
         std::optional<uint32_t> rawType;
-        icTagTypeSignature actualType = static_cast<icTagTypeSignature>(0);
+        uint32_t actualType = 0u;
         if (useRawFallback) {
             switch (table[t].sig) {
                 case icSigCopyrightTag:
@@ -1011,17 +1011,17 @@ static CheckResult check_h117_tag_type_allowed(const ProfileView& pv) {
             }
             rawType = rawTagTypeSig(pv, table[t].sig);
             if (!rawType) continue;
-            actualType = static_cast<icTagTypeSignature>(*rawType);
+            actualType = *rawType;
         } else {
             CIccTag* tag = p ? p->FindTag(table[t].sig) : nullptr;
             if (!tag) continue;
-            actualType = tag->GetType();
+            actualType = static_cast<uint32_t>(tag->GetType());
         }
 
         checked++;
         bool allowed = false;
         for (int a = 0; a < table[t].count; ++a) {
-            if (actualType == table[t].allowed[a]) {
+            if (actualType == static_cast<uint32_t>(table[t].allowed[a])) {
                 allowed = true;
                 break;
             }
@@ -1029,7 +1029,7 @@ static CheckResult check_h117_tag_type_allowed(const ProfileView& pv) {
         if (!allowed) {
             cb.warn(
                 sfmt("'%s': type '%s' (0x%08X) not in allowed set",
-                     table[t].name, sigStr(static_cast<uint32_t>(actualType)).c_str(),
+                     table[t].name, sigStr(actualType).c_str(),
                      static_cast<unsigned>(actualType)),
                 "CWE-20: Tag uses disallowed type for its signature");
         }

@@ -1,5 +1,5 @@
 /*
- * IccTest Library — RawScanChecks.cpp
+ * IccTest Library - RawScanChecks.cpp
  * Heuristic checks H33-H55, H57-H69, H153: Raw byte analysis.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC. All Rights Reserved.
@@ -29,7 +29,7 @@ static T* FindAndCast(CIccProfile* pIcc, icTagSignature sig) {
     return dynamic_cast<T*>(tag);
 }
 
-// ── H33: Embedded Image Detection ──
+// -- H33: Embedded Image Detection --
 static CheckResult check_h33_embedded_image(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -55,7 +55,7 @@ static CheckResult check_h33_embedded_image(const ProfileView& pv) {
     return cb.done("No suspicious embedded images");
 }
 
-// ── H34: Embedded Cube/Text Detection ──
+// -- H34: Embedded Cube/Text Detection --
 static CheckResult check_h34_embedded_text(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -73,7 +73,7 @@ static CheckResult check_h34_embedded_text(const ProfileView& pv) {
     return cb.done("No embedded text patterns");
 }
 
-// ── H35: Creator Signature Identification ──
+// -- H35: Creator Signature Identification --
 static CheckResult check_h35_creator(const ProfileView& pv) {
     CheckBuilder cb;
     const auto& hdr = pv.header();
@@ -85,22 +85,22 @@ static CheckResult check_h35_creator(const ProfileView& pv) {
     return cb.done("Creator identified");
 }
 
-// ── H36: Profile Flags Validation ──
+// -- H36: Profile Flags Validation --
 static CheckResult check_h36_flags(const ProfileView& pv) {
     CheckBuilder cb;
     const auto& hdr = pv.header();
 
-    // ICC.1-2022-05 §7.2.13: only bits 0-3 defined
+    // ICC.1-2022-05 Sec.7.2.13: only bits 0-3 defined
     uint32_t reserved = hdr.flags & ~0x0000000FU;
     if (reserved != 0) {
-        cb.warn(sfmt("Reserved flag bits set: 0x%08X — ICC.1-2022-05 §7.2.13",
+        cb.warn(sfmt("Reserved flag bits set: 0x%08X - ICC.1-2022-05 Sec.7.2.13",
                       hdr.flags & ~0x0FU));
     }
 
     return cb.done("Flags validated");
 }
 
-// ── H37: Device Attributes Validation ──
+// -- H37: Device Attributes Validation --
 static CheckResult check_h37_attributes(const ProfileView& pv) {
     if (pv.rawSize() < 64) return CheckResult::skip("File too small");
     CheckBuilder cb;
@@ -119,26 +119,26 @@ static CheckResult check_h37_attributes(const ProfileView& pv) {
     return cb.done("Device attributes validated");
 }
 
-// ── H40: Reserved Bytes (100-127) Validation ──
+// -- H40: Reserved Bytes (100-127) Validation --
 static CheckResult check_h40_reserved(const ProfileView& pv) {
     if (pv.rawSize() < 128) return CheckResult::skip("File too small");
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
 
-    // ICC.1-2022-05 §7.2.19: bytes 100-127 must be zero
+    // ICC.1-2022-05 Sec.7.2.19: bytes 100-127 must be zero
     bool allZero = true;
     for (int i = 100; i < 128; i++) {
         if (d[i] != 0) { allZero = false; break; }
     }
 
     if (!allZero) {
-        cb.warn("Reserved bytes (100-127) are not all zero — ICC.1-2022-05 §7.2.19");
+        cb.warn("Reserved bytes (100-127) are not all zero - ICC.1-2022-05 Sec.7.2.19");
     }
 
     return cb.done("Reserved bytes valid");
 }
 
-// ── H153: Sampled Curve NaN-to-Unsigned Cast Detection ──
+// -- H153: Sampled Curve NaN-to-Unsigned Cast Detection --
 static CheckResult check_h153_curve_nan(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -199,30 +199,30 @@ static CheckResult check_h153_curve_nan(const ProfileView& pv) {
     return cb.done("Sampled curve NaN scan complete");
 }
 
-// ── Registration ──
+// -- Registration --
 
 REGISTER_HEURISTIC(33, "Embedded Image Detection",
-    "ICC.1-2022-05 §7.3", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.3", "ICC.1-2022-05",
     "CWE-506", "", Severity::MEDIUM, CheckPhase::RAW_SCAN, check_h33_embedded_image);
 
 REGISTER_HEURISTIC(34, "Embedded Text Detection",
-    "ICC.1-2022-05 §7.3", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.3", "ICC.1-2022-05",
     "", "", Severity::INFO, CheckPhase::RAW_SCAN, check_h34_embedded_text);
 
 REGISTER_HEURISTIC(35, "Creator Signature Identification",
-    "ICC.1-2022-05 §7.2.17", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.17", "ICC.1-2022-05",
     "", "", Severity::INFO, CheckPhase::RAW_SCAN, check_h35_creator);
 
 REGISTER_HEURISTIC(36, "Profile Flags Validation",
-    "ICC.1-2022-05 §7.2.13", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.13", "ICC.1-2022-05",
     "CWE-20", "", Severity::LOW, CheckPhase::RAW_SCAN, check_h36_flags);
 
 REGISTER_HEURISTIC(37, "Device Attributes Validation",
-    "ICC.1-2022-05 §7.2.14", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.14", "ICC.1-2022-05",
     "CWE-20", "", Severity::LOW, CheckPhase::RAW_SCAN, check_h37_attributes);
 
 REGISTER_HEURISTIC(40, "Reserved Bytes Validation",
-    "ICC.1-2022-05 §7.2.19", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.7.2.19", "ICC.1-2022-05",
     "CWE-20", "", Severity::LOW, CheckPhase::RAW_SCAN, check_h40_reserved);
 
 REGISTER_HEURISTIC(153, "Sampled Curve NaN-to-Unsigned Cast",
@@ -230,7 +230,7 @@ REGISTER_HEURISTIC(153, "Sampled Curve NaN-to-Unsigned Cast",
     "CWE-681", "", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h153_curve_nan);
 
 
-// ── Additional registrations for RawScanChecks ──
+// -- Additional registrations for RawScanChecks --
 
 static CheckResult check_h38_curve_degenerate_value_detection(const ProfileView& pv) {
     CheckBuilder cb;
@@ -252,7 +252,7 @@ static CheckResult check_h38_curve_degenerate_value_detection(const ProfileView&
                 continue;
             }
             if (curveCount > 65536u) {
-                cb.warn(sfmt("Tag '%s' (curv): count %u > 64K — OOM risk",
+                cb.warn(sfmt("Tag '%s' (curv): count %u > 64K - OOM risk",
                              sig.c_str(), curveCount));
                 continue;
             }
@@ -276,12 +276,12 @@ static CheckResult check_h38_curve_degenerate_value_detection(const ProfileView&
             }
 
             if (allZero && curveCount > 1u) {
-                cb.warn(sfmt("Tag '%s' (curv): all %u entries are zero — input always mapped to 0",
+                cb.warn(sfmt("Tag '%s' (curv): all %u entries are zero - input always mapped to 0",
                              sig.c_str(), curveCount),
                         "CWE-682: Degenerate TRC destroys color information");
             }
             if (allMax && curveCount > 1u) {
-                cb.warn(sfmt("Tag '%s' (curv): all %u entries are 0xFFFF — input always mapped to max",
+                cb.warn(sfmt("Tag '%s' (curv): all %u entries are 0xFFFF - input always mapped to max",
                              sig.c_str(), curveCount));
             }
         }
@@ -357,7 +357,7 @@ static CheckResult check_h39_shared_tag_data_aliasing_detection(const ProfileVie
                              sigStr(tags[i].signature).c_str(),
                              sigStr(tags[j].signature).c_str(),
                              offI, szI, szJ),
-                        "CWE-119: Shared offset with size mismatch — potential OOB");
+                        "CWE-119: Shared offset with size mismatch - potential OOB");
                 continue;
             }
 
@@ -367,18 +367,18 @@ static CheckResult check_h39_shared_tag_data_aliasing_detection(const ProfileVie
                 cb.warn(sfmt("Tags '%s' [0x%X+%u] and '%s' [0x%X+%u] partially overlap",
                              sigStr(tags[i].signature).c_str(), offI, szI,
                              sigStr(tags[j].signature).c_str(), offJ, szJ),
-                        "CWE-119: Partial tag data overlap — parser confusion");
+                        "CWE-119: Partial tag data overlap - parser confusion");
             }
         }
     }
 
     if (sharedPairs > 0 && allImmutable) {
         return CheckResult::ok(
-            sfmt("%d shared tag pair(s) — all immutable types (safe)", sharedPairs));
+            sfmt("%d shared tag pair(s) - all immutable types (safe)", sharedPairs));
     } else if (sharedPairs > 0) {
-        cb.warn(sfmt("%d shared tag pair(s) include mutable types — UAF risk in Cleanup()",
+        cb.warn(sfmt("%d shared tag pair(s) include mutable types - UAF risk in Cleanup()",
                      sharedPairs),
-                "CWE-416: Shared mutable tag pointers — double-free in dedup loop");
+                "CWE-416: Shared mutable tag pointers - double-free in dedup loop");
     }
 
     return cb.done("No risky shared tag data aliasing");
@@ -458,7 +458,7 @@ static CheckResult check_h42_matrix_singularity_detection(const ProfileView& pv)
         if (std::fabs(det) < 1e-6) {
             cb.warn(sfmt("Tag '%s' (%s): near-singular 3x3 matrix (det=%.6g)",
                          sig.c_str(), kind, det),
-                    "CWE-369: Singular matrix — inversion produces div-by-zero or garbage");
+                    "CWE-369: Singular matrix - inversion produces div-by-zero or garbage");
         }
 
         bool allZero = (std::fabs(det) < 1e-20);
@@ -470,7 +470,7 @@ static CheckResult check_h42_matrix_singularity_detection(const ProfileView& pv)
             }
         }
         if (allZero) {
-            cb.warn(sfmt("Tag '%s': matrix is all zeros — destroys color data", sig.c_str()));
+            cb.warn(sfmt("Tag '%s': matrix is all zeros - destroys color data", sig.c_str()));
         }
     }
 
@@ -537,7 +537,7 @@ static CheckResult check_h44_embedded_image_validation(const ProfileView& pv) {
         }
 
         if (tag.size > 16u * 1024u * 1024u) {
-            cb.warn(sfmt("Tag '%s': size %u bytes (>16MB) — oversized embedded data",
+            cb.warn(sfmt("Tag '%s': size %u bytes (>16MB) - oversized embedded data",
                          sigStr(tag.signature).c_str(), tag.size),
                     "CWE-400: Potential resource exhaustion via large embedded image");
         }
@@ -604,7 +604,7 @@ static CheckResult check_h45_sparse_matrix_bounds_validation(const ProfileView& 
                              rows, cols,
                              static_cast<unsigned long long>(entries),
                              static_cast<unsigned long long>(kMaxSparseMatrixEntries)),
-                        "CWE-789: Amplification — small tag triggers huge allocation");
+                        "CWE-789: Amplification - small tag triggers huge allocation");
             }
         }
     }
@@ -654,7 +654,7 @@ static CheckResult check_h46_textdescription_unicode_length_validation(const Pro
         if (typeVal == 0x6D6C7563u && (uint64_t)tag.offset + 12 <= rawLen) { // 'mluc'
             uint32_t numRec = readU32BE(raw + tag.offset + 8);
             if (numRec > 500u) {
-                cb.warn(sfmt("Tag '%s' (mluc): %u records (>500) — OOM risk",
+                cb.warn(sfmt("Tag '%s' (mluc): %u records (>500) - OOM risk",
                              sig.c_str(), numRec));
             }
         }
@@ -971,7 +971,7 @@ static CheckResult check_h52_integer_underflow_tag_size_subtraction(const Profil
                 cb.warn(
                     sfmt("Tag '%s' (type %s): size %u < minimum %u",
                          sigStr(tag.signature).c_str(), m.name, tSz, m.minSize),
-                    "CWE-191: Undersized tag — size arithmetic underflows on (size - headerSize)");
+                    "CWE-191: Undersized tag - size arithmetic underflows on (size - headerSize)");
                 break;
             }
         }
@@ -986,7 +986,7 @@ static CheckResult check_h52_integer_underflow_tag_size_subtraction(const Profil
 
                     if (subOff > tSz) {
                         cb.critical(
-                            sfmt("Tag '%s' (type %s): %s offset %u exceeds tag size %u — (nEnd - pIO->Tell()) underflows to ~4GB",
+                            sfmt("Tag '%s' (type %s): %s offset %u exceeds tag size %u - (nEnd - pIO->Tell()) underflows to ~4GB",
                                  sigStr(tag.signature).c_str(), typeName, elemNames[e], subOff, tSz),
                             "CWE-191: Integer underflow in sub-element offset subtraction (CFL-065: defeated size validation -> CWE-789 uncontrolled allocation)");
                     } else if (subOff < 32u) {
@@ -1005,10 +1005,12 @@ static CheckResult check_h52_integer_underflow_tag_size_subtraction(const Profil
                 uint8_t nOut = raw[tOff + 9u];
                 uint8_t grid = raw[tOff + 10u];
                 if (nIn > 0 && nOut > 0 && grid > 0 && nIn <= 15 && nOut <= 15) {
+                    const unsigned inputChannels = static_cast<unsigned>(nIn);
+                    const uint64_t gridPoints = static_cast<uint64_t>(grid);
                     uint64_t inTable = static_cast<uint64_t>(nIn) * 256ull;
                     uint64_t clutEntries = 1ull;
-                    for (int d = 0; d < nIn; ++d) {
-                        clutEntries *= static_cast<uint64_t>(grid);
+                    for (unsigned d = 0; d < inputChannels; ++d) {
+                        clutEntries *= gridPoints;
                         if (clutEntries > 0x10000000ull) {
                             clutEntries = 0xFFFFFFFFull;
                             break;
@@ -1019,7 +1021,7 @@ static CheckResult check_h52_integer_underflow_tag_size_subtraction(const Profil
                     uint64_t totalMin = 48ull + inTable + clutData + outTable;
                     if (clutEntries < 0xFFFFFFFFull && totalMin > tSz) {
                         cb.warn(
-                            sfmt("Tag '%s' (lut8): nIn=%u nOut=%u grid=%u requires %llu bytes, tag size only %u — sequential reads will underflow nEnd",
+                            sfmt("Tag '%s' (lut8): nIn=%u nOut=%u grid=%u requires %llu bytes, tag size only %u - sequential reads will underflow nEnd",
                                  sigStr(tag.signature).c_str(), nIn, nOut, grid,
                                  static_cast<unsigned long long>(totalMin), tSz),
                             "CWE-191: lut8 sequential read data exceeds tag size boundary");
@@ -1036,10 +1038,12 @@ static CheckResult check_h52_integer_underflow_tag_size_subtraction(const Profil
                 uint16_t nInEntries = readU16BE(raw + tOff + 48u);
                 uint16_t nOutEntries = readU16BE(raw + tOff + 50u);
                 if (nIn > 0 && nOut > 0 && grid > 0 && nIn <= 15 && nOut <= 15) {
+                    const unsigned inputChannels = static_cast<unsigned>(nIn);
+                    const uint64_t gridPoints = static_cast<uint64_t>(grid);
                     uint64_t inTable = static_cast<uint64_t>(nIn) * static_cast<uint64_t>(nInEntries) * 2ull;
                     uint64_t clutEntries = 1ull;
-                    for (int d = 0; d < nIn; ++d) {
-                        clutEntries *= static_cast<uint64_t>(grid);
+                    for (unsigned d = 0; d < inputChannels; ++d) {
+                        clutEntries *= gridPoints;
                         if (clutEntries > 0x10000000ull) {
                             clutEntries = 0xFFFFFFFFull;
                             break;
@@ -1159,7 +1163,7 @@ static CheckResult check_h54_division_by_zero_trigger_detection(const ProfileVie
 
 REGISTER_HEURISTIC(54, "Division-by-Zero Trigger Detection",
     "", "",
-    "CWE-369", "CVE-2026-21495,GHSA-xhrm-79rg-5784",
+    "CWE-369", "CVE-2026-21495,CVE-2026-34546,GHSA-fxgq-wf5v-25pq,GHSA-xhrm-79rg-5784",
     Severity::HIGH, CheckPhase::RAW_SCAN,
     check_h54_division_by_zero_trigger_detection);
 
