@@ -86,6 +86,8 @@ from icc_profile_mcp import (  # noqa: E402
     windows_build,
     query_attack_surface,
     coverage_gaps,
+    dump_all,
+    diagnostic_load,
 )
 
 # ---------------------------------------------------------------------------
@@ -552,7 +554,7 @@ async def api_health(request: Request) -> Response:
     v2_ok = ANALYZER_V2_BIN.is_file() and os.access(ANALYZER_V2_BIN, os.X_OK)
     resp = {
         "ok": True,
-        "tools": 26,
+        "tools": 28,
         "engines": {"v1": v1_ok, "v2": v2_ok},
         "defaultAnalysisEngine": DEFAULT_ANALYSIS_ENGINE,
         "defaultStructuralEngine": DEFAULT_STRUCTURAL_ENGINE,
@@ -1113,6 +1115,42 @@ async def api_coverage_gaps(request: Request) -> Response:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
 
+async def api_dump_all(request: Request) -> Response:
+    """GET /api/dump-all — deep tag dump via iccDumpAll."""
+    try:
+        path = request.query_params.get("path", "")
+        if not path:
+            return JSONResponse({"ok": False, "error": "path is required"}, status_code=400)
+        verbosity_raw = request.query_params.get("verbosity", "100")
+        try:
+            verbosity = max(1, min(100, int(verbosity_raw)))
+        except (ValueError, TypeError):
+            verbosity = 100
+        use_read = request.query_params.get("use_read", "").lower() in ("true", "1", "yes")
+        diag = request.query_params.get("diag", "").lower() in ("true", "1", "yes")
+        async with (await _get_semaphore()):
+            result = await dump_all(
+                path=path, verbosity=verbosity, use_read=use_read, diag=diag,
+            )
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_diagnostic_load(request: Request) -> Response:
+    """GET /api/diagnostic-load — deep diagnostic load analysis."""
+    try:
+        path = request.query_params.get("path", "")
+        if not path:
+            return JSONResponse({"ok": False, "error": "path is required"}, status_code=400)
+        mode = request.query_params.get("mode", "all").strip().lower()[:20]
+        async with (await _get_semaphore()):
+            result = await diagnostic_load(path=path, mode=mode)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
 async def api_knowledge_graph_json(request: Request) -> Response:
     """GET /api/knowledge-graph.json — serve the knowledge graph data for the viewer."""
     import json as _json
@@ -1172,6 +1210,8 @@ routes = [
     Route("/api/upload-and-analyze", api_upload_and_analyze, methods=["POST"]),
     Route("/api/attack-surface", api_attack_surface, methods=["GET"]),
     Route("/api/coverage-gaps", api_coverage_gaps, methods=["GET"]),
+    Route("/api/dump-all", api_dump_all, methods=["GET"]),
+    Route("/api/diagnostic-load", api_diagnostic_load, methods=["GET"]),
     Route("/api/knowledge-graph.json", api_knowledge_graph_json, methods=["GET"]),
 ]
 

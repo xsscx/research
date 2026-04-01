@@ -46,6 +46,8 @@ ROUNDTRIP_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccRoundTrip" / "iccRoundTrip"
 APPLY_NAMED_CMM_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccApplyNamedCmm" / "iccApplyNamedCmm"
 TO_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccToXml_unsafe"
 FROM_XML_UNSAFE_BIN = REPO_ROOT / "colorbleed_tools" / "iccFromXml_unsafe"
+DUMP_ALL_BIN = REPO_ROOT / "colorbleed_tools" / "iccDumpAll"
+DIAGNOSTIC_LOAD_BIN = REPO_ROOT / "colorbleed_tools" / "iccDiagnosticLoad"
 TEST_PROFILES = REPO_ROOT / "test-profiles"
 EXTENDED_PROFILES = REPO_ROOT / "extended-test-profiles"
 ICCDEV_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV"
@@ -493,8 +495,12 @@ async def health_check() -> str:
     lines.append(f"  iccDumpProfile   : {'[OK]' if dump_safe_ok else '[MISSING]'}")
     lines.append(f"  iccRoundTrip     : {'[OK]' if roundtrip_safe_ok else '[MISSING]'}")
     lines.append(f"  iccApplyNamedCmm : {'[OK]' if apply_named_cmm_safe_ok else '[MISSING]'}")
+    dump_all_ok = DUMP_ALL_BIN.is_file() and os.access(DUMP_ALL_BIN, os.X_OK)
+    diag_load_ok = DIAGNOSTIC_LOAD_BIN.is_file() and os.access(DIAGNOSTIC_LOAD_BIN, os.X_OK)
     lines.append(f"  iccToXml_unsafe  : {'[OK]' if to_xml_unsafe_ok else '[MISSING]'}")
     lines.append(f"  iccFromXml_unsafe: {'[OK]' if from_xml_unsafe_ok else '[MISSING]'}")
+    lines.append(f"  iccDumpAll       : {'[OK]' if dump_all_ok else '[MISSING]'}")
+    lines.append(f"  iccDiagnosticLoad: {'[OK]' if diag_load_ok else '[MISSING]'}")
     lines.append("")
     lines.append("Defaults:")
     lines.append(f"  analysis engine  : {DEFAULT_ANALYSIS_ENGINE}")
@@ -511,8 +517,8 @@ async def health_check() -> str:
     lines.append(f"  extended-test-profiles/ : {ext_count} profiles")
     lines.append("")
 
-    # Tool count (11 analysis tools + 7 maintainer + 6 operations + 2 graph = 26 tools)
-    lines.append("Tools: 26 registered (11 analysis + 7 maintainer + 6 operations + 2 graph)")
+    # Tool count (13 analysis tools + 7 maintainer + 6 operations + 2 graph = 28 tools)
+    lines.append("Tools: 28 registered (13 analysis + 7 maintainer + 6 operations + 2 graph)")
     lines.append("")
 
     xml_toolchain_ok = (
@@ -2726,6 +2732,75 @@ async def scan_logs(
     lines.append(f"Total: {total_matches} findings across {len(active)} categories")
 
     return "\n".join(lines)
+
+
+####################################################################
+# Colorbleed diagnostic tools  (2 tools)
+####################################################################
+
+_VALID_DIAG_MODES = frozenset({"raw", "compare", "trace", "all", "dump"})
+
+
+@mcp.tool()
+async def dump_all(
+    path: str,
+    verbosity: int = 100,
+    use_read: bool = False,
+    diag: bool = False,
+) -> str:
+    """Dump an ICC profile using iccDumpAll with full header, tag table, and hex data.
+
+    iccDumpAll provides deeper tag-level dumps than iccDumpProfile, including
+    hex data display, tag load tracking (--diag), and eager vs lazy load
+    comparison (--read).
+
+    Args:
+        path: Path to .icc file (absolute, or filename to search in test-profiles/).
+        verbosity: Verboseness level 1-100 (default 100).
+        use_read: Use ReadIccProfile (eager) instead of OpenIccProfile (lazy).
+        diag: Enable diagnostic output (sanitizer config, file stat, tag load tracking).
+    """
+    profile = _resolve_profile(path)
+    if not DUMP_ALL_BIN.is_file():
+        return "[FAIL] iccDumpAll binary not found at " + str(DUMP_ALL_BIN)
+    cmd: list[str] = [str(DUMP_ALL_BIN)]
+    if diag:
+        cmd.append("--diag")
+    if use_read:
+        cmd.append("--read")
+    verb = max(1, min(100, verbosity))
+    cmd += ["-v", str(verb), str(profile), "ALL"]
+    return await _run(cmd, timeout=60)
+
+
+@mcp.tool()
+async def diagnostic_load(
+    path: str,
+    mode: str = "all",
+) -> str:
+    """Run deep diagnostic load analysis on an ICC profile.
+
+    iccDiagnosticLoad performs A/B testing of OpenIccProfile vs ReadIccProfile
+    vs ValidateIccProfile, raw binary analysis with hex dumps, and manual
+    LoadTag + Read() simulation with IO tracing.  Designed for CFL patch
+    PoC development and crash root-cause analysis.
+
+    Args:
+        path: Path to .icc file (absolute, or filename to search in test-profiles/).
+        mode: Analysis mode -- "raw" (binary analysis + hex dump),
+              "compare" (OpenIccProfile vs ReadIccProfile vs ValidateIccProfile),
+              "trace" (manual LoadTag + IO tracing),
+              "all" (all of the above, default),
+              "dump" (all + iccDumpAll-style tag dump).
+    """
+    profile = _resolve_profile(path)
+    if not DIAGNOSTIC_LOAD_BIN.is_file():
+        return "[FAIL] iccDiagnosticLoad binary not found at " + str(DIAGNOSTIC_LOAD_BIN)
+    m = mode.lower().strip()
+    if m not in _VALID_DIAG_MODES:
+        return f"[FAIL] Invalid mode '{mode}'. Valid: {', '.join(sorted(_VALID_DIAG_MODES))}"
+    cmd: list[str] = [str(DIAGNOSTIC_LOAD_BIN), f"--{m}", str(profile)]
+    return await _run(cmd, timeout=120)
 
 
 ####################################################################
