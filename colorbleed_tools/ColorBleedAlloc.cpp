@@ -34,7 +34,7 @@ void* icRealloc(void *ptr, size_t size) {
     fprintf(stderr, "[ColorBleed] icRealloc(%p, %zu) rejected (%.1fMB > %zuMB limit)\n",
             ptr, size, (double)size / (1024.0*1024.0),
             CB_MAX_SINGLE_ALLOC / (1024*1024));
-    // Do NOT free(ptr) — caller may still reference the old buffer.
+    // Do NOT free(ptr) -- caller may still reference the old buffer.
     // Returning nullptr signals allocation failure without causing UAF.
     return nullptr;
   }

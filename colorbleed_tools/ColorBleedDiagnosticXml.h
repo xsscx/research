@@ -8,7 +8,7 @@
  *  When the iccDEV library cannot Read() a malformed ICC profile,
  *  this module generates a diagnostic XML representation from
  *  raw binary analysis. This gives analysts structured output
- *  for ANY ICC blob — even totally malformed ones that crash
+ *  for ANY ICC blob -- even totally malformed ones that crash
  *  the library's parser.
  *
  *  Modeled on iccanalyzer-lite's defensive handling: never trust
@@ -94,7 +94,7 @@ static inline int32_t DiagReadBE32S(const uint8_t* p) {
   return static_cast<int32_t>(DiagReadBE32(p));
 }
 
-// Hex dump helper — up to maxBytes, returns hex string
+// Hex dump helper -- up to maxBytes, returns hex string
 static std::string HexDump(const uint8_t* data, size_t len, size_t maxBytes = 64) {
   std::string result;
   size_t limit = (len < maxBytes) ? len : maxBytes;
@@ -135,7 +135,7 @@ static std::string XmlEscape(const char* s) {
 }
 
 /// Generate a diagnostic XML representation of a malformed ICC profile.
-/// Reads raw binary data — no iccDEV library calls.
+/// Reads raw binary data -- no iccDEV library calls.
 /// Returns true if XML was generated successfully.
 static bool GenerateDiagnosticXml(const char* icc_path,
                                    std::string& xml_out,
@@ -215,7 +215,7 @@ static bool GenerateDiagnosticXml(const char* icc_path,
     return std::string(s);
   };
 
-  // ── Generate XML ──
+  // -- Generate XML --
   xml_out.reserve(32768);
   xml_out += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
   xml_out += "<!-- ColorBleed Diagnostic XML -->\n";
@@ -225,7 +225,7 @@ static bool GenerateDiagnosticXml(const char* icc_path,
     xml_out += XmlEscape(failure_reason);
     xml_out += " -->\n";
   }
-  xml_out += "<!-- WARNING: This profile is MALFORMED — data may be incomplete or corrupt -->\n";
+  xml_out += "<!-- WARNING: This profile is MALFORMED -- data may be incomplete or corrupt -->\n";
   xml_out += "<IccProfileDiagnostic>\n";
   xml_out += "  <Status>MALFORMED</Status>\n";
 
@@ -411,7 +411,7 @@ static bool GenerateDiagnosticXml(const char* icc_path,
 
   xml_out += "  </TagTable>\n";
 
-  // Anomalies section — document what makes this profile suspicious
+  // Anomalies section -- document what makes this profile suspicious
   xml_out += "  <Anomalies>\n";
 
   if (!validMagic) {

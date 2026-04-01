@@ -53,7 +53,7 @@ class UncheckedArrayAccess extends ArrayExpr {
       FileToBufferConfig::flow(source, sink) and
       sink.asExpr() = this.getArrayOffset()
     ) and
-    // No bounds check before access — match by variable name, not AST node identity
+    // No bounds check before access -- match by variable name, not AST node identity
     not exists(IfStmt guard, RelationalOperation cmp |
       guard.getCondition().getAChild*() = cmp and
       exists(Variable v |
@@ -64,7 +64,7 @@ class UncheckedArrayAccess extends ArrayExpr {
         // Access is inside the then-block of the guard
         guard.getThen().getAChild*() = this
         or
-        // Guard is if(bad) break/continue/return — access is AFTER the guard in same block
+        // Guard is if(bad) break/continue/return -- access is AFTER the guard in same block
         exists(Stmt escape |
           (escape instanceof BreakStmt or escape instanceof ContinueStmt or escape instanceof ReturnStmt) and
           guard.getThen().getAChild*() = escape and

@@ -198,7 +198,7 @@ class FileAccessInXmlContext extends FunctionCall {
     exists(Function f | f = this.getEnclosingFunction() |
       (
         f.getName().matches(["%Xml%", "%XML%"]) and
-        // Exclude preflight validation — it does binary reads, not XML parsing
+        // Exclude preflight validation -- it does binary reads, not XML parsing
         not f.getName().matches(["%Preflight%", "%Validate%"])
       )
       or
