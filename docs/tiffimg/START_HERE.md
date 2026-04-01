@@ -1,36 +1,27 @@
-# TiffImg Class Analysis — START HERE
+# TiffImg Analysis Start Here
 
-## Documentation Package
+This directory documents the `CTiffImg` class used by the TIFF-related tool
+paths in `iccDEV`.
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| **TIFFIMG_EXECUTIVE_SUMMARY.txt** | ~250 | High-level overview (5 min read) |
-| **TIFFIMG_QUICK_REFERENCE.txt** | ~200 | Method signatures, TIFF tags, validation rules |
-| **TIFFIMG_CODE_PATHS.txt** | ~500 | Visual branch trees, error path mappings |
-| **TIFFIMG_COMPLETE_ANALYSIS.md** | 661 | Definitive reference — line numbers, all 26 error paths |
-| **TIFFIMG_ANALYSIS_INDEX.md** | 290 | Navigation guide, learning paths, testing strategy |
-| **TIFFIMG_FINAL_CHECKLIST.txt** | ~400 | Verification checklist for fuzzer completeness |
+## Read This First
 
-## Quick Start
+| Goal | File |
+|------|------|
+| Fast overview | `TIFFIMG_EXECUTIVE_SUMMARY.txt` |
+| Method and tag lookup | `TIFFIMG_QUICK_REFERENCE.txt` |
+| Branch and error-path tracing | `TIFFIMG_CODE_PATHS.txt` |
+| Full technical reference | `TIFFIMG_COMPLETE_ANALYSIS.md` |
+| Coverage checklist | `TIFFIMG_FINAL_CHECKLIST.txt` |
 
-| Goal | Read This |
-|------|-----------|
-| Understand scope (5 min) | `TIFFIMG_EXECUTIVE_SUMMARY.txt` |
-| Look up a method/tag | `TIFFIMG_QUICK_REFERENCE.txt` |
-| Trace code branches | `TIFFIMG_CODE_PATHS.txt` |
-| Full implementation reference | `TIFFIMG_COMPLETE_ANALYSIS.md` |
-| Verify fuzzer coverage | `TIFFIMG_FINAL_CHECKLIST.txt` |
+## Scope
 
-## Key Facts
+- Class: `CTiffImg`
+- Source: `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.{h,cpp}`
+- Primary tool users: `iccTiffDump`, `iccApplyProfiles`, `iccSpecSepToTiff`
+- Related fuzzers: `icc_tiffdump_fuzzer`, `icc_specsep_fuzzer`
 
-- **Class**: `CTiffImg` — `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.{h,cpp}`
-- **10 public methods**, **26 error paths**, **23+ branches**
-- **TIFF tags**: 14 read, 15 written
-- **Used by**: iccTiffDump, iccApplyProfiles, iccSpecSepToTiff
-- **Fuzzers**: `icc_tiffdump_fuzzer`, `icc_specsep_fuzzer`
-- **Analyzer heuristics**: H139 (strip geometry), H140 (dimensions), H141 (IFD bounds), H149 (cycle detection), H150 (tile geometry)
+## Notes
 
-## Source Locations
-
-- `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.h` (147 lines)
-- `cfl/iccDEV/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp` (460 lines)
+- This file is the main entry point for the TIFF analysis package.
+- `TIFFIMG_ANALYSIS_INDEX.md` is kept only as a short compatibility page for
+  older references.
