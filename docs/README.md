@@ -1,40 +1,33 @@
-# Documentation Guide
+# Documentation Map
 
-This directory mixes authored references, research writeups, test fixtures, and generated evidence. If you are new to the repository, start with [INDEX.md](INDEX.md) for task-based navigation, then use the sections below to drill into the relevant subtree.
+This directory mixes authored references, research notes, fixtures, and saved
+evidence. Start with `INDEX.md` for task-based navigation. Use this file when
+you want a quick map of the major subtrees.
 
-## Core References
+## Reference Material
 
-| Path | What it covers |
-|------|----------------|
-| [iccDEV/Tools/](iccDEV/Tools/) | Reference docs and examples for the upstream CLI tools |
-| [iccDEV/shell-helpers/](iccDEV/shell-helpers/) | Linux, macOS, WSL, and Windows build and debug commands |
-| [iccDEV/codeql/](iccDEV/codeql/) | CodeQL query catalog, how-to-run steps, and maintainer workflow |
-| [iccDEV/specifications/](iccDEV/specifications/) | ICC specifications, technotes, and supporting reference material |
-| [icc-format/](icc-format/) | ICC binary format notes, security patterns, and CWE mapping |
+| Path | Purpose |
+|------|---------|
+| `iccDEV/Tools/` | Upstream CLI tool pages and examples |
+| `iccDEV/shell-helpers/` | Build, sanitizer, and platform workflows |
+| `iccDEV/codeql/` | Query catalog and maintainer workflow |
+| `iccDEV/specifications/` | ICC specifications and technotes |
+| `icc-format/` | ICC binary format notes and CWE mapping |
 
-## Security Reference
+## Research and Evidence
 
-| Path | What it covers |
-|------|----------------|
-| [iccDEV/vulnerability-taxonomy.md](iccDEV/vulnerability-taxonomy.md) | CWE/CVE/CVSS vulnerability classification, attack surface map, SCAP identifiers, exploit primitives, detection coverage matrix |
+| Path | Purpose |
+|------|---------|
+| `analysis/` | Analyzer findings, policy notes, and patch coverage |
+| `Testing/` | Test scripts, fixtures, and saved reports |
+| `cve/` | Consolidated CVE and GHSA material |
+| `pocs/` | Reproduction notes and exploit techniques |
+| `callgraph/` | Call graph generation notes |
+| `tiffimg/` | TIFF-specific analysis package |
+| `xnuimagefuzzer/` | ICC notes for the sibling XNU image fuzzer work |
 
-## Research and Testing
+## Maintenance Rules
 
-| Path | What it covers |
-|------|----------------|
-| [analysis/](analysis/) | iccanalyzer-lite findings, policy notes, and patch coverage analysis |
-| [Testing/](Testing/) | JSON-config tests, TIFF investigations, fixtures, and result logs |
-| [cve/](cve/) | Consolidated iccDEV CVE and GHSA reporting |
-| [pocs/](pocs/) | Reproduction notes and exploit-technique writeups |
-| [callgraph/](callgraph/) | Call-graph generation notes and examination index |
-| [xnuimagefuzzer/](xnuimagefuzzer/) | ICC-specific analysis for the XNU image-fuzzer sibling project |
-
-Recent checkpoint worth bookmarking:
-
-- [analysis/ICCANALYZER_PARITY_AND_MCP_RELEASE_STATUS_2026-03-29.md](analysis/ICCANALYZER_PARITY_AND_MCP_RELEASE_STATUS_2026-03-29.md) captures the parity-closure state, saved `verify-parity` artifact, local Docker validation scope, and matching workflow runs from 2026-03-29.
-
-## Maintenance Notes
-
-- Prefer linking readers to authored entry docs such as `README.md`, `INDEX.md`, or per-tool references instead of raw log files.
-- Treat `Testing/results/`, `Testing/json-configs/`, and similar subtrees as supporting artifacts for tests, not primary overview documents.
-- Keep broad repository onboarding in the root `README.md` and contributor guidance in `AGENTS.md`; keep `docs/` focused on reference and research material.
+- Keep broad onboarding in the repo-root `README.md`.
+- Keep this directory focused on reference material and saved research.
+- Put volatile counts and one-off test outcomes in dated reports, not hub docs.
