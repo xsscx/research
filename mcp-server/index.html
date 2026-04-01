@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="ICC Profile Analyzer — 173-check ICC security and conformance scanner with V2 Web UI reports">
-<title>ICC Profile Analyzer — MCP Web UI</title>
+<meta name="description" content="ICC Profile Analyzer -- 173-check ICC security and conformance scanner with V2 Web UI reports">
+<title>ICC Profile Analyzer -- MCP Web UI</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <style>
-/* ── Reset & Variables ─────────────────────────────────── */
+/* -- Reset & Variables ----------------------------------- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --bg:       #0d1117;
@@ -34,7 +34,7 @@ body {
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* ── Layout ────────────────────────────────────────────── */
+/* -- Layout ---------------------------------------------- */
 .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
 header {
   border-bottom: 1px solid var(--border);
@@ -52,7 +52,7 @@ header .badge {
   font-weight: 600;
 }
 
-/* ── Tool Selector ─────────────────────────────────────── */
+/* -- Tool Selector --------------------------------------- */
 .toolbar {
   display: flex; gap: 0.5rem; flex-wrap: wrap;
   margin-bottom: 1rem;
@@ -75,7 +75,7 @@ header .badge {
   font-weight: 600;
 }
 
-/* ── Input Panel ───────────────────────────────────────── */
+/* -- Input Panel ----------------------------------------- */
 .input-panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -129,7 +129,7 @@ header .badge {
 .btn-run:hover { opacity: 0.85; }
 .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* ── Profile Quick-Pick ────────────────────────────────── */
+/* -- Profile Quick-Pick ---------------------------------- */
 .profile-list {
   margin-top: 0.5rem;
   max-height: 180px;
@@ -152,7 +152,7 @@ header .badge {
 .profile-list .item:hover { background: var(--surface); }
 .profile-list .item .size { color: var(--muted); font-size: 0.75rem; }
 
-/* ── File upload ───────────────────────────────────────── */
+/* -- File upload ----------------------------------------- */
 .file-upload-row {
   display: flex; gap: 0.5rem; align-items: center;
   margin-top: 0.5rem; padding-top: 0.5rem;
@@ -216,7 +216,7 @@ header .badge {
   opacity: 0;
 }
 
-/* ── Status bar ────────────────────────────────────────── */
+/* -- Status bar ------------------------------------------ */
 .status {
   font-size: 0.8rem;
   margin-bottom: 0.5rem;
@@ -226,7 +226,7 @@ header .badge {
 .status.ok { color: var(--green); }
 .status.err { color: var(--red); }
 
-/* ── Output Panel ──────────────────────────────────────── */
+/* -- Output Panel ---------------------------------------- */
 .output {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -269,7 +269,7 @@ header .badge {
 .output:hover .copy-btn { opacity: 1; }
 .output .copy-btn:hover { color: var(--text); border-color: var(--accent); }
 
-/* ── Footer ────────────────────────────────────────────── */
+/* -- Footer ---------------------------------------------- */
 footer {
   border-top: 1px solid var(--border);
   margin-top: 2rem;
@@ -285,14 +285,14 @@ footer {
   align-self: stretch;
 }
 
-/* ── Responsive ────────────────────────────────────────── */
+/* -- Responsive ------------------------------------------ */
 @media (max-width: 640px) {
   .input-row { flex-direction: column; }
   .toolbar { gap: 0.3rem; }
   .toolbar button { font-size: 0.78rem; padding: 0.35rem 0.6rem; }
 }
 
-/* ── Focus-visible (keyboard nav) ──────────────────────── */
+/* -- Focus-visible (keyboard nav) ------------------------ */
 .toolbar button:focus-visible,
 .btn-run:focus-visible,
 .btn-save:focus-visible,
@@ -303,10 +303,10 @@ footer {
   outline-offset: 2px;
 }
 
-/* ── Copy button visibility ────────────────────────────── */
+/* -- Copy button visibility ------------------------------ */
 .copy-hidden { display: none; }
 
-/* ── Loading animation ─────────────────────────────────── */
+/* -- Loading animation ----------------------------------- */
 .status.running::before {
   content: "";
   display: inline-block;
@@ -338,7 +338,7 @@ footer {
 <div class="container">
 
   <header>
-    <h1>🎨 ICC Profile Analyzer</h1>
+    <h1> ICC Profile Analyzer</h1>
     <span class="badge">MCP Web UI</span>
   </header>
 
@@ -404,7 +404,7 @@ footer {
 
 <script>
 /* ================================================================
-   ICC Profile Analyzer — Web UI (vanilla JS, zero dependencies)
+   ICC Profile Analyzer -- Web UI (vanilla JS, zero dependencies)
    ================================================================ */
 "use strict";
 
@@ -451,7 +451,7 @@ let profileCache = {};   // directory -> [{name, size}]
 let abortCtrl = null;
 let lastOutput = "";     // store last output for Save As
 
-/* ── DOM refs ──────────────────────────────────────────── */
+/* -- DOM refs -------------------------------------------- */
 const $toolbar    = document.getElementById("toolbar");
 const $inputPanel = document.getElementById("inputPanel");
 const $status     = document.getElementById("status");
@@ -460,7 +460,7 @@ const $pre        = document.getElementById("outputPre");
 const $placeholder= document.getElementById("placeholder");
 const $copyBtn    = document.getElementById("copyBtn");
 
-/* ── Tool switching ────────────────────────────────────── */
+/* -- Tool switching -------------------------------------- */
 function selectTool(toolName) {
   if (!TOOLS[toolName]) return;
   currentTool = toolName;
@@ -484,13 +484,13 @@ window.addEventListener("hashchange", () => {
   if (h && TOOLS[h] && h !== currentTool) selectTool(h);
 });
 
-/* ── Render input fields per tool ──────────────────────── */
+/* -- Render input fields per tool ------------------------ */
 function renderInputs() {
   const tool = TOOLS[currentTool];
   let html = "";
 
   // Save As button (for all tools)
-  const saveBtn = '<button class="btn-save" id="btnSave" disabled>💾 Save As</button>';
+  const saveBtn = '<button class="btn-save" id="btnSave" disabled>Save Save As</button>';
 
   if (currentTool === "list") {
     html = `
@@ -670,8 +670,8 @@ function renderInputs() {
       </div>
       <div class="file-upload-row">
         <input type="file" id="fileInput" accept=".icc,.icm,.icc2" class="hidden-input">
-        <button class="btn-upload" id="btnUpload">📂 Choose File</button>
-        <button class="btn-upload" id="btnTogglePicker">📋 Server Profiles</button>
+        <button class="btn-upload" id="btnUpload">Browse Choose File</button>
+        <button class="btn-upload" id="btnTogglePicker">Profiles Server Profiles</button>
         <span class="upload-status" id="uploadStatus"></span>
       </div>
       <div id="profilePicker"></div>`;
@@ -798,7 +798,7 @@ function renderInputs() {
       </div>
       <div class="file-upload-row">
         <input type="file" id="fileInput" accept=".icc,.icm,.icc2,.tif,.tiff,.png,.jpg,.jpeg" class="hidden-input">
-        <button class="btn-upload" id="btnUpload">📂 Choose File to Upload & Analyze</button>
+        <button class="btn-upload" id="btnUpload">Browse Choose File to Upload & Analyze</button>
         <span class="upload-status" id="uploadStatus"></span>
       </div>`;
   } else if (currentTool === "attack_surface") {
@@ -868,11 +868,11 @@ function renderInputs() {
         <div class="field">
           <label for="inp-mode">Mode</label>
           <select id="inp-mode">
-            <option value="all" selected>All (complete analysis)</option>
+            <option value="dump" selected>Dump (recommended)</option>
+            <option value="all">All (complete analysis)</option>
             <option value="raw">Raw (binary analysis only)</option>
             <option value="compare">Compare (Open vs Read vs Validate)</option>
             <option value="trace">Trace (LoadTag + Read simulation)</option>
-            <option value="dump">Dump (all + tag dump)</option>
           </select>
         </div>
         <button class="btn-run" id="btnRun">Run</button>
@@ -906,8 +906,8 @@ function renderInputs() {
       </div>
       <div class="file-upload-row">
         <input type="file" id="fileInput" accept=".icc,.icm,.icc2" class="hidden-input">
-        <button class="btn-upload" id="btnUpload">📂 Choose File</button>
-        <button class="btn-upload" id="btnTogglePicker">📋 Server Profiles</button>
+        <button class="btn-upload" id="btnUpload">Browse Choose File</button>
+        <button class="btn-upload" id="btnTogglePicker">Profiles Server Profiles</button>
         <span class="upload-status" id="uploadStatus"></span>
       </div>
       <div id="profilePicker"></div>`;
@@ -915,7 +915,7 @@ function renderInputs() {
 
   $inputPanel.innerHTML = html;
 
-  // attach event handlers (no inline onclick — CSP nonce compliance)
+  // attach event handlers (no inline onclick -- CSP nonce compliance)
   const btnRun = document.getElementById("btnRun");
   if (btnRun) btnRun.addEventListener("click", run);
   const btnSave = document.getElementById("btnSave");
@@ -954,7 +954,7 @@ function renderInputs() {
   }
 }
 
-/* ── Profile quick-pick list ───────────────────────────── */
+/* -- Profile quick-pick list ----------------------------- */
 async function loadProfilePicker(visible) {
   const picker = document.getElementById("profilePicker");
   if (!picker) return;
@@ -990,7 +990,7 @@ async function loadProfilePicker(visible) {
   picker.innerHTML = html;
 }
 
-/* ── XML file picker for validate_xml ──────────────────── */
+/* -- XML file picker for validate_xml -------------------- */
 const xmlFileCache = {};
 async function loadXmlFilePicker() {
   const picker = document.getElementById("xmlFilePicker");
@@ -1039,7 +1039,7 @@ async function loadXmlFilePicker() {
   picker.innerHTML = html;
 }
 
-/* ── Track which path input was last focused (for compare tool) ── */
+/* -- Track which path input was last focused (for compare tool) -- */
 let activePathInput = null;
 $inputPanel.addEventListener("focusin", e => {
   if (e.target.matches("input[id^='inp-path']")) {
@@ -1047,7 +1047,7 @@ $inputPanel.addEventListener("focusin", e => {
   }
 });
 
-/* ── Profile picker delegation (single handler, never duplicated) ── */
+/* -- Profile picker delegation (single handler, never duplicated) -- */
 $inputPanel.addEventListener("click", e => {
   const item = e.target.closest(".item[data-name]");
   if (!item) return;
@@ -1061,7 +1061,7 @@ $inputPanel.addEventListener("click", e => {
   }
 });
 
-/* ── Toggle server profile picker ──────────────────────── */
+/* -- Toggle server profile picker ------------------------ */
 function toggleProfilePicker() {
   const picker = document.getElementById("profilePicker");
   if (!picker) return;
@@ -1073,7 +1073,7 @@ function toggleProfilePicker() {
   }
 }
 
-/* ── Graph viewer (inline Cytoscape.js) ────────────────── */
+/* -- Graph viewer (inline Cytoscape.js) ------------------ */
 async function loadGraphViewer() {
   const frame = document.getElementById("graphViewerFrame");
   if (!frame) return;
@@ -1183,7 +1183,7 @@ async function loadGraphViewer() {
       layout: { name: "cose", animate: false, nodeRepulsion: 8000, idealEdgeLength: 80, numIter: 200 }
     });
 
-    // Click handler — show detail
+    // Click handler -- show detail
     cy.on("tap", "node", function(evt) {
       const d = evt.target.data();
       const detail = document.getElementById("graphDetail");
@@ -1233,7 +1233,7 @@ async function loadGraphViewer() {
   }
 }
 
-/* ── File upload handler ────────────────────────────────── */
+/* -- File upload handler ---------------------------------- */
 async function handleFileUpload() {
   const fileInput = document.getElementById("fileInput");
   const statusEl = document.getElementById("uploadStatus");
@@ -1247,7 +1247,7 @@ async function handleFileUpload() {
 
   // For upload_and_analyze: base64-encode and store for run()
   if (currentTool === "upload_and_analyze") {
-    if (statusEl) statusEl.textContent = `Reading ${file.name}…`;
+    if (statusEl) statusEl.textContent = `Reading ${file.name}...`;
     try {
       const buf = await file.arrayBuffer();
       const bytes = new Uint8Array(buf);
@@ -1269,15 +1269,15 @@ async function handleFileUpload() {
         $inputPanel.appendChild(fnEl);
       }
       fnEl.value = file.name;
-      if (statusEl) statusEl.textContent = `✓ ${file.name} (${(file.size / 1024).toFixed(1)} KB) ready`;
+      if (statusEl) statusEl.textContent = `[OK] ${file.name} (${(file.size / 1024).toFixed(1)} KB) ready`;
     } catch (err) {
-      if (statusEl) statusEl.textContent = `✗ Read failed: ${sanitize(err.message)}`;
+      if (statusEl) statusEl.textContent = `[FAIL] Read failed: ${sanitize(err.message)}`;
     }
     return;
   }
 
   // Default: upload to server and populate path input
-  if (statusEl) statusEl.textContent = `Uploading ${file.name}…`;
+  if (statusEl) statusEl.textContent = `Uploading ${file.name}...`;
 
   const formData = new FormData();
   formData.append("file", file);
@@ -1293,21 +1293,21 @@ async function handleFileUpload() {
           break;
         }
       }
-      if (statusEl) statusEl.textContent = `✓ ${data.filename} (${(data.size / 1024).toFixed(1)} KB)`;
+      if (statusEl) statusEl.textContent = `[OK] ${data.filename} (${(data.size / 1024).toFixed(1)} KB)`;
     } else {
-      if (statusEl) statusEl.textContent = `✗ ${data.error}`;
+      if (statusEl) statusEl.textContent = `[FAIL] ${data.error}`;
     }
   } catch (err) {
-    if (statusEl) statusEl.textContent = `✗ Upload failed: ${sanitize(err.message)}`;
+    if (statusEl) statusEl.textContent = `[FAIL] Upload failed: ${sanitize(err.message)}`;
   }
 }
 
-/* ── Run the selected tool ─────────────────────────────── */
+/* -- Run the selected tool ------------------------------- */
 async function run() {
   const tool = TOOLS[currentTool];
   const optionalGetFields = new Set(["build_dir", "severity_filter"]);
 
-  // graph_viewer has no API endpoint — handled by loadGraphViewer()
+  // graph_viewer has no API endpoint -- handled by loadGraphViewer()
   if (!tool.endpoint) return;
 
   const isPost = tool.method === "POST";
@@ -1327,7 +1327,7 @@ async function run() {
 
     if (abortCtrl) abortCtrl.abort();
     abortCtrl = new AbortController();
-    setStatus("running", `Running ${tool.label}…`);
+    setStatus("running", `Running ${tool.label}...`);
     showOutput("");
     const runBtn = $inputPanel.querySelector(".btn-run");
     if (runBtn) runBtn.disabled = true;
@@ -1388,7 +1388,7 @@ async function run() {
   if (abortCtrl) abortCtrl.abort();
   abortCtrl = new AbortController();
 
-  setStatus("running", `Running ${tool.label}…`);
+  setStatus("running", `Running ${tool.label}...`);
   showOutput("");
   const runBtn = $inputPanel.querySelector(".btn-run");
   if (runBtn) runBtn.disabled = true;
@@ -1424,7 +1424,7 @@ async function run() {
   }
 }
 
-/* ── Helpers ───────────────────────────────────────────── */
+/* -- Helpers --------------------------------------------- */
 function setStatus(cls, msg) {
   $status.className = `status ${cls}`;
   $status.textContent = msg;
@@ -1466,7 +1466,7 @@ function showOutput(text) {
       const link = document.createElement("a");
       link.id = "downloadLink";
       link.href = `/api/xml/download?path=${encodeURIComponent(el.value.trim())}`;
-      link.textContent = "⬇ Download Full XML";
+      link.textContent = "Download Download Full XML";
       link.className = "download-link";
       link.download = "";
       $output.parentNode.insertBefore(link, $output.nextSibling);
@@ -1567,7 +1567,7 @@ function esc(s) {
 }
 
 /* Strip C0 control chars (except LF \n and TAB \t) and DEL.
-   Mirrors sanitize-sed.sh _strip_ctrl_keep_newlines — defense-in-depth. */
+   Mirrors sanitize-sed.sh _strip_ctrl_keep_newlines -- defense-in-depth. */
 function sanitize(s) {
   if (!s) return s;
   // eslint-disable-next-line no-control-regex
@@ -1576,7 +1576,7 @@ function sanitize(s) {
           .replace(/\n{4,}/g, "\n\n\n");
 }
 
-/* ── Boot ──────────────────────────────────────────────── */
+/* -- Boot ------------------------------------------------ */
 $copyBtn.addEventListener("click", copyOutput);
 const initHash = location.hash.replace(/^#/, "");
 if (initHash && TOOLS[initHash]) {

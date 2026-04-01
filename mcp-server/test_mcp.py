@@ -16,7 +16,7 @@ import os
 import sys
 import time
 
-# Concurrency for bulk profile tests — use all available CPUs
+# Concurrency for bulk profile tests -- use all available CPUs
 _MAX_CONCURRENT = int(os.environ.get("MCP_TEST_WORKERS", os.cpu_count() or 8))
 _SEM = asyncio.Semaphore(_MAX_CONCURRENT)
 _BULK_SECURITY_TIMEOUT = int(os.environ.get("MCP_BULK_SECURITY_TIMEOUT", "20"))
@@ -25,6 +25,8 @@ _BULK_FULL_TIMEOUT = int(os.environ.get("MCP_BULK_FULL_TIMEOUT", "30"))
 sys.path.insert(0, os.path.dirname(__file__))
 import icc_profile_mcp as mcp_mod
 from icc_profile_mcp import (
+    ANALYZER_BIN,
+    ANALYZER_V2_BIN,
     _resolve_profile,
     _ALLOWED_BASES_RESOLVED,
     _sanitize_cmake_args,
@@ -51,6 +53,7 @@ from icc_profile_mcp import (
     analyze_security_report,
     validate_roundtrip,
     full_analysis,
+    diagnostic_load,
     profile_to_xml,
     compare_profiles,
     upload_and_analyze,
@@ -134,6 +137,21 @@ def test_path_traversal():
             T.ok(f"traversal({payload[:40]})", False, f"resolved to {p}")
         except (FileNotFoundError, ValueError):
             T.ok(f"traversal({payload[:40]})", True)
+
+    T.section_summary()
+
+
+def test_security_text_engine_resolution():
+    """Verify auto mode does not alias text security analysis to full analysis."""
+    T.section("Security: Engine Resolution")
+
+    analyzer, resolved = mcp_mod._get_security_text_analyzer("auto")
+    T.ok("auto security uses v1 text engine", resolved == "v1", f"resolved={resolved}")
+    T.ok("auto security selects v1 binary", analyzer == ANALYZER_BIN, str(analyzer))
+
+    if ANALYZER_V2_BIN.is_file():
+        full_analyzer = mcp_mod._get_analyzer("auto")
+        T.ok("auto full analysis still prefers v2", full_analyzer == ANALYZER_V2_BIN, str(full_analyzer))
 
     T.section_summary()
 
@@ -275,7 +293,7 @@ async def test_list_test_profiles():
 
 async def test_inspect_all_profiles():
     """Test inspect_profile on every test profile (parallel)."""
-    T.section("Functional: inspect_profile × all test-profiles")
+    T.section("Functional: inspect_profile x all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
 
@@ -293,7 +311,7 @@ async def test_inspect_all_profiles():
 
 async def test_analyze_security_all():
     """Test analyze_security on every test profile (parallel)."""
-    T.section("Functional: analyze_security × all test-profiles")
+    T.section("Functional: analyze_security x all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
 
@@ -361,13 +379,26 @@ async def test_analyze_security_json():
         T.ok("json: totalHeuristics >= 170", False, "invalid JSON")
         T.ok("json: has findings or results array", False, "invalid JSON")
 
-    # Test error handling — bad path
+    # Test error handling -- bad path
     try:
         r2 = await analyze_security_json("nonexistent-profile-xyz.icc")
         T.ok("json: bad path returns error", "not found" in r2.lower() or "error" in r2.lower()
              or len(r2) < 10, r2[:80])
     except Exception:
         T.ok("json: bad path returns error", True)
+
+    T.section_summary()
+
+
+async def test_diagnostic_load_default_mode():
+    """Test diagnostic_load defaults to the cheaper dump mode."""
+    T.section("Functional: diagnostic_load default")
+
+    default_result = await diagnostic_load("sRGB_D65_MAT.icc")
+    dump_result = await diagnostic_load("sRGB_D65_MAT.icc", mode="dump")
+
+    T.ok("default diagnostic_load matches dump mode", default_result == dump_result, default_result[:120])
+    T.ok("default diagnostic_load returns output", len(default_result) > 20, f"len={len(default_result)}")
 
     T.section_summary()
 
@@ -428,7 +459,7 @@ async def test_analyze_security_report():
     T.ok("report: omits heuristic detail blocks",
          "[H" not in r and "\n          CF-" not in r, r[:500])
 
-    # Test error handling — bad path
+    # Test error handling -- bad path
     try:
         r2 = await analyze_security_report("nonexistent-profile-xyz.icc")
         T.ok("report: bad path returns error", "not found" in r2.lower() or "error" in r2.lower()
@@ -505,7 +536,7 @@ async def test_analyze_pawg_report():
 
 async def test_analyze_pawg_report_characterization_profile():
     """Test PAWG quality output on the characterization-driven corpus profile."""
-    T.section("Functional: analyze_pawg_report × characterization profile")
+    T.section("Functional: analyze_pawg_report x characterization profile")
 
     profile = "iccanalyzer-lite/tests/corpus/targ_quality_profile.icc"
     r = await analyze_pawg_report(profile)
@@ -525,7 +556,7 @@ async def test_analyze_pawg_report_characterization_profile():
 
 async def test_validate_roundtrip_all():
     """Test validate_roundtrip on every test profile (parallel)."""
-    T.section("Functional: validate_roundtrip × all test-profiles")
+    T.section("Functional: validate_roundtrip x all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
 
@@ -543,7 +574,7 @@ async def test_validate_roundtrip_all():
 
 async def test_full_analysis_all():
     """Test full_analysis on every test profile (parallel)."""
-    T.section("Functional: full_analysis × all test-profiles")
+    T.section("Functional: full_analysis x all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
 
@@ -574,7 +605,7 @@ async def test_full_analysis_all():
 
 async def test_profile_to_xml_all():
     """Test profile_to_xml on every test profile (parallel)."""
-    T.section("Functional: profile_to_xml × all test-profiles")
+    T.section("Functional: profile_to_xml x all test-profiles")
 
     files = sorted(f for f in os.listdir(REPO_ROOT / "test-profiles") if f.endswith(".icc"))
 
@@ -667,7 +698,7 @@ async def test_error_handling():
 
 async def test_extended_profiles():
     """Test full_analysis on all extended test profiles (parallel)."""
-    T.section("Stress: extended-test-profiles × full_analysis")
+    T.section("Stress: extended-test-profiles x full_analysis")
 
     ext_dir = REPO_ROOT / "extended-test-profiles"
     if not ext_dir.exists():
@@ -726,7 +757,7 @@ async def test_output_size_limit():
     cmd = [
         sys.executable, "-c",
         f"import sys; sys.stdout.buffer.write(b'B' * {stdout_size}); "
-        f"sys.stderr.buffer.write(('é' * {stderr_size}).encode('utf-8'))"
+        f"sys.stderr.buffer.write(('00e9' * {stderr_size}).encode('utf-8'))"
     ]
     r = await _run(cmd, timeout=30)
     encoded_len = len(r.encode("utf-8"))
@@ -799,7 +830,7 @@ async def test_edge_cases():
 
     # Path with unicode
     try:
-        _resolve_profile("profïle_tëst.icc")
+        _resolve_profile("prof00efle_t00ebst.icc")
         T.ok("unicode_path", False, "should not exist")
     except (FileNotFoundError, ValueError, OSError):
         T.ok("unicode_path", True)
@@ -884,7 +915,7 @@ def test_sanitize_cmake_args():
         except ValueError:
             T.ok(f"valid: {label}", False, "Unexpected rejection")
 
-    # Invalid args — should be rejected
+    # Invalid args -- should be rejected
     inject_cases = [
         ("; rm -rf /", "shell injection semicolon"),
         ("$(whoami)", "command substitution"),
@@ -938,7 +969,7 @@ def test_resolve_build_dir():
             result = _resolve_build_dir(raw)
             T.ok(f"valid: {label}", "Build" in str(result))
         except FileNotFoundError:
-            # iccDEV not cloned — still validates the logic path
+            # iccDEV not cloned -- still validates the logic path
             T.ok(f"valid: {label} (no iccDEV)", True)
 
     T.section_summary()
@@ -988,7 +1019,7 @@ async def test_cmake_configure_validation():
         compiler="gcc",
         generator="Ninja",
     )
-    # Should either succeed or fail because iccDEV is not cloned — not a validation error
+    # Should either succeed or fail because iccDEV is not cloned -- not a validation error
     T.ok("valid Release+none+gcc+Ninja", "[FAIL] Invalid" not in result, result[:80])
 
     T.section_summary()
@@ -1137,7 +1168,7 @@ async def test_batch_test_profiles_validation():
     T.ok(
         "auto-detect tool build_dir",
         "Auto-detected build dir: build-debug-tools" in result
-        and "[Batch Profile Testing — 1 profiles]" in result
+        and "[Batch Profile Testing -- 1 profiles]" in result
         and "Passed: 1/1" in result,
         result[:240],
     )
@@ -1240,7 +1271,7 @@ def test_patch_iccdev_source():
         cleaned = sig_file.read_bytes()
         T.ok("U+FE0F removed from file", b"\xef\xb8\x8f" not in cleaned, repr(cleaned))
 
-    # Already clean file — no patch needed
+    # Already clean file -- no patch needed
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
         (td_path / "IccProfLib").mkdir()
@@ -1279,7 +1310,7 @@ async def test_windows_build_validation():
     result = await windows_build(extra_cmake_args="; rm -rf /")
     T.ok("rejects shell injection", "[FAIL]" in result, result[:80])
 
-    # Path traversal in build_dir — sanitized to safe name (starts with . → fallback)
+    # Path traversal in build_dir -- sanitized to safe name (starts with . -> fallback)
     result = await windows_build(build_dir="../../etc")
     T.ok("sanitizes traversal", "build-mcp" in result or "[FAIL]" in result, result[:120])
 
@@ -1299,7 +1330,7 @@ async def test_windows_build_validation():
     T.section_summary()
 
 
-# ── _sanitize_output tests ───────────────────────────────────────────
+# -- _sanitize_output tests -------------------------------------------
 def test_sanitize_output():
     T.section("Sanitize Output")
 
@@ -1334,7 +1365,7 @@ def test_sanitize_output():
     T.section_summary()
 
 
-# ── upload_and_analyze tests ─────────────────────────────────────────
+# -- upload_and_analyze tests -----------------------------------------
 async def test_upload_and_analyze():
     T.section("Upload and Analyze")
     import base64
@@ -1355,25 +1386,25 @@ async def test_upload_and_analyze():
     result = await upload_and_analyze(b64_data, mode="EVIL_MODE")
     T.ok("rejects invalid mode", "[FAIL]" in result and "Unknown mode" in result, result[:80])
 
-    # Filename sanitization — path traversal
+    # Filename sanitization -- path traversal
     result = await upload_and_analyze(b64_data, filename="../../../etc/passwd")
     T.ok("sanitizes traversal filename",
          "etc_passwd" in result or "[FAIL]" in result or "[OK]" in result,
          result[:80])
 
-    # Filename sanitization — special characters
+    # Filename sanitization -- special characters
     result = await upload_and_analyze(b64_data, filename='<script>alert(1)</script>.icc')
     T.ok("sanitizes script filename",
          "<script>" not in result.split("\n")[0],
          result.split("\n")[0][:80])
 
-    # Filename sanitization — dot-prefix
+    # Filename sanitization -- dot-prefix
     result = await upload_and_analyze(b64_data, filename=".hidden")
     T.ok("dot-prefix becomes uploaded.icc",
          "uploaded.icc" in result or "[FAIL]" in result,
          result[:80])
 
-    # Filename sanitization — no extension
+    # Filename sanitization -- no extension
     result = await upload_and_analyze(b64_data, filename="noext")
     T.ok("adds .icc extension",
          ".icc" in result or "[FAIL]" in result,
@@ -1396,7 +1427,7 @@ async def test_upload_and_analyze():
     T.section_summary()
 
 
-# ── health_check tests ───────────────────────────────────────────────
+# -- health_check tests -----------------------------------------------
 async def test_health_check():
     T.section("Health Check")
 
@@ -1424,13 +1455,14 @@ async def test_health_check():
 async def main():
     start = time.time()
 
-    print("ICC Profile MCP Server — Test Suite")
+    print("ICC Profile MCP Server -- Test Suite")
     print(f"Repository: {REPO_ROOT}")
     print(f"Output limit: {MAX_OUTPUT_BYTES / 1024 / 1024:.0f} MB")
     print(f"Allowed bases: {len(_ALLOWED_BASES_RESOLVED)}")
 
     # Security tests (synchronous)
     test_path_traversal()
+    test_security_text_engine_resolution()
     test_absolute_path_escape()
     test_null_byte_injection()
     test_symlink_escape()
@@ -1443,6 +1475,7 @@ async def main():
     await test_inspect_all_profiles()
     await test_analyze_security_all()
     await test_analyze_security_json()
+    await test_diagnostic_load_default_mode()
     await test_analyze_security_report()
     await test_analyze_pawg_report()
     await test_validate_roundtrip_all()
