@@ -63,7 +63,7 @@ def check(name: str, ok: bool) -> None:
         print(f"  [FAIL] {name}")
 
 
-# ── CSP Nonce ──────────────────────────────────────────────
+# -- CSP Nonce ------------------------------------------------
 def test_csp_nonce():
     r1 = c.get("/")
     r2 = c.get("/")
@@ -88,7 +88,7 @@ def test_csp_api_endpoints():
     check("API CSP blocks inline", "'self'" in csp)
 
 
-# ── Security Headers ──────────────────────────────────────
+# -- Security Headers -----------------------------------------
 def test_security_headers():
     r = c.get("/api/health")
     check("X-Frame-Options: DENY", r.headers.get("x-frame-options") == "DENY")
@@ -106,7 +106,7 @@ def test_security_headers_on_index():
     check("Index nosniff", r.headers.get("x-content-type-options") == "nosniff")
 
 
-# ── HTML Integrity ─────────────────────────────────────────
+# -- HTML Integrity -------------------------------------------
 def test_html_integrity():
     r = c.get("/")
     check("Index returns 200", r.status_code == 200)
@@ -145,14 +145,14 @@ def test_graph_viewer_assets():
     check("No innerHTML = user", ".innerHTML = html" not in html or "innerHTML = html" in html)
 
 
-# ── Form Field Validation (renderInputs coverage) ─────────
+# -- Form Field Validation (renderInputs coverage) ------------
 def test_form_fields_per_tool():
     """Verify renderInputs() has a dedicated branch for every tool with fields,
     and that branch creates DOM elements with matching inp-* IDs."""
     r = c.get("/")
     html = r.text
 
-    # Map of tool → required inp-* field IDs that must exist in a renderInputs branch
+    # Map of tool -> required inp-* field IDs that must exist in a renderInputs branch
     tool_fields = {
         "list":              ["inp-directory"],
         "cmake_configure":   ["inp-build_type", "inp-sanitizers", "inp-compiler", "inp-generator"],
@@ -185,7 +185,7 @@ def test_form_fields_per_tool():
         check(f"No-field tool {tool_name} defined", f'"{tool_name}"' in html)
 
 
-# ── Health ─────────────────────────────────────────────────
+# -- Health ---------------------------------------------------
 def test_health():
     r = c.get("/api/health")
     check("Health 200", r.status_code == 200)
@@ -198,7 +198,7 @@ def test_health():
           d.get("defaultStructuralEngine") in {"auto", "v1", "v2"})
 
 
-# ── List Profiles ──────────────────────────────────────────
+# -- List Profiles --------------------------------------------
 def test_list():
     r = c.get("/api/list?directory=test-profiles")
     check("List 200", r.status_code == 200)
@@ -244,7 +244,7 @@ def test_list_xml_invalid_directory():
     check("List XML unknown blocked", r.status_code == 400)
 
 
-# ── Input Validation ──────────────────────────────────────
+# -- Input Validation -----------------------------------------
 def test_path_traversal():
     attacks = [
         "../../etc/passwd",
@@ -289,24 +289,32 @@ def test_absolute_path():
     check("Absolute /tmp path rejected", r.status_code == 400)
 
 
-# ── Method Enforcement ────────────────────────────────────
+def test_diagnostic_load_invalid_mode():
+    r = c.get("/api/diagnostic-load?path=BlacklightPoster_411039.icc&mode=bogus")
+    check("diagnostic-load rejects invalid mode", r.status_code == 400)
+    d = r.json()
+    check("diagnostic-load invalid mode returns ok=false", d["ok"] is False)
+    check("diagnostic-load invalid mode error mentions mode", "mode must be one of:" in d["error"])
+
+
+# -- Method Enforcement ---------------------------------------
 def test_method_enforcement():
-    check("GET /api/upload → 405", c.get("/api/upload").status_code == 405)
-    check("GET /api/output/download → 405", c.get("/api/output/download").status_code == 405)
+    check("GET /api/upload -> 405", c.get("/api/upload").status_code == 405)
+    check("GET /api/output/download -> 405", c.get("/api/output/download").status_code == 405)
     # POST should not work on GET-only endpoints
-    check("POST /api/health → 405", c.post("/api/health").status_code == 405)
-    check("POST /api/list → 405", c.post("/api/list").status_code == 405)
-    check("POST /api/inspect → 405", c.post("/api/inspect").status_code == 405)
+    check("POST /api/health -> 405", c.post("/api/health").status_code == 405)
+    check("POST /api/list -> 405", c.post("/api/list").status_code == 405)
+    check("POST /api/inspect -> 405", c.post("/api/inspect").status_code == 405)
 
 
-# ── 404 for Unknown Routes ────────────────────────────────
+# -- 404 for Unknown Routes -----------------------------------
 def test_unknown_routes():
-    check("Unknown route → 404", c.get("/api/nonexistent").status_code == 404)
-    check("Unknown path → 404", c.get("/nonexistent").status_code == 404)
-    check("Admin path → 404", c.get("/admin").status_code == 404)
+    check("Unknown route -> 404", c.get("/api/nonexistent").status_code == 404)
+    check("Unknown path -> 404", c.get("/nonexistent").status_code == 404)
+    check("Admin path -> 404", c.get("/admin").status_code == 404)
 
 
-# ── Tool Endpoints (functional) ───────────────────────────
+# -- Tool Endpoints (functional) ------------------------------
 def test_inspect():
     r = c.get("/api/inspect?path=BlacklightPoster_411039.icc")
     check("Inspect 200", r.status_code == 200)
@@ -553,7 +561,7 @@ def test_compare():
     check("Compare identical", "identical" in d["result"].lower())
 
 
-# ── Upload ─────────────────────────────────────────────────
+# -- Upload ---------------------------------------------------
 def test_upload():
     # Valid upload (minimal ICC header)
     icc_data = b"\x00" * 128 + b"acsp" + b"\x00" * 372  # 504 bytes, acsp at offset 36
@@ -613,7 +621,7 @@ def test_upload_filename_sanitization():
         check("Upload filename sanitized (rejected)", True)
 
 
-# ── Output Download ────────────────────────────────────────
+# -- Output Download ------------------------------------------
 def test_output_download():
     r = c.post(
         "/api/output/download",
@@ -692,7 +700,7 @@ def test_output_download_malformed_json():
     check("Malformed JSON handled", r.status_code == 400)
 
 
-# ── Maintainer Tool Endpoints ──────────────────────────────
+# -- Maintainer Tool Endpoints --------------------------------
 def test_cmake_configure_validation():
     """Test cmake_configure input validation."""
     # Valid request (won't actually succeed without iccDEV, but validates input)
@@ -975,7 +983,7 @@ def test_operations_endpoints():
     data = r.json()
     check("coverage-gaps default has result", "result" in data)
 
-    # Find artifacts (GET, empty build_dir → searches all)
+    # Find artifacts (GET, empty build_dir -> searches all)
     r = c.get("/api/find-artifacts")
     check("find-artifacts returns 200", r.status_code == 200)
 
@@ -1114,7 +1122,7 @@ def test_operations_html_buttons():
     check("HTML has pawg button", 'data-tool="pawg"' in r.text)
 
 
-# ── Run all tests ──────────────────────────────────────────
+# -- Run all tests --------------------------------------------
 def main():
     t0 = time.time()
 
@@ -1137,6 +1145,7 @@ def main():
         ("Long Path", test_long_path),
         ("Special Characters", test_special_chars),
         ("Absolute Path", test_absolute_path),
+        ("Diagnostic Load Invalid Mode", test_diagnostic_load_invalid_mode),
         ("Method Enforcement", test_method_enforcement),
         ("Unknown Routes", test_unknown_routes),
         ("Inspect", test_inspect),
