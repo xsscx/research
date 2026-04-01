@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ICC Profile MCP Server — Web UI Backend
+ICC Profile MCP Server - Web UI Backend
 
 Thin REST API wrapping the MCP tool surface exposed by the server.
 Uses Starlette + uvicorn (already installed as MCP SDK dependencies).
@@ -55,6 +55,7 @@ from icc_profile_mcp import (  # noqa: E402
     _VALID_BUILD_TYPES,
     _VALID_CMAKE_OPTIONS,
     _VALID_COMPILERS,
+    _VALID_DIAG_MODES,
     _VALID_GENERATORS,
     _VALID_SANITIZERS,
     _VALID_VCPKG_SOURCES,
@@ -149,7 +150,7 @@ def _get_heuristic_count() -> int:
                 173
             )
             return _HEURISTIC_COUNT
-    except Exception:  # noqa: E722 — intentional broad catch for graceful fallback
+    except Exception:  # noqa: E722 - intentional broad catch for graceful fallback
         _HEURISTIC_COUNT = 173  # registry count fallback
     return _HEURISTIC_COUNT
 
@@ -320,7 +321,7 @@ async def api_list(request: Request) -> Response:
 
 
 async def api_list_xml(request: Request) -> Response:
-    """GET /api/list-xml?directory=fuzz/xml/icc — list XML files in allowed directories."""
+    """GET /api/list-xml?directory=fuzz/xml/icc - list XML files in allowed directories."""
     try:
         directory = request.query_params.get("directory", "fuzz/xml/icc")
         directory = _validate_xml_directory(directory)
@@ -398,7 +399,7 @@ async def api_security_json(request: Request) -> Response:
                     "critical": 1,
                     "crashRecovery": True,
                     "note": (
-                        "Profile triggered crash recovery (SIGSEGV/SIGABRT) — "
+                        "Profile triggered crash recovery (SIGSEGV/SIGABRT) - "
                         "no JSON output available. Use /api/security for text analysis."
                     ),
                 }
@@ -408,7 +409,7 @@ async def api_security_json(request: Request) -> Response:
                     "findings": 0,
                     "crashRecovery": True,
                     "note": (
-                        "Profile triggered crash recovery (SIGSEGV/SIGABRT) — "
+                        "Profile triggered crash recovery (SIGSEGV/SIGABRT) - "
                         "no JSON output available. Use /api/security for text analysis."
                     ),
                 }
@@ -481,7 +482,7 @@ async def api_xml(request: Request) -> Response:
 
 
 async def api_xml_download(request: Request) -> Response:
-    """GET /api/xml/download?path=<profile> — full XML as file download."""
+    """GET /api/xml/download?path=<profile> - full XML as file download."""
     try:
         path = _validate_path(request.query_params.get("path", ""), "path")
         async with (await _get_semaphore()):
@@ -549,7 +550,7 @@ async def api_compare(request: Request) -> Response:
 
 
 async def api_health(request: Request) -> Response:
-    """GET /api/health — liveness check."""
+    """GET /api/health - liveness check."""
     v1_ok = ANALYZER_BIN.is_file() and os.access(ANALYZER_BIN, os.X_OK)
     v2_ok = ANALYZER_V2_BIN.is_file() and os.access(ANALYZER_V2_BIN, os.X_OK)
     resp = {
@@ -563,7 +564,7 @@ async def api_health(request: Request) -> Response:
 
 
 async def api_registry(request: Request) -> Response:
-    """GET /api/registry — heuristic database (source of truth for all counts)."""
+    """GET /api/registry - heuristic database (source of truth for all counts)."""
     try:
         engine = request.query_params.get("engine", "v1")
         analyzer = _get_analyzer(engine)
@@ -579,7 +580,7 @@ async def api_registry(request: Request) -> Response:
 
 
 # ---------------------------------------------------------------------------
-# Maintainer tool endpoints (POST — they trigger builds / side-effects)
+# Maintainer tool endpoints (POST - they trigger builds / side-effects)
 # ---------------------------------------------------------------------------
 def _validate_build_dir(value: str) -> str:
     """Validate build_dir param: alphanumeric, dash, underscore, dot only."""
@@ -618,7 +619,7 @@ def _validate_extra_cmake_args(value: str) -> str:
 
 
 async def api_cmake_configure(request: Request) -> Response:
-    """POST /api/cmake/configure — run cmake configure with given options."""
+    """POST /api/cmake/configure - run cmake configure with given options."""
     try:
         body = await request.json()
         build_type = _validate_choice(
@@ -655,7 +656,7 @@ async def api_cmake_configure(request: Request) -> Response:
 
 
 async def api_cmake_build(request: Request) -> Response:
-    """POST /api/cmake/build — build iccDEV in a configured build directory."""
+    """POST /api/cmake/build - build iccDEV in a configured build directory."""
     try:
         body = await request.json()
         build_dir = _validate_build_dir(body.get("build_dir", ""))
@@ -680,7 +681,7 @@ async def api_cmake_build(request: Request) -> Response:
 
 
 async def api_create_profiles(request: Request) -> Response:
-    """POST /api/create-profiles — run CreateAllProfiles.sh."""
+    """POST /api/create-profiles - run CreateAllProfiles.sh."""
     try:
         body = await request.json()
         build_dir = _validate_build_dir(body.get("build_dir", ""))
@@ -692,7 +693,7 @@ async def api_create_profiles(request: Request) -> Response:
 
 
 async def api_run_tests(request: Request) -> Response:
-    """POST /api/run-tests — run iccDEV RunTests.sh."""
+    """POST /api/run-tests - run iccDEV RunTests.sh."""
     try:
         body = await request.json()
         build_dir = _validate_build_dir(body.get("build_dir", ""))
@@ -704,7 +705,7 @@ async def api_run_tests(request: Request) -> Response:
 
 
 async def api_option_matrix(request: Request) -> Response:
-    """POST /api/cmake/option-matrix — test cmake options independently."""
+    """POST /api/cmake/option-matrix - test cmake options independently."""
     try:
         body = await request.json()
         options = body.get("options", "ENABLE_COVERAGE,ICC_ENABLE_ASSERTS,ICC_TRACE_NAN_ENABLED")
@@ -732,7 +733,7 @@ async def api_option_matrix(request: Request) -> Response:
 
 
 async def api_windows_build(request: Request) -> Response:
-    """POST /api/cmake/windows-build — Windows MSVC + vcpkg build."""
+    """POST /api/cmake/windows-build - Windows MSVC + vcpkg build."""
     try:
         body = await request.json()
         build_type = _validate_choice(
@@ -764,7 +765,7 @@ async def api_windows_build(request: Request) -> Response:
 # Operations tool endpoints
 # ---------------------------------------------------------------------------
 async def api_health_check(request: Request) -> Response:
-    """GET /api/health-check — full health check via MCP tool."""
+    """GET /api/health-check - full health check via MCP tool."""
     try:
         async with (await _get_semaphore()):
             result = await health_check()
@@ -774,7 +775,7 @@ async def api_health_check(request: Request) -> Response:
 
 
 async def api_build_tools(request: Request) -> Response:
-    """POST /api/build-tools — build analysis tools from source."""
+    """POST /api/build-tools - build analysis tools from source."""
     try:
         body = await request.json()
         target = body.get("target", "all")
@@ -791,7 +792,7 @@ async def api_build_tools(request: Request) -> Response:
 
 
 async def api_check_dependencies(request: Request) -> Response:
-    """GET /api/check-dependencies — check build dependency availability."""
+    """GET /api/check-dependencies - check build dependency availability."""
     try:
         async with (await _get_semaphore()):
             result = await check_dependencies()
@@ -801,7 +802,7 @@ async def api_check_dependencies(request: Request) -> Response:
 
 
 async def api_find_build_artifacts(request: Request) -> Response:
-    """GET /api/find-artifacts — find binaries in build directories."""
+    """GET /api/find-artifacts - find binaries in build directories."""
     try:
         build_dir = _validate_build_dir(
             request.query_params.get("build_dir", "")
@@ -814,7 +815,7 @@ async def api_find_build_artifacts(request: Request) -> Response:
 
 
 async def api_batch_test_profiles(request: Request) -> Response:
-    """POST /api/batch-test — run tools over profile set."""
+    """POST /api/batch-test - run tools over profile set."""
     try:
         body = await request.json()
         directory = body.get("directory", "")
@@ -841,7 +842,7 @@ async def api_batch_test_profiles(request: Request) -> Response:
 
 
 async def api_validate_xml(request: Request) -> Response:
-    """POST /api/validate-xml — validate ICC XML files with xmllint."""
+    """POST /api/validate-xml - validate ICC XML files with xmllint."""
     try:
         body = await request.json()
         directory = body.get("directory", "")
@@ -865,7 +866,7 @@ async def api_validate_xml(request: Request) -> Response:
 
 
 async def api_coverage_report(request: Request) -> Response:
-    """POST /api/coverage-report — merge profraw and generate coverage report."""
+    """POST /api/coverage-report - merge profraw and generate coverage report."""
     try:
         body = await request.json()
         build_dir = _validate_build_dir(body.get("build_dir", ""))
@@ -877,7 +878,7 @@ async def api_coverage_report(request: Request) -> Response:
 
 
 async def api_scan_logs(request: Request) -> Response:
-    """POST /api/scan-logs — scan log files for errors and findings."""
+    """POST /api/scan-logs - scan log files for errors and findings."""
     try:
         body = await request.json()
         directory = body.get("directory", "")
@@ -896,7 +897,7 @@ async def api_scan_logs(request: Request) -> Response:
 
 
 async def api_upload_and_analyze(request: Request) -> Response:
-    """POST /api/upload-and-analyze — upload base64 ICC file and analyze."""
+    """POST /api/upload-and-analyze - upload base64 ICC file and analyze."""
     try:
         body = await request.json()
         data_base64 = body.get("data_base64", "")
@@ -932,7 +933,7 @@ def _get_upload_dir() -> Path:
 
 
 async def api_upload(request: Request) -> Response:
-    """POST /api/upload — accept a local ICC file for analysis.
+    """POST /api/upload - accept a local ICC file for analysis.
 
     Returns a server-side path that can be used in all tool inputs.
     File is stored in a secure temp directory with a random name.
@@ -989,7 +990,7 @@ async def api_upload(request: Request) -> Response:
         if sys.platform != "win32":
             os.chmod(dest, 0o600)
 
-        # Return the path relative to upload dir — the resolver will find it
+        # Return the path relative to upload dir - the resolver will find it
         return JSONResponse({
             "ok": True,
             "path": str(dest),
@@ -1001,7 +1002,7 @@ async def api_upload(request: Request) -> Response:
 
 
 async def api_output_download(request: Request) -> Response:
-    """POST /api/output/download — save arbitrary tool output as a file.
+    """POST /api/output/download - save arbitrary tool output as a file.
 
     Accepts JSON body: {tool, text, filename?}
     Returns the text as a downloadable file attachment.
@@ -1084,7 +1085,7 @@ class SecurityHeadersMiddleware:
 # ---------------------------------------------------------------------------
 
 async def api_attack_surface(request: Request) -> Response:
-    """GET /api/attack-surface — rank nodes by betweenness centrality."""
+    """GET /api/attack-surface - rank nodes by betweenness centrality."""
     try:
         top_n_raw = request.query_params.get("top_n", "15")
         try:
@@ -1100,7 +1101,7 @@ async def api_attack_surface(request: Request) -> Response:
 
 
 async def api_coverage_gaps(request: Request) -> Response:
-    """GET /api/coverage-gaps — identify heuristics/patches/components lacking coverage."""
+    """GET /api/coverage-gaps - identify heuristics/patches/components lacking coverage."""
     try:
         severity_filter = request.query_params.get("severity_filter", "")
         if not isinstance(severity_filter, str):
@@ -1116,7 +1117,7 @@ async def api_coverage_gaps(request: Request) -> Response:
 
 
 async def api_dump_all(request: Request) -> Response:
-    """GET /api/dump-all — deep tag dump via iccDumpAll."""
+    """GET /api/dump-all - deep tag dump via iccDumpAll."""
     try:
         path = request.query_params.get("path", "")
         if not path:
@@ -1138,12 +1139,18 @@ async def api_dump_all(request: Request) -> Response:
 
 
 async def api_diagnostic_load(request: Request) -> Response:
-    """GET /api/diagnostic-load — deep diagnostic load analysis."""
+    """GET /api/diagnostic-load - deep diagnostic load analysis."""
     try:
         path = request.query_params.get("path", "")
         if not path:
             return JSONResponse({"ok": False, "error": "path is required"}, status_code=400)
         mode = request.query_params.get("mode", "all").strip().lower()[:20]
+        if mode not in _VALID_DIAG_MODES:
+            valid = ", ".join(sorted(_VALID_DIAG_MODES))
+            return JSONResponse(
+                {"ok": False, "error": f"mode must be one of: {valid}"},
+                status_code=400,
+            )
         async with (await _get_semaphore()):
             result = await diagnostic_load(path=path, mode=mode)
         return JSONResponse({"ok": True, "result": result})
@@ -1152,7 +1159,7 @@ async def api_diagnostic_load(request: Request) -> Response:
 
 
 async def api_knowledge_graph_json(request: Request) -> Response:
-    """GET /api/knowledge-graph.json — serve the knowledge graph data for the viewer."""
+    """GET /api/knowledge-graph.json - serve the knowledge graph data for the viewer."""
     import json as _json
 
     _REPO_ROOT = _HERE.parent
@@ -1233,7 +1240,7 @@ def main() -> None:
     if args.host == "0.0.0.0":
         print("[WARN] WARNING: Binding to 0.0.0.0 exposes the server on all network interfaces.")
         print("   No authentication is configured. Use --host 127.0.0.1 for local-only access.")
-    print(f"ICC Profile MCP Web UI → http://{args.host}:{args.port}")
+    print(f"ICC Profile MCP Web UI -> http://{args.host}:{args.port}")
     try:
         uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     finally:
