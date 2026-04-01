@@ -54,15 +54,16 @@ Treat Linux container validation as the source of truth for `mcp-server` and the
 
 Verified image state:
 - Pulled `ghcr.io/xsscx/icc-profile-mcp:latest` with digest `sha256:f2ea3cab6bd6bc533753b0df513e2e82bf2714c3889f5fd58ed49a16e2a3c6f3`.
-- `GET /api/health` returned `{"ok":true,"tools":28,"engines":{"v1":true,"v2":true},"defaultAnalysisEngine":"v2","defaultStructuralEngine":"v1"}`.
-- This confirms the newer image fixed the older 24-tool / missing-`/api/pawg` regression, but the image is still not release-clean.
+- On Windows Docker Desktop, `GET /api/health` returned `{"ok":true,"tools":28,"engines":{"v1":true,"v2":true},"defaultAnalysisEngine":"v2","defaultStructuralEngine":"v1"}` for both the published image and a fresh local build from `mcp-server/Dockerfile`.
+- MCP stdio `initialize` and `tools/list` succeeded for both the published image and the fresh local build with `server_name=icc-profile-analyzer` and `tool_count=28`.
+- The published image contains the expected Linux toolchain and maintainer CLIs: `cmake`, `ninja`, `make`, `clang`, `git`, `file`, `python3`, plus `iccDumpProfile`, `iccFromXml`, `iccToXml`, `iccRoundTrip`, and `iccApplyNamedCmm`.
+- Web smoke on Windows Docker Desktop passed for both published and local images: `/`, `/favicon.ico`, `/.well-known/appspecific/com.chrome.devtools.json`, `/static/cytoscape.min.js`, `/api/health-check`, `/api/inspect?path=sRGB_D65_MAT.icc`, `/api/security-report?path=sRGB_D65_MAT.icc`, `/api/pawg?path=sRGB_D65_MAT.icc`, `/api/coverage-gaps`, and `POST /api/scan-logs`.
+- Targeted published-image regression checks passed: `/api/registry?engine=v2` -> `200`, `/api/security?path=BlacklightPoster_411039.icc` -> `200` with non-empty result, `/api/pawg?path=BlacklightPoster_411039.icc` -> `200` with non-empty result, `/api/xml/download?path=BlacklightPoster_411039.icc` -> `200`.
+- In-container published-image test suites passed: `mcp-server/test_mcp.py` -> `1902/1902`, `mcp-server/test_web_ui.py` -> `348/348`.
 
-Verified release regressions to hand off:
-- `GET /api/registry?engine=v2` returned `{"ok":false,"error":"Invalid registry output"}` instead of the `200` expected by `mcp-server/test_web_ui.py`.
-- `GET /api/security?path=BlacklightPoster_411039.icc` returned `{"ok":true,"result":""}`.
-- `GET /api/pawg?path=BlacklightPoster_411039.icc` returned `{"ok":true,"result":""}`.
-- `mcp-server/test_mcp.py` failed in `test_inspect_all_profiles()` with corpus-wide `inspect(...)` failures; see `mcp-server/test_mcp.py`.
-- `mcp-server/test_web_ui.py` observed `GET /api/xml/download?path=BlacklightPoster_411039.icc` returning `400` where the test expects `200`.
+Current parity checkpoint:
+- `ctest --test-dir iccanalyzer-lite/icctest/build --output-on-failure` passed `6/6`.
+- `iccanalyzer-lite/icctest/build/parity-artifacts/verify-parity-summary.json` currently reports raw parity `delta = 0`, raw parity `knownGap = 0`, image parity `delta = 0`, generated-image smoke `status = pass`, and unit summary line `Results: 1809/1809 passed`.
 
 Recommended reproduction path for the Windows / WSL2 agent:
 - `docker pull ghcr.io/xsscx/icc-profile-mcp:latest`
@@ -71,6 +72,7 @@ Recommended reproduction path for the Windows / WSL2 agent:
 - `curl -sS 'http://127.0.0.1:18080/api/registry?engine=v2'`
 - `curl -sS 'http://127.0.0.1:18080/api/security?path=BlacklightPoster_411039.icc'`
 - `curl -sS 'http://127.0.0.1:18080/api/pawg?path=BlacklightPoster_411039.icc'`
+- `curl -sS -D - 'http://127.0.0.1:18080/api/xml/download?path=BlacklightPoster_411039.icc' -o /dev/null`
 - `docker run --rm ghcr.io/xsscx/icc-profile-mcp:latest sh -lc 'cd /app/mcp-server && /app/mcp-venv/bin/python3 test_mcp.py'`
 - `docker run --rm ghcr.io/xsscx/icc-profile-mcp:latest sh -lc 'cd /app/mcp-server && /app/mcp-venv/bin/python3 test_web_ui.py'`
 
