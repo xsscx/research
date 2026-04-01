@@ -496,6 +496,14 @@ std::string overallVerdict(int totalItems, const PawgTotals& totals) {
     return "PASS - Profile meets all ICC PAWG assessment criteria";
 }
 
+bool overallPasses(int totalItems, const PawgTotals& totals) {
+    return totals.fail == 0 &&
+           totals.warn == 0 &&
+           (totals.pass + totals.notApplicable) == totalItems &&
+           totals.gap == 0 &&
+           totals.notRun == 0;
+}
+
 size_t countMappedChecks() {
     std::set<int> mapped;
     for (const auto& def : kSecurityItems) {
@@ -519,6 +527,17 @@ std::pair<int, int> conformanceRegistryStats() {
         if (!check.meta.specRef.empty()) ++withSpecRef;
     }
     return {total, withSpecRef};
+}
+
+size_t countEvaluatedConformanceChecks(const AnalysisResult& result) {
+    size_t evaluated = 0;
+    for (const auto& entry : result.perCheck) {
+        if (entry.id.kind != CheckID::Kind::Conformance) continue;
+        if (entry.result.status == CheckResult::Status::SKIP) continue;
+        if (hasExplicitCoverageSummary(entry.result)) continue;
+        ++evaluated;
+    }
+    return evaluated;
 }
 
 } // namespace
@@ -601,10 +620,7 @@ public:
         out << '\n';
 
         const auto [registryTotal, checksWithSpecRef] = conformanceRegistryStats();
-        size_t evaluatedConformance = 0;
-        for (const auto& entry : result.perCheck) {
-            if (entry.id.kind == CheckID::Kind::Conformance) ++evaluatedConformance;
-        }
+        const size_t evaluatedConformance = countEvaluatedConformanceChecks(result);
 
         out << '\n';
         pawgBanner(out, "CONFORMANCE CHECK COVERAGE", kWidth);
@@ -629,6 +645,25 @@ public:
         out << "  ICC PAWG checklist: 31 items (13 Security + 14 Conformance + 4 Quality)\n";
         for (int i = 0; i < kWidth; ++i) out << '=';
         out << "\n\n";
+    }
+
+    int recommendedExitCode(const AnalysisResult& result) const override {
+        auto securityItems = makeItems(kSecurityItems);
+        auto conformanceItems = makeItems(kConformanceItems);
+        auto qualityItems = makeItems(kQualityItems);
+
+        scorePawgItems(securityItems, result);
+        scorePawgItems(conformanceItems, result);
+        scorePawgItems(qualityItems, result);
+
+        PawgTotals totals;
+        for (const auto& item : securityItems) countVerdict(totals, item.verdict);
+        for (const auto& item : conformanceItems) countVerdict(totals, item.verdict);
+        for (const auto& item : qualityItems) countVerdict(totals, item.verdict);
+
+        const int totalItems = static_cast<int>(
+            securityItems.size() + conformanceItems.size() + qualityItems.size());
+        return overallPasses(totalItems, totals) ? 0 : 1;
     }
 };
 

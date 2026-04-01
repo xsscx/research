@@ -15,6 +15,7 @@ from runtimeEnv import force_sanitizer_env
 
 ITEM_LINE_RE = re.compile(r"^\s+\[(OK|WARN|FAIL|N/A|GAP| -- )\]\s+([SCQ]\d+)\s+(.*)$", re.MULTILINE)
 COUNT_LINE_RE = re.compile(r"^\s+(PASS|WARN|FAIL|N/A|GAP|NOT RUN):\s+(\d+)$", re.MULTILINE)
+COVERAGE_LINE_RE = re.compile(r"^\s+Checks evaluated:\s+(\d+)\s+/\s+(\d+)$", re.MULTILINE)
 
 
 def repo_root() -> Path:
@@ -49,6 +50,10 @@ def default_named_color_profile() -> Path:
     return repo_root().parent / "test-profiles" / "NamedColor.icc"
 
 
+def default_incomplete_profile() -> Path:
+    return repo_root() / "tests" / "corpus" / "v5_spac_basic.icc"
+
+
 def expected_spec_reference_paths() -> list[str]:
     spec_dir = repo_root().parent / "docs" / "iccDEV" / "specifications"
     return [
@@ -67,6 +72,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--characterization-profile", type=Path, default=default_characterization_profile())
     parser.add_argument("--cmyk-quality-profile", type=Path, default=default_cmyk_quality_profile())
     parser.add_argument("--named-color-profile", type=Path, default=default_named_color_profile())
+    parser.add_argument("--incomplete-profile", type=Path, default=default_incomplete_profile())
     return parser.parse_args()
 
 
@@ -75,7 +81,7 @@ def ensure_file(path: Path, label: str) -> None:
         raise FileNotFoundError(f"Missing {label}: {path}")
 
 
-def run(cmd: list[str], *, label: str) -> str:
+def run(cmd: list[str], *, label: str) -> tuple[str, int]:
     env = force_sanitizer_env(os.environ.copy())
     proc = subprocess.run(
         cmd,
@@ -95,7 +101,7 @@ def run(cmd: list[str], *, label: str) -> str:
         )
     text = proc.stdout + ("\n" + proc.stderr if proc.stderr.strip() else "")
     text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text)
-    return text
+    return text, proc.returncode
 
 
 def require(text: str, needle: str, failures: list[str], label: str) -> None:
@@ -190,19 +196,24 @@ def main() -> int:
     ensure_file(args.characterization_profile, "characterization profile")
     ensure_file(args.cmyk_quality_profile, "CMYK quality profile")
     ensure_file(args.named_color_profile, "NamedColor profile")
+    ensure_file(args.incomplete_profile, "incomplete profile")
 
     failures: list[str] = []
 
-    v1_good = run([str(args.v1_binary), "-pawg", str(args.good_profile)], label="v1 good PAWG")
-    v2_good = run([str(args.v2_binary), "--no-color", "--pawg", str(args.good_profile)], label="v2 good PAWG")
-    v1_bad = run([str(args.v1_binary), "-pawg", str(args.bad_profile)], label="v1 bad PAWG")
-    v2_bad = run([str(args.v2_binary), "--no-color", "--pawg", str(args.bad_profile)], label="v2 bad PAWG")
-    v1_char = run([str(args.v1_binary), "-pawg", str(args.characterization_profile)], label="v1 characterization PAWG")
-    v2_char = run([str(args.v2_binary), "--no-color", "--pawg", str(args.characterization_profile)], label="v2 characterization PAWG")
-    v1_cmyk = run([str(args.v1_binary), "-pawg", str(args.cmyk_quality_profile)], label="v1 CMYK PAWG")
-    v2_cmyk = run([str(args.v2_binary), "--no-color", "--pawg", str(args.cmyk_quality_profile)], label="v2 CMYK PAWG")
-    v1_named = run([str(args.v1_binary), "-pawg", str(args.named_color_profile)], label="v1 NamedColor PAWG")
-    v2_named = run([str(args.v2_binary), "--no-color", "--pawg", str(args.named_color_profile)], label="v2 NamedColor PAWG")
+    v1_good, _ = run([str(args.v1_binary), "-pawg", str(args.good_profile)], label="v1 good PAWG")
+    v2_good, v2_good_rc = run([str(args.v2_binary), "--no-color", "--pawg", str(args.good_profile)], label="v2 good PAWG")
+    v1_bad, _ = run([str(args.v1_binary), "-pawg", str(args.bad_profile)], label="v1 bad PAWG")
+    v2_bad, _ = run([str(args.v2_binary), "--no-color", "--pawg", str(args.bad_profile)], label="v2 bad PAWG")
+    v1_char, _ = run([str(args.v1_binary), "-pawg", str(args.characterization_profile)], label="v1 characterization PAWG")
+    v2_char, _ = run([str(args.v2_binary), "--no-color", "--pawg", str(args.characterization_profile)], label="v2 characterization PAWG")
+    v1_cmyk, _ = run([str(args.v1_binary), "-pawg", str(args.cmyk_quality_profile)], label="v1 CMYK PAWG")
+    v2_cmyk, _ = run([str(args.v2_binary), "--no-color", "--pawg", str(args.cmyk_quality_profile)], label="v2 CMYK PAWG")
+    v1_named, _ = run([str(args.v1_binary), "-pawg", str(args.named_color_profile)], label="v1 NamedColor PAWG")
+    v2_named, _ = run([str(args.v2_binary), "--no-color", "--pawg", str(args.named_color_profile)], label="v2 NamedColor PAWG")
+    v2_incomplete, v2_incomplete_rc = run(
+        [str(args.v2_binary), "--no-color", "--pawg", str(args.incomplete_profile)],
+        label="v2 incomplete PAWG",
+    )
 
     check_report("v1 good", v1_good, failures)
     check_report("v2 good", v2_good, failures)
@@ -214,6 +225,7 @@ def main() -> int:
     check_report("v2 CMYK", v2_cmyk, failures)
     check_report("v1 NamedColor", v1_named, failures)
     check_report("v2 NamedColor", v2_named, failures)
+    check_report("v2 incomplete", v2_incomplete, failures)
 
     v1_good_items = parse_item_lines(v1_good, failures, "v1 good")
     v2_good_items = parse_item_lines(v2_good, failures, "v2 good")
@@ -278,6 +290,35 @@ def main() -> int:
     require_regex(v1_bad, r"WARN:\s+[1-9]\d*", failures, "v1 bad")
     require_regex(v2_bad, r"WARN:\s+[1-9]\d*", failures, "v2 bad")
     require(v2_bad, "CF-008:", failures, "v2 bad")
+
+    if v2_incomplete_rc != 1:
+        failures.append(
+            f"v2 incomplete: expected exit code 1 for INCOMPLETE report, got {v2_incomplete_rc}"
+        )
+
+    require(
+        v2_incomplete,
+        "Overall:   INCOMPLETE - Some checklist items are not yet covered or could not be evaluated",
+        failures,
+        "v2 incomplete",
+    )
+    incomplete_counts = parse_summary_counts(v2_incomplete)
+    if int(incomplete_counts.get("NOT RUN", 0)) <= 0:
+        failures.append("v2 incomplete: expected NOT RUN summary count > 0")
+
+    coverage_match = COVERAGE_LINE_RE.search(v2_incomplete)
+    if coverage_match is None:
+        failures.append("v2 incomplete: missing coverage line")
+    else:
+        evaluated, total = (int(value) for value in coverage_match.groups())
+        if evaluated <= 0:
+            failures.append(
+                f"v2 incomplete: expected at least one evaluated conformance check, got {evaluated}"
+            )
+        if evaluated >= total:
+            failures.append(
+                f"v2 incomplete: expected evaluated coverage below registry total, got {evaluated}/{total}"
+            )
 
     if failures:
         for failure in failures:

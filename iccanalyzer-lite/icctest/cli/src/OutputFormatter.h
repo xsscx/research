@@ -45,6 +45,11 @@ public:
         (void)out;
         // Default: not supported
     }
+
+    virtual int recommendedExitCode(const AnalysisResult& result) const {
+        return result.hasCritical() ? 1 :
+               (result.stats.findingsTotal > 0 ? 1 : 0);
+    }
 };
 
 } // namespace icctest

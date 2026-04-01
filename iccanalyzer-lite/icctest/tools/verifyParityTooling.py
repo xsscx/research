@@ -46,6 +46,10 @@ def default_h21_fixture() -> Path:
     )
 
 
+def default_cf190_fixture() -> Path:
+    return repo_root() / "tests" / "corpus" / "v5_spac_basic.icc"
+
+
 def make_h21_tag_struct_profile_bytes() -> bytes:
     return bytes.fromhex(
         "000002d0000000000500000063656e63524742200000000000000000000000000000000061637370000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000372666e6d000000a80000001463736e6d000000bc0000001063657074000000cc00000204757466380000000049534f2032323032382d3100757466380000000062672d73524742007473747200000000636570740000000f7258595a000000c4000000146758595a000000d8000000146258595a000000ec0000001466756e630000010000000070776c756d000001700000000c7758595a0000017c0000001065526e670000018c00000010626974730000019c0000000b696d7374000001a80000000c69626b67000001b40000000c73726e64000001c00000000c61696c6d000001cc0000000c6d77706c000001d80000000c6d777063000001e4000000106d627063000001f400000010666c3332000000003f23d70a3ea8f5c33cf5c28f666c3332000000003e99999a3f19999a3dcccccd666c3332000000003e19999a3d75c28f3f4a3d71637572660000000000030000bb4d2e1c3b4d2e1c70617266000000000003000043d55555bf870a3dbf80000000000000000000007061726600000000000000003f800000414eb85200000000000000007061726600000000000300003ed555553f870a3d3f8000000000000000000000666c33320000000042a00000666c3332000000003e870a3d3f8000000000000000000000666c33320000000042a00000666c3332000000003ea01a373ea872b0666c333200000000bf07ae143fd70a3d75693038000000000a0c10007369672000000000646f7263666c33320000000042a00000666c3332000000003ea01a373ea872b0666c3332000000003ea01a373ea872b0"
@@ -59,6 +63,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fixture", type=Path, default=default_fixture())
     parser.add_argument("--h30-fixture", type=Path, default=default_h30_fixture())
     parser.add_argument("--h21-fixture", type=Path, default=default_h21_fixture())
+    parser.add_argument("--cf190-fixture", type=Path, default=default_cf190_fixture())
     return parser.parse_args()
 
 
@@ -170,9 +175,11 @@ def main() -> int:
     ensure_file(args.v2_binary, "V2 parity binary")
     ensure_file(args.fixture, "malformed spectral fixture")
     ensure_file(args.h30_fixture, "H30 GBD fixture")
+    ensure_file(args.cf190_fixture, "CF-190 failed-load fixture")
 
     tool_dir = Path(__file__).resolve().parent
     normalize = tool_dir / "normalizeV1Json.py"
+    normalize_conformance = tool_dir / "normalizeV1TextConformance.py"
     compare = tool_dir / "compareRawParity.py"
 
     with tempfile.TemporaryDirectory(prefix="icctest-parity-tooling-") as tmpdir:
@@ -291,6 +298,65 @@ def main() -> int:
         if int(h21_counts.get("delta", 0)) != 0:
             raise RuntimeError(
                 f"Expected H21-H24 comparator delta=0 for tagStruct fixture, got {h21_counts}"
+            )
+
+        cf190_normalized = run_json(
+            [
+                sys.executable,
+                str(normalize_conformance),
+                "--binary",
+                str(args.v1_binary),
+                str(args.cf190_fixture),
+            ]
+        )
+        cf190_record = next(
+            (
+                record
+                for record in cf190_normalized.get("records", [])
+                if record.get("canonicalId") == "CF-190"
+            ),
+            None,
+        )
+        if not cf190_record:
+            raise RuntimeError("Expected normalizeV1TextConformance to synthesize CF-190")
+        if cf190_record.get("normalizedStatus") != "finding":
+            raise RuntimeError(f"Expected synthesized CF-190 finding status, got {cf190_record}")
+        if int(cf190_record.get("findingCount", 0)) != 1:
+            raise RuntimeError(f"Expected synthesized CF-190 findingCount=1, got {cf190_record}")
+        if "profileDescriptionTag - Tag has invalid structure!" not in cf190_record.get("detail", ""):
+            raise RuntimeError(
+                "Expected synthesized CF-190 detail to preserve ReadValidate failure detail"
+            )
+
+        cf190_compare = run_json(
+            [
+                sys.executable,
+                str(compare),
+                "--lane",
+                "conformance",
+                "--check",
+                "CF-190",
+                "--v1-binary",
+                str(args.v1_binary),
+                "--v2-binary",
+                str(args.v2_binary),
+                str(args.cf190_fixture),
+            ]
+        )
+        cf190_lane = cf190_compare["results"][0]["lanes"]["conformance"]
+        cf190_counts = cf190_lane["summary"]["counts"]
+        if int(cf190_counts.get("delta", 0)) != 0:
+            raise RuntimeError(
+                f"Expected CF-190 comparator delta=0 for failed-load fixture, got {cf190_counts}"
+            )
+        if int(cf190_counts.get("implicitSkipMatch", 0)) != 0:
+            raise RuntimeError(
+                "Expected CF-190 comparator to stop treating the failed-load case as implicit skip, "
+                f"got {cf190_counts}"
+            )
+        if int(cf190_counts.get("match", 0)) != 1:
+            raise RuntimeError(
+                f"Expected CF-190 comparator match=1 for failed-load fixture, got {cf190_counts}"
             )
 
         malformed_h172 = tmpdir_path / "h172-lut-matrix.icc"
