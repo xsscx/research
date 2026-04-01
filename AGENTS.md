@@ -49,5 +49,30 @@ Reference: https://github.com/xsscx/governance (LLMCJF, 374 files, 90K lines)
 ## Testing Guidelines
 Any behavior change should update tests in the nearest suite. Analyzer tests live under `iccanalyzer-lite/tests/`; V2 library and parity tests live under `iccanalyzer-lite/icctest/`; MCP tests are `mcp-server/test_mcp.py` and `mcp-server/test_web_ui.py`. Do not commit generated `.profraw`, coverage HTML, virtualenv contents, or crash artifacts unless the change is explicitly about test data.
 
+## Current Agent Handoff -- Docker Image Validation (2026-04-01)
+Treat Linux container validation as the source of truth for `mcp-server` and the native analysis stack. Native macOS failures are not actionable for the Linux-specialized tools in this repo.
+
+Verified image state:
+- Pulled `ghcr.io/xsscx/icc-profile-mcp:latest` with digest `sha256:f2ea3cab6bd6bc533753b0df513e2e82bf2714c3889f5fd58ed49a16e2a3c6f3`.
+- `GET /api/health` returned `{"ok":true,"tools":28,"engines":{"v1":true,"v2":true},"defaultAnalysisEngine":"v2","defaultStructuralEngine":"v1"}`.
+- This confirms the newer image fixed the older 24-tool / missing-`/api/pawg` regression, but the image is still not release-clean.
+
+Verified release regressions to hand off:
+- `GET /api/registry?engine=v2` returned `{"ok":false,"error":"Invalid registry output"}` instead of the `200` expected by `mcp-server/test_web_ui.py`.
+- `GET /api/security?path=BlacklightPoster_411039.icc` returned `{"ok":true,"result":""}`.
+- `GET /api/pawg?path=BlacklightPoster_411039.icc` returned `{"ok":true,"result":""}`.
+- `mcp-server/test_mcp.py` failed in `test_inspect_all_profiles()` with corpus-wide `inspect(...)` failures; see `mcp-server/test_mcp.py`.
+- `mcp-server/test_web_ui.py` observed `GET /api/xml/download?path=BlacklightPoster_411039.icc` returning `400` where the test expects `200`.
+
+Recommended reproduction path for the Windows / WSL2 agent:
+- `docker pull ghcr.io/xsscx/icc-profile-mcp:latest`
+- `docker run --rm -d --name research-mcp-test -p 18080:8080 ghcr.io/xsscx/icc-profile-mcp:latest web`
+- `curl -fsS http://127.0.0.1:18080/api/health`
+- `curl -sS 'http://127.0.0.1:18080/api/registry?engine=v2'`
+- `curl -sS 'http://127.0.0.1:18080/api/security?path=BlacklightPoster_411039.icc'`
+- `curl -sS 'http://127.0.0.1:18080/api/pawg?path=BlacklightPoster_411039.icc'`
+- `docker run --rm ghcr.io/xsscx/icc-profile-mcp:latest sh -lc 'cd /app/mcp-server && /app/mcp-venv/bin/python3 test_mcp.py'`
+- `docker run --rm ghcr.io/xsscx/icc-profile-mcp:latest sh -lc 'cd /app/mcp-server && /app/mcp-venv/bin/python3 test_web_ui.py'`
+
 ## Commit & Pull Request Guidelines
 Recent history uses short, imperative subjects with prefixes such as `fix:`, `docs:`, `ci:`, `fix(ci):`, and `call-graph:`. Keep commits scoped to one component where possible. Pull requests should name the affected area, list the commands you ran, link the issue or research note when relevant, and include screenshots or representative API output for `mcp-server` UI or API changes.
