@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-29 19:00:00 UTC
 
-tl;dr ICC Profile Security Analyzer - 173 heuristics (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H148 data validation + H151-H153 advanced + H154-H173 CodeQL-driven), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
+tl;dr ICC Profile Security Analyzer - 180 heuristics (H1-H180), ASAN/UBSAN instrumented, CVE cross-referenced, JSON output, callgraph analysis
 
 ## Target Audience
 - Security Researcher
@@ -14,7 +14,7 @@ tl;dr ICC Profile Security Analyzer - 173 heuristics (H1-H138 ICC + H139-H141, H
 ```
 iccAnalyzer-lite [MODE] <file>
 
-  -h  <file.icc>              Security heuristics (173 checks)
+  -h  <file.icc>              Security heuristics (180 checks)
   -a  <file.icc|file.tif>     Comprehensive analysis (all modes, auto-detects TIFF)
   -r  <file.icc>              Round-trip accuracy test
   -n  <file.icc>              Ninja mode (minimal output)
@@ -58,7 +58,7 @@ The V2 rewrite lives under `icctest/`.
 
 | Module | Purpose |
 |--------|---------|
-| IccHeuristicsRegistry.h | 173-entry metadata table (name, CWE, CVE, phase, severity) |
+| IccHeuristicsRegistry.h | 180-entry metadata table (name, CWE, CVE, phase, severity) |
 | IccHeuristicsHelpers.h | FindAndCast<T> template, RawFileHandle RAII |
 | IccAnalyzerJson.cpp | --json structured output with CVE cross-refs |
 | IccAnalyzerSecurity.cpp | Orchestrator: phase dispatch, crash recovery |
@@ -81,7 +81,7 @@ The V2 rewrite lives under `icctest/`.
 
 62 heuristics detect patterns from 98 CVEs + 106 GHSAs (204 unique across 100 iccDEV security advisories).
 
-## Security Heuristics (H1-H173)
+## Security Heuristics (H1-H180)
 
 ### Header-Level (H1-H8, H15-H17)
 | ID | Check | Risk |
@@ -277,7 +277,7 @@ The V2 rewrite lives under `icctest/`.
 | H152 | Curve element OOM size | Oversized `sngf/samf/clcf` counts and `curf` underflow detection - CWE-770/CWE-191 |
 | H153 | Sampled curve NaN-to-unsigned cast | NaN/Inf in curve firstEntry/lastEntry - CWE-681 |
 
-### CodeQL-Driven Heuristics (H154-H173)
+### Extended Security Heuristics (H154-H180)
 | ID | Check | Risk |
 |----|-------|------|
 | H154 | Uncontrolled tag allocation size | Allocation size from file-controlled values - CWE-789 |
@@ -296,6 +296,17 @@ The V2 rewrite lives under `icctest/`.
 | H167 | Null MPE CLUT/Curve application guard | Null pointer after GetNewApply failure - CWE-476 |
 | H168 | Unchecked allocation size overflow | Multiplication overflow before allocation - CWE-789 |
 | H169 | Dictionary tag element bounds | Out-of-bounds access in dictionary tag elements - CWE-789 |
+| H170 | Copy constructor UB via null PCS | Null PCS propagation during copy-construction paths - CWE-843 |
+| H171 | Curve param count vs funcType validation | Parametric curve parameter count mismatch - CWE-125 |
+| H172 | LUT matrix coefficient validation | Invalid or unstable matrix coefficients - CWE-682 |
+| H173 | Signature conversion shift overflow | Signed shift overflow in signature conversion paths - CWE-190 |
+| H174 | Half-float conversion unsigned underflow | Underflow during half-float conversion and read paths - CWE-190 |
+| H175 | Device spectral colour space range requirement | Missing or inconsistent spectral range requirements - CWE-20 |
+| H176 | deviceSpectralRangeTag validation | Malformed `dsrn` tag structure or bounds - CWE-20/CWE-125 |
+| H177 | devicePccTag structure validation | Malformed `dpcc` tag structure or missing dependent members - CWE-20/CWE-476 |
+| H178 | spectralRangeType encoding validation | Invalid `srng` encoding or bounds handling - CWE-20/CWE-125 |
+| H179 | AddXform Create NULL guard detection | Missing null guard in AddXform creation path - CWE-476 |
+| H180 | XML round-trip fidelity | Structural drift after XML export/import round-trip - CWE-345 |
 
 ## Call Graph Analysis (-cg)
 

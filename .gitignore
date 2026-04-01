@@ -160,8 +160,10 @@ xnuimagetools/
 cfl/seeds-applyprofiles/
 wasm/
 .copilot/
+.codex
+.codex/
 
-# AFL++ fuzzing — all input seeds, output queues, crash dirs, stats
+# AFL++ fuzzing - all input seeds, output queues, crash dirs, stats
 afl/afl-*/input/
 afl/afl-*/output*/
 afl/afl-*/cmin*/

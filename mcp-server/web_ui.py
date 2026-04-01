@@ -147,11 +147,11 @@ def _get_heuristic_count() -> int:
             _HEURISTIC_COUNT = (
                 data.get("totalHeuristics") or
                 data.get("heuristics") or
-                173
+                180
             )
             return _HEURISTIC_COUNT
     except Exception:  # noqa: E722 - intentional broad catch for graceful fallback
-        _HEURISTIC_COUNT = 173  # registry count fallback
+        _HEURISTIC_COUNT = 180  # registry count fallback
     return _HEURISTIC_COUNT
 
 

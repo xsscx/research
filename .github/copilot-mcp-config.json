@@ -3,14 +3,14 @@
     "icc-profile-mcp": {
       "type": "local",
       "command": "python",
-      "args": ["mcp-server/icc_profile_mcp.py"],
+      "args": ["mcp-server/launch.py", "mcp"],
       "tools": [
         "health_check",
         "inspect_profile",
         "analyze_security",
+        "validate_roundtrip",
         "analyze_security_json",
         "analyze_security_report",
-        "validate_roundtrip",
         "full_analysis",
         "profile_to_xml",
         "compare_profiles",
@@ -28,7 +28,11 @@
         "batch_test_profiles",
         "validate_xml",
         "coverage_report",
-        "scan_logs"
+        "scan_logs",
+        "dump_all",
+        "diagnostic_load",
+        "query_attack_surface",
+        "coverage_gaps"
       ]
     }
   }
