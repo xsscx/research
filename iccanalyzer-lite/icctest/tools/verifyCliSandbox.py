@@ -33,11 +33,16 @@ def default_coverage_fixture() -> Path:
     return repo_root() / "tests" / "corpus" / "v5_spac_basic.icc"
 
 
+def default_roundtrip_fixture() -> Path:
+    return repo_root() / "tests" / "corpus" / "xyz_large_array.icc"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cli-binary", type=Path, default=default_cli_binary())
     parser.add_argument("--fixture", type=Path, default=default_fixture())
     parser.add_argument("--coverage-fixture", type=Path, default=default_coverage_fixture())
+    parser.add_argument("--roundtrip-fixture", type=Path, default=default_roundtrip_fixture())
     parser.add_argument("--timeout-seconds", type=int, default=20)
     return parser.parse_args()
 
@@ -52,6 +57,7 @@ def main() -> int:
     ensure_file(args.cli_binary, "icctest CLI binary")
     ensure_file(args.fixture, "sandbox regression fixture")
     ensure_file(args.coverage_fixture, "coverage regression fixture")
+    ensure_file(args.roundtrip_fixture, "round-trip regression fixture")
 
     env = force_sanitizer_env(os.environ.copy())
     proc = subprocess.run(
@@ -163,6 +169,55 @@ def main() -> int:
                 f"{label} missing CF-190 load-failure finding\n"
                 f"payload={json.dumps(payload)[:4000]}"
             )
+
+    sandbox_roundtrip = subprocess.run(
+        [str(args.cli_binary), "--json", str(args.roundtrip_fixture)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+        timeout=args.timeout_seconds,
+        check=False,
+    )
+    nosandbox_roundtrip = subprocess.run(
+        [str(args.cli_binary), "--no-sandbox", "--json", str(args.roundtrip_fixture)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+        timeout=args.timeout_seconds,
+        check=False,
+    )
+    for label, proc in (("sandboxed round-trip JSON", sandbox_roundtrip), ("in-process round-trip JSON", nosandbox_roundtrip)):
+        if proc.returncode != 1:
+            raise RuntimeError(
+                f"{label} expected exit code 1, got {proc.returncode}\n"
+                f"stdout={proc.stdout[:4000]}\n"
+                f"stderr={proc.stderr[:4000]}"
+            )
+        if any(token in proc.stderr for token in ("AddressSanitizer", "UndefinedBehaviorSanitizer", "runtime error:")):
+            raise RuntimeError(
+                f"{label} emitted sanitizer diagnostics\n"
+                f"stderr={proc.stderr[:4000]}"
+            )
+
+    sandbox_roundtrip_payload = json.loads(sandbox_roundtrip.stdout)
+    nosandbox_roundtrip_payload = json.loads(nosandbox_roundtrip.stdout)
+
+    def find_finding(payload: dict, finding_id: str) -> dict | None:
+        for finding in payload.get("findings", []):
+            if finding.get("id") == finding_id:
+                return finding
+        return None
+
+    sandbox_h180 = find_finding(sandbox_roundtrip_payload, "H180")
+    nosandbox_h180 = find_finding(nosandbox_roundtrip_payload, "H180")
+    if sandbox_h180 != nosandbox_h180:
+        raise RuntimeError(
+            "sandboxed and in-process H180 findings diverged\n"
+            f"sandboxed={json.dumps(sandbox_h180)}\n"
+            f"in_process={json.dumps(nosandbox_h180)}"
+        )
 
     print("verifyCliSandbox: pass")
     return 0
