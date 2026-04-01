@@ -38,7 +38,7 @@ class Deallocation extends Expr {
 }
 
 /**
- * Access to a variable that may have been freed — requires same basic block
+ * Access to a variable that may have been freed -- requires same basic block
  * or provable control flow path without reassignment or null check.
  */
 class PotentialUseAfterFree extends VariableAccess {

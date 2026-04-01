@@ -5,7 +5,7 @@
  *  @date 28 FEB 2026
  *  @version 6.0.0
  *
- *  Fork-isolated ICC→XML conversion using vanilla (unpatched) iccDEV.
+ *  Fork-isolated ICC->XML conversion using vanilla (unpatched) iccDEV.
  *  Each profile operation runs in a child process with resource limits.
  *  Library crashes are caught and reported as security findings.
  *
@@ -46,9 +46,24 @@
 #include "ColorBleedSandbox.h"
 #include "ColorBleedDiagnosticXml.h"
 
-// Global state for signal recovery — write partial XML on crash
+// Global state for signal recovery -- write partial XML on crash
 static std::string* g_xml_output = nullptr;
 static char         g_dst_path[PATH_MAX] = {0};
+
+static constexpr int kExitUsage = 64;
+static constexpr int kExitNoInput = 66;
+
+static bool IsHelpFlag(const char* arg) {
+  return arg && (!strcmp(arg, "-h") || !strcmp(arg, "--help"));
+}
+
+static void PrintUsage() {
+  printf("IccToXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
+  printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
+  printf("Usage: IccToXml_unsafe src_icc_profile dest_xml_file\n");
+  printf("  Sandboxed: fork-isolated with ASan/UBSan recoverable mode\n");
+  printf("\n");
+}
 
 static void WritePartialOutput() {
   if (!g_xml_output || g_xml_output->empty() || g_dst_path[0] == '\0') return;
@@ -77,31 +92,32 @@ static void WritePartialOutput() {
 
 int main(int argc, char* argv[])
 {
-  if (argc<=2) {
-    printf("IccToXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
-    printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
-    printf("Usage: IccToXml_unsafe src_icc_profile dest_xml_file\n");
-    printf("  Sandboxed: fork-isolated with ASan/UBSan recoverable mode\n");
-    printf("\n");
-    return -1;
+  if (argc == 2 && IsHelpFlag(argv[1])) {
+    PrintUsage();
+    return 0;
+  }
+
+  if (argc <= 2) {
+    PrintUsage();
+    return kExitUsage;
   }
 
   // Validate output path (traversal, symlinks, system directories)
   std::string safe_dst = ValidateOutputPath(argv[2]);
   if (safe_dst.empty()) {
-    return -1;
+    return kExitUsage;
   }
 
   // Validate input path
   char resolved_src[PATH_MAX];
   if (!realpath(argv[1], resolved_src)) {
     fprintf(stderr, "[ColorBleed] Cannot resolve input path: %s\n", argv[1]);
-    return -1;
+    return kExitNoInput;
   }
   const char* src_path = resolved_src;
   const char* dst_path = safe_dst.c_str();
 
-  printf("[ColorBleed] Sandboxed ICC→XML conversion\n");
+  printf("[ColorBleed] Sandboxed ICC->XML conversion\n");
   printf("[ColorBleed] Input:  %s\n", src_path);
   printf("[ColorBleed] Output: %s\n", dst_path);
 
@@ -123,7 +139,7 @@ int main(int argc, char* argv[])
   // CRITICAL pre-flight = known dangerous patterns (SBO, HBO, unterminated strings).
   // Route to diagnostic XML instead of risking ASAN errors in ToXml().
   if (preflight.worst == PreflightSeverity::CRITICAL) {
-    fprintf(stderr, "[ColorBleed] CRITICAL pre-flight — routing to diagnostic XML\n");
+    fprintf(stderr, "[ColorBleed] CRITICAL pre-flight -- routing to diagnostic XML\n");
     std::string diagXml;
     std::string reason = "Pre-flight CRITICAL:";
     for (const auto& w : preflight.warnings) {
@@ -139,7 +155,7 @@ int main(int argc, char* argv[])
           size_t dw = fwrite(diagXml.c_str(), 1, diagXml.size(), df);
           fclose(df);
           if (dw == diagXml.size()) {
-            printf("[ColorBleed] Diagnostic XML written (%zu bytes) → %s\n",
+            printf("[ColorBleed] Diagnostic XML written (%zu bytes) -> %s\n",
                    diagXml.size(), safe_dst.c_str());
             printf("[ColorBleed] CRITICAL pre-flight: ToXml skipped to prevent ASAN errors\n");
             return 6;
@@ -166,7 +182,7 @@ int main(int argc, char* argv[])
     }
 
     if (!profile.Read(&srcIO)) {
-      fprintf(stderr, "Unable to read '%s' — generating diagnostic XML from raw binary\n", src_path);
+      fprintf(stderr, "Unable to read '%s' -- generating diagnostic XML from raw binary\n", src_path);
       srcIO.Close();
 
       // Generate diagnostic XML from raw binary analysis
@@ -179,7 +195,7 @@ int main(int argc, char* argv[])
             size_t dw = fwrite(diagXml.c_str(), 1, diagXml.size(), df);
             fclose(df);
             if (dw == diagXml.size()) {
-              fprintf(stderr, "[ColorBleed] Diagnostic XML written (%zu bytes) → %s\n",
+              fprintf(stderr, "[ColorBleed] Diagnostic XML written (%zu bytes) -> %s\n",
                       diagXml.size(), dst_path);
               printf("[ColorBleed] DIAGNOSTIC MODE: profile malformed, raw analysis written\n");
               return 6; // Distinct exit code: diagnostic mode
@@ -209,7 +225,7 @@ int main(int argc, char* argv[])
       return 3;
     }
 
-    // Clean path — write full output with restricted permissions
+    // Clean path -- write full output with restricted permissions
     int fd = open(dst_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
       fprintf(stderr, "Unable to open '%s'\n", dst_path);
@@ -240,15 +256,14 @@ int main(int argc, char* argv[])
   }, limits);
 
   // Exit code 6 = diagnostic mode (profile malformed, raw XML written successfully)
-  // This is NOT a crash — override the sandbox's generic non-zero = crashed logic
   if (result.exit_code == 6 && !result.timed_out && !result.oom_killed &&
       result.signal_num == 0) {
     printf("\n[ColorBleed] Diagnostic XML written (profile malformed, library Read failed)\n");
-    printf("[ColorBleed] Output contains raw binary analysis — NOT a valid ICC XML\n");
+    printf("[ColorBleed] Output contains raw binary analysis -- NOT a valid ICC XML\n");
     return 6;
   }
 
-  result.Report("ICC → XML", src_path);
+  result.Report("ICC -> XML", src_path);
 
   if (result.crashed) {
     printf("[ColorBleed] FINDING: Profile triggered library crash\n");

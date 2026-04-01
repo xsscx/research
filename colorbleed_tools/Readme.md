@@ -8,8 +8,8 @@ ICC Color Profile research tools to load & store unsafe file representations.
 
 | Binary | Description |
 |--------|-------------|
-| `iccToXml_unsafe` | ICC Profile → XML (unsafe load) |
-| `iccFromXml_unsafe` | XML → ICC Profile blob (unsafe store) |
+| `iccToXml_unsafe` | ICC Profile -> XML (unsafe load) |
+| `iccFromXml_unsafe` | XML -> ICC Profile blob (unsafe store) |
 | `iccDumpAll` | Enhanced ICC profile dump with full v5/iccMAX MPE element detail |
 | `iccDiagnosticLoad` | Deep diagnostic ICC profile loader with IO tracing (build from source) |
 

@@ -5,7 +5,7 @@
  *  @date 28 FEB 2026
  *  @version 6.0.0
  *
- *  Fork-isolated XML→ICC conversion using vanilla (unpatched) iccDEV.
+ *  Fork-isolated XML->ICC conversion using vanilla (unpatched) iccDEV.
  *  Each profile operation runs in a child process with resource limits.
  *  Library crashes are caught and reported as security findings.
  *
@@ -46,22 +46,38 @@
 #include <unistd.h>
 #include <libxml/parser.h>
 
+static constexpr int kExitUsage = 64;
+static constexpr int kExitNoInput = 66;
+
+static bool IsHelpFlag(const char* arg) {
+  return arg && (!strcmp(arg, "-h") || !strcmp(arg, "--help"));
+}
+
+static void PrintUsage() {
+  printf("IccFromXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
+  printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
+  printf("Usage: IccFromXml_unsafe xml_file saved_profile_file {-noid -v{=[relax_ng_schema_file]}}\n");
+  printf("  Sandboxed: fork-isolated with ASan/UBSan recoverable mode\n");
+  printf("\n");
+}
+
 /** Convert ICC XML profile to binary format in a sandboxed child process. */
 int main(int argc, char* argv[])
 {
-  if (argc<=2) {
-    printf("IccFromXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
-    printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
-    printf("Usage: IccFromXml_unsafe xml_file saved_profile_file {-noid -v{=[relax_ng_schema_file]}}\n");
-    printf("  Sandboxed: fork-isolated with ASan/UBSan recoverable mode\n");
-    printf("\n");
-    return -1;
+  if (argc == 2 && IsHelpFlag(argv[1])) {
+    PrintUsage();
+    return 0;
+  }
+
+  if (argc <= 2) {
+    PrintUsage();
+    return kExitUsage;
   }
 
   // Validate output path (traversal, symlinks, system directories)
   std::string safe_dst = ValidateOutputPath(argv[2]);
   if (safe_dst.empty()) {
-    return -1;
+    return kExitUsage;
   }
 
   // Parse optional flags before fork
@@ -108,16 +124,16 @@ int main(int argc, char* argv[])
   char resolved_xml[PATH_MAX];
   if (!realpath(argv[1], resolved_xml)) {
     fprintf(stderr, "[ColorBleed] Cannot resolve input path: %s\n", argv[1]);
-    return -1;
+    return kExitNoInput;
   }
   const char* xml_path = resolved_xml;
   const char* icc_path = safe_dst.c_str();
 
-  printf("[ColorBleed] Sandboxed XML→ICC conversion\n");
+  printf("[ColorBleed] Sandboxed XML->ICC conversion\n");
   printf("[ColorBleed] Input:  %s\n", xml_path);
   printf("[ColorBleed] Output: %s\n", icc_path);
 
-  // Pre-flight validation (file size, XXE detection — no iccDEV calls)
+  // Pre-flight validation (file size, XXE detection -- no iccDEV calls)
   PreflightResult preflight = PreflightValidateXML(xml_path);
   preflight.Report(xml_path);
 
@@ -176,7 +192,7 @@ int main(int argc, char* argv[])
     return 0;
   }, limits);
 
-  result.Report("XML → ICC", xml_path);
+  result.Report("XML -> ICC", xml_path);
 
   if (result.crashed) {
     printf("[ColorBleed] FINDING: Input triggered library crash\n");

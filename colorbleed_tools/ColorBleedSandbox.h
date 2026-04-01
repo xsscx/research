@@ -8,7 +8,7 @@
  *  Each profile operation runs in a forked child process with resource
  *  limits (memory, CPU, file size). ASan is configured in recoverable
  *  mode (halt_on_error=0) so the library logs errors but continues
- *  executing — the tools produce output even from malformed profiles.
+ *  executing -- the tools produce output even from malformed profiles.
  *
  *  If a truly fatal signal occurs (SIGSEGV, SIGBUS), siglongjmp-based
  *  recovery saves whatever partial output was generated.
@@ -66,7 +66,7 @@ static void __attribute__((unused)) SetCrashRecoveryCallback(CrashRecoveryFn fn)
 
 static void SandboxSignalHandler(int sig) {
     g_signal_caught = sig;
-    // Do NOT call g_crash_callback here — fopen/fwrite/fprintf are not
+    // Do NOT call g_crash_callback here -- fopen/fwrite/fprintf are not
     // async-signal-safe. The callback runs after siglongjmp returns
     // in normal control flow (see RunSandboxed child block).
     siglongjmp(g_recovery_point, sig);
@@ -90,38 +90,39 @@ struct SandboxResult {
             case SIGILL:  return "SIGILL (illegal instruction)";
             case SIGXCPU: return "SIGXCPU (CPU time limit)";
             case SIGXFSZ: return "SIGXFSZ (file size limit)";
-            case SIGKILL: return "SIGKILL (killed — likely OOM)";
+            case SIGKILL: return "SIGKILL (killed -- likely OOM)";
             default:      return strsignal(signal_num);
         }
     }
 
     void Report(const char* operation, const char* filename) const {
+        char status[64];
         fprintf(stderr, "\n");
-        fprintf(stderr, "╔══════════════════════════════════════════════════════╗\n");
-        fprintf(stderr, "║  ColorBleed Sandbox Report                          ║\n");
-        fprintf(stderr, "╠══════════════════════════════════════════════════════╣\n");
-        fprintf(stderr, "║  Operation: %-40s ║\n", operation);
-        fprintf(stderr, "║  File:      %-40s ║\n", filename);
+        fprintf(stderr, "+------------------------------------------------------+\n");
+        fprintf(stderr, "| ColorBleed Sandbox Report                           |\n");
+        fprintf(stderr, "+------------------------------------------------------+\n");
+        fprintf(stderr, "| Operation: %-40.40s |\n", operation);
+        fprintf(stderr, "| File:      %-40.40s |\n", filename);
 
-        if (!crashed) {
-            fprintf(stderr, "║  Status:    CLEAN EXIT (code %d)%-21s║\n",
-                    exit_code, "");
+        if (!crashed && exit_code == 0) {
+            snprintf(status, sizeof(status), "CLEAN EXIT (code %d)", exit_code);
+            fprintf(stderr, "| Status:    %-40.40s |\n", status);
         } else if (signal_num) {
-            fprintf(stderr, "║  Status:    *** CRASH DETECTED ***%-18s║\n", "");
-            fprintf(stderr, "║  Signal:    %-40s ║\n", SignalName());
+            fprintf(stderr, "| Status:    %-40.40s |\n", "*** CRASH DETECTED ***");
+            fprintf(stderr, "| Signal:    %-40.40s |\n", SignalName());
             if (timed_out)
-                fprintf(stderr, "║  Detail:    CPU time limit exceeded%-17s║\n", "");
+                fprintf(stderr, "| Detail:    %-40.40s |\n", "CPU time limit exceeded");
             if (oom_killed)
-                fprintf(stderr, "║  Detail:    Memory limit exceeded%-19s║\n", "");
+                fprintf(stderr, "| Detail:    %-40.40s |\n", "Memory limit exceeded");
         } else {
-            fprintf(stderr, "║  Status:    ABNORMAL EXIT (code %d)%-18s║\n",
-                    exit_code, "");
+            snprintf(status, sizeof(status), "ABNORMAL EXIT (code %d)", exit_code);
+            fprintf(stderr, "| Status:    %-40.40s |\n", status);
         }
 
         if (partial_output)
-            fprintf(stderr, "║  Output:    PARTIAL (recovered after signal)%-8s║\n", "");
+            fprintf(stderr, "| Output:    %-40.40s |\n", "PARTIAL (recovered after signal)");
 
-        fprintf(stderr, "╚══════════════════════════════════════════════════════╝\n");
+        fprintf(stderr, "+------------------------------------------------------+\n");
         fprintf(stderr, "\n");
     }
 };
@@ -136,7 +137,7 @@ struct SandboxLimits {
 static void ApplyChildLimits(const SandboxLimits& limits) {
     struct rlimit rl;
 
-    // Virtual memory — skip when ASan is active (ASan reserves ~20TB shadow)
+    // Virtual memory -- skip when ASan is active (ASan reserves ~20TB shadow)
 #if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
     rl.rlim_cur = rl.rlim_max = limits.max_mem_mb * 1024ULL * 1024ULL;
     setrlimit(RLIMIT_AS, &rl);
@@ -152,15 +153,15 @@ static void ApplyChildLimits(const SandboxLimits& limits) {
     rl.rlim_cur = rl.rlim_max = limits.max_fsize_mb * 1024ULL * 1024ULL;
     setrlimit(RLIMIT_FSIZE, &rl);
 
-    // Core dump size — disable
+    // Core dump size -- disable
     rl.rlim_cur = rl.rlim_max = 0;
     setrlimit(RLIMIT_CORE, &rl);
 
-    // File descriptors — cap at 64 (stdin/stdout/stderr + input/output + library needs)
+    // File descriptors -- cap at 64 (stdin/stdout/stderr + input/output + library needs)
     rl.rlim_cur = rl.rlim_max = 64;
     setrlimit(RLIMIT_NOFILE, &rl);
 
-    // Child processes — prevent fork bombs from library code.
+    // Child processes -- prevent fork bombs from library code.
     // Skip when ASan is active: ASan's symbolizer forks llvm-symbolizer
     // and RLIMIT_NPROC counts ALL user processes, not just children.
 #if !defined(__SANITIZE_ADDRESS__) && !__has_feature(address_sanitizer)
@@ -210,7 +211,7 @@ static SandboxResult RunSandboxed(std::function<int()> fn,
         int rc = 0;
         int sig = sigsetjmp(g_recovery_point, 1);
         if (sig != 0) {
-            // Recovered from signal — now in normal control flow,
+            // Recovered from signal -- now in normal control flow,
             // safe to do I/O (fopen/fwrite/fprintf)
             if (g_crash_callback) {
                 g_crash_callback();
@@ -253,7 +254,7 @@ static SandboxResult RunSandboxed(std::function<int()> fn,
             result.crashed = true;
             result.partial_output = true;
         } else {
-            result.crashed = (result.exit_code != 0);
+            result.crashed = false;
         }
     } else if (WIFSIGNALED(status)) {
         result.signal_num = WTERMSIG(status);

@@ -69,17 +69,23 @@ static void hexDump(const uint8_t *data, size_t len, size_t baseOffset) {
 
 // Read raw file into buffer
 static std::vector<uint8_t> readFile(const char *path) {
+    std::vector<uint8_t> buf;
     FILE *f = fopen(path, "rb");
-    if (!f) return {};
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    std::vector<uint8_t> buf(sz);
-    if (fread(buf.data(), 1, sz, f) != (size_t)sz)
-        buf.clear();
+    if (!f) return buf;
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return buf; }
+    long end = ftell(f);
+    if (end < 0) { fclose(f); return buf; }
+    size_t sz = (size_t)end;
+    const size_t kMax = (size_t)1 << 30;
+    if (sz == 0 || sz > kMax) { fclose(f); return buf; }
+    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return buf; }
+    buf.resize(sz);
+    size_t got = fread(buf.data(), 1, sz, f);
     fclose(f);
+    if (got != sz) { buf.clear(); }
     return buf;
 }
+
 
 static uint32_t readBE32(const uint8_t *p) {
     return ((uint32_t)p[0]<<24) | ((uint32_t)p[1]<<16) | ((uint32_t)p[2]<<8) | p[3];
@@ -89,7 +95,7 @@ static uint16_t readBE16(const uint8_t *p) {
     return ((uint16_t)p[0]<<8) | p[1];
 }
 
-// Phase 1: Raw binary analysis — no library, just raw bytes
+// Phase 1: Raw binary analysis -- no library, just raw bytes
 static void rawAnalyze(const char *path) {
     auto buf = readFile(path);
     if (buf.empty()) {
@@ -248,7 +254,7 @@ static void libraryCompare(const char *path) {
     if (!pA) {
         printf(C_RED "  OpenIccProfile FAILED!\n" C_RESET);
     } else {
-        printf(C_GREEN "  OpenIccProfile OK" C_RESET " — %zu tags in directory\n", pA->m_Tags.size());
+        printf(C_GREEN "  OpenIccProfile OK" C_RESET " -- %zu tags in directory\n", pA->m_Tags.size());
 
         const size_t bsz = 64;
         char buf[bsz];
@@ -292,9 +298,9 @@ static void libraryCompare(const char *path) {
     if (!pB) {
         printf(C_RED "  ReadIccProfile FAILED!\n" C_RESET);
         printf("  This means CIccProfile::Read() returned false.\n");
-        printf("  Read() loads ALL tags eagerly — any one tag failure aborts.\n");
+        printf("  Read() loads ALL tags eagerly -- any one tag failure aborts.\n");
     } else {
-        printf(C_GREEN "  ReadIccProfile OK" C_RESET " — %zu tags loaded\n", pB->m_Tags.size());
+        printf(C_GREEN "  ReadIccProfile OK" C_RESET " -- %zu tags loaded\n", pB->m_Tags.size());
 
         for (auto &entry : pB->m_Tags) {
             char buf[5];
@@ -313,7 +319,7 @@ static void libraryCompare(const char *path) {
     if (!pC) {
         printf(C_RED "  ValidateIccProfile FAILED!\n" C_RESET);
     } else {
-        printf(C_GREEN "  ValidateIccProfile OK" C_RESET " — status=%d\n", (int)nStatus);
+        printf(C_GREEN "  ValidateIccProfile OK" C_RESET " -- status=%d\n", (int)nStatus);
         delete pC;
     }
 
@@ -369,7 +375,7 @@ static void traceLoadTag(const char *path) {
 
         // Only deep-trace LUT types
         if (typeSig != 0x6D414220 && typeSig != 0x6D424120) {
-            printf("  (not LUT AtoB/BtoA — skipping deep trace)\n\n");
+            printf("  (not LUT AtoB/BtoA -- skipping deep trace)\n\n");
             continue;
         }
 
@@ -425,8 +431,6 @@ static void traceLoadTag(const char *path) {
                    nStart, offB, seekTarget);
             if (seekTarget >= fileLen) {
                 printf("  " C_RED "Seek past EOF! (%zu >= %zu)\n" C_RESET, seekTarget, fileLen);
-            } else if ((int64_t)seekTarget < 0) {
-                printf("  " C_RED "Seek returns negative!\n" C_RESET);
             } else {
                 printf("  Seek " C_GREEN "OK" C_RESET "\n");
             }
@@ -447,7 +451,7 @@ static void traceLoadTag(const char *path) {
                 printf("    Read32(&sig) = '%s' (0x%08x)\n", curveSigStr, curveSig);
 
                 if (curveSig != 0x63757276 && curveSig != 0x70617261) {
-                    printf("    " C_RED "Not curv(0x63757276) or para(0x70617261) — REJECT\n" C_RESET);
+                    printf("    " C_RED "Not curv(0x63757276) or para(0x70617261) -- REJECT\n" C_RESET);
                     break;
                 }
 
@@ -459,7 +463,7 @@ static void traceLoadTag(const char *path) {
                     printf("    " C_RED "*** UNDERFLOW: nEnd(%zu) - Tell(%zu) = %zu (0x%016zx)\n" C_RESET,
                            nEnd, ioPos, underflow, underflow);
                     printf("    " C_RED "*** cast to uint32 = %u (0x%08x)\n" C_RESET, truncated, truncated);
-                    printf("    " C_RED "*** CIccTagCurve::Read(%u, pIO) — passes ~4GB as 'size'!\n" C_RESET,
+                    printf("    " C_RED "*** CIccTagCurve::Read(%u, pIO) -- passes ~4GB as 'size'!\n" C_RESET,
                            truncated);
                 } else {
                     uint32_t readSize = (uint32_t)(nEnd - ioPos);
@@ -471,7 +475,7 @@ static void traceLoadTag(const char *path) {
                     uint32_t curveCount = readBE32(&buf[ioPos + 8]);
                     printf("    curv: count = %u\n", curveCount);
                     if (curveCount == 0) {
-                        printf("    Identity curve (0 entries) — reads 12 bytes header only\n");
+                        printf("    Identity curve (0 entries) -- reads 12 bytes header only\n");
                         ioPos += 12;
                     } else {
                         size_t curveDataSize = 12 + curveCount * 2;
@@ -512,7 +516,7 @@ static void traceLoadTag(const char *path) {
 }
 
 static void printUsage(void) {
-    printf("IccDiagnosticLoad v1.0.0 — Deep ICC profile loading diagnostics\n");
+    printf("IccDiagnosticLoad v1.0.0 -- Deep ICC profile loading diagnostics\n");
     printf("Built with IccProfLib " ICCPROFLIBVER "\n\n");
     printf("Usage: iccDiagnosticLoad [options] <profile.icc>\n\n");
     printf("Options:\n");

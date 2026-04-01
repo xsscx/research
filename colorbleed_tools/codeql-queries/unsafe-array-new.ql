@@ -19,7 +19,7 @@ import cpp
 
 /**
  * Holds when a NewArrayExpr uses std::nothrow placement.
- * Multiple detection strategies needed — see unsafe-scalar-new.ql.
+ * Multiple detection strategies needed -- see unsafe-scalar-new.ql.
  */
 predicate hasNothrowArray(NewArrayExpr alloc) {
   exists(alloc.getPlacementPointer())
