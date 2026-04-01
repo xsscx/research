@@ -1466,7 +1466,7 @@ function showOutput(text) {
       const link = document.createElement("a");
       link.id = "downloadLink";
       link.href = `/api/xml/download?path=${encodeURIComponent(el.value.trim())}`;
-      link.textContent = "Download Download Full XML";
+      link.textContent = "Download Full XML";
       link.className = "download-link";
       link.download = "";
       $output.parentNode.insertBefore(link, $output.nextSibling);

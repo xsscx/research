@@ -170,6 +170,14 @@ def _decorate_v2_banner(text: str, *, label: str = "ICC Conformance Reference") 
     return text.replace(marker, insert, 1)
 
 
+def _ensure_conformance_reference(text: str, *, label: str = "ICC Conformance Reference") -> str:
+    """Ensure text responses include the assessment reference URL."""
+    text = _decorate_v2_banner(text, label=label)
+    if not text or ICC_PROFILE_ASSESSMENT_URL in text:
+        return text
+    return f"{text.rstrip()}\n\n{label}: {ICC_PROFILE_ASSESSMENT_URL}\n"
+
+
 def _slice_between(lines: list[str], start_marker: str, end_markers: tuple[str, ...]) -> list[str]:
     start_idx = next((i for i, line in enumerate(lines) if start_marker in line), -1)
     if start_idx < 0:
@@ -595,7 +603,7 @@ async def analyze_security(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> 
     analyzer, resolved_engine = _get_security_text_analyzer(engine)
     profile = _resolve_profile(path)
     flags = _map_flags(["-h"], resolved_engine)
-    return _decorate_v2_banner(await _run([str(analyzer)] + flags + [str(profile)]))
+    return _ensure_conformance_reference(await _run([str(analyzer)] + flags + [str(profile)]))
 
 
 @mcp.tool()

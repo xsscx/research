@@ -113,6 +113,8 @@ def test_html_integrity():
     check("Content-Type is HTML", "text/html" in r.headers.get("content-type", ""))
     check("No inline style= attributes", 'style="' not in r.text)
     check("No inline onclick=", "onclick=" not in r.text)
+    check("No duplicated XML download label", "Download Download Full XML" not in r.text)
+    check("XML download label present", "Download Full XML" in r.text)
     check("Has hidden-input CSS class", ".hidden-input" in r.text)
     check("Has btn-save-xml CSS class", ".btn-save-xml" in r.text)
     check("Has download-link CSS class", ".download-link" in r.text)
