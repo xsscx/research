@@ -32,11 +32,7 @@
         "batch_test_profiles",
         "validate_xml",
         "coverage_report",
-        "scan_logs",
-        "dump_all",
-        "diagnostic_load",
-        "query_attack_surface",
-        "coverage_gaps"
+        "scan_logs"
       ]
     }
   }
