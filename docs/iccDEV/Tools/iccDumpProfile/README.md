@@ -1,154 +1,59 @@
 # iccDumpProfile
 
-Displays ICC profile header, tag table, and tag data in human-readable format.
+Dump ICC profile headers, tag tables, and decoded tag data in a human-readable
+format.
 
 ## Usage
 
-```
+```text
 iccDumpProfile {-v} {verbosity_int} profile {tagId/"ALL"}
 ```
 
-### Arguments
+## Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `-v` | Optional | Enable profile validation |
-| `verbosity_int` | Optional | Verbosity level 1–100 (default: 100) |
-| `profile` | **Required** | Path to ICC profile (.icc) |
-| `tagId` / `"ALL"` | Optional | Dump specific tag by 4-char signature, or `ALL` for every tag |
+| Argument | Required | Notes |
+|----------|----------|-------|
+| `-v` | No | Enable validation while dumping |
+| `verbosity_int` | No | Verbosity level, usually `1` to `100` |
+| `profile` | Yes | Input ICC profile path |
+| `tagId` or `ALL` | No | Dump one tag or every tag |
 
-### Exit Codes
+## Exit Codes
 
 | Code | Meaning |
 |------|---------|
-| 0 | Success |
-| 255 (-1) | Error (e.g., NamedColor class profiles may trigger this) |
+| `0` | Success |
+| `255` | Graceful tool error or unsupported case |
 
-## Examples
-
-### Basic profile dump
+## Common Examples
 
 ```bash
 export LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML
 
-# Dump a v4 Display profile
+# Basic dump
 iccDumpProfile test-profiles/sRGB_D65_MAT.icc
-```
 
-### Dump with validation
-
-```bash
+# Dump with validation
 iccDumpProfile -v test-profiles/sRGB_D65_MAT.icc
-```
 
-### Dump a specific tag
-
-```bash
-# Dump only the profile description tag
+# Dump one tag
 iccDumpProfile test-profiles/sRGB_D65_MAT.icc desc
 
-# Dump only the media white point tag
-iccDumpProfile test-profiles/sRGB_D65_MAT.icc wtpt
-
-# Dump ALL tags individually
+# Dump every tag
 iccDumpProfile test-profiles/sRGB_D65_MAT.icc ALL
 ```
 
-### Control verbosity
+## Output
 
-```bash
-# Low verbosity (summary only)
-iccDumpProfile 1 test-profiles/sRGB_D65_MAT.icc
+Typical output includes:
 
-# Medium verbosity
-iccDumpProfile 25 test-profiles/sRGB_D65_MAT.icc
+1. Header fields such as class, color space, PCS, version, and profile ID.
+2. The tag table with signature, offset, and size.
+3. Decoded tag contents when the tag type is understood by the library.
 
-# Maximum verbosity (default)
-iccDumpProfile 100 test-profiles/sRGB_D65_MAT.icc
-```
+## Notes
 
-### Different profile classes
-
-```bash
-# CMYK Output/Printer profile
-iccDumpProfile test-profiles/CMYK-3DLUTs2.icc
-
-# v5 Spectral profile
-iccDumpProfile test-profiles/Rec2020rgbSpectral.icc
-
-# NamedColor profile
-iccDumpProfile test-profiles/NamedColor.icc
-
-# 17-channel Input profile
-iccDumpProfile test-profiles/17ChanPart1.icc
-
-# MVIS (Multi-Visualization) profile
-iccDumpProfile test-profiles/MVIS_Fluorescent_Beads.icc
-
-# CameraModel Input profile
-iccDumpProfile test-profiles/CameraModel.icc
-
-# v5 LCDDisplay profile
-iccDumpProfile iccDEV/Testing/Display/LCDDisplay.icc
-
-# Spectral profile with Lab PCS
-iccDumpProfile test-profiles/Cat8Lab-D65_2degMeta.icc
-```
-
-### Dump PoC/Crash profiles (with ASAN)
-
-```bash
-ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
-  iccDumpProfile test-profiles/hbo-CIccCalculatorFunc-ApplySequence-IccMpeCalc_cpp-Line3714.icc
-```
-
-## Output Format
-
-The output includes:
-1. **Header** — Profile size, version, class, color space, PCS, creation date, flags, rendering intent, illuminant, profile ID
-2. **Tag Table** — Tag count, per-tag signature, offset, size, type
-3. **Tag Data** — Decoded values for each tag type (curves, matrices, LUTs, text, etc.)
-
-## Profile Classes Tested
-
-| Class | Example Profile | Status |
-|-------|----------------|--------|
-| Display (mntr) | sRGB_D65_MAT.icc | ✅ PASS |
-| Output (prtr) | CMYK-3DLUTs2.icc | ✅ PASS |
-| Input (scnr) | 17ChanPart1.icc | ✅ PASS |
-| NamedColor (nmcl) | NamedColor.icc | ⚠️ exit 255 |
-| ColorSpace (spac) | ICS/*.icc | ✅ PASS |
-
-### Mass testing (1,500 runs, 2026-03-12)
-
-500 random TIFFs from the 22,218-file `tiff-main` corpus tested as ICC profile
-inputs (the tool attempts to read ICC data from any file):
-
-| Mode | Runs | Success | ASAN | UBSAN |
-|------|------|---------|------|-------|
-| Basic dump | 500 | 500 | 0 | 0 |
-| Dump with validation (`-v`) | 500 | 500 | 0 | 0 |
-| Dump ALL tags | 500 | 500 | 0 | 0 |
-| **Total** | **1,500** | **1,500** | **0** | **0** |
-
-## Security Testing
-
-Use with ASAN-instrumented build for crash analysis:
-
-```bash
-ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-UBSAN_OPTIONS=halt_on_error=0,print_stacktrace=1 \
-LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
-  iccDumpProfile malicious_profile.icc
-```
-
-## Related Tools
-
-- [iccToXml](../iccToXml/) — Convert profile to XML for deeper inspection
-- [iccRoundTrip](../iccRoundTrip/) — Test profile transform accuracy
-- [iccanalyzer-lite](../../../../iccanalyzer-lite/) — 150-heuristic security analysis
-
-## Version
-
-Built with IccProfLib version 2.3.1.5
+- NamedColor and other edge-case profiles may return `255` without crashing.
+- For crash triage or hostile inputs, run the ASAN/UBSAN build from
+  `docs/iccDEV/shell-helpers/README.md`.
+- For XML output instead of text output, use `../iccToXml/README.md`.
