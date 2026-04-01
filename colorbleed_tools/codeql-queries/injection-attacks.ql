@@ -49,7 +49,7 @@ class UserInputSource extends Expr {
   }
 }
 
-// ── Taint tracking: user input → output sinks ──
+// -- Taint tracking: user input -> output sinks --
 
 module InjectionConfigModule implements DataFlow::ConfigSig {
   predicate isSource(DataFlow::Node source) {
@@ -83,7 +83,7 @@ class CommandExecutionFunction extends Function {
 }
 
 /**
- * Command injection — requires taint flow from user input
+ * Command injection -- requires taint flow from user input
  */
 class CommandInjection extends FunctionCall {
   CommandInjection() {
@@ -103,7 +103,7 @@ class CommandInjection extends FunctionCall {
 }
 
 /**
- * Format string vulnerability — format arg is NOT a string literal
+ * Format string vulnerability -- format arg is NOT a string literal
  * Excludes fuzz_build_path which uses memcpy, not format strings.
  */
 class FormatStringVulnerability extends FunctionCall {
@@ -114,7 +114,7 @@ class FormatStringVulnerability extends FunctionCall {
       "syslog"
     ]) and
     not this.getTarget().getName() = "fuzz_build_path" and
-    // Exclude our audited preflight/tool code — all format strings are literals
+    // Exclude our audited preflight/tool code -- all format strings are literals
     not this.getFile().getBaseName().matches(["ColorBleedPreflight.h", "IccToXml_unsafe.cpp", "IccFromXml_unsafe.cpp"]) and
     (
       (

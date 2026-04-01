@@ -1,6 +1,6 @@
 /*!
  *  @file IccDumpAll.cpp
- *  @brief Enhanced ICC Profile Dump — Full v5/iccMAX MPE Element Detail
+ *  @brief Enhanced ICC Profile Dump -- Full v5/iccMAX MPE Element Detail
  *  @author David Hoyt
  *  @date 13 MAR 2026
  *  @version 2.0.0
@@ -40,7 +40,7 @@
 #include "IccProfLibVer.h"
 #include "IccTagMPE.h"
 
-// Diagnostic mode global — set by --diag flag
+// Diagnostic mode global -- set by --diag flag
 static bool g_bDiagMode = false;
 
 // Diagnostic logging macros
@@ -149,7 +149,7 @@ void DumpTagCore(CIccTag *pTag, icTagSignature sig, int nVerboseness)
   }
   else {
     printf("Tag (%s) not found in profile\n", icGetSig(buf, bufSize, sig));
-    DIAG("Tag '%s' — FindTag returned NULL (LoadTag failure or tag not present)", icGetSig(buf, bufSize, sig));
+    DIAG("Tag '%s' -- FindTag returned NULL (LoadTag failure or tag not present)", icGetSig(buf, bufSize, sig));
   }
 }
 
@@ -272,6 +272,25 @@ void printUsage(void)
   printf("iccDumpAll v2.0.0 built with IccProfLib version " ICCPROFLIBVER "\n\n");
 }
 
+static bool TryParseVerbosity(const char *arg, int &verbosity)
+{
+  char *endptr = nullptr;
+  errno = 0;
+  long parsed = strtol(arg, &endptr, 10);
+
+  if (errno == ERANGE || endptr == arg || !endptr || *endptr != '\0')
+    return false;
+
+  if (parsed <= 0)
+    verbosity = 1;
+  else if (parsed > 100)
+    verbosity = 100;
+  else
+    verbosity = (int)parsed;
+
+  return true;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -281,7 +300,15 @@ int main(int argc, char* argv[])
 
   if (argc <= 1) {
     printUsage();
-    return 0;
+    return 64; // EX_USAGE for missing arguments
+  }
+
+  // Early help handling so it works regardless of flag order
+  for (int i = 1; i < argc; ++i) {
+    if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
+      printUsage();
+      return 0;
+    }
   }
 
   // Parse leading flags: --diag, --read (before -v and profile path)
@@ -299,7 +326,7 @@ int main(int argc, char* argv[])
 
   if (nArg >= argc) {
     printUsage();
-    return -1;
+    return 64; // EX_USAGE
   }
 
   if (g_bDiagMode)
@@ -314,26 +341,16 @@ int main(int argc, char* argv[])
     nArg++;
     if (argc <= nArg) {
       printUsage();
-      return -1;
+      return 64; // EX_USAGE
     }
 
-    // support case where ICC filename starts with an integer: e.g. "123.icc"
-    char *endptr = nullptr;
-    verbosity = (int)strtol(argv[nArg], &endptr, 10);
-    if ((verbosity != 0L) && (errno != ERANGE) && ((endptr == nullptr) || (*endptr == '\0'))) {
-      // clamp verbosity to 1-100 inclusive
-      if (verbosity < 0)
-        verbosity = 1;
-      else if (verbosity > 100)
-        verbosity = 100;
+    // Support case where ICC filename starts with an integer: e.g. "123.icc"
+    if (TryParseVerbosity(argv[nArg], verbosity)) {
       nArg++;
       if (argc <= nArg) {
         printUsage();
-        return -1;
+        return 64; // EX_USAGE
       }
-    }
-    else if (argv[nArg] == endptr) {
-      verbosity = 100;
     }
 
     DIAG("API: ValidateIccProfile('%s')", argv[nArg]);
@@ -341,27 +358,20 @@ int main(int argc, char* argv[])
     bDumpValidation = true;
   }
   else {
-    // support case where ICC filename starts with an integer: e.g. "123.icc"
-    char* endptr = nullptr;
-    verbosity = (int)strtol(argv[nArg], &endptr, 10);
-    if ((verbosity != 0L) && (errno != ERANGE) && ((endptr == nullptr) || (*endptr == '\0'))) {
-      // clamp verbosity to 1-100 inclusive
-      if (verbosity < 0)
-        verbosity = 1;
-      else if (verbosity > 100)
-        verbosity = 100;
+    // Support case where ICC filename starts with an integer: e.g. "123.icc"
+    if (TryParseVerbosity(argv[nArg], verbosity)) {
       nArg++;
       if (argc <= nArg) {
         printUsage();
-        return -1;
+        return 64; // EX_USAGE
       }
     }
 
     if (bUseRead) {
-      DIAG("API: ReadIccProfile('%s') — eager load all tags", argv[nArg]);
+      DIAG("API: ReadIccProfile('%s') -- eager load all tags", argv[nArg]);
       pIcc = ReadIccProfile(argv[nArg]);
     } else {
-      DIAG("API: OpenIccProfile('%s') — lazy load (tags loaded on FindTag)", argv[nArg]);
+      DIAG("API: OpenIccProfile('%s') -- lazy load (tags loaded on FindTag)", argv[nArg]);
       pIcc = OpenIccProfile(argv[nArg]);
     }
   }
@@ -388,7 +398,7 @@ int main(int argc, char* argv[])
       printf("Profile ID:         %s\n", Fmt.GetProfileID(&pHdr->profileID));
     else
       printf("Profile ID:         Profile ID not calculated.\n");
-    printf("Size:               %d (0x%x) bytes\n", pHdr->size, pHdr->size);
+    printf("Size:               %u (0x%x) bytes\n", pHdr->size, pHdr->size);
 
     // Diagnostic: compare header size vs file stat size
     if (g_bDiagMode) {

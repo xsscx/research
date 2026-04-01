@@ -44,6 +44,7 @@ endif
 CONFIG ?= $(shell $(CXX) --version 2>&1 | grep -qi clang && echo sanitizer || echo release)
 
 TARGETS = iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad
+SAN_RUN_ENV = LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1
 
 .PHONY: all clean distclean test setup help
 
@@ -61,20 +62,20 @@ clean:
 distclean: clean
 	@CXX=$(CXX) CC=$(CC) ./build.sh clean
 
-test: all
+test: all colorbleed-test
 	@echo ""
 	@echo "=== Testing Unsafe Tools ==="
 	@echo ""
 	@echo "Test 1: iccToXml_unsafe (no args)"
-	@./iccToXml_unsafe 2>&1 | head -10 || true
+	@$(SAN_RUN_ENV) ./iccToXml_unsafe 2>&1 | head -10 || true
 	@echo ""
 	@echo "Test 2: iccFromXml_unsafe (no args)"
-	@./iccFromXml_unsafe 2>&1 | head -10 || true
+	@$(SAN_RUN_ENV) ./iccFromXml_unsafe 2>&1 | head -10 || true
 	@echo ""
 	@if [ -f "$(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc" ]; then \
 		echo "Test 3: Roundtrip conversion"; \
-		./iccToXml_unsafe $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc test.xml; \
-		./iccFromXml_unsafe test.xml roundtrip.icc; \
+		$(SAN_RUN_ENV) ./iccToXml_unsafe $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc test.xml; \
+		$(SAN_RUN_ENV) ./iccFromXml_unsafe test.xml roundtrip.icc; \
 		ls -lh test.xml roundtrip.icc; \
 	fi
 	@echo ""
@@ -107,3 +108,6 @@ help:
 	@echo ""
 	@echo "ColorBleed Warning:"
 	@echo "These tools Load & Store unsafe code for Icc Profiles"
+
+# Extra smoke coverage for iccDumpAll and iccDiagnosticLoad.
+include Makefile.colorbleed-extra
