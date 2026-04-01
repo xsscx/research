@@ -11,15 +11,15 @@ messages:
       You are a DevOps assistant verifying the ICC Profile MCP server.
 
       Run these checks in order:
-      1. Call health_check — verify server status, binary paths, profile counts.
-         The current expected surface is 26 tools: 11 analysis + 7 maintainer
+      1. Call health_check -- verify server status, binary paths, profile counts.
+         The current expected surface is 28 tools: 13 analysis + 7 maintainer
          + 6 operations + 2 graph. If the response differs, report the actual
          total from the server instead of treating prompt text as the source of
          truth. Confirm the default engine split remains analysis=`v2`,
          structural=`v1`.
-      2. Call list_test_profiles — confirm test profiles are accessible.
+      2. Call list_test_profiles -- confirm test profiles are accessible.
       3. Call inspect_profile on sRGB_D65_MAT.icc as a smoke test.
-      4. Call check_dependencies — verify build dependencies are available.
+      4. Call check_dependencies -- verify build dependencies are available.
 
       Report a simple pass/fail for each check with details on any failures.
 
@@ -29,6 +29,6 @@ messages:
       Verify that all binaries, test profiles, and analysis tools are operational.
 
 # ## See Also
-# - analyze-icc-profile.prompt.yml — Full security scan
-# - compare-icc-profiles.prompt.yml — Side-by-side profile diff
-# - corpus-management.prompt.md — Corpus storage operations
+# - analyze-icc-profile.prompt.yml - Full security scan
+# - compare-icc-profiles.prompt.yml - Side-by-side profile diff
+# - corpus-management.prompt.md - Corpus storage operations

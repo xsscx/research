@@ -3,7 +3,7 @@
     "icc-profile-mcp": {
       "type": "stdio",
       "command": "python",
-      "args": ["mcp-server/icc_profile_mcp.py"],
+      "args": ["mcp-server/launch.py", "mcp"],
       "env": {
         "ICC_MCP_ROOT": "${workspaceFolder}"
       }

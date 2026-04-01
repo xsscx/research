@@ -3,7 +3,7 @@
 ## What This Is
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) server (Python, FastMCP)
-exposing 24 tools (11 analysis + 7 maintainer + 6 operations) for AI-assisted ICC
+exposing 28 tools (13 analysis + 7 maintainer + 6 operations + 2 graph) for AI-assisted ICC
 profile security research. Supports MCP stdio, REST API, and interactive WebUI modes.
 
 **Docker image**: `ghcr.io/xsscx/icc-profile-mcp` — built with full ASAN+UBSAN
@@ -14,7 +14,8 @@ on port 8080).
 
 ```
 mcp-server/
-├── icc_profile_mcp.py      # Main MCP server — 24 tools via FastMCP
+├── icc_profile_mcp.py      # Main MCP server — 28 tools via FastMCP
+├── launch.py               # Cross-platform launcher (prefers repo-local .venv)
 ├── web_ui.py                # REST API + interactive HTML WebUI
 ├── test_mcp.py              # MCP server tests
 ├── test_web_ui.py           # WebUI tests
@@ -41,8 +42,8 @@ mcp-server/
 
 ```bash
 cd mcp-server && pip install -e .
-python3 icc_profile_mcp.py        # MCP stdio mode
-python3 web_ui.py                  # REST API + WebUI on port 8080
+python3 launch.py mcp              # MCP stdio mode
+python3 launch.py web              # REST API + WebUI on port 8080
 ```
 
 Prerequisites: `iccanalyzer-lite/iccanalyzer-lite` and `colorbleed_tools/iccToXml_unsafe`
@@ -69,7 +70,7 @@ cd mcp-server && docker build -t icc-mcp-local:test -f Dockerfile ..
 docker run --rm -d -p 8081:8080 --name mcp-test icc-mcp-local:test web
 
 # 3. Validate API endpoints
-curl -s http://localhost:8081/api/health          # → {"ok":true,"tools":24}
+curl -s http://localhost:8081/api/health          # → {"ok":true,"tools":28}
 curl -s http://localhost:8081/api/registry | python3 -c "
 import json,sys; r=json.load(sys.stdin)['registry']
 print(f'heuristics:{r[\"totalHeuristics\"]} CVEs:{r[\"uniqueCVEs\"]} GHSAs:{r[\"uniqueGHSAs\"]}')"
@@ -120,7 +121,7 @@ After CI rebuilds the image, pull and re-validate:
 ```bash
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -d -p 8080:8080 --name mcp-verify ghcr.io/xsscx/icc-profile-mcp web
-curl -s http://localhost:8080/api/health          # → {"ok":true,"tools":24}
+curl -s http://localhost:8080/api/health          # → {"ok":true,"tools":28}
 curl -s http://localhost:8080/api/registry | python3 -c "
 import json,sys; r=json.load(sys.stdin)['registry']
 print(f'heuristics:{r[\"totalHeuristics\"]} CVEs:{r[\"uniqueCVEs\"]} GHSAs:{r[\"uniqueGHSAs\"]}')"
@@ -134,9 +135,9 @@ cd mcp-server && python3 test_mcp.py     # MCP tool tests
 cd mcp-server && python3 test_web_ui.py  # WebUI/API tests
 ```
 
-## The 24 MCP Tools
+## The 28 MCP Tools
 
-### Analysis Tools (11)
+### Analysis Tools (13)
 
 | # | Tool | Description |
 |---|------|-------------|
@@ -144,13 +145,15 @@ cd mcp-server && python3 test_web_ui.py  # WebUI/API tests
 | 2 | `inspect_profile` | Header, tag table, field values |
 | 3 | `analyze_security` | 180-heuristic security scan (H1–H180) |
 | 4 | `validate_roundtrip` | AToB/BToA tag pair completeness |
-| 5 | `full_analysis` | All modes combined in one pass |
-| 6 | `profile_to_xml` | Binary ICC → XML conversion |
-| 7 | `compare_profiles` | Unified diff of two profiles |
-| 8 | `list_test_profiles` | Browse available profiles by directory |
-| 9 | `upload_and_analyze` | Base64 upload + any analysis mode |
-| 10 | `security_json` | Structured JSON security analysis |
-| 11 | `security_report` | Professional severity-sorted report |
+| 5 | `analyze_security_json` | Structured JSON security analysis |
+| 6 | `analyze_security_report` | Professional severity-sorted report |
+| 7 | `full_analysis` | All modes combined in one pass |
+| 8 | `profile_to_xml` | Binary ICC → XML conversion |
+| 9 | `compare_profiles` | Unified diff of two profiles |
+| 10 | `list_test_profiles` | Browse available profiles by directory |
+| 11 | `upload_and_analyze` | Base64 upload + any analysis mode |
+| 12 | `dump_all` | Deep tag dump via `iccDumpAll` |
+| 13 | `diagnostic_load` | Deep diagnostic load analysis |
 
 ### Maintainer Tools (7)
 
@@ -168,23 +171,32 @@ cd mcp-server && python3 test_web_ui.py  # WebUI/API tests
 
 | # | Tool | Description |
 |---|------|-------------|
-| 19 | `check_dependencies` | Check build dependency availability |
-| 20 | `find_build_artifacts` | Find binaries, checksums, linkage |
-| 21 | `batch_test_profiles` | Run tools over all .icc files |
-| 22 | `validate_xml` | xmllint validation of ICC XML |
-| 23 | `coverage_report` | Merge profraw + llvm-cov report |
-| 24 | `scan_logs` | Grep logs for errors/crashes/sanitizer |
+| 21 | `check_dependencies` | Check build dependency availability |
+| 22 | `find_build_artifacts` | Find binaries, checksums, linkage |
+| 23 | `batch_test_profiles` | Run tools over all .icc files |
+| 24 | `validate_xml` | xmllint validation of ICC XML |
+| 25 | `coverage_report` | Merge profraw + llvm-cov report |
+| 26 | `scan_logs` | Grep logs for errors/crashes/sanitizer |
 
-## Tool Count Sync — 4 Locations
+### Graph Tools (2)
 
-**CRITICAL**: When changing the tool count, ALL 4 files must be updated simultaneously:
+| # | Tool | Description |
+|---|------|-------------|
+| 27 | `query_attack_surface` | Rank components by graph centrality |
+| 28 | `coverage_gaps` | Identify heuristics/patches/components lacking coverage |
+
+## Tool Count Sync — 6 Locations
+
+**CRITICAL**: When changing the tool count, ALL 6 files must be updated simultaneously:
 
 | # | File | Location |
 |---|------|----------|
-| 1 | `icc_profile_mcp.py` | `health_check()` return value comment |
+| 1 | `icc_profile_mcp.py` | `health_check()` summary text |
 | 2 | `web_ui.py` | `/api/health` endpoint response |
 | 3 | `test_mcp.py` | `test_health_check()` assertion |
 | 4 | `test_web_ui.py` | `test_health()` assertion |
+| 5 | `.github/copilot-mcp-config.json` | tool allowlist |
+| 6 | `.github/copilot-instructions.md` | MCP tool count references |
 
 Anti-Pattern #2 in `multi-agent.instructions.md` documents the consequences of
 updating server code without updating tests.
@@ -243,7 +255,7 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 
 | Method | Endpoint | Parameters | Description |
 |--------|----------|------------|-------------|
-| `GET` | `/api/health` | — | `{"ok": true, "tools": 24}` |
+| `GET` | `/api/health` | — | `{"ok": true, "tools": 28}` |
 | `GET` | `/api/health-check` | — | Full health check (binary availability, profile counts) |
 | `GET` | `/api/list` | `directory` | List profiles in directory |
 | `GET` | `/api/inspect` | `path` | Structural dump |
@@ -255,6 +267,10 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 | `GET` | `/api/xml` | `path` | ICC → XML conversion |
 | `GET` | `/api/xml/download` | `path` | ICC → XML as file download |
 | `GET` | `/api/compare` | `path_a`, `path_b` | Side-by-side diff |
+| `GET` | `/api/attack-surface` | `top_n` | Graph-centrality view of attack-surface nodes |
+| `GET` | `/api/coverage-gaps` | `severity_filter` | Uncovered heuristics/CVEs/patches from graph data |
+| `GET` | `/api/dump-all` | `path`, `verbosity`, `use_read`, `diag` | Deep tag dump via `iccDumpAll` |
+| `GET` | `/api/diagnostic-load` | `path`, `mode` | Deep diagnostic load analysis |
 | `GET` | `/api/check-dependencies` | — | Check build dependency availability |
 | `GET` | `/api/find-artifacts` | `build_dir` | Find binaries, checksums, linkage |
 | `POST` | `/api/upload` | `file` (multipart) | Upload ICC file (20 MB max) |
@@ -283,7 +299,7 @@ Exit code 1 is NOT a crash — it means findings were detected. See CJF-13 in
 
 1. Add the `@mcp.tool()` decorated async function in `icc_profile_mcp.py`
 2. Add the REST API route in `web_ui.py` if the tool should be web-accessible
-3. Update tool count (24→25) in ALL 4 locations (see Tool Count Sync table)
+3. Update tool count (for example 28→29) in ALL sync locations (see Tool Count Sync table)
 4. Add test in `test_mcp.py`
 5. Add WebUI test in `test_web_ui.py` if web-accessible
 6. Update `.github/copilot-instructions.md` tool count references
@@ -292,7 +308,7 @@ Exit code 1 is NOT a crash — it means findings were detected. See CJF-13 in
 ## Common Pitfalls
 
 - **Tool count mismatch** — The #1 recurring CI failure. When changing tools, update
-  all 4 files simultaneously. See Anti-Pattern #2.
+  all sync locations simultaneously. See Anti-Pattern #2.
 - **Heuristic count mismatch** — The #2 recurring issue. When heuristic count changes
   (currently 173), update ALL locations: `icc_profile_mcp.py` docstrings,
   `web_ui.py` endpoint descriptions, `index.html` meta, `README.md`, this file's
@@ -313,8 +329,8 @@ Exit code 1 is NOT a crash — it means findings were detected. See CJF-13 in
   binary output, handle it before sanitization.
 - **Path validation** — All profile paths must go through `_resolve_profile_path()`.
   Never construct paths from user input without validation.
-- **README sync** — The README lists 22 tools (historical) in the API table but the
-  actual count is 24. Keep the README's tool list and count synchronized.
+- **README sync** — Keep `mcp-server/README.md`, this file, and the Copilot MCP
+  config synchronized with the live 28-tool surface.
 - **WebUI form rendering** — The #3 recurring issue. Every tool in the `TOOLS`
   object (index.html ~line 390) must have a dedicated `renderInputs()` branch
   that creates `inp-${fieldName}` DOM elements matching its `fields` array.

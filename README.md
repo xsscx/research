@@ -36,6 +36,19 @@ cd colorbleed_tools && make setup && make test
 cd mcp-server && ./build.sh test
 ```
 
+## Windows And WSL
+
+- Prefer WSL for the Bash-first build and fuzzing flows (`build.sh`, `make`,
+  AFL/CFL helpers).
+- The repo now pins text files to `LF` with [`.gitattributes`](.gitattributes)
+  and [`.editorconfig`](.editorconfig) so one checkout can be used from both
+  Windows and WSL without constant line-ending churn.
+- For editor and MCP integration on either platform, use
+  `python mcp-server/launch.py mcp`. For the local Web UI, use
+  `python mcp-server/launch.py web --host 127.0.0.1 --port 8000`.
+- Windows-native build notes for upstream `iccDEV` live in
+  `docs/iccDEV/shell-helpers/windows.md`.
+
 ## Documentation
 
 - Start with `docs/INDEX.md` for task-based navigation.
