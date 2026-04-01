@@ -137,7 +137,7 @@ jobs:
           for profile in "${SELECTED[@]}"; do
             pname="$(basename "$profile" .icc)"
 
-            # ──── iccDumpAll tests ────
+            # ---- iccDumpAll tests ----
             for mode in "" "--diag" "--read" "--diag --read" "-v"; do
               label="iccDumpAll ${mode:-default}"
               slug="${mode// /-}"
@@ -165,7 +165,7 @@ jobs:
               fi
             done
 
-            # ──── iccDiagnosticLoad tests ────
+            # ---- iccDiagnosticLoad tests ----
             for mode in "--raw" "--compare" "--trace" "--dump" "--all"; do
               label="iccDiagnosticLoad $mode"
               logfile="$LOGDIR/diagload-${pname}-${mode#--}.log"
@@ -236,15 +236,21 @@ jobs:
         env:
           BASH_ENV: /dev/null
           MATRIX_COMPILER: ${{ matrix.compiler }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
+          case "$JOB_STATUS" in
+            success) STATUS_LINE="[OK] Build complete" ;;
+            cancelled) STATUS_LINE="[CANCELLED] Job cancelled" ;;
+            *) STATUS_LINE="[FAIL] Build or tests failed" ;;
+          esac
           echo "### Linux Build Summary ($MATRIX_COMPILER)" >> "$GITHUB_STEP_SUMMARY"
           echo "- Compiler: $MATRIX_COMPILER" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: [OK] Build complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: $STATUS_LINE" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "#### Artifacts" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
