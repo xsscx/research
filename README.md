@@ -54,6 +54,15 @@ cd mcp-server && ./build.sh test
 - Windows-native build notes for upstream `iccDEV` live in
   `docs/iccDEV/shell-helpers/windows.md`.
 
+## Local macOS arm64
+
+- For Apple Silicon host setup, use
+  `docs/LOCAL_MACOS_ARM64_ONBOARDING.md`.
+- Treat macOS as a host for the Linux devcontainer or container workflow.
+  The top-level research repo and the native analysis tools remain Linux-first.
+- For editor and MCP integration, use `python mcp-server/launch.py mcp` or
+  `python mcp-server/launch.py web --host 127.0.0.1 --port 8000`.
+
 ## Documentation
 
 - Start with `docs/INDEX.md` for task-based navigation.
