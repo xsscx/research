@@ -1,5 +1,5 @@
 /*
- * IccTest CLI — LinuxSandbox.h
+ * IccTest CLI - LinuxSandbox.h
  * Linux-native sandboxing: seccomp-bpf, rlimit, prctl.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
@@ -8,13 +8,13 @@
  *
  * Replaces V1's siglongjmp crash recovery with proper fork-based
  * isolation and kernel-level resource limits. The library never calls
- * signal() or setjmp() — crash containment is the CLI's responsibility.
+ * signal() or setjmp() - crash containment is the CLI's responsibility.
  *
  * Security model:
- *   1. prctl(PR_SET_NO_NEW_PRIVS) — no privilege escalation
- *   2. rlimit RSS/CPU/FSIZE — resource exhaustion prevention
- *   3. seccomp-bpf — syscall whitelist (optional, requires linux/seccomp.h)
- *   4. Fork isolation — parent monitors child, collects exit status
+ *   1. prctl(PR_SET_NO_NEW_PRIVS) - no privilege escalation
+ *   2. rlimit RSS/CPU/FSIZE - resource exhaustion prevention
+ *   3. seccomp-bpf - syscall whitelist (optional, requires linux/seccomp.h)
+ *   4. Fork isolation - parent monitors child, collects exit status
  */
 
 #ifndef ICCTEST_LINUX_SANDBOX_H
@@ -48,7 +48,7 @@ struct SandboxError {
 struct SandboxLimits {
     uint64_t maxRSS       = 512ULL * 1024 * 1024;  // 512 MB
     uint64_t maxCPU       = 30;                      // 30 seconds
-    uint64_t maxFileSize  = 0;                       // no file writes
+    uint64_t maxFileSize  = 64ULL * 1024 * 1024;    // bounded scratch writes
     uint64_t maxOpenFiles = 64;
     bool     enableSeccomp = false;  // Off by default (requires kernel support)
     bool     includePerCheckSummary = true;
