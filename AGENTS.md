@@ -4,15 +4,17 @@
 This repository is a security-research monorepo centered on ICC color-profile tooling. The main components are `iccanalyzer-lite/` (instrumented analyzer, `tests/`, and the V2 rewrite in `icctest/`), `cfl/` (ClusterFuzzLite and LibFuzzer harnesses), `colorbleed_tools/` (unsafe XML conversion tools), and `mcp-server/` (Python MCP server and Web UI). Shared corpora and fixtures live in `test-profiles/`, `extended-test-profiles/`, and `cfl/corpus-*`. Treat vendor mirrors such as `opencv/` and archived variants like `demo-rit/`, `issue-711/`, and `lto/` as read-only unless the task explicitly targets them.
 
 ## Documentation Map
-Start with `docs/INDEX.md` for task-based navigation and `docs/README.md` for the directory map. Use `docs/iccDEV/Tools/` for upstream CLI behavior, `docs/iccDEV/shell-helpers/` for build and sanitizer workflows, `docs/iccDEV/codeql/` for static-analysis maintenance, and `docs/analysis/` or `docs/Testing/` for repo-specific findings and test evidence.
+Start with `docs/INDEX.md` for task-based navigation and `docs/README.md` for the directory map. Use `docs/iccDEV/Tools/` for upstream CLI behavior, `docs/iccDEV/shell-helpers/` for build and sanitizer workflows, `docs/iccDEV/codeql/` for static-analysis maintenance, `docs/afl/` for the AFL++ tool-fuzzing workflow, and `docs/analysis/` or `docs/Testing/` for repo-specific findings and test evidence.
 
 ## Build, Test, and Development Commands
 - `cd iccanalyzer-lite && ./build.sh` builds the analyzer with ASAN, UBSAN, and LLVM coverage.
 - `python3 iccanalyzer-lite/tests/run_tests.py -v` runs the analyzer regression suite.
 - `cd iccanalyzer-lite/icctest && ./build.sh && ctest --test-dir build --output-on-failure` builds and runs V2 unit and parity tests.
 - `cd cfl && ./build.sh` builds the fuzzers and applies the active security patch set to `cfl/iccDEV`.
+- `./afl/build.sh && ./afl/start.sh dump` builds the AFL-instrumented upstream tools and starts fuzzing the `dump` target; `./afl/start.sh search` fuzzes `iccApplySearch`, `./afl/rebuild.sh` forces a clean AFL rebuild, `./afl/harvest.sh --list` or `./afl/harvest.sh --seed-local` pulls CI AFL artifacts, and `./afl/status.sh`, `./afl/stop.sh dump`, and `./afl/triage.sh dump` cover monitoring, shutdown, and crash triage.
 - `cd colorbleed_tools && make setup && make test` builds the unsafe tools and runs the round-trip smoke test.
 - `cd mcp-server && ./build.sh test` creates the virtualenv and runs the MCP and Web UI suites.
+- `cd mcp-server && ./build.sh web [port] [host]` starts the Web UI locally; `cd mcp-server && ./build.sh mcp` starts the stdio MCP server.
 
 ## Coding Style & Naming Conventions
 Follow the local style; there is no enforced repo-wide formatter at the root. Use 4-space indentation in C++ and Python, keep Bash portable, and use tabs only in `Makefile`s. Prefer `snake_case` for Python helpers, `test_*.py` and `test_*.cpp` for tests, and existing C++ naming patterns such as `Icc*.cpp` and `CIcc*` types.

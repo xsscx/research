@@ -11,7 +11,7 @@ This file contains cross-cutting rules that apply to ALL components.
 |-----------|------------------|--------------|
 | **iccanalyzer-lite/** | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) | `cd iccanalyzer-lite && ./build.sh` ∥ `python3 tests/run_tests.py` |
 | **cfl/** | [cfl.instructions.md](instructions/cfl.instructions.md) | `cd cfl && ./build.sh` ∥ `./fuzz-local.sh` |
-| **mcp-server/** | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) | `.venv/bin/pip install -e .` ∥ `.venv/bin/python web_ui.py` |
+| **mcp-server/** | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) | `python mcp-server/launch.py mcp` ∥ `python mcp-server/launch.py web --host 127.0.0.1 --port 8000` |
 | **fuzz/** | [fuzz.instructions.md](instructions/fuzz.instructions.md) | Seed corpus (input data only) |
 | **colorbleed_tools/** | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) | `make setup && make` |
 | **afl/** | [afl.instructions.md](instructions/afl.instructions.md) | `./afl/build.sh` ∥ `./afl/start.sh dump` |
@@ -61,7 +61,7 @@ This file contains cross-cutting rules that apply to ALL components.
 | Metric | Value | Sync locations |
 |--------|-------|----------------|
 | Heuristics | 180 (H1-H138 ICC + H139-H141 TIFF + H142-H145 XML + H146-H150 data validation + H151-H153 advanced + H154-H180 CodeQL-driven) | 10+ files (see iccanalyzer-lite.instructions.md) |
-| MCP tools | 24 (11 analysis + 7 maintainer + 6 operations) | 4 files (see mcp-server.instructions.md) |
+| MCP tools | 28 (13 analysis + 7 maintainer + 6 operations + 2 graph) | 6 files (see mcp-server.instructions.md) |
 | CFL fuzzers | 13 | cfl.instructions.md, README.md |
 | iccDEV advisories | 113 (87 CVEs + 95 GHSAs = 182 unique, 57 heuristics with refs) | 6 files (see CVE count sync memory) |
 | Build locations | 7 | iccanalyzer-lite.instructions.md Build System Sync |
@@ -893,13 +893,13 @@ CFL fuzzers cover additional scope — see `cfl.instructions.md` for the full 13
 
 ## MCP Server
 
-The ICC Profile MCP server exposes 24 tools (11 analysis + 7 maintainer + 6 operations) for AI-assisted ICC profile security research.
+The ICC Profile MCP server exposes 28 tools (13 analysis + 7 maintainer + 6 operations + 2 graph) for AI-assisted ICC profile security research.
 
 ### Setup — Four integration methods
 
 #### 1. Copilot CLI (`/mcp` command)
 Use `/mcp` to add the server with stdio transport:
-- Command: `~/research/mcp-server/.venv/bin/python mcp-server/icc_profile_mcp.py`
+- Command: `python mcp-server/launch.py mcp`
 - Prereq (bare-metal): venv already at `~/research/mcp-server/.venv` — use `mcp-python` alias
 - Prereq (other): `cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -e .`
 
@@ -908,7 +908,7 @@ Already configured in `.vscode/mcp.json`. Open the repo in VS Code and tools aut
 Prereq: `cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -e .`
 
 #### 3. GitHub Copilot Coding Agent (cloud)
-Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes all 24 tools (11 analysis + 7 maintainer + 6 operations).
+Paste `.github/copilot-mcp-config.json` into repo Settings → Copilot → Coding agent → MCP configuration. The `copilot-setup-steps.yml` workflow extracts pre-built binaries from the Docker image — **no build step runs**. The MCP config exposes all 28 tools (13 analysis + 7 maintainer + 6 operations + 2 graph).
 
 #### 4. Docker REST API (remote agents — macOS, CI, any platform)
 Run the MCP Docker image for remote ICC analysis with full ASAN+UBSAN instrumentation.
@@ -1016,7 +1016,7 @@ Open http://localhost:8080/ — WebUI with REST API at `/api/*`. Two modes: `mcp
 # Local build + test
 docker build -t icc-mcp-local:test -f mcp-server/Dockerfile .
 docker run --rm -d -p 8081:8080 --name mcp-test icc-mcp-local:test web
-curl -s http://localhost:8081/api/health          # → {"ok":true,"tools":24}
+curl -s http://localhost:8081/api/health          # → {"ok":true,"tools":28}
 docker exec mcp-test which xmllint               # → /usr/bin/xmllint
 docker stop mcp-test
 # Then push → CI rebuilds → pull latest → re-validate
@@ -1028,8 +1028,9 @@ Image is `linux/amd64` only — ASAN shadow memory is incompatible with QEMU
 cross-arch emulation. Apple Silicon Macs run it via **Docker Desktop** Rosetta 2.
 **Colima and OrbStack do NOT support ASAN** (QEMU/VZ backends lack shadow memory).
 
-**Tool count**: 24 tools (11 analysis + 7 maintainer + 6 operations). When adding
-tools, update: `icc_profile_mcp.py`, `web_ui.py`, `test_mcp.py`, `test_web_ui.py`.
+**Tool count**: 28 tools (13 analysis + 7 maintainer + 6 operations + 2 graph). When adding
+tools, update: `icc_profile_mcp.py`, `web_ui.py`, `test_mcp.py`, `test_web_ui.py`,
+`.github/copilot-mcp-config.json`, and `.github/copilot-instructions.md`.
 
 **Build sync**: iccanalyzer-lite has **7 independent build locations** (see
 `.github/instructions/iccanalyzer-lite.instructions.md`). When adding library deps
@@ -1053,7 +1054,7 @@ guarantee CI success.
 
 ### MCP Tool Quick Reference
 
-For the complete 24-tool reference (11 analysis + 7 maintainer + 6 operations),
+For the complete 28-tool reference (13 analysis + 7 maintainer + 6 operations + 2 graph),
 see [mcp-server.instructions.md](instructions/mcp-server.instructions.md).
 
 **Key analysis tools** (exposed to coding agent):
@@ -1083,7 +1084,7 @@ via the iccDEV library. Each component has detailed documentation in its instruc
 |-----------|---------|--------------|
 | **iccanalyzer-lite/** | 180-heuristic security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV — does NOT receive CFL patches. | [iccanalyzer-lite.instructions.md](instructions/iccanalyzer-lite.instructions.md) |
 | **cfl/** | 13 LibFuzzer harnesses + 60 security patches applied to a separate iccDEV clone. | [cfl.instructions.md](instructions/cfl.instructions.md) |
-| **mcp-server/** | 24-tool MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) |
+| **mcp-server/** | 28-tool MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. | [mcp-server.instructions.md](instructions/mcp-server.instructions.md) |
 | **colorbleed_tools/** | Intentionally unsafe ICC↔XML converters (no ASAN — tests real-world crash surface). | [colorbleed_tools.instructions.md](instructions/colorbleed_tools.instructions.md) |
 | **fuzz/** | 1,139 curated malicious input files (CVE PoCs, injection signatures, malformed media). | [fuzz.instructions.md](instructions/fuzz.instructions.md) |
 | **call-graph/** | LLVM-based call graphs + AST dumps for 37 compilation targets. | [call-graph.instructions.md](instructions/call-graph.instructions.md) |

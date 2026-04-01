@@ -200,6 +200,22 @@ def test_health():
           d.get("defaultStructuralEngine") in {"auto", "v1", "v2"})
 
 
+def test_heuristic_count_fallback():
+    saved_count = web_ui_mod._HEURISTIC_COUNT
+    saved_get_analyzer = web_ui_mod._get_analyzer
+
+    def raise_missing(_engine):
+        raise FileNotFoundError("missing analyzer")
+
+    web_ui_mod._HEURISTIC_COUNT = None
+    web_ui_mod._get_analyzer = raise_missing
+    try:
+        check("Heuristic count fallback=180", web_ui_mod._get_heuristic_count() == 180)
+    finally:
+        web_ui_mod._HEURISTIC_COUNT = saved_count
+        web_ui_mod._get_analyzer = saved_get_analyzer
+
+
 # -- List Profiles --------------------------------------------
 def test_list():
     r = c.get("/api/list?directory=test-profiles")
@@ -1137,6 +1153,7 @@ def main():
         ("Graph Viewer Assets", test_graph_viewer_assets),
         ("Form Fields Per Tool", test_form_fields_per_tool),
         ("Health", test_health),
+        ("Heuristic Count Fallback", test_heuristic_count_fallback),
         ("List Profiles", test_list),
         ("List Invalid Directory", test_list_invalid_directory),
         ("List XML Files", test_list_xml),

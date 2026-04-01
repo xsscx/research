@@ -1,4 +1,4 @@
-# icctest Parity + MCP Release Validation — Prompt
+# icctest Parity + MCP Release Validation - Prompt
 
 Use this prompt when the task is to confirm `iccanalyzer-lite`, `icctest`, and
 the MCP container are ready for comparison, release, or workflow promotion.
@@ -43,7 +43,7 @@ As of 2026-03-29 the saved checkpoint is:
 - raw parity `delta = 0`, `knownGap = 0`, `coverageImprovement = 17`
 - image parity `delta = 0`
 - V2 unit baseline `1822/1822 passed`
-- MCP `/api/health` current surface: `26` tools
+- MCP `/api/health` current surface: `28` tools
 
 Do not treat those numbers as permanent ceilings. Refresh them from the current
 artifact and current server response before reporting.

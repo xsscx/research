@@ -1,4 +1,4 @@
-# Remote ICC Profile Analysis via MCP Docker API — Prompt
+# Remote ICC Profile Analysis via MCP Docker API - Prompt
 
 ## Overview
 
@@ -21,7 +21,7 @@ local iccanalyzer-lite binaries or git commit round-trips.
 
 ```bash
 curl -s http://<host>:8080/api/health
-# Expected: {"ok":true,"tools":26,"engines":{"v1":true,"v2":true},"defaultAnalysisEngine":"v2","defaultStructuralEngine":"v1"}
+# Expected: {"ok":true,"tools":28,"engines":{"v1":true,"v2":true},"defaultAnalysisEngine":"v2","defaultStructuralEngine":"v1"}
 ```
 
 ### Step 2: Upload ICC/TIFF File
@@ -54,7 +54,7 @@ Choose one or more analysis endpoints:
 | `/api/inspect?path=...` | Profile structure | Header/tag examination |
 | `/api/roundtrip?path=...` | AToB/BToA validation | LUT completeness check |
 | `/api/full?path=...` | Combined analysis | Complete one-shot analysis |
-| `/api/xml?path=...` | ICC → XML conversion | Human-readable profile data |
+| `/api/xml?path=...` | ICC -> XML conversion | Human-readable profile data |
 
 ```bash
 # Full analysis (recommended for triage)
@@ -83,7 +83,7 @@ curl -s "http://<host>:8080/api/list?directory=extended-test-profiles"
 ```bash
 #!/bin/bash
 # Batch-analyze ICC profiles via MCP Docker API
-# Run from macOS agent — no local binary needed
+# Run from macOS agent - no local binary needed
 
 HOST="http://<wsl-ip>:8080"
 
@@ -97,7 +97,7 @@ for f in fuzz/graphics/icc/*.icc; do
   # Analyze
   curl -s "${HOST}/api/security-json?path=${REMOTE_PATH}" > "/tmp/analysis-$(basename "$f" .icc).json"
 
-  echo "  → Saved to /tmp/analysis-$(basename "$f" .icc).json"
+  echo "  -> Saved to /tmp/analysis-$(basename "$f" .icc).json"
 done
 ```
 
@@ -113,7 +113,7 @@ done
 
 ## Security Notes
 
-- The API has no authentication — only expose on trusted networks
+- The API has no authentication - only expose on trusted networks
 - Upload limit: 20MB per file
 - Uploaded files persist in `/tmp/mcp-uploads/` until container restart
 - 4 concurrent analysis tasks max (semaphore-limited)
@@ -125,19 +125,19 @@ done
 - Platform: `linux/amd64` only (ASAN+UBSAN require native x86_64 or Docker Desktop Rosetta 2)
 - Two modes: `mcp` (default, stdio for MCP clients), `web` (REST API + HTML UI)
 - Contains: iccanalyzer-lite (**Debug + ASAN + UBSAN**), colorbleed_tools, MCP server, test-profiles
-- **Full ASAN+UBSAN instrumentation** — the Docker image catches memory safety bugs
+- **Full ASAN+UBSAN instrumentation** - the Docker image catches memory safety bugs
   just like native WSL-2/Linux builds. ASAN shadow memory is incompatible with QEMU
   cross-arch emulation, so we build AMD64-only. Apple Silicon Macs run the image via
   **Docker Desktop's** Rosetta 2 translation, which supports ASAN correctly.
-- **⚠️ Colima and OrbStack are NOT supported** — they use QEMU or Virtualization.framework
+- **WARNING: Colima and OrbStack are NOT supported** - they use QEMU or Virtualization.framework
   backends that cannot handle ASAN shadow memory mappings. Binaries will crash at runtime.
 
 ### macOS / Apple Silicon Usage
 
 ```bash
 # Docker Desktop on Apple Silicon runs AMD64 images via Rosetta 2 automatically.
-# No special flags needed — ASAN works correctly under Rosetta 2.
-# ⚠️ Colima/OrbStack users: ASAN will NOT work — use Docker Desktop instead.
+# No special flags needed - ASAN works correctly under Rosetta 2.
+# WARNING: Colima/OrbStack users: ASAN will NOT work - use Docker Desktop instead.
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -d -p 8080:8080 ghcr.io/xsscx/icc-profile-mcp web
 
@@ -150,7 +150,7 @@ curl -s "http://localhost:8080/api/security-json?path=<uploaded_path>"
 ```
 
 ## See Also
-- [cooperative-development.prompt.md](cooperative-development.prompt.md) — Multi-agent task lists
-- [analyze-icc-profile.prompt.yml](analyze-icc-profile.prompt.yml) — Full local analysis workflow
-- [health-check.prompt.yml](health-check.prompt.yml) — MCP server verification
-- [corpus-management.prompt.md](corpus-management.prompt.md) — Corpus lifecycle
+- [cooperative-development.prompt.md](cooperative-development.prompt.md) - Multi-agent task lists
+- [analyze-icc-profile.prompt.yml](analyze-icc-profile.prompt.yml) - Full local analysis workflow
+- [health-check.prompt.yml](health-check.prompt.yml) - MCP server verification
+- [corpus-management.prompt.md](corpus-management.prompt.md) - Corpus lifecycle
