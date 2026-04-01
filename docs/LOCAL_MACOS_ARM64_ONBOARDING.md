@@ -42,9 +42,12 @@ ${REPO_ROOT}/.devcontainer/devcontainer.json
 ${REPO_ROOT}/.devcontainer/dockerfile-build/devcontainer.json
 ```
 
-Inside the Linux container, use the normal repo entrypoints:
+Inside the Linux container, resolve the repo root again and use the normal repo
+entrypoints:
 
 ```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
 cd "$REPO_ROOT/iccanalyzer-lite" && ./build.sh
 python3 "$REPO_ROOT/iccanalyzer-lite/tests/run_tests.py" -v
 
