@@ -19,7 +19,7 @@ fidelity to real-world behavior.
 | **Speed** | In-process, very fast | Fork-based, slower per-exec |
 | **Coverage** | Deep library internals (Read/Write/Apply) | End-to-end tool paths (main→exit) |
 | **Crash triage** | Needs reproduction against upstream tool | Crash IS from upstream tool |
-| **Patches** | 17 CFL patches applied to library | Same iccDEV cfl branch (patches included) |
+| **Patches** | 44 CFL patches applied to library | Same iccDEV master + patches applied at build |
 
 Both approaches find bugs the other misses. CFL excels at deep library coverage;
 AFL++ excels at tool-specific argument parsing, error paths, and output generation.
@@ -67,7 +67,7 @@ afl/
 
 ## Targets
 
-### Active (8 single-file-input tools)
+### Active (9 targets)
 
 | Target | Binary | Input | Seed Source |
 |--------|--------|-------|-------------|
@@ -79,17 +79,17 @@ afl/
 | `jpegdump` | iccJpegDump | JPEG image | fuzz/graphics/jpg/ |
 | `pngdump` | iccPngDump | PNG image | fuzz/graphics/png/ |
 | `fromcube` | iccFromCube | .cube text | cfl/ corpus |
+| `search` | iccApplySearch | ICC binary | test-profiles/ |
 
 ### Not Yet Wired (multi-arg tools)
 
 | Binary | Reason | Notes |
 |--------|--------|-------|
-| iccApplyProfiles | TIFF + N profiles | Needs custom AFL harness |
-| iccApplyNamedCmm | Profiles + color args | Needs custom AFL harness |
-| iccApplyToLink | Multiple profiles | Needs custom AFL harness |
-| iccV5DspObsToV4Dsp | 2 profiles + output | Needs custom AFL harness |
-| iccSpecSepToTiff | TIFF + format + profiles | Needs custom AFL harness |
-| iccApplySearch | Directory of profiles | Not suitable for AFL |
+| iccApplyProfiles | TIFF + N profiles | See 1-liner: `@@ /dev/null 0 0 0 0 0 @@ 0` |
+| iccApplyNamedCmm | Profiles + color args | See 1-liner: `data.txt 0 0 @@ 1` |
+| iccApplyToLink | Multiple profiles | See 1-liner: `/dev/null 0 33 0 link 0.0 1.0 0 0 @@ 0` |
+| iccV5DspObsToV4Dsp | 2 profiles + output | See 1-liner: `@@ @@ /dev/null` |
+| iccSpecSepToTiff | TIFF + format + profiles | Complex multi-file input |
 
 ## Script Reference
 
@@ -181,7 +181,7 @@ Full rebuild cycle — cleans Build-AFL/ and rebuilds from scratch.
 ## Build Chain
 
 ```
-iccDEV/ source (cfl branch, 17 CFL patches applied)
+iccDEV/ source (master branch, 44 CFL patches applied at build time)
     │
     ├── Build/          Debug+ASAN+UBSAN (unpatched upstream reference)
     ├── Build-AFL/      AFL++ instrumented (ASAN+UBSAN, cfl branch)
@@ -193,7 +193,7 @@ iccDEV/ source (cfl branch, 17 CFL patches applied)
 
 **Important**: `iccDEV/Build/` is the unpatched upstream reference used by
 `triage.sh` for crash classification. `iccDEV/Build-AFL/` is built from the
-cfl branch with all 17 patches. When triage shows a crash only in Build-AFL
+cfl branch with all 44 patches. When triage shows a crash only in Build-AFL
 but not Build, it's a patch-related difference — not an upstream bug.
 
 ## Crash Workflow
