@@ -1,5 +1,5 @@
 /*
- * IccTest Library — DataValidationChecks.cpp
+ * IccTest Library - DataValidationChecks.cpp
  * Heuristic checks H56-H102, H146-H148, H151: Data integrity via iccDEV API.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC. All Rights Reserved.
@@ -37,7 +37,7 @@ static T* FindAndCast(CIccProfile* pIcc, icTagSignature sig) {
     return dynamic_cast<T*>(tag);
 }
 
-// ── H56: MediaWhitePoint Validation ──
+// -- H56: MediaWhitePoint Validation --
 static CheckResult check_h56_white_point(const ProfileView& pv) {
     CheckBuilder cb;
     if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
@@ -60,7 +60,7 @@ static CheckResult check_h56_white_point(const ProfileView& pv) {
             double dist = dx*dx + dy*dy + dz*dz;
             if (dist > 0.001) {
                 cb.warn(sfmt("White point (%.4f, %.4f, %.4f) far from D50 "
-                              "(0.9642, 1.0, 0.8249) — distance² = %.6f", x, y, z, dist));
+                              "(0.9642, 1.0, 0.8249) - distance^2 = %.6f", x, y, z, dist));
             }
         }
     }
@@ -68,7 +68,7 @@ static CheckResult check_h56_white_point(const ProfileView& pv) {
     return cb.done("White point validated");
 }
 
-// ── H57: Chromatic Adaptation Validation ──
+// -- H57: Chromatic Adaptation Validation --
 static CheckResult check_h57_chad(const ProfileView& pv) {
     CheckBuilder cb;
     if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
@@ -85,14 +85,14 @@ static CheckResult check_h57_chad(const ProfileView& pv) {
 
         bool isD50 = (xi == kD50X && yi == kD50Y && zi == kD50Z);
         if (!isD50 && !hasChadTag) {
-            cb.warn("Adopted white != D50 but no chromaticAdaptationTag ('chad') — ICC.1 §9.2.49");
+            cb.warn("Adopted white != D50 but no chromaticAdaptationTag ('chad') - ICC.1 Sec.9.2.49");
         }
     }
 
     return cb.done("Chromatic adaptation validated");
 }
 
-// ── H60: LUT Channel Count Validation ──
+// -- H60: LUT Channel Count Validation --
 static CheckResult check_h60_lut_channels(const ProfileView& pv) {
     CheckBuilder cb;
     if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
@@ -131,7 +131,7 @@ static CheckResult check_h60_lut_channels(const ProfileView& pv) {
     return cb.done("LUT channels validated");
 }
 
-// ── H146: Stack Buffer Overflow GetValues ──
+// -- H146: Stack Buffer Overflow GetValues --
 static CheckResult check_h146_getvalues_sbo(const ProfileView& pv) {
     CheckBuilder cb;
     if (!pv.libraryLoaded()) {
@@ -164,7 +164,7 @@ static CheckResult check_h146_getvalues_sbo(const ProfileView& pv) {
     return cb.done("GetValues bounds validated");
 }
 
-// ── H151: Calculator Element Enum Validation ──
+// -- H151: Calculator Element Enum Validation --
 static CheckResult check_h151_calc_enum(const ProfileView& pv) {
     CheckBuilder cb;
     const uint8_t* d = pv.rawData();
@@ -278,31 +278,31 @@ static CheckResult check_h151_calc_enum(const ProfileView& pv) {
     return cb.done("Calculator enums validated");
 }
 
-// ── Registration ──
+// -- Registration --
 
 REGISTER_HEURISTIC(56, "MediaWhitePoint Validation",
-    "ICC.1-2022-05 §9.2.34", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.9.2.34", "ICC.1-2022-05",
     "CWE-682", "", Severity::MEDIUM, CheckPhase::LIBRARY, check_h56_white_point);
 
 REGISTER_HEURISTIC(57, "Chromatic Adaptation Validation",
-    "ICC.1-2022-05 §9.2.49", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.9.2.49", "ICC.1-2022-05",
     "CWE-682", "", Severity::MEDIUM, CheckPhase::LIBRARY, check_h57_chad);
 
 REGISTER_HEURISTIC(60, "LUT Channel Count Validation",
-    "ICC.1-2022-05 §10.8", "ICC.1-2022-05",
+    "ICC.1-2022-05 Sec.10.8", "ICC.1-2022-05",
     "CWE-131", "", Severity::HIGH, CheckPhase::LIBRARY, check_h60_lut_channels);
 
 REGISTER_HEURISTIC(146, "Stack Buffer Overflow GetValues",
     "CWE-121 Pattern", "iccDEV PRs #551,#618,#649",
-    "CWE-121", "GHSA-551,GHSA-618", Severity::CRITICAL, CheckPhase::LIBRARY,
+    "CWE-121", "CVE-2026-34555,GHSA-983c-rgh5-4982", Severity::CRITICAL, CheckPhase::LIBRARY,
     check_h146_getvalues_sbo);
 
 REGISTER_HEURISTIC(151, "Calculator Operator Enum Validation",
-    "ICC.2-2023 §11.2.1", "ICC.2-2023",
-    "CWE-681", "", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h151_calc_enum);
+    "ICC.2-2023 Sec.11.2.1", "ICC.2-2023",
+    "CWE-681", "CVE-2026-34533,GHSA-8jj3-77m7-c3pq", Severity::CRITICAL, CheckPhase::RAW_SCAN, check_h151_calc_enum);
 
 
-// ── Additional registrations for DataValidationChecks ──
+// -- Additional registrations for DataValidationChecks --
 
 static CheckResult check_h70_measurement_tag_validation(const ProfileView& pv) {
     if (!pv.libraryLoaded()) return CheckResult::skip("Library parse failed");
@@ -549,7 +549,7 @@ static CheckResult check_h74_tag_type_signature_consistency(const ProfileView& p
     };
 
     for (int e = 0; expectations[e].tag != static_cast<icTagSignature>(0); ++e) {
-        icTagTypeSignature actualType = static_cast<icTagTypeSignature>(0);
+        uint32_t actualType = 0u;
         if (useRawFallback) {
             auto rawTag = pv.rawTag(static_cast<uint32_t>(expectations[e].tag));
             if (!rawTag ||
@@ -557,16 +557,16 @@ static CheckResult check_h74_tag_type_signature_consistency(const ProfileView& p
                 !rawRangeAccessible(pv.rawSize(), rawTag->offset, 8u)) {
                 continue;
             }
-            actualType = static_cast<icTagTypeSignature>(readU32BE(pv.rawData() + rawTag->offset));
+            actualType = readU32BE(pv.rawData() + rawTag->offset);
         } else {
             CIccTag* tag = p->FindTag(expectations[e].tag);
             if (!tag) continue;
-            actualType = tag->GetType();
+            actualType = static_cast<uint32_t>(tag->GetType());
         }
 
         bool valid = false;
         for (int t = 0; t < 5 && expectations[e].expected[t] != static_cast<icTagTypeSignature>(0); ++t) {
-            if (actualType == expectations[e].expected[t]) {
+            if (actualType == static_cast<uint32_t>(expectations[e].expected[t])) {
                 valid = true;
                 break;
             }
@@ -574,7 +574,7 @@ static CheckResult check_h74_tag_type_signature_consistency(const ProfileView& p
         if (!valid) {
             cb.warn(sfmt("Tag '%s': unexpected type '%s'",
                          sigStr(static_cast<uint32_t>(expectations[e].tag)).c_str(),
-                         sigStr(static_cast<uint32_t>(actualType)).c_str()),
+                         sigStr(actualType).c_str()),
                     "CWE-843: Type confusion -> incorrect cast in processing");
         }
     }
@@ -1028,14 +1028,14 @@ static CheckResult check_h86_localized_unicode_bounds(const ProfileView& pv) {
 
         std::string tagName = sigStr(static_cast<uint32_t>(sit->TagInfo.sig));
         if (localeCount > 1000) {
-            cb.warn(sfmt("Tag '%s': %d locale entries in mluc (>1000) — memory bomb",
+            cb.warn(sfmt("Tag '%s': %d locale entries in mluc (>1000) - memory bomb",
                          tagName.c_str(), localeCount),
-                    "CWE-122: Excessive locale entries → HBO in GetText (CVE-2026-21679)");
+                    "CWE-122: Excessive locale entries -> HBO in GetText (CVE-2026-21679)");
         }
         if (totalTextBytes > 67108864ULL) {
             cb.warn(sfmt("Tag '%s': total mluc text=%llu bytes (>64MB)",
                          tagName.c_str(), static_cast<unsigned long long>(totalTextBytes)),
-                    "CWE-122: Excessive text size → heap overflow (CVE-2026-21678)");
+                    "CWE-122: Excessive text size -> heap overflow (CVE-2026-21678)");
         }
 
         for (auto mlucIt = pMluc->m_Strings->begin(); mlucIt != pMluc->m_Strings->end(); ++mlucIt) {
@@ -1078,7 +1078,7 @@ static CheckResult check_h86_localized_unicode_bounds(const ProfileView& pv) {
             if (bidiOverrides > 0) {
                 cb.critical(sfmt("HEURISTIC: Tag '%s': mluc text contains %d Unicode bidi override/formatting characters (U+200B-U+206F)",
                                  tagName.c_str(), bidiOverrides),
-                            "CWE-116: Bidi text injection — can reverse displayed text direction for spoofing/phishing");
+                            "CWE-116: Bidi text injection - can reverse displayed text direction for spoofing/phishing");
             }
             if (controlChars > 0) {
                 cb.warn(sfmt("Tag '%s': mluc text contains %d non-printable control characters",
@@ -1134,9 +1134,9 @@ static CheckResult check_h87_trc_curve_anomaly(const ProfileView& pv) {
         if (pCurve) {
             icUInt32Number nSize = pCurve->GetSize();
             if (nSize > 65536) {
-                cb.warn(sfmt("Tag '%s': TRC curve with %u points (>65536) — excessive allocation",
+                cb.warn(sfmt("Tag '%s': TRC curve with %u points (>65536) - excessive allocation",
                              trcNames[t], nSize),
-                        "CWE-400: Oversized curve table → OOM in Apply()");
+                        "CWE-400: Oversized curve table -> OOM in Apply()");
             }
             if (nSize > 1) {
                 bool allZero = true;
@@ -1147,7 +1147,7 @@ static CheckResult check_h87_trc_curve_anomaly(const ProfileView& pv) {
                     }
                 }
                 if (allZero && nSize > 2) {
-                    cb.warn(sfmt("Tag '%s': TRC curve all-zero (%u points) — clipped output",
+                    cb.warn(sfmt("Tag '%s': TRC curve all-zero (%u points) \u2014 clipped output",
                                  trcNames[t], nSize));
                 }
             }
@@ -1159,14 +1159,14 @@ static CheckResult check_h87_trc_curve_anomaly(const ProfileView& pv) {
             if (funcType > 4) {
                 cb.warn(sfmt("Tag '%s': parametric curve function type %u (>4, spec violation)",
                              trcNames[t], funcType),
-                        "CWE-843: Invalid function type → unpredictable Apply() behavior");
+                        "CWE-843: Invalid function type -> unpredictable Apply() behavior");
             }
             icUInt16Number nParams = pParam->GetNumParam();
             static const int kParaMinParams[] = {1, 3, 4, 5, 7};
             if (funcType <= 4) {
                 int required = kParaMinParams[funcType];
                 if (static_cast<int>(nParams) < required) {
-                    cb.critical(sfmt("HEURISTIC: Tag '%s': funcType %u requires %d params, has %u — HBO in Describe() — ICC.1-2022-05 §10.15",
+                    cb.critical(sfmt("HEURISTIC: Tag '%s': funcType %u requires %d params, has %u - HBO in Describe() - ICC.1-2022-05 Sec.10.15",
                                      trcNames[t], funcType, required, nParams),
                                 "CWE-125: Heap-Buffer-Overflow via insufficient parametric curve params");
                 }
@@ -1177,7 +1177,7 @@ static CheckResult check_h87_trc_curve_anomaly(const ProfileView& pv) {
                     if (std::isnan(params[param]) || std::isinf(params[param])) {
                         cb.warn(sfmt("Tag '%s': parametric curve param[%u] = NaN/Inf",
                                      trcNames[t], param),
-                                "CWE-682: NaN/Inf in curve parameters → undefined math");
+                                "CWE-682: NaN/Inf in curve parameters -> undefined math");
                         break;
                     }
                 }
@@ -1211,7 +1211,7 @@ static CheckResult check_h88_chromatic_adaptation_matrix(const ProfileView& pv) 
         icUInt32Number nSize = pChad->GetSize();
         if (nSize < 9) {
             cb.warn(sfmt("chad tag has %u elements (need 9 for 3x3 matrix)", nSize),
-                    "CWE-125: Undersized chad → OOB read in PCS conversion");
+                    "CWE-125: Undersized chad -> OOB read in PCS conversion");
         }
         else {
             icFloatNumber m[9];
@@ -1229,7 +1229,7 @@ static CheckResult check_h88_chromatic_adaptation_matrix(const ProfileView& pv) 
 
             if (hasNanInf) {
                 cb.warn("chad matrix contains NaN/Inf values",
-                        "CWE-682: NaN/Inf in adaptation matrix → undefined PCS transform");
+                        "CWE-682: NaN/Inf in adaptation matrix -> undefined PCS transform");
             }
             else {
                 double det = static_cast<double>(m[0]) *
@@ -1240,7 +1240,7 @@ static CheckResult check_h88_chromatic_adaptation_matrix(const ProfileView& pv) 
                                  (static_cast<double>(m[3]) * m[7] - static_cast<double>(m[4]) * m[6]);
                 if (std::fabs(det) < 1e-10) {
                     cb.warn(sfmt("chad matrix near-singular (det=%.2e)", det),
-                            "CWE-369: Singular chad → division-by-zero in PCS inversion");
+                            "CWE-369: Singular chad -> division-by-zero in PCS inversion");
                 }
                 for (int i = 0; i < 9; i++) {
                     if (std::fabs(m[i]) > 100.0) {
@@ -1273,9 +1273,9 @@ static CheckResult check_h89_profile_sequence_description(const ProfileView& pv)
         if (pSeq && pSeq->m_Descriptions) {
             size_t descCount = pSeq->m_Descriptions->size();
             if (descCount > 256) {
-                cb.warn(sfmt("Profile sequence has %zu descriptions (>256) — OOM risk",
+                cb.warn(sfmt("Profile sequence has %zu descriptions (>256) \u2014 OOM risk",
                              descCount),
-                        "CWE-400: Excessive sequence entries → large allocations in Read()");
+                        "CWE-400: Excessive sequence entries -> large allocations in Read()");
             }
             if (descCount == 0) {
                 cb.warn("Profile sequence has 0 descriptions (empty)");
@@ -1429,7 +1429,7 @@ static CheckResult check_h91_colorant_order_validation(const ProfileView& pv) {
         for (icUInt32Number i = 0; i < orderCount; i++) {
             icUInt8Number idx = (*pOrder)[i];
             if (tableCount > 0 && idx >= tableCount) {
-                cb.warn(sfmt("ColorantOrder[%u]=%u >= table count %u — OOB",
+                cb.warn(sfmt("ColorantOrder[%u]=%u >= table count %u - OOB",
                              i, idx, tableCount),
                         "CWE-125: Index out-of-bounds in colorant mapping");
                 break;
@@ -1505,7 +1505,7 @@ static CheckResult check_h93_embedded_profile_flag(const ProfileView& pv) {
     if (flags & reservedMask) {
         cb.warn(sfmt("Profile flags=0x%08X: reserved bits set (mask=0x%08X)",
                      flags, flags & reservedMask),
-                "CWE-20: Non-zero reserved flag bits → spec violation or crafted profile");
+                "CWE-20: Non-zero reserved flag bits -> spec violation or crafted profile");
     }
 
     bool embedded = (flags & 0x01) != 0;
@@ -1578,15 +1578,15 @@ static CheckResult check_h94_matrix_trc_colorant_consistency(const ProfileView& 
                     double y = static_cast<double>((*col)[0].Y) / 65536.0;
                     double z = static_cast<double>((*col)[0].Z) / 65536.0;
                     if (std::isnan(x) || std::isnan(y) || std::isnan(z)) {
-                        cb.warn(sfmt("Matrix column %d contains NaN — corrupted colorant", c),
-                                "CWE-682: NaN in matrix → undefined PCS output");
+                        cb.warn(sfmt("Matrix column %d contains NaN - corrupted colorant", c),
+                                "CWE-682: NaN in matrix -> undefined PCS output");
                     }
                 }
 
                 if (static_cast<double>((*rXYZ)[0].Y) / 65536.0 < -0.01 ||
                     static_cast<double>((*gXYZ)[0].Y) / 65536.0 < -0.01 ||
                     static_cast<double>((*bXYZ)[0].Y) / 65536.0 < -0.01) {
-                    cb.warn("Matrix column Y value negative — non-physical colorant");
+                    cb.warn("Matrix column Y value negative - non-physical colorant");
                 }
             }
         }
@@ -1702,18 +1702,18 @@ static CheckResult check_h96_embedded_profile_validation(const ProfileView& pv) 
     }
 
     if (embeddedProfile->FindTag(icSigEmbeddedV5ProfileTag)) {
-        cb.critical("Recursively embedded profile — infinite recursion risk");
+        cb.critical("Recursively embedded profile - infinite recursion risk");
     }
 
     if (embeddedProfile->m_Header.size > 0 &&
         p->m_Header.size > 0 &&
         embeddedProfile->m_Header.size >= p->m_Header.size) {
-        cb.warn(sfmt("Embedded profile size (%u) >= parent size (%u) — suspicious",
+        cb.warn(sfmt("Embedded profile size (%u) >= parent size (%u) - suspicious",
                      embeddedProfile->m_Header.size, p->m_Header.size));
     }
 
     if (embeddedProfile->m_Tags.size() > 200) {
-        cb.warn(sfmt("Embedded profile has %zu tags — potential resource exhaustion",
+        cb.warn(sfmt("Embedded profile has %zu tags - potential resource exhaustion",
                      embeddedProfile->m_Tags.size()));
     }
 
@@ -1722,7 +1722,7 @@ static CheckResult check_h96_embedded_profile_validation(const ProfileView& pv) 
 
 REGISTER_HEURISTIC(96, "Embedded Profile Validation",
     "", "",
-    "CWE-674", "CVE-2026-25503,GHSA-pf84-4c7q-x764",
+    "CWE-674", "CVE-2026-25503,CVE-2026-34550,GHSA-pf84-4c7q-x764,GHSA-rmxp-pxf4-p7wm",
     Severity::HIGH, CheckPhase::RAW_SCAN,
     check_h96_embedded_profile_validation);
 
@@ -1761,7 +1761,7 @@ static CheckResult check_h97_profile_sequence_id_validation(const ProfileView& p
         seenIds.insert(idStr);
 
         if (entryCount > 1000) {
-            cb.warn("Profile sequence >1000 entries — potential DoS (CWE-400)");
+            cb.warn("Profile sequence >1000 entries - potential DoS (CWE-400)");
             break;
         }
     }
@@ -1824,7 +1824,7 @@ static CheckResult check_h98_spectral_mpe_element_validation(const ProfileView& 
 
 REGISTER_HEURISTIC(98, "Spectral MPE Element Validation",
     "", "",
-    "CWE-787", "",
+    "CWE-787", "CVE-2026-34534,GHSA-7x9w-g476-wcc2",
     Severity::CRITICAL, CheckPhase::LIBRARY,
     check_h98_spectral_mpe_element_validation);
 
@@ -1848,7 +1848,7 @@ static CheckResult check_h99_embedded_image_tag_validation(const ProfileView& pv
             if (sit->TagInfo.size > 100u * 1024u * 1024u) {
                 const char* typeName =
                     (tagType == icSigEmbeddedHeightImageType) ? "HeightImage" : "NormalImage";
-                cb.warn(sfmt("%s tag size %u bytes (>100MB) — potential DoS",
+                cb.warn(sfmt("%s tag size %u bytes (>100MB) - potential DoS",
                              typeName, sit->TagInfo.size));
             }
         }
@@ -1915,7 +1915,7 @@ static CheckResult check_h100_profile_sequence_desc_validation(const ProfileView
     push_info(sfmt("Sequence description entries: ~%d", descEntries));
 
     if (descEntries > 100) {
-        push_warn(sfmt("Excessive sequence entries (%d) — DoS risk", descEntries));
+        push_warn(sfmt("Excessive sequence entries (%d) \u2014 DoS risk", descEntries));
         return {CheckResult::Status::FINDINGS, "3 issue(s)", std::move(findings)};
     }
 
@@ -2046,7 +2046,7 @@ static CheckResult check_h102_tag_size_profile_size_cross_check(const ProfileVie
     icUInt32Number maxTagEnd = 0;
 
     if (profileSize > 0 && profileSize < 128 + (tagCount * 12)) {
-        cb.critical(sfmt("Profile size %u too small for %u tags (min=%u) — truncation",
+        cb.critical(sfmt("Profile size %u too small for %u tags (min=%u) - truncation",
                          profileSize, tagCount, 128 + tagCount * 12));
     }
 
@@ -2143,7 +2143,7 @@ static void h147_emit_primary_null_tag(CheckBuilder& cb,
     cb.critical(
         sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
              sigStr(bestSig).c_str()),
-        "CWE-476: Null tag pointer in tag table — any access crashes");
+        "CWE-476: Null tag pointer in tag table - any access crashes");
 }
 
 static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv) {
@@ -2315,7 +2315,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                 cb.critical(
                     sfmt("HEURISTIC: Tag '%s' entry exists but pTag pointer is null",
                          sigStr(sig).c_str()),
-                    "CWE-476: Null tag pointer in tag table — any access crashes");
+                    "CWE-476: Null tag pointer in tag table - any access crashes");
             }
             return cb.done("No null pointer patterns detected in loaded tags");
         }
@@ -2343,7 +2343,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                 cb.critical(
                     sfmt("HEURISTIC: Tag '%s' (Utf16Text) has null/empty text after Read()",
                          sigStr(static_cast<uint32_t>(textTags[t])).c_str()),
-                    "CWE-476: GetText() returns null — subsequent access crashes");
+                    "CWE-476: GetText() returns null - subsequent access crashes");
             }
         }
 
@@ -2353,7 +2353,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                 cb.critical(
                     sfmt("HEURISTIC: Tag '%s' (TextDescription) has null text pointer",
                          sigStr(static_cast<uint32_t>(textTags[t])).c_str()),
-                    "CWE-476: GetText() returns null — strlen/Describe crashes");
+                    "CWE-476: GetText() returns null - strlen/Describe crashes");
             }
         }
     }
@@ -2376,7 +2376,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
             CIccMultiProcessElement* elem = mpe->GetElement(e);
             if (!elem) {
                 cb.critical(
-                    sfmt("HEURISTIC: Tag '%s' MPE element[%u] is null — Apply() will crash",
+                    sfmt("HEURISTIC: Tag '%s' MPE element[%u] is null - Apply() will crash",
                          sigStr(static_cast<uint32_t>(mpeTags[t])).c_str(),
                          static_cast<unsigned>(e)),
                     "CWE-476: Null element dereference in processing pipeline");
@@ -2410,7 +2410,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
         CIccCLUT* clut = mbb->GetCLUT();
         if (!clut) {
             cb.critical(
-                sfmt("HEURISTIC: Tag '%s' LUT has null CLUT — Apply() will crash",
+                sfmt("HEURISTIC: Tag '%s' LUT has null CLUT - Apply() will crash",
                      sigStr(static_cast<uint32_t>(clutLutTags[t])).c_str()),
                 "CWE-476: CIccCLUT::InterpND() dereferences null pApply (IccTagLut.cpp:3181)");
             continue;
@@ -2424,7 +2424,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                      sigStr(static_cast<uint32_t>(clutLutTags[t])).c_str(),
                      static_cast<unsigned>(inputDim),
                      static_cast<unsigned>(gridPoints)),
-                "CWE-476: Degenerate CLUT → GetNewApply() Init() fails → null pApply");
+                "CWE-476: Degenerate CLUT -> GetNewApply() Init() fails -> null pApply");
         }
     }
 
@@ -2453,7 +2453,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
                     sfmt("HEURISTIC: Tag '%s' CLUT has %u input dims on NDLut path",
                          sigStr(static_cast<uint32_t>(btoaTags[t])).c_str(),
                          static_cast<unsigned>(inputDim)),
-                    sfmt("CWE-476: CIccXformNDLut::Apply() missing Interp%ud dispatch — falls to InterpND(pApply=NULL) (IccCmm.cpp:6570/6600)",
+                    sfmt("CWE-476: CIccXformNDLut::Apply() missing Interp%ud dispatch - falls to InterpND(pApply=NULL) (IccCmm.cpp:6570/6600)",
                          static_cast<unsigned>(inputDim)));
             }
         }
@@ -2463,7 +2463,7 @@ static CheckResult check_h147_null_pointer_after_tag_read(const ProfileView& pv)
 }
 
 REGISTER_HEURISTIC(147, "Null Pointer After Tag Read",
-    "§7.3", "ICC.1-2022-05",
+    "Sec.7.3", "ICC.1-2022-05",
     "CWE-476", "CVE-2021-30942,CVE-2022-26730,CVE-2026-24852,CVE-2026-25502,CVE-2026-31792,GHSA-4wqv-pvm8-5h27,GHSA-c2qq-jf7w-rm27,GHSA-j3mh-rjg5-8gw7,GHSA-q8g2-mp32-3j7f",
     Severity::CRITICAL, CheckPhase::LIBRARY,
     check_h147_null_pointer_after_tag_read);
@@ -2546,7 +2546,7 @@ static CheckResult check_h148_memory_copy_bounds_overlap(const ProfileView& pv) 
 
         if (nColors > 10000 && nDevCoords > 4) {
             cb.warn(
-                sfmt("NamedColor2: %u colors x %u deviceCoords — memory amplification risk",
+                sfmt("NamedColor2: %u colors x %u deviceCoords - memory amplification risk",
                      static_cast<unsigned>(nColors),
                      static_cast<unsigned>(nDevCoords)));
         }
@@ -2556,7 +2556,7 @@ static CheckResult check_h148_memory_copy_bounds_overlap(const ProfileView& pv) 
 }
 
 REGISTER_HEURISTIC(148, "Memory Copy Bounds Overlap",
-    "§10.14", "ICC.1-2022-05",
+    "Sec.10.14", "ICC.1-2022-05",
     "CWE-119", "CVE-2026-24407,CVE-2026-31793,GHSA-m6gx-93cp-4855,GHSA-vgr5-3xqx-vcqx",
     Severity::CRITICAL, CheckPhase::LIBRARY,
     check_h148_memory_copy_bounds_overlap);
@@ -2577,7 +2577,7 @@ static CheckResult check_h152_curve_element_oom_size_validation(const ProfileVie
 }
 
 REGISTER_HEURISTIC(152, "Curve Element OOM Size Validation",
-    "§10.26", "ICC.1-2022-05",
+    "Sec.10.26", "ICC.1-2022-05",
     "CWE-770", "",
     Severity::CRITICAL, CheckPhase::RAW_SCAN,
     check_h152_curve_element_oom_size_validation);
@@ -2616,7 +2616,7 @@ static CheckResult check_h172_lut_matrix_coefficient_validation(const ProfileVie
             if (std::isnan(value) || std::isinf(value)) {
                 findings.push_back(makeFinding(
                     Severity::CRITICAL,
-                    sfmt("HEURISTIC: %s matrix e[%d] = NaN/Inf — ICC TN v4 Matrix Entries",
+                    sfmt("HEURISTIC: %s matrix e[%d] = NaN/Inf - ICC TN v4 Matrix Entries",
                          lutNames[t], i + 1),
                     "CWE-682: NaN/Inf in LUT matrix -> undefined color transform"));
                 hasNanInf = true;
@@ -2632,7 +2632,7 @@ static CheckResult check_h172_lut_matrix_coefficient_validation(const ProfileVie
             if (value < -32768.0 || value > 32767.99998) {
                 findings.push_back(makeFinding(
                     Severity::MEDIUM,
-                    sfmt("HEURISTIC: %s matrix e[%d] = %.6f exceeds s15Fixed16 range (±32768) — ICC TN v4 Matrix Entries",
+                    sfmt("HEURISTIC: %s matrix e[%d] = %.6f exceeds s15Fixed16 range (+/-32768) - ICC TN v4 Matrix Entries",
                          lutNames[t], i + 1, value),
                     "CWE-682: Coefficient outside s15Fixed16Number representable range"));
                 break;
@@ -2650,7 +2650,7 @@ static CheckResult check_h172_lut_matrix_coefficient_validation(const ProfileVie
         if (!matrix->IsIdentity() && std::fabs(det) < 1e-10) {
             findings.push_back(makeFinding(
                 Severity::MEDIUM,
-                sfmt("HEURISTIC: %s matrix is singular (det=%.2e) — ICC TN v4 Matrix Entries",
+                sfmt("HEURISTIC: %s matrix is singular (det=%.2e) - ICC TN v4 Matrix Entries",
                      lutNames[t], det),
                 "CWE-369: Singular LUT matrix -> division-by-zero in PCS transform inversion"));
         }
@@ -2662,7 +2662,7 @@ static CheckResult check_h172_lut_matrix_coefficient_validation(const ProfileVie
                     Severity::MEDIUM,
                     sfmt("HEURISTIC: %s matrix e[%d] = %.4f (extreme magnitude >100)",
                          lutNames[t], i + 1, static_cast<double>(matrix->m_e[i])),
-                    "CWE-682: Extreme matrix coefficient — likely crafted profile"));
+                    "CWE-682: Extreme matrix coefficient - likely crafted profile"));
                 break;
             }
         }
@@ -2675,7 +2675,7 @@ static CheckResult check_h172_lut_matrix_coefficient_validation(const ProfileVie
                         Severity::MEDIUM,
                         sfmt("HEURISTIC: %s matrix offset e[%d] = %.4f (extreme, >10.0)",
                              lutNames[t], i + 1, static_cast<double>(matrix->m_e[i])),
-                        "CWE-682: Extreme offset constant — unusual for PCS mapping"));
+                        "CWE-682: Extreme offset constant - unusual for PCS mapping"));
                     break;
                 }
             }
@@ -2688,7 +2688,7 @@ static CheckResult check_h172_lut_matrix_coefficient_validation(const ProfileVie
             if (rowSum < 1e-10 && !matrix->IsIdentity()) {
                 findings.push_back(makeFinding(
                     Severity::MEDIUM,
-                    sfmt("HEURISTIC: %s matrix row %d has all-zero coefficients — output channel %d is constant",
+                    sfmt("HEURISTIC: %s matrix row %d has all-zero coefficients - output channel %d is constant",
                          lutNames[t], row + 1, row + 1),
                     "CWE-682: Zero matrix row -> color channel data loss"));
             }

@@ -1,5 +1,5 @@
 /*
- * IccTest Library — ImageChecks.cpp
+ * IccTest Library - ImageChecks.cpp
  * Heuristic checks H139-H141, H149-H150: TIFF image security.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC. All Rights Reserved.
@@ -52,7 +52,7 @@ static TiffPtr openTiffReadOnly(const ProfileView& pv) {
     return TiffPtr(TIFFOpen(pv.filePath().c_str(), "r"), &TIFFClose);
 }
 
-// ── H139: TIFF Strip Geometry Validation ──
+// -- H139: TIFF Strip Geometry Validation --
 static CheckResult check_h139_tiff_strip(const ProfileView& pv) {
     if (!pv.isImage()) return CheckResult::skip("Not an image file");
     if (!isTIFF(pv.imageFormat())) return CheckResult::skip("Not a TIFF");
@@ -82,13 +82,13 @@ static CheckResult check_h139_tiff_strip(const ProfileView& pv) {
         return CheckResult::ok("Tiled image - strip geometry N/A");
     }
     if (rowsPerStrip == 0) {
-        return CheckResult::ok("RowsPerStrip=0 — no strip layout");
+        return CheckResult::ok("RowsPerStrip=0 - no strip layout");
     }
 
     CheckBuilder cb;
     tmsize_t stripSize = TIFFStripSize(tif.get());
     if (stripSize <= 0) {
-        cb.critical("HEURISTIC: Zero or negative strip size — corrupted geometry",
+        cb.critical("HEURISTIC: Zero or negative strip size - corrupted geometry",
                     "CWE-122: Heap buffer overflow in ReadLine/ReadEncodedStrip");
     }
 
@@ -97,7 +97,7 @@ static CheckResult check_h139_tiff_strip(const ProfileView& pv) {
     if (bps > 0 && spp > 0 && width > 0 &&
         bytesPerLine > static_cast<uint64_t>(UINT32_MAX)) {
         cb.critical(
-            sfmt("HEURISTIC: Integer overflow in bytesPerLine: %u × %u × %u overflows uint32",
+            sfmt("HEURISTIC: Integer overflow in bytesPerLine: %u x %u x %u overflows uint32",
                  width, bps, spp),
             "CWE-190: Integer overflow in buffer size calculation");
     }
@@ -106,10 +106,10 @@ static CheckResult check_h139_tiff_strip(const ProfileView& pv) {
     if (expectedStripBuf > 0 && stripSize > 0 &&
         static_cast<uint64_t>(stripSize) < expectedStripBuf) {
         cb.critical(
-            sfmt("HEURISTIC: Strip buffer too small: stripSize=%lld < rowsPerStrip×bytesPerLine=%llu",
+            sfmt("HEURISTIC: Strip buffer too small: stripSize=%lld < rowsPerStripxbytesPerLine=%llu",
                  static_cast<long long>(stripSize),
                  static_cast<unsigned long long>(expectedStripBuf)),
-            "CWE-122: Heap buffer overflow — ReadLine memcpy exceeds strip allocation");
+            "CWE-122: Heap buffer overflow - ReadLine memcpy exceeds strip allocation");
     }
 
     uint32_t nStripSamples =
@@ -119,7 +119,7 @@ static CheckResult check_h139_tiff_strip(const ProfileView& pv) {
     if (nStripSamples > 1 &&
         allocSize > static_cast<uint64_t>(SIZE_MAX) / 2) {
         cb.critical(
-            sfmt("HEURISTIC: Strip allocation overflow: stripSize(%lld) × nStripSamples(%u) exceeds safe limit",
+            sfmt("HEURISTIC: Strip allocation overflow: stripSize(%lld) x nStripSamples(%u) exceeds safe limit",
                  static_cast<long long>(stripSize), nStripSamples),
             "CWE-190: Integer overflow in malloc argument");
     }
@@ -127,7 +127,7 @@ static CheckResult check_h139_tiff_strip(const ProfileView& pv) {
     return cb.done("Strip geometry valid");
 }
 
-// ── H140: TIFF Dimension Validation ──
+// -- H140: TIFF Dimension Validation --
 static CheckResult check_h140_tiff_dims(const ProfileView& pv) {
     if (!pv.isImage()) return CheckResult::skip("Not an image file");
     if (!isTIFF(pv.imageFormat())) return CheckResult::skip("Not a TIFF");
@@ -149,14 +149,14 @@ static CheckResult check_h140_tiff_dims(const ProfileView& pv) {
     CheckBuilder cb;
 
     if (width == 0 || height == 0) {
-        cb.critical(sfmt("HEURISTIC: Zero dimension: %u×%u", width, height),
+        cb.critical(sfmt("HEURISTIC: Zero dimension: %ux%u", width, height),
                     "CWE-369: Division by zero in image processing");
     }
 
     uint64_t pixelCount = static_cast<uint64_t>(width) * static_cast<uint64_t>(height);
     if (pixelCount > 100000000ULL) {
         cb.warn(
-            sfmt("HEURISTIC: Extreme dimensions: %u×%u = %llu pixels (>100M)",
+            sfmt("HEURISTIC: Extreme dimensions: %ux%u = %llu pixels (>100M)",
                  width, height, static_cast<unsigned long long>(pixelCount)),
             "CWE-400: Resource exhaustion via large image decode");
     }
@@ -172,14 +172,14 @@ static CheckResult check_h140_tiff_dims(const ProfileView& pv) {
     if (spp > 16) {
         cb.warn(
             sfmt("HEURISTIC: Excessive SamplesPerPixel: %u (>16)", spp),
-            "CWE-131: Buffer size overflow (nOutput×BPS×width)");
+            "CWE-131: Buffer size overflow (nOutputxBPSxwidth)");
     }
 
     uint64_t bytesPerPixel = ((uint64_t)bps * (uint64_t)spp + 7) >> 3;
     uint64_t totalBytes = pixelCount * bytesPerPixel;
     if (bytesPerPixel > 0 && totalBytes / bytesPerPixel != pixelCount) {
         cb.critical(
-            sfmt("HEURISTIC: Uncompressed size overflows uint64: %u×%u×%llu",
+            sfmt("HEURISTIC: Uncompressed size overflows uint64: %ux%ux%llu",
                  width, height, static_cast<unsigned long long>(bytesPerPixel)),
             "CWE-190: Integer overflow in image buffer allocation");
     } else if (totalBytes > 4ULL * 1024 * 1024 * 1024) {
@@ -192,7 +192,7 @@ static CheckResult check_h140_tiff_dims(const ProfileView& pv) {
     return cb.done("Dimensions valid");
 }
 
-// ── H141: TIFF IFD Offset Bounds ──
+// -- H141: TIFF IFD Offset Bounds --
 static CheckResult check_h141_tiff_ifd(const ProfileView& pv) {
     if (!pv.isImage()) return CheckResult::skip("Not an image file");
     if (!isTIFF(pv.imageFormat())) return CheckResult::skip("Not a TIFF");
@@ -286,7 +286,7 @@ static CheckResult check_h141_tiff_ifd(const ProfileView& pv) {
     return cb.done("All IFD offsets within file bounds");
 }
 
-// ── H149: TIFF IFD Chain Cycle Detection ──
+// -- H149: TIFF IFD Chain Cycle Detection --
 static CheckResult check_h149_tiff_cycle(const ProfileView& pv) {
     if (!pv.isImage()) return CheckResult::skip("Not an image file");
     if (!isTIFF(pv.imageFormat())) return CheckResult::skip("Not a TIFF");
@@ -352,7 +352,7 @@ static CheckResult check_h149_tiff_cycle(const ProfileView& pv) {
     while (ifdOffset != 0 && ifdOffset < fileSize && chainLen < kMaxChainDepth) {
         if (visited.count(ifdOffset)) {
             cb.critical(
-                sfmt("HEURISTIC: Circular IFD chain — offset %llu revisited at depth %d",
+                sfmt("HEURISTIC: Circular IFD chain - offset %llu revisited at depth %d",
                      static_cast<unsigned long long>(ifdOffset), chainLen),
                 "CWE-835: Infinite loop via circular IFD next-pointer");
             break;
@@ -387,7 +387,7 @@ static CheckResult check_h149_tiff_cycle(const ProfileView& pv) {
 
     if (chainLen >= kMaxChainDepth) {
         cb.warn(
-            sfmt("HEURISTIC: IFD chain exceeds %d directories — possible loop",
+            sfmt("HEURISTIC: IFD chain exceeds %d directories - possible loop",
                  kMaxChainDepth),
             "CWE-835: Excessive IFD chain depth");
     }
@@ -395,7 +395,7 @@ static CheckResult check_h149_tiff_cycle(const ProfileView& pv) {
     return cb.done("IFD chain is acyclic");
 }
 
-// ── H150: TIFF Tile Geometry Validation ──
+// -- H150: TIFF Tile Geometry Validation --
 static CheckResult check_h150_tiff_tile(const ProfileView& pv) {
     if (!pv.isImage()) return CheckResult::skip("Not an image file");
     if (!isTIFF(pv.imageFormat())) return CheckResult::skip("Not a TIFF");
@@ -425,12 +425,12 @@ static CheckResult check_h150_tiff_tile(const ProfileView& pv) {
     CheckBuilder cb;
     if (tileW % 16 != 0) {
         cb.warn(
-            sfmt("HEURISTIC: TileWidth=%u is not a multiple of 16 (TIFF 6.0 §15)",
+            sfmt("HEURISTIC: TileWidth=%u is not a multiple of 16 (TIFF 6.0 Sec.15)",
                  tileW));
     }
     if (tileH % 16 != 0) {
         cb.warn(
-            sfmt("HEURISTIC: TileLength=%u is not a multiple of 16 (TIFF 6.0 §15)",
+            sfmt("HEURISTIC: TileLength=%u is not a multiple of 16 (TIFF 6.0 Sec.15)",
                  tileH));
     }
 
@@ -443,10 +443,10 @@ static CheckResult check_h150_tiff_tile(const ProfileView& pv) {
     }
 
     if (tileW > width * 2 && width > 0) {
-        cb.warn(sfmt("HEURISTIC: TileWidth=%u exceeds 2× image width=%u", tileW, width));
+        cb.warn(sfmt("HEURISTIC: TileWidth=%u exceeds 2x image width=%u", tileW, width));
     }
     if (tileH > height * 2 && height > 0) {
-        cb.warn(sfmt("HEURISTIC: TileLength=%u exceeds 2× image height=%u", tileH, height));
+        cb.warn(sfmt("HEURISTIC: TileLength=%u exceeds 2x image height=%u", tileH, height));
     }
 
     uint32_t nTiles = TIFFNumberOfTiles(tif.get());
@@ -464,7 +464,7 @@ static CheckResult check_h150_tiff_tile(const ProfileView& pv) {
 
     if (nTiles != expectedTiles) {
         cb.warn(
-            sfmt("HEURISTIC: Tile count mismatch: expected %u (%u×%u), got %u",
+            sfmt("HEURISTIC: Tile count mismatch: expected %u (%ux%u), got %u",
                  expectedTiles, tilesAcross, tilesDown, nTiles));
     }
 
@@ -480,16 +480,16 @@ static CheckResult check_h150_tiff_tile(const ProfileView& pv) {
             static_cast<uint64_t>(tileW) * tileH >
                 static_cast<uint64_t>(UINT32_MAX) / bytesPerPixel) {
             cb.critical(
-                sfmt("HEURISTIC: Integer overflow in tile byte count: %u × %u × %llu",
+                sfmt("HEURISTIC: Integer overflow in tile byte count: %u x %u x %llu",
                      tileW, tileH, static_cast<unsigned long long>(bytesPerPixel)),
-                "CWE-190: Integer overflow → heap buffer overflow");
+                "CWE-190: Integer overflow -> heap buffer overflow");
         }
 
         uint32_t checkLimit = (nTiles < 64) ? nTiles : 64;
         for (uint32_t t = 0; t < checkLimit; ++t) {
             if (bytecounts[t] > expectedTileBytes * 4 && bytecounts[t] > 1048576) {
                 cb.warn(
-                    sfmt("HEURISTIC: Tile %u bytecount=%llu far exceeds expected=%llu (4× threshold)",
+                    sfmt("HEURISTIC: Tile %u bytecount=%llu far exceeds expected=%llu (4x threshold)",
                          t,
                          static_cast<unsigned long long>(bytecounts[t]),
                          static_cast<unsigned long long>(expectedTileBytes)),
@@ -525,26 +525,27 @@ static CheckResult check_h150_tiff_tile(const ProfileView& pv) {
     return cb.done("Tile geometry valid");
 }
 
-// ── Registration ──
+// -- Registration --
 
 REGISTER_HEURISTIC(139, "TIFF Strip Geometry Validation",
-    "TIFF 6.0 §7", "CWE-122/CWE-190",
-    "CWE-122", "", Severity::CRITICAL, CheckPhase::IMAGE, check_h139_tiff_strip);
+    "TIFF 6.0 Sec.7", "CWE-122/CWE-190",
+    "CWE-122", "CVE-2026-31797,CVE-2026-34539,GHSA-4f3j-q8mm-5hr6,GHSA-wh2p-cm3r-7hm3",
+    Severity::CRITICAL, CheckPhase::IMAGE, check_h139_tiff_strip);
 
 REGISTER_HEURISTIC(140, "TIFF Dimension and Sample Validation",
-    "TIFF 6.0 §8", "CWE-400/CWE-131",
+    "TIFF 6.0 Sec.8", "CWE-400/CWE-131",
     "CWE-400", "", Severity::HIGH, CheckPhase::IMAGE, check_h140_tiff_dims);
 
 REGISTER_HEURISTIC(141, "TIFF IFD Offset Bounds Validation",
-    "TIFF 6.0 §2", "CWE-125",
+    "TIFF 6.0 Sec.2", "CWE-125",
     "CWE-125", "", Severity::CRITICAL, CheckPhase::IMAGE, check_h141_tiff_ifd);
 
 REGISTER_HEURISTIC(149, "TIFF IFD Chain Cycle Detection",
-    "TIFF 6.0 §2", "CWE-835",
+    "TIFF 6.0 Sec.2", "CWE-835",
     "CWE-835", "", Severity::HIGH, CheckPhase::IMAGE, check_h149_tiff_cycle);
 
 REGISTER_HEURISTIC(150, "TIFF Tile Geometry Validation",
-    "TIFF 6.0 §15", "CWE-122/CWE-131",
+    "TIFF 6.0 Sec.15", "CWE-122/CWE-131",
     "CWE-122", "", Severity::CRITICAL, CheckPhase::IMAGE, check_h150_tiff_tile);
 
 } // namespace icctest
