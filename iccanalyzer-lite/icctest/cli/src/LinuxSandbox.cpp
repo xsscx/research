@@ -1,5 +1,5 @@
 /*
- * IccTest CLI — LinuxSandbox.cpp
+ * IccTest CLI - LinuxSandbox.cpp
  * Linux-native sandboxing: rlimit, prctl, optional seccomp-bpf.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
+#include <string>
 #include <vector>
 
 #ifdef __linux__
@@ -55,6 +56,37 @@ CheckMeta defaultCheckMeta(CheckID::Kind kind) {
     };
 }
 
+void appendBytes(std::vector<uint8_t>& out, const void* src, size_t len) {
+    const auto* bytes = static_cast<const uint8_t*>(src);
+    out.insert(out.end(), bytes, bytes + len);
+}
+
+void appendStr(std::vector<uint8_t>& out, const std::string& s) {
+    int32_t len = static_cast<int32_t>(s.size());
+    appendBytes(out, &len, sizeof(len));
+    if (len > 0) {
+        appendBytes(out, s.data(), static_cast<size_t>(len));
+    }
+}
+
+#ifdef __linux__
+bool writeAll(int fd, const uint8_t* data, size_t len) {
+    while (len > 0) {
+        ssize_t written = write(fd, data, len);
+        if (written > 0) {
+            data += written;
+            len -= static_cast<size_t>(written);
+            continue;
+        }
+        if (written < 0 && errno == EINTR) {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+#endif
+
 } // namespace
 
 bool isSandboxAvailable() {
@@ -67,21 +99,21 @@ bool isSandboxAvailable() {
 
 void applySandboxLimits(const SandboxLimits& limits) {
 #ifdef __linux__
-    // 1. No new privileges — cannot exec setuid binaries
+    // 1. No new privileges - cannot exec setuid binaries
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) {
         std::fprintf(stderr, "[sandbox] prctl(NO_NEW_PRIVS) failed: %s\n",
                      std::strerror(errno));
     }
 
-    // 2. Not dumpable — no ptrace attachment, no core dumps in /proc
+    // 2. Not dumpable - no ptrace attachment, no core dumps in /proc
     prctl(PR_SET_DUMPABLE, 0, 0, 0, 0);
 
-    // 3. Memory limits — strategy depends on ASAN presence.
+    // 3. Memory limits - strategy depends on ASAN presence.
     // ASAN maps ~20TB of virtual address space for shadow memory.
     // RLIMIT_AS would prevent mmap and kill the child immediately.
     // RLIMIT_DATA also breaks ASAN (its allocator uses mmap, not brk).
     // When ASAN is active, memory limiting is handled by the PARENT
-    // process via RSS polling in runSandboxed() — see below.
+    // process via RSS polling in runSandboxed() - see below.
     // Without ASAN, RLIMIT_AS is the tightest constraint.
     struct rlimit rl;
     bool asanActive = false;
@@ -109,7 +141,8 @@ void applySandboxLimits(const SandboxLimits& limits) {
     rl.rlim_max = limits.maxCPU + 5;  // Hard limit 5s after soft
     setrlimit(RLIMIT_CPU, &rl);
 
-    // 5. No file creation
+    // 5. Bound scratch-file writes. XML round-trip checks materialize a
+    // temporary file under /tmp, so the limit must be non-zero.
     rl.rlim_cur = limits.maxFileSize;
     rl.rlim_max = limits.maxFileSize;
     setrlimit(RLIMIT_FSIZE, &rl);
@@ -124,7 +157,7 @@ void applySandboxLimits(const SandboxLimits& limits) {
     rl.rlim_max = 0;
     setrlimit(RLIMIT_CORE, &rl);
 
-    // 8. Seccomp-bpf (optional — requires kernel headers)
+    // 8. Seccomp-bpf (optional - requires kernel headers)
     // Deferred: seccomp filter needs careful syscall audit for iccDEV's
     // use of mmap, mprotect, futex, clone, etc. Enable in future releases.
     (void)limits.enableSeccomp;
@@ -155,7 +188,7 @@ runSandboxed(std::function<AnalysisResult()> fn,
     }
 
     if (pid == 0) {
-        // ─── Child process ───
+        // Child process
         close(pipefd[0]);  // Close read end
 
         applySandboxLimits(limits);
@@ -192,27 +225,32 @@ runSandboxed(std::function<AnalysisResult()> fn,
         // [4B: nFindings] [N * Finding: sev(1) + kind(1) + num(4) + 3 strings]
         // [4B: nPerCheck] [N * PerCheckSummary: kind(1) + num(4) + status(1) +
         //                                    worstSeverity(1) + findingCount(4) + summary]
+        std::vector<uint8_t> payload;
+        payload.reserve(64 * 1024);
+
         uint8_t magic[4] = {'I', 'C', 'T', '\0'};
-        (void)write(pipefd[1], magic, 4);
+        appendBytes(payload, magic, sizeof(magic));
 
         // ProfileMetadata (fixed-size fields)
         auto& md = result.metadata;
-        (void)write(pipefd[1], &md.version, 4);
-        (void)write(pipefd[1], &md.profileClass, 4);
-        (void)write(pipefd[1], &md.colorSpace, 4);
-        (void)write(pipefd[1], &md.pcs, 4);
-        (void)write(pipefd[1], &md.flags, 4);
-        (void)write(pipefd[1], &md.headerSize, 4);
-        (void)write(pipefd[1], &md.fileSize, 8);
-        (void)write(pipefd[1], &md.renderingIntent, 4);
-        (void)write(pipefd[1], &md.manufacturer, 4);
-        (void)write(pipefd[1], &md.model, 4);
-        (void)write(pipefd[1], md.profileId.data(), 16);
-        (void)write(pipefd[1], md.magic.data(), 4);
-        (void)write(pipefd[1], md.illuminant.data(), 12);
+        appendBytes(payload, &md.version, 4);
+        appendBytes(payload, &md.profileClass, 4);
+        appendBytes(payload, &md.colorSpace, 4);
+        appendBytes(payload, &md.pcs, 4);
+        appendBytes(payload, &md.flags, 4);
+        appendBytes(payload, &md.headerSize, 4);
+        appendBytes(payload, &md.fileSize, 8);
+        appendBytes(payload, &md.renderingIntent, 4);
+        appendBytes(payload, &md.manufacturer, 4);
+        appendBytes(payload, &md.model, 4);
+        appendBytes(payload, md.profileId.data(), 16);
+        appendBytes(payload, md.magic.data(), 4);
+        appendBytes(payload, md.illuminant.data(), 12);
         int32_t creatorLen = static_cast<int32_t>(md.creator.size());
-        (void)write(pipefd[1], &creatorLen, 4);
-        if (creatorLen > 0) (void)write(pipefd[1], md.creator.data(), creatorLen);
+        appendBytes(payload, &creatorLen, 4);
+        if (creatorLen > 0) {
+            appendBytes(payload, md.creator.data(), static_cast<size_t>(creatorLen));
+        }
 
         // RunStats
         int32_t findingsTotal = result.stats.findingsTotal;
@@ -220,41 +258,35 @@ runSandboxed(std::function<AnalysisResult()> fn,
         int32_t checksSkipped = result.stats.checksSkipped;
         int64_t totalTime = result.stats.totalTime.count();
 
-        (void)write(pipefd[1], &findingsTotal, 4);
-        (void)write(pipefd[1], &checksRun, 4);
-        (void)write(pipefd[1], &checksSkipped, 4);
-        (void)write(pipefd[1], &totalTime, 8);
-        (void)write(pipefd[1], result.stats.findingsBySeverity.data(),
+        appendBytes(payload, &findingsTotal, 4);
+        appendBytes(payload, &checksRun, 4);
+        appendBytes(payload, &checksSkipped, 4);
+        appendBytes(payload, &totalTime, 8);
+        appendBytes(payload, result.stats.findingsBySeverity.data(),
                     5 * sizeof(int32_t));
 
         // Findings
         int32_t nFindings = static_cast<int32_t>(result.findings.size());
-        (void)write(pipefd[1], &nFindings, 4);
-
-        auto writeStr = [&](const std::string& s) {
-            int32_t len = static_cast<int32_t>(s.size());
-            (void)write(pipefd[1], &len, 4);
-            if (len > 0) (void)write(pipefd[1], s.data(), len);
-        };
+        appendBytes(payload, &nFindings, 4);
 
         for (const auto& f : result.findings) {
             uint8_t sev = static_cast<uint8_t>(f.level);
-            (void)write(pipefd[1], &sev, 1);
+            appendBytes(payload, &sev, 1);
 
             uint8_t kind = static_cast<uint8_t>(f.id.kind);
             int32_t num = f.id.number;
-            (void)write(pipefd[1], &kind, 1);
-            (void)write(pipefd[1], &num, 4);
+            appendBytes(payload, &kind, 1);
+            appendBytes(payload, &num, 4);
 
-            writeStr(f.message);
-            writeStr(f.detail);
-            writeStr(f.cweNote);
+            appendStr(payload, f.message);
+            appendStr(payload, f.detail);
+            appendStr(payload, f.cweNote);
         }
 
         int32_t nPerCheck = limits.includePerCheckSummary
             ? static_cast<int32_t>(result.perCheck.size())
             : 0;
-        (void)write(pipefd[1], &nPerCheck, 4);
+        appendBytes(payload, &nPerCheck, 4);
 
         if (nPerCheck > 0) {
             for (const auto& entry : result.perCheck) {
@@ -264,20 +296,24 @@ runSandboxed(std::function<AnalysisResult()> fn,
                 uint8_t worstSeverity = static_cast<uint8_t>(maxFindingSeverity(entry.result.findings));
                 int32_t findingCount = static_cast<int32_t>(entry.result.findings.size());
 
-                (void)write(pipefd[1], &kind, 1);
-                (void)write(pipefd[1], &num, 4);
-                (void)write(pipefd[1], &status, 1);
-                (void)write(pipefd[1], &worstSeverity, 1);
-                (void)write(pipefd[1], &findingCount, 4);
-                writeStr(entry.result.summary);
+                appendBytes(payload, &kind, 1);
+                appendBytes(payload, &num, 4);
+                appendBytes(payload, &status, 1);
+                appendBytes(payload, &worstSeverity, 1);
+                appendBytes(payload, &findingCount, 4);
+                appendStr(payload, entry.result.summary);
             }
         }
 
+        if (!writeAll(pipefd[1], payload.data(), payload.size())) {
+            close(pipefd[1]);
+            _exit(2);
+        }
         close(pipefd[1]);
         _exit(result.hasCritical() ? 1 : 0);
     }
 
-    // ─── Parent process ───
+    // Parent process
     close(pipefd[1]);  // Close write end
 
     int originalFlags = fcntl(pipefd[0], F_GETFL, 0);
@@ -415,7 +451,7 @@ runSandboxed(std::function<AnalysisResult()> fn,
 
     close(pipefd[0]);
 
-    // Child exited normally — parse serialized result
+    // Child exited normally - parse serialized result
     AnalysisResult result{};
     size_t cursor = 0;
 

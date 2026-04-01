@@ -25,6 +25,23 @@
 
 namespace icctest {
 
+namespace {
+
+bool waitForChild(pid_t pid, int& status) {
+    for (;;) {
+        pid_t ret = waitpid(pid, &status, 0);
+        if (ret == pid) {
+            return true;
+        }
+        if (ret < 0 && errno == EINTR) {
+            continue;
+        }
+        return false;
+    }
+}
+
+} // namespace
+
 // -- H142: XML Serialization Safety --
 // Exercise the XML serializer under fork isolation, matching V1 semantics.
 static CheckResult check_h142_xml_safety(const ProfileView& pv) {
@@ -86,29 +103,7 @@ static CheckResult check_h142_xml_safety(const ProfileView& pv) {
     }
 
     int status = 0;
-    int waited = 0;
-    for (int i = 0; i < 150; i++) {
-        pid_t ret = waitpid(pid, &status, WNOHANG);
-        if (ret == pid) {
-            waited = 1;
-            break;
-        }
-        if (ret < 0) {
-            waited = -1;
-            break;
-        }
-        usleep(100000);
-    }
-
-    if (!waited) {
-        kill(pid, SIGKILL);
-        waitpid(pid, &status, 0);
-        cb.high("XML serialization timed out (>15s) - potential resource exhaustion",
-                "CWE-400: Uncontrolled Resource Consumption");
-        return cb.done("XML serialization timed out");
-    }
-
-    if (waited < 0) {
+    if (!waitForChild(pid, status)) {
         return CheckResult::error("waitpid() failed during XML serialization safety check");
     }
 
@@ -392,24 +387,7 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
     // Parent
     close(pipeFd[1]); // parent reads only
     int status = 0;
-    int waited = 0;
-    for (int i = 0; i < 250; i++) { // 25 seconds max
-        pid_t ret = waitpid(pid, &status, WNOHANG);
-        if (ret == pid) { waited = 1; break; }
-        if (ret < 0) { waited = -1; break; }
-        usleep(100000);
-    }
-
-    if (!waited) {
-        kill(pid, SIGKILL);
-        waitpid(pid, &status, 0);
-        close(pipeFd[0]);
-        cb.high("XML round-trip timed out (>25s) -- potential resource exhaustion",
-                "CWE-400: Uncontrolled Resource Consumption");
-        return cb.done("XML round-trip timed out");
-    }
-
-    if (waited < 0) {
+    if (!waitForChild(pid, status)) {
         close(pipeFd[0]);
         return CheckResult::error("waitpid() failed during XML round-trip check");
     }
@@ -417,6 +395,11 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
     if (WIFSIGNALED(status)) {
         int sig = WTERMSIG(status);
         close(pipeFd[0]);
+        if (sig == SIGALRM) {
+            cb.high("XML round-trip timed out (>20s) -- potential resource exhaustion",
+                    "CWE-400: Uncontrolled Resource Consumption");
+            return cb.done("XML round-trip timed out");
+        }
         cb.critical(sfmt("XML round-trip crashed with signal %d", sig),
                     "CWE-787/CWE-125: XML round-trip memory safety violation");
         return cb.done("XML round-trip crashed");
