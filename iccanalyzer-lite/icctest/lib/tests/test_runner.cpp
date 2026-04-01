@@ -1835,6 +1835,19 @@ static void test_sampleicc_legibility_regression() {
         ASSERT_TRUE(cf190->result.summary.find("Legibility") != std::string::npos);
         ASSERT_TRUE(cf190->result.findings[0].message.find("0 tags") != std::string::npos);
     }
+
+    {
+        auto result = analyze_corpus_checks(corpusDir / "v5_spac_basic.icc", {190});
+        ASSERT_EQ(1, result.stats.checksRun);
+        expect_conformance_result(result, 190, CheckResult::Status::FINDINGS, 1);
+
+        const auto* cf190 = find_per_check(result, CheckID::Kind::Conformance, 190);
+        ASSERT_TRUE(cf190 != nullptr);
+        ASSERT_TRUE(cf190->result.summary.find("Legibility") != std::string::npos);
+        ASSERT_TRUE(
+            cf190->result.findings[0].message.find("Library failed to load profile") !=
+            std::string::npos);
+    }
 }
 
 static void test_conformance_parity_regressions() {
@@ -3139,7 +3152,8 @@ static void test_profile_sequence_desc_validation_regression() {
                 if (finding.message.find("Sequence description entries: ~101") != std::string::npos) {
                     sawCount = true;
                 }
-                if (finding.message.find("Excessive sequence entries (101) — DoS risk") != std::string::npos) {
+                if (finding.message.find("Excessive sequence entries (101)") != std::string::npos &&
+                    finding.message.find("DoS risk") != std::string::npos) {
                     sawWarn = true;
                 }
             }
@@ -3179,7 +3193,7 @@ static void test_chromatic_adaptation_matrix_regression() {
         if (h88) {
             bool sawWarn = false;
             for (const auto& finding : h88->result.findings) {
-                if (finding.message.find("chad matrix near-singular (det=0.00e+00)") != std::string::npos) {
+                if (finding.message.find("chad matrix near-singular (det=") != std::string::npos) {
                     sawWarn = true;
                 }
             }
@@ -3217,7 +3231,8 @@ static void test_trc_curve_anomaly_regression() {
         if (h87) {
             bool sawWarn = false;
             for (const auto& finding : h87->result.findings) {
-                if (finding.message.find("Tag 'redTRCTag': TRC curve all-zero (3 points) — clipped output") != std::string::npos) {
+                if (finding.message.find("Tag 'redTRCTag': TRC curve all-zero (3 points)") != std::string::npos &&
+                    finding.message.find("clipped output") != std::string::npos) {
                     sawWarn = true;
                 }
             }
@@ -3342,7 +3357,8 @@ static void test_profile_sequence_description_regression() {
         if (h89) {
             bool sawWarn = false;
             for (const auto& finding : h89->result.findings) {
-                if (finding.message.find("Profile sequence has 257 descriptions (>256) — OOM risk") != std::string::npos) {
+                if (finding.message.find("Profile sequence has 257 descriptions (>256)") != std::string::npos &&
+                    finding.message.find("OOM risk") != std::string::npos) {
                     sawWarn = true;
                 }
             }

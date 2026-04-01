@@ -16,7 +16,7 @@ namespace icctest {
 
 static constexpr const char* ICCTEST_VERSION = "2.0.0-alpha";
 
-static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
+static bool canRunWhenLibraryQuarantined(const RegisteredCheck& check) {
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 90) {
         return true;
     }
@@ -69,6 +69,16 @@ static bool canRunOnQuarantinedProfile(const RegisteredCheck& check) {
         return true;
     }
     if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 287) {
+        return true;
+    }
+    return false;
+}
+
+static bool canRunWhenLibraryLoadFails(const RegisteredCheck& check) {
+    if (canRunWhenLibraryQuarantined(check)) {
+        return true;
+    }
+    if (check.id.kind == CheckID::Kind::Conformance && check.id.number == 190) {
         return true;
     }
     return false;
@@ -187,14 +197,14 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
         if (skipLibrary &&
             (check.meta.phase == CheckPhase::LIBRARY ||
              check.meta.phase == CheckPhase::CONFORMANCE) &&
-            !canRunOnQuarantinedProfile(check)) {
+            !canRunWhenLibraryQuarantined(check)) {
             continue;
         }
 
         if ((check.meta.phase == CheckPhase::LIBRARY ||
              check.meta.phase == CheckPhase::CONFORMANCE) &&
             !pv.libraryLoaded() &&
-            !canRunOnQuarantinedProfile(check)) {
+            !canRunWhenLibraryLoadFails(check)) {
             result.stats.checksRun++;
             auto cr = CheckResult::ok("NOT RUN: Profile failed to load");
             result.perCheck.push_back(PerCheckResult{
