@@ -10,6 +10,7 @@ the right part of `docs/`.
 - Upstream `iccDEV` build recipes: `iccDEV/shell-helpers/README.md`
 - Per-tool usage pages: `iccDEV/Tools/README.md`
 - Repo-level build entry points: `../README.md`
+- Apple Silicon host setup (Linux container host flow): `LOCAL_MACOS_ARM64_ONBOARDING.md`
 
 ### Investigate a Bug or Security Issue
 
