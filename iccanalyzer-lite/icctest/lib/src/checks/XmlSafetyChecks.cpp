@@ -109,13 +109,17 @@ static CheckResult check_h142_xml_safety(const ProfileView& pv) {
 
     if (WIFSIGNALED(status)) {
         int sig = WTERMSIG(status);
+        if (sig == SIGALRM) {
+            cb.high("XML serialization timed out (>10s) -- potential resource exhaustion",
+                    "CWE-400: Uncontrolled Resource Consumption");
+            return cb.done("XML serialization timed out");
+        }
         const char* sigName = "UNKNOWN";
         switch (sig) {
             case SIGSEGV: sigName = "SIGSEGV"; break;
             case SIGABRT: sigName = "SIGABRT (ASAN/UBSAN)"; break;
             case SIGBUS:  sigName = "SIGBUS"; break;
             case SIGFPE:  sigName = "SIGFPE"; break;
-            case SIGALRM: sigName = "SIGALRM (timeout)"; break;
             case SIGKILL: sigName = "SIGKILL (killed)"; break;
         }
         cb.critical(sfmt("XML serialization crashed with %s (signal %d)", sigName, sig),
