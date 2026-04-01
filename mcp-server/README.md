@@ -19,7 +19,7 @@ Open <http://127.0.0.1:8080>. The bundled test corpus is pre-loaded.
 Health is the source of truth for the live surface, for example:
 
 ```json
-{"ok":true,"tools":26,"engines":{"v1":true,"v2":true},"defaultAnalysisEngine":"v2","defaultStructuralEngine":"v1"}
+{"ok":true,"tools":28,"engines":{"v1":true,"v2":true},"defaultAnalysisEngine":"v2","defaultStructuralEngine":"v1"}
 ```
 
 ## Current Surface
@@ -88,6 +88,17 @@ Client config:
 }
 ```
 
+### Local repo checkout
+
+```bash
+python mcp-server/launch.py mcp
+python mcp-server/launch.py web --host 127.0.0.1 --port 8000
+```
+
+`launch.py` prefers `mcp-server/.venv` when it exists, so Windows and WSL
+editor integrations can target the same repo-local launcher instead of hard
+coding platform-specific interpreter paths.
+
 ### GitHub issue workflow
 
 If you do not want to run Docker locally, attach `profile.icc.txt` to a repo
@@ -112,12 +123,13 @@ issue and request analysis there.
 
 ## Tool Families
 
-The current 26 MCP tools are grouped into four families:
+The current 28 MCP tools are grouped into four families:
 
-- Analysis (11): `health_check`, `inspect_profile`, `analyze_security`,
+- Analysis (13): `health_check`, `inspect_profile`, `analyze_security`,
   `validate_roundtrip`, `analyze_security_json`,
   `analyze_security_report`, `full_analysis`, `profile_to_xml`,
-  `compare_profiles`, `list_test_profiles`, `upload_and_analyze`
+  `compare_profiles`, `list_test_profiles`, `upload_and_analyze`,
+  `dump_all`, `diagnostic_load`
 - Maintainer (7): `build_tools`, `cmake_configure`, `cmake_build`,
   `create_all_profiles`, `run_iccdev_tests`, `cmake_option_matrix`,
   `windows_build`
@@ -146,6 +158,8 @@ The current 26 MCP tools are grouped into four families:
 | `GET` | `/api/registry` | `engine` (optional) | Analyzer registry JSON |
 | `GET` | `/api/attack-surface` | `top_n` (optional) | Graph-centrality view of attack-surface nodes |
 | `GET` | `/api/coverage-gaps` | `severity_filter` (optional) | Uncovered heuristics/CVEs/patches from the knowledge graph |
+| `GET` | `/api/dump-all` | `path`, `verbosity`, `use_read`, `diag` | Deep tag dump via `iccDumpAll` |
+| `GET` | `/api/diagnostic-load` | `path`, `mode` | Deep diagnostic-load analysis |
 | `GET` | `/api/knowledge-graph.json` | — | Raw knowledge-graph data for the viewer |
 | `POST` | `/api/upload` | `file` (multipart) | Upload `.icc` file (20 MB max) |
 | `POST` | `/api/upload-and-analyze` | multipart/form-data | Upload and analyze in one request |

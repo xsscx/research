@@ -39,9 +39,8 @@ messages:
       - Structural inspection and round-trip validation still default to V1.
       - Do not hardcode heuristic totals from prompt text. Use the registry or
         tool output if exact counts matter.
-      - Current saved repo baseline: V1 exposes 173 `H-*` heuristics; V2
-        currently exposes 180 `H-*` heuristics plus 329 canonical `CF-*`
-        conformance checks.
+      - Current saved repo baseline: V1 and V2 currently expose 180 `H-*`
+        heuristics; V2 also exposes 329 canonical `CF-*` conformance checks.
       - For parity or release claims, `verify-parity-summary.json` is the
         source of truth, not README text.
       - `iccanalyzer-lite` and `icctest` intentionally validate against the
