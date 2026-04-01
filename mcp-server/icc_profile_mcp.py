@@ -75,7 +75,7 @@ def _init_engine_default(env_name: str, fallback: str) -> str:
 DEFAULT_ANALYSIS_ENGINE = _init_engine_default("ICC_MCP_ANALYSIS_ENGINE", "auto")
 DEFAULT_STRUCTURAL_ENGINE = _init_engine_default("ICC_MCP_STRUCTURAL_ENGINE", "v1")
 ICC_PROFILE_ASSESSMENT_URL = "https://www.color.org/profiles/assessment/index.xalter"
-_V2_TITLE_LINE = "  IccTest v2.0 — ICC Profile Security & Conformance Analyzer"
+_V2_TITLE_LINE = "  IccTest v2.0 -- ICC Profile Security & Conformance Analyzer"
 _PAWG_ITEM_LINE_RE = re.compile(r"^\s+\[(?:OK|WARN|FAIL|N/A|GAP| -- )\]\s+[SCQ]\d+\s+")
 
 
@@ -135,6 +135,20 @@ def _get_analyzer(engine: str | None = None) -> Path:
     # Default: v1
     _require_binary(ANALYZER_BIN, "iccanalyzer-lite")
     return ANALYZER_BIN
+
+
+def _get_security_text_analyzer(engine: str | None = None) -> tuple[Path, str]:
+    """Resolve a non-aliased engine for text-mode security analysis.
+
+    V2 currently exposes comprehensive analysis (`-a`) and not a separate
+    security-only text command. When `auto` resolves to V2, mapping `-h` to
+    `-a` makes `analyze_security()` duplicate `full_analysis()`. Prefer V1 for
+    this one tool in auto mode to preserve distinct behavior.
+    """
+    resolved = _resolve_engine(engine, default=DEFAULT_ANALYSIS_ENGINE)
+    if resolved == "auto":
+        return _get_analyzer("v1"), "v1"
+    return _get_analyzer(resolved), resolved
 
 
 def _decorate_v2_banner(text: str, *, label: str = "ICC Conformance Reference") -> str:
@@ -410,7 +424,7 @@ async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             except (ProcessLookupError, PermissionError):
-                pass  # Process already exited or not owned — safe to ignore
+                pass  # Process already exited or not owned -- safe to ignore
         proc.kill()
         await proc.wait()
         return f"[TIMEOUT after {timeout}s]"
@@ -419,7 +433,7 @@ async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             except (ProcessLookupError, PermissionError):
-                pass  # Process already exited or not owned — safe to ignore
+                pass  # Process already exited or not owned -- safe to ignore
         proc.kill()
         await proc.wait()
         raise
@@ -453,7 +467,7 @@ async def _run(cmd: list[str], timeout: int = 60, *, include_stderr: bool = True
     if truncated:
         output += "\n[OUTPUT TRUNCATED at 10MB]"
 
-    # Flag signal crashes (exit 128+) — exit 1 is normal (findings detected)
+    # Flag signal crashes (exit 128+) -- exit 1 is normal (findings detected)
     rc = proc.returncode
     if rc is not None and rc >= 128:
         sig_num = rc - 128
@@ -472,7 +486,7 @@ async def health_check() -> str:
     Returns a summary of server health: tool count, binary availability,
     and profile directory status.
     """
-    lines = ["[ICC Profile MCP Server — Health Check]", ""]
+    lines = ["[ICC Profile MCP Server -- Health Check]", ""]
 
     # Binary status
     analyzer_ok = ANALYZER_BIN.is_file() and os.access(ANALYZER_BIN, os.X_OK)
@@ -546,7 +560,7 @@ async def inspect_profile(path: str, engine: str = DEFAULT_STRUCTURAL_ENGINE) ->
 
     Args:
         path: Path to .icc file (absolute, or filename to search in test-profiles/)
-        engine: Analysis engine — "v1", "v2", or "auto".
+        engine: Analysis engine -- "v1", "v2", or "auto".
                 Defaults to the structural-engine path, which is "v1" unless
                 overridden via ICC_MCP_STRUCTURAL_ENGINE.
     """
@@ -573,12 +587,14 @@ async def analyze_security(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> 
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1", "v2", or "auto".
+        engine: Analysis engine -- "v1", "v2", or "auto".
                 Defaults to ICC_MCP_ANALYSIS_ENGINE ("auto" by default).
+                In auto mode, this tool prefers V1 because V2 does not expose
+                a distinct security-only text command.
     """
-    analyzer = _get_analyzer(engine)
+    analyzer, resolved_engine = _get_security_text_analyzer(engine)
     profile = _resolve_profile(path)
-    flags = _map_flags(["-h"], engine)
+    flags = _map_flags(["-h"], resolved_engine)
     return _decorate_v2_banner(await _run([str(analyzer)] + flags + [str(profile)]))
 
 
@@ -588,7 +604,7 @@ async def validate_roundtrip(path: str, engine: str = DEFAULT_STRUCTURAL_ENGINE)
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1", "v2", or "auto".
+        engine: Analysis engine -- "v1", "v2", or "auto".
                 Defaults to the structural-engine path, which is "v1" unless
                 overridden via ICC_MCP_STRUCTURAL_ENGINE.
     """
@@ -608,7 +624,7 @@ async def analyze_security_json(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1", "v2", or "auto".
+        engine: Analysis engine -- "v1", "v2", or "auto".
                 Defaults to ICC_MCP_ANALYSIS_ENGINE ("auto" by default).
     """
     analyzer = _get_analyzer(engine)
@@ -630,7 +646,7 @@ async def analyze_security_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGI
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1", "v2", or "auto".
+        engine: Analysis engine -- "v1", "v2", or "auto".
                 Defaults to ICC_MCP_ANALYSIS_ENGINE ("auto" by default).
     """
     analyzer = _get_analyzer(engine)
@@ -657,11 +673,11 @@ async def analyze_pawg_report(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) 
 async def full_analysis(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str:
     """Run comprehensive analysis combining security, validation, and metadata.
 
-    This is the most thorough mode — combines heuristics, round-trip, and inspection.
+    This is the most thorough mode -- combines heuristics, round-trip, and inspection.
 
     Args:
         path: Path to .icc file
-        engine: Analysis engine — "v1", "v2", or "auto".
+        engine: Analysis engine -- "v1", "v2", or "auto".
                 Defaults to ICC_MCP_ANALYSIS_ENGINE ("auto" by default).
     """
     analyzer = _get_analyzer(engine)
@@ -719,7 +735,7 @@ async def profile_to_xml(path: str) -> str:
             header = f"[Converted with {used_tool}]\n\n"
             if len(content) > max_xml_chars:
                 content = content[:max_xml_chars]
-                return header + content + f"\n\n[TRUNCATED — full XML is ~{file_size:,} bytes]"
+                return header + content + f"\n\n[TRUNCATED -- full XML is ~{file_size:,} bytes]"
             return header + content
         return result or "[No XML output produced]"
     finally:
@@ -780,7 +796,7 @@ async def list_test_profiles(directory: str = "test-profiles") -> str:
     """List available ICC test profiles.
 
     Args:
-        directory: Which profile set — "test-profiles" or "extended-test-profiles"
+        directory: Which profile set -- "test-profiles" or "extended-test-profiles"
     """
     dirs = {
         "test-profiles": TEST_PROFILES,
@@ -801,7 +817,7 @@ async def list_test_profiles(directory: str = "test-profiles") -> str:
                 lines.append(f"{f.name}  ({f.stat().st_size:,} bytes)")
         except OSError:
             continue
-    header = f"{directory}/ — {len(lines)} profiles:\n"
+    header = f"{directory}/ -- {len(lines)} profiles:\n"
     return header + "\n".join(lines)
 
 
@@ -824,9 +840,9 @@ def _get_upload_dir() -> Path:
                 if f.is_file() and f.stat().st_mtime < cutoff:
                     f.unlink()
             except OSError:
-                pass  # File already removed or permission denied — skip
+                pass  # File already removed or permission denied -- skip
     except OSError:
-        pass  # Upload directory not listable — skip cleanup
+        pass  # Upload directory not listable -- skip cleanup
 
     return _UPLOAD_DIR
 
@@ -848,10 +864,10 @@ async def upload_and_analyze(
     Args:
         data_base64: Base64-encoded file data
         filename: Original filename (used for display, sanitized before use)
-        mode: Analysis mode — "security" (default), "pawg", "inspect",
+        mode: Analysis mode -- "security" (default), "pawg", "inspect",
               "roundtrip", "full", "xml", or "all" (runs security +
               inspect + roundtrip)
-        engine: Analysis engine — "v1", "v2", or "auto".
+        engine: Analysis engine -- "v1", "v2", or "auto".
                 Defaults to ICC_MCP_ANALYSIS_ENGINE for security/full modes and
                 ICC_MCP_STRUCTURAL_ENGINE for inspect/roundtrip.
     """
@@ -957,7 +973,7 @@ async def build_tools(target: str = "all") -> str:
     suite, use run_iccdev_tests.
 
     Args:
-        target: What to build — "all", "iccanalyzer-lite", "icctest",
+        target: What to build -- "all", "iccanalyzer-lite", "icctest",
                 or "colorbleed_tools"
     """
     targets = {
@@ -1049,9 +1065,9 @@ async def _run_build(cmd: list[str], cwd: str, timeout: int = 300) -> str:
     return _sanitize_output(output.strip())
 
 
-# ── Helpers for cmake / iccDEV maintainer tools ─────────────────────
+# -- Helpers for cmake / iccDEV maintainer tools ---------------------
 
-# Allowed cmake arg patterns — reject shell metacharacters
+# Allowed cmake arg patterns -- reject shell metacharacters
 _CMAKE_ARG_RE = re.compile(r"^-D[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_.+\-]*$")
 _CMAKE_FLAG_RE = re.compile(r"^-W[a-z\-]+$")
 
@@ -1283,7 +1299,7 @@ async def cmake_configure(
 ) -> str:
     """Configure iccDEV with cmake, allowing build type, sanitizer, and tool selection.
 
-    This is for maintainers who need different build configurations — e.g.,
+    This is for maintainers who need different build configurations -- e.g.,
     Release builds, coverage instrumentation, or ENABLE_TOOLS=ON to run
     CreateAllProfiles.sh and the iccDEV test suite.
 
@@ -1291,14 +1307,14 @@ async def cmake_configure(
     Ninja generators. Use cmake_build after this to compile.
 
     Args:
-        build_type: CMake build type — "Debug" (default), "Release",
+        build_type: CMake build type -- "Debug" (default), "Release",
                     "RelWithDebInfo", or "MinSizeRel"
         enable_tools: Build iccDEV CLI tools (iccFromXml, iccApplyProfiles,
                       iccDumpProfile, etc.). Required for CreateAllProfiles.sh
-        sanitizers: Sanitizer config — "asan+ubsan" (default), "asan", "ubsan",
+        sanitizers: Sanitizer config -- "asan+ubsan" (default), "asan", "ubsan",
                     "coverage", or "none"
-        compiler: Compiler family — "clang" (default) or "gcc"
-        generator: CMake generator — "default" (auto-detect), "Ninja",
+        compiler: Compiler family -- "clang" (default) or "gcc"
+        generator: CMake generator -- "default" (auto-detect), "Ninja",
                    "Xcode" (macOS), or "Unix Makefiles"
         extra_cmake_args: Additional cmake -D flags (e.g. "-DICC_LOG_SAFE=ON")
         build_dir: Name for build directory under iccDEV/Build/
@@ -1417,7 +1433,7 @@ async def cmake_configure(
     # Check for CMake success indicators
     if "Generating done" in output or "Build files have been written" in output:
         return summary + f"\n[OK] cmake configured successfully\n\n{output}"
-    return summary + f"\n[WARN] cmake may have failed — check output:\n\n{output}"
+    return summary + f"\n[WARN] cmake may have failed -- check output:\n\n{output}"
 
 
 @mcp.tool()
@@ -1449,7 +1465,7 @@ async def cmake_build(
         return f"[FAIL] {e}"
     if not (target_dir / "CMakeCache.txt").is_file():
         return (
-            f"[FAIL] {target_dir} has no CMakeCache.txt — run cmake_configure first.\n"
+            f"[FAIL] {target_dir} has no CMakeCache.txt -- run cmake_configure first.\n"
             f"Example: cmake_configure(build_dir='{build_dir}')"
         )
 
@@ -1816,8 +1832,8 @@ async def windows_build(
     On non-Windows hosts it produces a dry-run script for copy-paste execution.
 
     Args:
-        build_type: CMake build type — "Debug" (default) or "Release"
-        vcpkg_deps: Dependency source — "release" (download zip from
+        build_type: CMake build type -- "Debug" (default) or "Release"
+        vcpkg_deps: Dependency source -- "release" (download zip from
                     iccDEV v2.3.1 GitHub release) or "local" (assume
                     vcpkg deps already extracted)
         enable_tools: Build iccDEV CLI tools (default: True)
@@ -2000,7 +2016,7 @@ async def windows_build(
     return summary + "\n" + "\n".join(results)
 
 
-# ── Operations tools (from iccDEV shell helpers) ────────────────────
+# -- Operations tools (from iccDEV shell helpers) --------------------
 
 
 # Grep pattern categories for scan_logs (from Unix helpers)
@@ -2209,7 +2225,7 @@ async def find_build_artifacts(build_dir: str = "") -> str:
     total_libs = 0
 
     for search_dir in search_dirs:
-        lines.append(f"── {search_dir.name}/ ──")
+        lines.append(f"-- {search_dir.name}/ --")
         exes: list[Path] = []
         libs: list[Path] = []
 
@@ -2231,7 +2247,7 @@ async def find_build_artifacts(build_dir: str = "") -> str:
                 size = exe.stat().st_size
                 sha = hashlib.sha256(exe.read_bytes()).hexdigest()[:16]
                 rel = exe.relative_to(search_dir)
-                lines.append(f"    {rel}  ({size:,} bytes)  sha256:{sha}…")
+                lines.append(f"    {rel}  ({size:,} bytes)  sha256:{sha}...")
             if len(exes) > 30:
                 lines.append(f"    ... and {len(exes) - 30} more")
 
@@ -2288,7 +2304,7 @@ async def batch_test_profiles(
     Args:
         directory: Directory containing .icc profiles to test.
                    Defaults to iccDEV/Testing/ tree.
-        tool: Which tool to run — "dump" (iccDumpProfile), "toxml" (iccToXml),
+        tool: Which tool to run -- "dump" (iccDumpProfile), "toxml" (iccToXml),
               "fromxml" (iccFromXml), "roundtrip" (iccRoundTrip), or "all".
         build_dir: Build directory with tool executables (from cmake_build).
                    If omitted, auto-detect the best available tool-enabled build.
@@ -2370,7 +2386,7 @@ async def batch_test_profiles(
             f"  Build dir: {target_dir}",
             "",
         ])
-    lines.extend([f"[Batch Profile Testing — {len(profiles)} profiles]", ""])
+    lines.extend([f"[Batch Profile Testing -- {len(profiles)} profiles]", ""])
     summary: dict[str, dict[str, int]] = {}
 
     for t in run_tools:
@@ -2382,7 +2398,7 @@ async def batch_test_profiles(
             lines.append(f"[SKIP] {binary_name}: not found in PATH")
             continue
 
-        lines.append(f"── {binary_name} ──")
+        lines.append(f"-- {binary_name} --")
         passed = 0
         failed = 0
         errors: list[str] = []
@@ -2458,7 +2474,7 @@ async def validate_xml(
     Args:
         directory: Directory containing .xml files to validate.
                    Defaults to iccDEV/Testing/.
-        checks: Comma-separated check types — "wellformed", "encoding",
+        checks: Comma-separated check types -- "wellformed", "encoding",
                 "size", "safety", or "all" (default).
     """
     xmllint = shutil.which("xmllint")
@@ -2501,7 +2517,7 @@ async def validate_xml(
         "safety": ["--noout", "--noent", "--nonet"],
     }
 
-    lines = [f"[XML Validation — {len(xml_files)} files, {len(run_checks)} check(s)]", ""]
+    lines = [f"[XML Validation -- {len(xml_files)} files, {len(run_checks)} check(s)]", ""]
     cap = min(len(xml_files), 100)
 
     for check_name in run_checks:
@@ -2533,7 +2549,7 @@ async def validate_xml(
                 err_text = stderr.decode(errors="replace").strip()[:150]
                 failures.append(f"  [FAIL] {xf.name}: {err_text}")
 
-        lines.append(f"── {check_name} ──")
+        lines.append(f"-- {check_name} --")
         lines.append(f"  Passed: {passed}/{passed + failed}")
         if failures:
             for f in failures[:10]:
@@ -2609,7 +2625,7 @@ async def coverage_report(build_dir: str = "") -> str:
     if not binaries:
         return f"[FAIL] No instrumented binaries found in {target_dir}"
 
-    # Merge profraw → profdata
+    # Merge profraw -> profdata
     profdata_out = target_dir / "merged.profdata"
     merge_cmd = [
         profdata_bin, "merge", "-sparse",
@@ -2641,7 +2657,7 @@ async def coverage_report(build_dir: str = "") -> str:
         cov_cmd.extend(["-object", str(b)])
 
     cov_result = await _run_build(cov_cmd, cwd=str(target_dir), timeout=60)
-    lines.append("── Coverage Summary ──")
+    lines.append("-- Coverage Summary --")
     lines.append(cov_result)
 
     return "\n".join(lines)
@@ -2660,7 +2676,7 @@ async def scan_logs(
     Args:
         directory: Directory containing .log files to scan.
                    Defaults to the auto-detected iccDEV Testing directory.
-        categories: Comma-separated categories — "errors", "signals", "invalid",
+        categories: Comma-separated categories -- "errors", "signals", "invalid",
                     "overflow", "memory", "hangs", or "all" (default).
     """
     if categories == "all":
@@ -2695,7 +2711,7 @@ async def scan_logs(
             "or run a maintainer workflow that emits build/test logs first."
         )
 
-    lines = [f"[Log Scanner — {len(log_files)} files, {len(active)} categories]", ""]
+    lines = [f"[Log Scanner -- {len(log_files)} files, {len(active)} categories]", ""]
     total_matches = 0
     cap = min(len(log_files), 50)
 
@@ -2716,7 +2732,7 @@ async def scan_logs(
             if len(cat_matches) >= 50:
                 break
 
-        lines.append(f"── {cat} ({len(cat_matches)} matches) ──")
+        lines.append(f"-- {cat} ({len(cat_matches)} matches) --")
         if cat_matches:
             for m in cat_matches[:15]:
                 lines.append(m)
@@ -2776,7 +2792,7 @@ async def dump_all(
 @mcp.tool()
 async def diagnostic_load(
     path: str,
-    mode: str = "all",
+    mode: str = "dump",
 ) -> str:
     """Run deep diagnostic load analysis on an ICC profile.
 
@@ -2790,7 +2806,7 @@ async def diagnostic_load(
         mode: Analysis mode -- "raw" (binary analysis + hex dump),
               "compare" (OpenIccProfile vs ReadIccProfile vs ValidateIccProfile),
               "trace" (manual LoadTag + IO tracing),
-              "all" (all of the above, default),
+              "all" (all of the above),
               "dump" (all + iccDumpAll-style tag dump).
     """
     profile = _resolve_profile(path)
@@ -2804,7 +2820,7 @@ async def diagnostic_load(
 
 
 ####################################################################
-# Graph / Knowledge-Graph tools  (2 tools — require networkx)
+# Graph / Knowledge-Graph tools  (2 tools -- require networkx)
 ####################################################################
 
 def _load_knowledge_graph() -> dict:
@@ -2853,7 +2869,7 @@ async def query_attack_surface(
     ranked = sorted(bc.items(), key=lambda x: x[1], reverse=True)[:top_n]
 
     lines = [
-        f"[Attack Surface — top {top_n} by betweenness centrality]",
+        f"[Attack Surface -- top {top_n} by betweenness centrality]",
         f"Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges",
         "",
         f"{'Rank':<5} {'Node':<40} {'Type':<12} {'Centrality':<10}",
@@ -2940,7 +2956,7 @@ async def coverage_gaps(
     lines = [
         f"[Coverage Gaps{sev_note}]",
         "",
-        f"── Heuristics without CVE/GHSA mapping ({len(heuristics_no_cve)}) ──",
+        f"-- Heuristics without CVE/GHSA mapping ({len(heuristics_no_cve)}) --",
     ]
     for h in heuristics_no_cve[:30]:
         lines.append(h)
@@ -2948,12 +2964,12 @@ async def coverage_gaps(
         lines.append(f"  ... and {len(heuristics_no_cve) - 30} more")
 
     lines.append("")
-    lines.append(f"── Patches without heuristic coverage ({len(patches_uncovered)}) ──")
+    lines.append(f"-- Patches without heuristic coverage ({len(patches_uncovered)}) --")
     for p in patches_uncovered[:20]:
         lines.append(p)
 
     lines.append("")
-    lines.append(f"── Components without fuzzer targeting ({len(comps_unfuzzed)}) ──")
+    lines.append(f"-- Components without fuzzer targeting ({len(comps_unfuzzed)}) --")
     for c in comps_unfuzzed[:20]:
         lines.append(c)
 
