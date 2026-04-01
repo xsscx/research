@@ -374,6 +374,8 @@ footer {
     <span class="separator" data-separator></span>
     <button data-tool="attack_surface"    >Attack Surface</button>
     <button data-tool="coverage_gaps"     >Coverage Gaps</button>
+    <button data-tool="dump_all"          >Dump All</button>
+    <button data-tool="diagnostic_load"   >Diagnostic Load</button>
     <button data-tool="graph_viewer"      >Graph Viewer</button>
   </nav>
 
@@ -434,6 +436,8 @@ const TOOLS = {
   upload_and_analyze: { label: "Upload & Analyze", endpoint: "/api/upload-and-analyze", fields: ["data_base64","filename","mode"], method: "POST" },
   attack_surface:     { label: "Attack Surface",   endpoint: "/api/attack-surface",    fields: ["top_n"],           method: "GET" },
   coverage_gaps:      { label: "Coverage Gaps",     endpoint: "/api/coverage-gaps",     fields: ["severity_filter"], method: "GET" },
+  dump_all:           { label: "Dump All",           endpoint: "/api/dump-all",          fields: ["path","verbosity","use_read","diag"], method: "GET" },
+  diagnostic_load:    { label: "Diagnostic Load",    endpoint: "/api/diagnostic-load",   fields: ["path","mode"],     method: "GET" },
   graph_viewer:       { label: "Graph Viewer",      endpoint: null,                     fields: [],                  method: null },
 };
 
@@ -825,6 +829,56 @@ function renderInputs() {
         ${saveBtn}
       </div>
       <p class="tool-hint">Identifies heuristics without CVE mapping, patches without coverage, and unfuzzed components.</p>`;
+  } else if (currentTool === "dump_all") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-path">Profile</label>
+          <input id="inp-path" value="${DEFAULT_PROFILE}" />
+        </div>
+        <div class="field">
+          <label for="inp-verbosity">Verbosity (1-100)</label>
+          <input id="inp-verbosity" type="number" value="100" min="1" max="100" />
+        </div>
+        <div class="field">
+          <label for="inp-use_read">Use ReadIccProfile</label>
+          <select id="inp-use_read">
+            <option value="false" selected>No (OpenIccProfile)</option>
+            <option value="true">Yes (ReadIccProfile)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="inp-diag">Diagnostic stderr</label>
+          <select id="inp-diag">
+            <option value="false" selected>No</option>
+            <option value="true">Yes</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>
+      <p class="tool-hint">Deep tag dump via iccDumpAll (ASAN+UBSAN instrumented). Shows header, tag table, and full tag data with configurable verbosity.</p>`;
+  } else if (currentTool === "diagnostic_load") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-path">Profile</label>
+          <input id="inp-path" value="${DEFAULT_PROFILE}" />
+        </div>
+        <div class="field">
+          <label for="inp-mode">Mode</label>
+          <select id="inp-mode">
+            <option value="all" selected>All (complete analysis)</option>
+            <option value="raw">Raw (binary analysis only)</option>
+            <option value="compare">Compare (Open vs Read vs Validate)</option>
+            <option value="trace">Trace (LoadTag + Read simulation)</option>
+            <option value="dump">Dump (all + tag dump)</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Run</button>
+        ${saveBtn}
+      </div>
+      <p class="tool-hint">Deep diagnostic load analysis comparing OpenIccProfile vs ReadIccProfile vs ValidateIccProfile with IO tracing.</p>`;
   } else if (currentTool === "graph_viewer") {
     html = `
       <div class="graph-viewer-container">
@@ -883,7 +937,7 @@ function renderInputs() {
   // Auto-show profile picker for analysis tools (not directory-based tools)
   const dirTools = ["list", "validate_xml", "batch_test", "scan_logs",
                     "build_tools", "find_artifacts", "coverage_report", "upload_and_analyze",
-                    "attack_surface", "coverage_gaps", "graph_viewer"];
+                    "attack_surface", "coverage_gaps", "dump_all", "diagnostic_load", "graph_viewer"];
   if (!dirTools.includes(currentTool)) loadProfilePicker(true);
 
   // Auto-load XML file list for validate_xml
