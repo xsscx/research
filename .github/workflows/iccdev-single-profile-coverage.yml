@@ -60,6 +60,8 @@ jobs:
           INPUT_PROFILE_PATH: ${{ inputs.profile_path }}
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           source .github/scripts/sanitize-sed.sh
           if [ -z "$INPUT_PROFILE_PATH" ]; then
             # Pick a random profile from test-profiles/
@@ -357,7 +359,7 @@ jobs:
               echo "<details><summary>$(basename "$f" .txt)</summary>"
               echo ""
               echo '```'
-              sanitize_codeblock "$(head -200 "$f" 2>/dev/null)" || echo "(empty)"
+              sanitize_codeblock "$(sed -n '1,200p' "$f" 2>/dev/null)" || echo "(empty)"
               echo '```'
               echo "</details>"
               echo ""

@@ -122,6 +122,7 @@ jobs:
         if: steps.cache-iccdev-src.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
@@ -129,10 +130,10 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          echo "Cloning iccDEV (branch: ${{ matrix.branch }})..."
-          git clone --depth 1 --branch ${{ matrix.branch }} \
+          echo "Cloning iccDEV (branch: ${MATRIX_BRANCH})..."
+          git clone --depth 1 --branch ${MATRIX_BRANCH} \
             https://github.com/InternationalColorConsortium/iccDEV.git upstream-iccDEV
-          echo "iccDEV (${{ matrix.branch }}): $(cd upstream-iccDEV && git log --oneline -1)"
+          echo "iccDEV (${MATRIX_BRANCH}): $(cd upstream-iccDEV && git log --oneline -1)"
 
       - name: Disable wxWidgets requirement
         env:
@@ -166,6 +167,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
           CC: clang
           CXX: clang++
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
@@ -193,7 +195,7 @@ jobs:
           done
 
           {
-            echo "### iccDEV Tools Built (${{ matrix.branch }})"
+            echo "### iccDEV Tools Built (${MATRIX_BRANCH})"
             echo ""
             echo '```'
             echo "Commit: $(cd .. && git log --oneline -1)"
@@ -342,6 +344,7 @@ jobs:
           POC_FILE: ${{ matrix.poc.file }}
           POC_DESC: ${{ matrix.poc.desc }}
           POC_MECHANISM: ${{ matrix.poc.mechanism }}
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
@@ -350,7 +353,7 @@ jobs:
 
           echo "╔══════════════════════════════════════════════════════════╗"
           echo "║  CWE-400 Timeout Verification — IccRoundTrip            ║"
-          echo "║  Branch: ${{ matrix.branch }}                                        ║"
+          echo "║  Branch: ${MATRIX_BRANCH}                                        ║"
           echo "╚══════════════════════════════════════════════════════════╝"
           echo ""
           echo "  PoC:       $POC_FILE"
@@ -409,7 +412,7 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
           # === Classify result (branch-aware) ===
-          BRANCH="${{ matrix.branch }}"
+          BRANCH="${MATRIX_BRANCH}"
           if [ $EXIT_CODE -eq 124 ]; then
             if [ "$BRANCH" = "master" ]; then
               echo "✅ PASS — CWE-400 CONFIRMED: Tool hung >${TIMEOUT_SECONDS}s (killed by timeout)"
@@ -458,11 +461,11 @@ jobs:
           # Step summary with reproducer
           {
             echo ""
-            echo "### IccRoundTrip (${{ matrix.branch }}) — ${POC_DESC}"
+            echo "### IccRoundTrip (${MATRIX_BRANCH}) — ${POC_DESC}"
             echo ""
             echo "| Field | Value |"
             echo "|-------|-------|"
-            echo "| Branch | \`${{ matrix.branch }}\` |"
+            echo "| Branch | \`${MATRIX_BRANCH}\` |"
             echo "| PoC | \`$(basename "$POC_FILE")\` |"
             echo "| Size | ${POC_SIZE} bytes |"
             echo "| Mechanism | ${POC_MECHANISM} |"
@@ -617,6 +620,7 @@ jobs:
           POC_FILE: ${{ matrix.poc.file }}
           POC_DESC: ${{ matrix.poc.desc }}
           POC_MECHANISM: ${{ matrix.poc.mechanism }}
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --add safe.directory "$PWD"
@@ -625,7 +629,7 @@ jobs:
 
           echo "╔══════════════════════════════════════════════════════════╗"
           echo "║  CWE-400 Timeout Verification — IccApplyProfiles        ║"
-          echo "║  Branch: ${{ matrix.branch }}                                        ║"
+          echo "║  Branch: ${MATRIX_BRANCH}                                        ║"
           echo "╚══════════════════════════════════════════════════════════╝"
           echo ""
           echo "  PoC:       $POC_FILE"
@@ -686,7 +690,7 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
           # === Classify result (branch-aware) ===
-          BRANCH="${{ matrix.branch }}"
+          BRANCH="${MATRIX_BRANCH}"
           if [ $EXIT_CODE -eq 124 ]; then
             if [ "$BRANCH" = "master" ]; then
               echo "✅ PASS — CWE-400 CONFIRMED: Tool hung >${TIMEOUT_SECONDS}s (killed by timeout)"
@@ -735,11 +739,11 @@ jobs:
           # Step summary with reproducer
           {
             echo ""
-            echo "### IccApplyProfiles (${{ matrix.branch }}) — ${POC_DESC}"
+            echo "### IccApplyProfiles (${MATRIX_BRANCH}) — ${POC_DESC}"
             echo ""
             echo "| Field | Value |"
             echo "|-------|-------|"
-            echo "| Branch | \`${{ matrix.branch }}\` |"
+            echo "| Branch | \`${MATRIX_BRANCH}\` |"
             echo "| PoC | \`$(basename "$POC_FILE")\` |"
             echo "| Size | ${POC_SIZE} bytes |"
             echo "| Mechanism | ${POC_MECHANISM} |"

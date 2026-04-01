@@ -46,6 +46,8 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           sudo apt-get update -qq
           sudo apt-get install -y -qq exiftool
           pip3 install --quiet tifffile Pillow
@@ -55,6 +57,19 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
           python3 .github/scripts/craft-seeds.py \
             --outdir seed-output/crafted \
             --profiles test-profiles
@@ -67,6 +82,19 @@ jobs:
           INPUT_IMAGE_SOURCE: ${{ inputs.image_source || 'test-profiles' }}
         run: |
           set -euo pipefail
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
           # Sanitize user-controllable input — strip hidden Unicode, path traversal, etc.
           image_dir="${INPUT_IMAGE_SOURCE}"
           # Reject path traversal attempts
@@ -88,6 +116,19 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
           mkdir -p seed-output/tiff seed-output/icc
           # Collect TIFF seeds
           cp seed-output/crafted/*.tiff seed-output/tiff/ 2>/dev/null || true

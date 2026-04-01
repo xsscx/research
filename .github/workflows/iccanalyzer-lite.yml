@@ -106,12 +106,12 @@ jobs:
           unset GITHUB_TOKEN || true
 
           echo "Compiler: clang++"
-          clang++ --version | head -n 1
+          clang++ --version | sed -n '1,1p'
 
           {
             echo "### Build Configuration"
             echo ""
-            echo "**Compiler:**   clang++ ($(clang++ --version | head -n 1))"
+            echo "**Compiler:**   clang++ ($(clang++ --version | sed -n '1,1p'))"
             echo "**Build Type:** Debug"
             echo "**Flags:**      ASAN + UBSAN + Coverage"
             echo "**Tool:**       iccanalyzer-lite"

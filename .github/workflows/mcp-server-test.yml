@@ -78,6 +78,8 @@ jobs:
       - name: Install dependencies
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           cd mcp-server
           pip install -r requirements.txt
 

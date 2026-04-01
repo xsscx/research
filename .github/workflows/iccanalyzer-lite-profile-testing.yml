@@ -227,7 +227,7 @@ jobs:
           echo "==================================================================" >> $SUMMARY
           echo "" >> $SUMMARY
           echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
-          echo "Binary: $(./iccanalyzer-lite --version | head -1)" >> $SUMMARY
+          echo "Binary: $(./iccanalyzer-lite --version | sed -n '1,1p')" >> $SUMMARY
           echo "Profiles tested: $(wc -l < ../profile-test-results/selected-profiles.txt)" >> $SUMMARY
           echo "" >> $SUMMARY
           echo "==================================================================" >> $SUMMARY

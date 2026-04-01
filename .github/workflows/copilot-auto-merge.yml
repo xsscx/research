@@ -41,6 +41,8 @@ jobs:
           RAW_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           source .github/scripts/sanitize-sed.sh
 
           # Sanitize the branch name — strip hidden Unicode, control chars, shell metacharacters
