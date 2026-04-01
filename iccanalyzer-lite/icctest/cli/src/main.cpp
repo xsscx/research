@@ -153,7 +153,6 @@ int main(int argc, char** argv) {
     if (args->sandbox && isSandboxAvailable()) {
         ICCTEST_DEBUG("Running analysis in sandbox");
         SandboxLimits limits;
-        limits.includeConformancePerCheckSummary = (args->format == OutputFormat::Pawg);
         auto outcome = runSandboxed(runAnalysis, limits);
 
         if (auto* r = std::get_if<AnalysisResult>(&outcome)) {
@@ -185,7 +184,5 @@ int main(int argc, char** argv) {
     // Format output
     formatter->format(result, fmtOpts, *outStream);
 
-    // Exit code: 0 = no findings, 1 = findings detected
-    return result.hasCritical() ? 1 :
-           (result.stats.findingsTotal > 0 ? 1 : 0);
+    return formatter->recommendedExitCode(result);
 }

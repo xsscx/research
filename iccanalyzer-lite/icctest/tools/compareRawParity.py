@@ -347,6 +347,22 @@ def is_conformance_omitted_not_run_match(
     return summary.startswith("not run:")
 
 
+def is_conformance_failed_load_fallback_match(
+    v1_record: dict | None, v2_record: dict | None, v1_payload: dict
+) -> bool:
+    if v1_record is not None or not v2_record:
+        return False
+    if not v1_payload.get("fallbackToDefendedRun"):
+        return False
+    if v2_record.get("normalizedStatus", "") != "finding":
+        return False
+    if int(v2_record.get("findingCount", 0)) != 1:
+        return False
+
+    messages = " ".join(v2_record.get("findingMessages", [])).lower()
+    return "library failed to load profile" in messages
+
+
 def is_heuristic_omitted_not_run_match(
     v1_record: dict | None, v2_record: dict | None
 ) -> bool:
@@ -627,6 +643,13 @@ def compare_lane(
         ):
             comparison = "implicit_skip_match"
             normalized_reason = "v1_text_omitted_clean_heuristic_on_failed_load"
+        elif (
+            lane == "conformance"
+            and check_id == "CF-190"
+            and is_conformance_failed_load_fallback_match(v1_record, v2_record, v1_payload)
+        ):
+            comparison = "implicit_skip_match"
+            normalized_reason = "v1_text_fell_back_to_defended_run_omitted_cf190_load_failure"
         elif lane == "conformance" and is_conformance_omitted_applicability_match(
             v1_record, v2_record
         ):
