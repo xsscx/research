@@ -41,7 +41,7 @@ Severity maxFindingSeverity(const std::vector<Finding>& findings) {
     return worst;
 }
 
-CheckMeta defaultConformanceMeta() {
+CheckMeta defaultCheckMeta(CheckID::Kind kind) {
     return CheckMeta{
         "",
         "",
@@ -49,7 +49,9 @@ CheckMeta defaultConformanceMeta() {
         "",
         "",
         Severity::INFO,
-        CheckPhase::CONFORMANCE
+        kind == CheckID::Kind::Conformance
+            ? CheckPhase::CONFORMANCE
+            : CheckPhase::RAW_SCAN
     };
 }
 
@@ -249,22 +251,13 @@ runSandboxed(std::function<AnalysisResult()> fn,
             writeStr(f.cweNote);
         }
 
-        int32_t nPerCheck = 0;
-        if (limits.includeConformancePerCheckSummary) {
-            for (const auto& entry : result.perCheck) {
-                if (entry.id.kind == CheckID::Kind::Conformance) {
-                    ++nPerCheck;
-                }
-            }
-        }
+        int32_t nPerCheck = limits.includePerCheckSummary
+            ? static_cast<int32_t>(result.perCheck.size())
+            : 0;
         (void)write(pipefd[1], &nPerCheck, 4);
 
         if (nPerCheck > 0) {
             for (const auto& entry : result.perCheck) {
-                if (entry.id.kind != CheckID::Kind::Conformance) {
-                    continue;
-                }
-
                 uint8_t kind = static_cast<uint8_t>(entry.id.kind);
                 int32_t num = entry.id.number;
                 uint8_t status = static_cast<uint8_t>(entry.result.status);
@@ -562,7 +555,7 @@ runSandboxed(std::function<AnalysisResult()> fn,
             if (const auto* reg = CheckRegistry::instance().find(entry.id)) {
                 entry.meta = reg->meta;
             } else {
-                entry.meta = defaultConformanceMeta();
+                entry.meta = defaultCheckMeta(entry.id.kind);
             }
 
             entry.result.status = static_cast<CheckResult::Status>(std::min<uint8_t>(status, 4));

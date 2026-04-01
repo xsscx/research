@@ -36,6 +36,15 @@ CF_STATUS_RE = re.compile(
 CF_INLINE_RE = re.compile(r"\bCF-(?P<cfid>\d{3})\b")
 ANSI_RE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 NONCONFORMANCE_RE = re.compile(r"(?P<count>\d+)\s+non-conformance\(s\)")
+VALIDATION_STATUS_RE = re.compile(r"^Validation Status:\s*(?P<status>.+)$")
+VALIDATION_SUMMARY_RE = re.compile(
+    r"^Validation Summary:\s*"
+    r"(?P<errors>\d+)\s+error\(s\),\s*"
+    r"(?P<noncompliant>\d+)\s+non-compliant,\s*"
+    r"(?P<warnings>\d+)\s+warning\(s\),\s*"
+    r"(?P<info>\d+)\s+info$"
+)
+VALIDATION_ITEM_RE = re.compile(r"^\[(?P<level>ERROR|WARN|INFO)\]\s*-\s*(?P<message>.+)$")
 
 
 def repo_root() -> Path:
@@ -304,7 +313,119 @@ def parse_block(header: dict, lines: list[str], registry: dict[str, dict[str, st
     return records
 
 
-def parse_conformance_records(text: str, registry: dict[str, dict[str, str]]) -> list[dict]:
+def extract_validation_section(text: str) -> list[str]:
+    lines: list[str] = []
+    in_section = False
+
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        if stripped == "ICC LIBRARY CONFORMANCE VALIDATION":
+            in_section = True
+            continue
+
+        if not in_section:
+            continue
+
+        if stripped.startswith("PHASE ") or stripped == "=== Round-Trip Tag Pair Analysis ===":
+            break
+
+        lines.append(raw_line)
+
+    return lines
+
+
+def raw_cf190_issue_count(input_file: Path) -> int:
+    try:
+        data = input_file.read_bytes()
+    except OSError:
+        return 0
+
+    issue_count = 0
+
+    if len(data) < 132:
+        issue_count += 1
+    else:
+        tag_count = int.from_bytes(data[128:132], "big")
+        if tag_count == 0:
+            issue_count += 1
+
+    if len(data) >= 4:
+        header_size = int.from_bytes(data[0:4], "big")
+        if header_size > len(data):
+            issue_count += 1
+
+    return issue_count
+
+
+def synthesize_readvalidate_failure_record(
+    text: str, registry: dict[str, dict[str, str]], input_file: Path
+) -> dict | None:
+    section_lines = extract_validation_section(text)
+    if not section_lines:
+        return None
+
+    stripped_lines = [line.strip() for line in section_lines if line.strip()]
+    status_text = ""
+    summary_counts = {"errors": 0, "noncompliant": 0, "warnings": 0}
+    error_messages: list[str] = []
+
+    for line in stripped_lines:
+        status_match = VALIDATION_STATUS_RE.match(line)
+        if status_match:
+            status_text = status_match.group("status")
+            continue
+
+        summary_match = VALIDATION_SUMMARY_RE.match(line)
+        if summary_match:
+            summary_counts = {
+                "errors": int(summary_match.group("errors")),
+                "noncompliant": int(summary_match.group("noncompliant")),
+                "warnings": int(summary_match.group("warnings")),
+            }
+            continue
+
+        item_match = VALIDATION_ITEM_RE.match(line)
+        if item_match and item_match.group("level") == "ERROR":
+            error_messages.append(item_match.group("message"))
+
+    section_text = "\n".join(stripped_lines)
+    lower_status = status_text.lower()
+    lower_section = section_text.lower()
+    profile_failed = (
+        "profile failed to load" in lower_section
+        or "critical error" in lower_status
+        or "not usable" in lower_status
+        or summary_counts["errors"] > 0
+    )
+    if not profile_failed:
+        return None
+
+    finding_count = raw_cf190_issue_count(input_file) + 1
+    meta = registry.get("CF-190", {})
+    canonical_name = meta.get("title", "Profile legibility gate")
+
+    return {
+        "tool": "v1-text-normalized",
+        "lane": "conformance",
+        "rawId": 190,
+        "canonicalId": "CF-190",
+        "rawName": f"CF-190: {canonical_name}",
+        "canonicalName": canonical_name,
+        "reportedStatus": "finding",
+        "normalizedStatus": "finding",
+        "reportedSeverity": meta.get("canonicalSeverity", ""),
+        "canonicalSeverity": meta.get("canonicalSeverity", ""),
+        "findingCount": finding_count,
+        "detail": section_text,
+        "specRef": meta.get("specRef", ""),
+        "specDoc": meta.get("specDoc", ""),
+        "category": meta.get("category", ""),
+    }
+
+
+def parse_conformance_records(
+    text: str, registry: dict[str, dict[str, str]], input_file: Path
+) -> list[dict]:
     records: list[dict] = []
     current_header: dict | None = None
     current_lines: list[str] = []
@@ -340,6 +461,11 @@ def parse_conformance_records(text: str, registry: dict[str, dict[str, str]]) ->
     if current_header is not None:
         records.extend(parse_block(current_header, current_lines, registry))
 
+    if not any(record["canonicalId"] == "CF-190" for record in records):
+        synthesized = synthesize_readvalidate_failure_record(text, registry, input_file)
+        if synthesized is not None:
+            records.append(synthesized)
+
     deduped: dict[str, dict] = {}
     for record in records:
         deduped[record["canonicalId"]] = record
@@ -361,6 +487,8 @@ def build_output(
         "legacyMode": False,
         "exitCode": subprocess_result["returncode"],
         "subprocessReturnCode": subprocess_result["returncode"],
+        "disableLibraryUbDefense": subprocess_result["disableLibraryUbDefense"],
+        "fallbackToDefendedRun": subprocess_result["fallbackToDefendedRun"],
         "records": records,
         "_subprocess": {
             "cmd": subprocess_result["cmd"],
@@ -413,7 +541,11 @@ def main() -> int:
         args.input_file,
         disable_library_ub_defense=args.disable_library_ub_defense,
     )
-    records = parse_conformance_records(subprocess_result["stdoutStripped"], registry)
+    records = parse_conformance_records(
+        subprocess_result["stdoutStripped"],
+        registry,
+        args.input_file,
+    )
     out = build_output(
         input_file=args.input_file,
         subprocess_result=subprocess_result,
