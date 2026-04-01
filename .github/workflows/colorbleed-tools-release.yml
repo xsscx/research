@@ -99,9 +99,11 @@ jobs:
             zlib1g-dev liblzma-dev pkg-config git
 
       - name: Set compiler
+        env:
+          MATRIX_COMPILER: ${{ matrix.compiler }}
         run: |
           set -euo pipefail
-          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+          if [ "${MATRIX_COMPILER}" = "gcc" ]; then
             echo "CC=gcc"   >> "$GITHUB_ENV"
             echo "CXX=g++"  >> "$GITHUB_ENV"
           else
@@ -160,6 +162,8 @@ jobs:
 
       - name: Run roundtrip conversion tests
         id: tests
+        env:
+          MATRIX_COMPILER: ${{ matrix.compiler }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh
@@ -170,7 +174,7 @@ jobs:
           echo "==================================================================" >> $SUMMARY
           echo "" >> $SUMMARY
           echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
-          echo "Compiler: ${{ matrix.compiler }} (${{ env.CXX }})" >> $SUMMARY
+          echo "Compiler: ${MATRIX_COMPILER} (${{ env.CXX }})" >> $SUMMARY
           echo "Tools: iccToXml_unsafe, iccFromXml_unsafe" >> $SUMMARY
           echo "Profiles: $(wc -l < colorbleed-test-results/selected-profiles.txt)" >> $SUMMARY
           echo "" >> $SUMMARY
@@ -275,7 +279,7 @@ jobs:
           fi
 
           echo "==================================================================" >> $SUMMARY
-          echo "FINAL RESULTS (${{ matrix.compiler }})" >> $SUMMARY
+          echo "FINAL RESULTS (${MATRIX_COMPILER})" >> $SUMMARY
           echo "==================================================================" >> $SUMMARY
           echo "Total profiles:   $TOTAL" >> $SUMMARY
           echo "Roundtrip success: $SUCCESS" >> $SUMMARY
@@ -308,13 +312,14 @@ jobs:
         id: package
         env:
           INPUT_TAG_PREFIX: ${{ github.event.inputs.release_tag_prefix || 'colorbleed-test' }}
+          MATRIX_COMPILER: ${{ matrix.compiler }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh
 
           TAG_PREFIX="$(sanitize_ref "$INPUT_TAG_PREFIX")"
           DATESTAMP="$(date -u '+%Y%m%d-%H%M%S')"
-          RELEASE_TAG="${TAG_PREFIX}-${{ matrix.compiler }}-${DATESTAMP}-run${{ github.run_number }}"
+          RELEASE_TAG="${TAG_PREFIX}-${MATRIX_COMPILER}-${DATESTAMP}-run${{ github.run_number }}"
           echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
 
           # Copy binaries + checksums into results
@@ -324,26 +329,26 @@ jobs:
           cp colorbleed_tools/test.xml          colorbleed-test-results/ 2>/dev/null || true
           cp colorbleed_tools/roundtrip.icc     colorbleed-test-results/ 2>/dev/null || true
 
-          TARBALL="colorbleed-test-results-${{ matrix.compiler }}-${DATESTAMP}.tar.gz"
+          TARBALL="colorbleed-test-results-${MATRIX_COMPILER}-${DATESTAMP}.tar.gz"
           tar -czf "${TARBALL}" colorbleed-test-results/
           echo "tarball=${TARBALL}" >> $GITHUB_OUTPUT
 
-          cp colorbleed-test-results/test-summary.txt "test-summary-${{ matrix.compiler }}-${DATESTAMP}.txt"
-          echo "summary_file=test-summary-${{ matrix.compiler }}-${DATESTAMP}.txt" >> $GITHUB_OUTPUT
+          cp colorbleed-test-results/test-summary.txt "test-summary-${MATRIX_COMPILER}-${DATESTAMP}.txt"
+          echo "summary_file=test-summary-${MATRIX_COMPILER}-${DATESTAMP}.txt" >> $GITHUB_OUTPUT
 
-          cp colorbleed_tools/SHA256SUMS "SHA256SUMS-${{ matrix.compiler }}.txt"
-          echo "checksums_file=SHA256SUMS-${{ matrix.compiler }}.txt" >> $GITHUB_OUTPUT
+          cp colorbleed_tools/SHA256SUMS "SHA256SUMS-${MATRIX_COMPILER}.txt"
+          echo "checksums_file=SHA256SUMS-${MATRIX_COMPILER}.txt" >> $GITHUB_OUTPUT
 
           # Copy binaries with compiler-stamped names for release upload
-          cp colorbleed_tools/iccToXml_unsafe "iccToXml_unsafe-${{ matrix.compiler }}"
-          cp colorbleed_tools/iccFromXml_unsafe "iccFromXml_unsafe-${{ matrix.compiler }}"
-          chmod +x "iccToXml_unsafe-${{ matrix.compiler }}" "iccFromXml_unsafe-${{ matrix.compiler }}"
+          cp colorbleed_tools/iccToXml_unsafe "iccToXml_unsafe-${MATRIX_COMPILER}"
+          cp colorbleed_tools/iccFromXml_unsafe "iccFromXml_unsafe-${MATRIX_COMPILER}"
+          chmod +x "iccToXml_unsafe-${MATRIX_COMPILER}" "iccFromXml_unsafe-${MATRIX_COMPILER}"
 
           # Wrap binaries in tar.gz to preserve execute permissions
-          tar -czf "iccToXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccToXml_unsafe-${{ matrix.compiler }}"
-          tar -czf "iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccFromXml_unsafe-${{ matrix.compiler }}"
+          tar -czf "iccToXml_unsafe-${MATRIX_COMPILER}.tar.gz" "iccToXml_unsafe-${MATRIX_COMPILER}"
+          tar -czf "iccFromXml_unsafe-${MATRIX_COMPILER}.tar.gz" "iccFromXml_unsafe-${MATRIX_COMPILER}"
 
-          ls -lh "${TARBALL}" "test-summary-${{ matrix.compiler }}-${DATESTAMP}.txt" "SHA256SUMS-${{ matrix.compiler }}.txt" "iccToXml_unsafe-${{ matrix.compiler }}.tar.gz" "iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz"
+          ls -lh "${TARBALL}" "test-summary-${MATRIX_COMPILER}-${DATESTAMP}.txt" "SHA256SUMS-${MATRIX_COMPILER}.txt" "iccToXml_unsafe-${MATRIX_COMPILER}.tar.gz" "iccFromXml_unsafe-${MATRIX_COMPILER}.tar.gz"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
@@ -403,13 +408,15 @@ jobs:
 
       - name: Report to summary
         if: always()
+        env:
+          MATRIX_COMPILER: ${{ matrix.compiler }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << SUMMARY_EOF
           ## ColorBleed Tools Roundtrip Test → Release
 
-          ### Compiler: \`${{ matrix.compiler }}\` (\`${{ env.CXX }}\`)
+          ### Compiler: \`${MATRIX_COMPILER}\` (\`${{ env.CXX }}\`)
 
           | Metric | Value |
           |--------|-------|
@@ -430,12 +437,14 @@ jobs:
           fi
 
       - name: Final status
+        env:
+          MATRIX_COMPILER: ${{ matrix.compiler }}
         run: |
           set -euo pipefail
           echo "============================================"
           echo "  ColorBleed Tools → Release COMPLETE"
           echo "============================================"
-          echo "Compiler: ${{ matrix.compiler }}"
+          echo "Compiler: ${MATRIX_COMPILER}"
           echo "Tag:      ${{ steps.package.outputs.release_tag }}"
           echo "Total:    ${{ env.grand_total }} profiles"
           echo "Success:  ${{ env.grand_success }}"

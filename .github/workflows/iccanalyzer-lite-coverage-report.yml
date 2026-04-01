@@ -201,7 +201,7 @@ jobs:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
-          BINARY=$(find iccanalyzer-lite -name "iccanalyzer-lite" -type f -executable | head -1)
+          BINARY=$(find iccanalyzer-lite -name "iccanalyzer-lite" -type f -executable | sed -n '1,1p')
           echo "Binary: $BINARY ($(stat -c%s "$BINARY") bytes)"
           file "$BINARY"
           echo "binary_path=$BINARY" >> $GITHUB_ENV

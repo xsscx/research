@@ -161,8 +161,8 @@ jobs:
             libssl-dev \
             libclang-rt-18-dev
 
-          echo "clang-18:    $(clang-18 --version | head -1)"
-          echo "cmake:       $(cmake --version | head -1)"
+          echo "clang-18:    $(clang-18 --version | sed -n '1,1p')"
+          echo "cmake:       $(cmake --version | sed -n '1,1p')"
 
       # -----------------------------------------------------------------------
       # Clone iccDEV
@@ -285,7 +285,7 @@ jobs:
             echo ""
             echo "| Setting | Value |"
             echo "|---------|-------|"
-            echo "| Compiler | clang-18 ($(clang-18 --version | head -1)) |"
+            echo "| Compiler | clang-18 ($(clang-18 --version | sed -n '1,1p')) |"
             echo "| Build type | Debug |"
             echo "| Sanitizers | ASAN + UBSAN |"
             echo "| Tools built | $TOOL_COUNT |"
@@ -697,7 +697,7 @@ jobs:
             if grep -q "ERROR: AddressSanitizer" "$logf" 2>/dev/null; then
               test_name="$(basename "$logf" .log)"
               # Extract first error type and first 10 stack frames
-              error_type="$(grep 'ERROR: AddressSanitizer' "$logf" | head -1)"
+              error_type="$(grep 'ERROR: AddressSanitizer' "$logf" | sed -n '1,1p')"
               safe_error="$(sanitize_line "$error_type")"
               {
                 echo "### \`$test_name\`"
@@ -705,7 +705,7 @@ jobs:
                 echo '```'
                 echo "$safe_error"
                 # Show stack frames #0-#5 for attribution (sanitized)
-                grep -E '^\s+#[0-5]' "$logf" | head -6 | while IFS= read -r frame; do
+                grep -E '^\s+#[0-5]' "$logf" | sed -n '1,6p' | while IFS= read -r frame; do
                   sanitize_line "$frame"
                 done
                 echo '```'
@@ -719,7 +719,7 @@ jobs:
             [ -f "$logf" ] || continue
             if grep -q "runtime error:" "$logf" 2>/dev/null; then
               test_name="$(basename "$logf" .log)"
-              ub_line="$(grep 'runtime error:' "$logf" | head -1)"
+              ub_line="$(grep 'runtime error:' "$logf" | sed -n '1,1p')"
               safe_ub="$(sanitize_line "$ub_line")"
               {
                 echo "### \`$test_name\` (UBSAN)"
@@ -752,8 +752,8 @@ jobs:
             echo "| Component | Version |"
             echo "|-----------|---------|"
             echo "| Runner | ubuntu-24.04 |"
-            echo "| Compiler | $(clang-18 --version 2>/dev/null | head -1 || echo 'N/A') |"
-            echo "| CMake | $(cmake --version 2>/dev/null | head -1 || echo 'N/A') |"
+            echo "| Compiler | $(clang-18 --version 2>/dev/null | sed -n '1,1p' || echo 'N/A') |"
+            echo "| CMake | $(cmake --version 2>/dev/null | sed -n '1,1p' || echo 'N/A') |"
             echo "| iccDEV | ${{ github.event.inputs.ref || 'master' }} — $(cd iccDEV 2>/dev/null && git log --oneline -1 || echo 'N/A') |"
             echo "| Sanitizers | ASAN + UBSAN |"
             echo "| Script | iccdev-tool-coverage-baseline.sh |"

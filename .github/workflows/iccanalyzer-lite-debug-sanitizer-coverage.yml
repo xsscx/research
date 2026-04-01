@@ -167,7 +167,7 @@ jobs:
           ls -lh IccXML/libIccXML2-static*.a
 
           echo "Checking coverage instrumentation flags..."
-          find . -name "flags.make" -path "*/CMakeFiles/*" -exec grep -l "fprofile-instr-generate" {} \; | head -3 || true
+          find . -name "flags.make" -path "*/CMakeFiles/*" -exec grep -l "fprofile-instr-generate" {} \; | sed -n '1,3p' || true
 
       - name: Build iccanalyzer-lite (Debug + ASan + UBSan + Coverage)
         working-directory: iccanalyzer-lite
@@ -513,7 +513,7 @@ jobs:
                 for log in "${LOG_PREFIX}.asan.log"* "${LOG_PREFIX}.ubsan.log"*; do
                   [ -f "$log" ] || continue
                   echo "  Log: $(basename "$log")" >> $SUMMARY
-                  head -5 "$log" >> $SUMMARY 2>/dev/null || true
+                  sed -n '1,5p' "$log" >> $SUMMARY 2>/dev/null || true
                 done
               fi
 
@@ -562,7 +562,7 @@ jobs:
             echo "--- Sanitizer Log Summary ---"
             for log in results/sanitizer-logs/*; do
               echo "=== $(basename "$log") ==="
-              head -20 "$log"
+              sed -n '1,20p' "$log"
               echo ""
             done
           fi

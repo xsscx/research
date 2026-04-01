@@ -88,18 +88,21 @@ jobs:
         if: steps.cache-iccdev-src.outputs.cache-hit != 'true'
         env:
           BASH_ENV: /dev/null
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          echo "Cloning iccDEV (branch: ${{ matrix.branch }})..."
-          git clone --depth 1 --branch ${{ matrix.branch }} \
+          echo "Cloning iccDEV (branch: ${MATRIX_BRANCH})..."
+          git clone --depth 1 --branch ${MATRIX_BRANCH} \
             https://github.com/InternationalColorConsortium/iccDEV.git upstream-iccDEV
-          echo "iccDEV (${{ matrix.branch }}): $(cd upstream-iccDEV && git log --oneline -1)"
+          echo "iccDEV (${MATRIX_BRANCH}): $(cd upstream-iccDEV && git log --oneline -1)"
 
       - name: Prepare iccDEV source
+        env:
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           set -euo pipefail
           cd upstream-iccDEV
@@ -116,7 +119,7 @@ jobs:
             echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
           fi
 
-          echo "iccDEV (${{ matrix.branch }}): $(git log --oneline -1)"
+          echo "iccDEV (${MATRIX_BRANCH}): $(git log --oneline -1)"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2  # v4
@@ -135,12 +138,14 @@ jobs:
               - "**/CMakeFiles/**"
 
       - name: "Build iccDEV (${{ matrix.branch }}) for CodeQL"
+        env:
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           set -euo pipefail
 
           echo "╔══════════════════════════════════════════════════════════╗"
           echo "║  Building iccDEV for CodeQL Analysis                    ║"
-          echo "║  Branch: ${{ matrix.branch }}                                        ║"
+          echo "║  Branch: ${MATRIX_BRANCH}                                        ║"
           echo "╚══════════════════════════════════════════════════════════╝"
           echo ""
 
@@ -155,7 +160,7 @@ jobs:
           make -j$(nproc) 2>&1 | tail -5
 
           echo ""
-          echo "Build complete (${{ matrix.branch }})"
+          echo "Build complete (${MATRIX_BRANCH})"
           echo "Libraries:"
           ls -la IccProfLib/libIccProfLib2* 2>/dev/null | sed -n '1,3p'
           ls -la IccXML/libIccXML2* 2>/dev/null | sed -n '1,3p'
@@ -170,6 +175,8 @@ jobs:
 
       - name: Process results
         id: results
+        env:
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           set -euo pipefail
 
@@ -194,7 +201,7 @@ jobs:
 
           echo ""
           echo "╔══════════════════════════════════════════════════════════╗"
-          echo "║  CodeQL Results — iccDEV (${{ matrix.branch }})                      ║"
+          echo "║  CodeQL Results — iccDEV (${MATRIX_BRANCH})                      ║"
           echo "╚══════════════════════════════════════════════════════════╝"
           echo ""
           echo "  Total findings: ${TOTAL}"
@@ -216,10 +223,11 @@ jobs:
           TOTAL: ${{ steps.results.outputs.total }}
           CRITICAL: ${{ steps.results.outputs.critical }}
           HIGH: ${{ steps.results.outputs.high }}
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           set -euo pipefail
 
-          BRANCH="${{ matrix.branch }}"
+          BRANCH="${MATRIX_BRANCH}"
           TOTAL="${TOTAL:-0}"
           CRITICAL="${CRITICAL:-0}"
           HIGH="${HIGH:-0}"
