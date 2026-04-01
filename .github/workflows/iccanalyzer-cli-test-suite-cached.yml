@@ -285,7 +285,7 @@ jobs:
           echo "==================================================================" >> $SUMMARY
           echo "" >> $SUMMARY
           echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
-          echo "Binary: $(./iccanalyzer-lite --version 2>&1 | head -1)" >> $SUMMARY
+          echo "Binary: $(./iccanalyzer-lite --version 2>&1 | sed -n '1,1p')" >> $SUMMARY
           echo "Build: Debug + ASAN + UBSAN + Coverage" >> $SUMMARY
           echo "Profiles: $(wc -l < ../cli-test-results/selected-profiles.txt)" >> $SUMMARY
           echo "Cache: APT=${{ steps.cache-apt.outputs.cache-hit || 'MISS' }} iccDEV=${{ steps.cache-iccdev.outputs.cache-hit || 'MISS' }} Build=${{ steps.cache-iccdev-build.outputs.cache-hit || 'MISS' }}" >> $SUMMARY

@@ -56,6 +56,8 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake \
@@ -101,7 +103,7 @@ jobs:
           make -j$(nproc)
 
           # Verify coverage instrumentation
-          TOOL=$(find . -name "iccDumpProfile" -type f -executable | head -1)
+          TOOL=$(find . -name "iccDumpProfile" -type f -executable | sed -n '1,1p')
           if [ -z "$TOOL" ]; then
             echo "::error::No iccDumpProfile binary found"
             exit 1
@@ -116,7 +118,7 @@ jobs:
 
           # Verify instrumentation flags
           echo "Checking coverage flags..."
-          grep -r "fprofile-instr-generate\|coverage" CMakeFiles/*/flags.make | head -3 || true
+          grep -r "fprofile-instr-generate\|coverage" CMakeFiles/*/flags.make | sed -n '1,3p' || true
 
           # Count libraries and tools
           LIB_COUNT=$(find . -name "*.a" | wc -l)
@@ -244,7 +246,7 @@ jobs:
               else
                 APPLY_FAIL=$((APPLY_FAIL + 1))
               fi
-            done < <(find . -name "*.icc" -path "*/Calc/*" -o -name "*.icc" -path "*/Display/*" | head -10)
+            done < <(find . -name "*.icc" -path "*/Calc/*" -o -name "*.icc" -path "*/Display/*" | sed -n '1,10p')
           done
 
           # CMYK transforms
@@ -558,7 +560,7 @@ jobs:
           done
 
           # Exercise iccV5DspObsToV4Dsp on Display profiles
-          V5TOOL=$(find "$BUILD_DIR" -name "iccV5DspObsToV4Dsp" -o -name "IccV5DspObsToV4Dsp" 2>/dev/null | head -1)
+          V5TOOL=$(find "$BUILD_DIR" -name "iccV5DspObsToV4Dsp" -o -name "IccV5DspObsToV4Dsp" 2>/dev/null | sed -n '1,1p')
           if [ -n "$V5TOOL" ] && [ -x "$V5TOOL" ]; then
             cd "$ICCDEV/Testing"
             for disp in Display/*.icc; do

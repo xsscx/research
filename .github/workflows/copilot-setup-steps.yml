@@ -41,6 +41,8 @@ jobs:
       - name: Pull image and extract binaries
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           docker pull --quiet ghcr.io/xsscx/icc-profile-mcp:latest
           CID=$(docker create ghcr.io/xsscx/icc-profile-mcp:latest)
           docker cp "$CID":/app/iccanalyzer-lite/iccanalyzer-lite iccanalyzer-lite/iccanalyzer-lite
@@ -56,9 +58,9 @@ jobs:
           set -euo pipefail
           pip install --quiet --no-cache-dir ./mcp-server[dev]
           echo "--- iccanalyzer-lite ---"
-          iccanalyzer-lite/iccanalyzer-lite --version 2>&1 | head -3
+          iccanalyzer-lite/iccanalyzer-lite --version 2>&1 | sed -n '1,3p'
           echo "--- icctest ---"
-          iccanalyzer-lite/icctest/build/cli/icctest --version 2>&1 | head -3
+          iccanalyzer-lite/icctest/build/cli/icctest --version 2>&1 | sed -n '1,3p'
           echo "--- colorbleed_tools ---"
           ls -la colorbleed_tools/icc*_unsafe
           echo "--- MCP server ---"

@@ -101,6 +101,8 @@ jobs:
       - name: Pull image for local testing
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           docker pull ghcr.io/${{ github.repository_owner }}/iccdev-instrumented:latest
 
       - name: "Phase 1: ASAN/UBSAN testing"
@@ -139,7 +141,7 @@ jobs:
             cp /tmp/asan.* /tmp/sanitizer-results/ 2>/dev/null || true
             echo "ASAN: $ASAN_COUNT log files"
             echo "--- Sample ASAN errors ---"
-            head -30 /tmp/asan.* 2>/dev/null | head -50 || true
+            sed -n '1,30p' /tmp/asan.* 2>/dev/null | sed -n '1,50p' || true
           else
             echo "ASAN: No issues detected"
           fi
@@ -150,7 +152,7 @@ jobs:
             cp /tmp/ubsan.* /tmp/sanitizer-results/ 2>/dev/null || true
             echo "UBSAN: $UBSAN_COUNT log files"
             echo "--- Sample UBSAN errors ---"
-            head -30 /tmp/ubsan.* 2>/dev/null | head -50 || true
+            sed -n '1,30p' /tmp/ubsan.* 2>/dev/null | sed -n '1,50p' || true
           else
             echo "UBSAN: No issues detected"
           fi
@@ -205,7 +207,7 @@ jobs:
 
           # Dump all profiles
           export LLVM_PROFILE_FILE=/tmp/profraw/dump-%p-%m.profraw
-          DUMP_BIN=$(find "$BUILD_DIR/Tools" -name "iccDumpProfile" -type f -executable | head -1)
+          DUMP_BIN=$(find "$BUILD_DIR/Tools" -name "iccDumpProfile" -type f -executable | sed -n '1,1p')
           TOTAL=0; PASS=0
           while IFS= read -r icc; do
             TOTAL=$((TOTAL + 1))
