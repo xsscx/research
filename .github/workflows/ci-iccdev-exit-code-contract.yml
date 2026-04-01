@@ -74,6 +74,8 @@ jobs:
       - name: "Build iccDEV (Debug + ASAN + UBSAN)"
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           cd iccDEV
           sed -i 's/add_subdirectory(Tools\/wxProfileDump)/#add_subdirectory(Tools\/wxProfileDump)/' \
             Build/Cmake/CMakeLists.txt 2>/dev/null || true
@@ -111,6 +113,7 @@ jobs:
           LD_LIBRARY_PATH: "iccDEV/Build/IccProfLib:iccDEV/Build/IccXML"
           ASAN_OPTIONS: "detect_leaks=0,halt_on_error=0"
           UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
           set -euo pipefail
 
@@ -166,7 +169,7 @@ jobs:
 
           echo "============================================="
           echo " iccDEV Exit-Code Contract Tests"
-          echo " ref: ${{ matrix.branch }}"
+          echo " ref: ${MATRIX_BRANCH}"
           echo "============================================="
           echo ""
 
@@ -226,7 +229,7 @@ jobs:
             "$TOOLS/IccDumpProfile/iccDumpProfile" "$VALID_ICC"
 
           # 17ChanPart1.icc: master=CFL-003 ASAN crash, cfl=graceful -1 (can't round-trip 17-chan)
-          if [ "${{ matrix.branch }}" = "master" ]; then
+          if [ "${MATRIX_BRANCH}" = "master" ]; then
             KNOWN="CFL-003 alloc-dealloc-mismatch (upstream)"
           else
             KNOWN="iccRoundTrip returns -1 on 17-channel overprint profiles (not a crash)"
@@ -238,7 +241,7 @@ jobs:
             "$TOOLS/IccToXml/iccToXml" "$VALID_ICC" "/tmp/ec-test.xml"
 
           if [ -f /tmp/ec-test.xml ]; then
-            if [ "${{ matrix.branch }}" = "master" ]; then
+            if [ "${MATRIX_BRANCH}" = "master" ]; then
               KNOWN="upstream iccFromXml valid-XML ASAN regression"
             fi
             check_exit "valid-iccFromXml" "iccFromXml valid XML" "0" \
@@ -281,8 +284,29 @@ jobs:
 
       - name: "Job summary"
         if: always()
+        env:
+          BASH_ENV: /dev/null
+          MATRIX_BRANCH: ${{ matrix.branch }}
         run: |
-          REF="${{ matrix.branch }}"
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          REF="${MATRIX_BRANCH}"
           {
             echo "## iccDEV Exit-Code Contract Tests ($REF)"
             echo ""

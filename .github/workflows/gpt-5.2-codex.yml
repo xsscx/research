@@ -61,6 +61,8 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -127,11 +129,13 @@ jobs:
           upload: false
 
       - name: Generate Reports
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
-          mkdir -p reports analysis-bundle/${{ matrix.target }}
+          mkdir -p reports analysis-bundle/${MATRIX_TARGET}
 
-          SARIF_FILE=$(find codeql-results -name "*.sarif" | head -1)
+          SARIF_FILE=$(find codeql-results -name "*.sarif" | sed -n '1,1p')
 
           if [ -z "$SARIF_FILE" ]; then
             FINDINGS=0
@@ -140,25 +144,25 @@ jobs:
             pip install sarif-tools jq
             FINDINGS=$(jq '.runs[0].results | length' "$SARIF_FILE" 2>/dev/null || echo 0)
 
-            sarif html "$SARIF_FILE" -o reports/${{ matrix.target }}-report.html 2>/dev/null || \
-              echo "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'none'; style-src 'unsafe-inline'\"><title>CodeQL: ${{ matrix.target }}</title></head><body><h1>CodeQL Analysis: ${{ matrix.target }}</h1><p>Findings: $FINDINGS</p></body></html>" > reports/${{ matrix.target }}-report.html
+            sarif html "$SARIF_FILE" -o reports/${MATRIX_TARGET}-report.html 2>/dev/null || \
+              echo "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'none'; style-src 'unsafe-inline'\"><title>CodeQL: ${MATRIX_TARGET}</title></head><body><h1>CodeQL Analysis: ${MATRIX_TARGET}</h1><p>Findings: $FINDINGS</p></body></html>" > reports/${MATRIX_TARGET}-report.html
 
-            sarif csv "$SARIF_FILE" -o reports/${{ matrix.target }}-findings.csv 2>/dev/null || \
-              echo "File,Location,Rule,Severity,Message" > reports/${{ matrix.target }}-findings.csv
+            sarif csv "$SARIF_FILE" -o reports/${MATRIX_TARGET}-findings.csv 2>/dev/null || \
+              echo "File,Location,Rule,Severity,Message" > reports/${MATRIX_TARGET}-findings.csv
 
-            jq '{target: "${{ matrix.target }}", timestamp: now|strftime("%Y-%m-%d %H:%M:%S UTC"), findings: .runs[0].results|length}' \
-              "$SARIF_FILE" > reports/${{ matrix.target }}-summary.json 2>/dev/null || \
-              echo '{"target":"${{ matrix.target }}","findings":0}' > reports/${{ matrix.target }}-summary.json
+            jq '{target: "${MATRIX_TARGET}", timestamp: now|strftime("%Y-%m-%d %H:%M:%S UTC"), findings: .runs[0].results|length}' \
+              "$SARIF_FILE" > reports/${MATRIX_TARGET}-summary.json 2>/dev/null || \
+              echo '{"target":"${MATRIX_TARGET}","findings":0}' > reports/${MATRIX_TARGET}-summary.json
           fi
 
-          cp -r reports/* analysis-bundle/${{ matrix.target }}/
-          cp -r ${{ matrix.target }}/codeql-queries analysis-bundle/${{ matrix.target }}/
-          cp ${{ matrix.target }}/codeql-config.yml analysis-bundle/${{ matrix.target }}/
+          cp -r reports/* analysis-bundle/${MATRIX_TARGET}/
+          cp -r ${MATRIX_TARGET}/codeql-queries analysis-bundle/${MATRIX_TARGET}/
+          cp ${MATRIX_TARGET}/codeql-config.yml analysis-bundle/${MATRIX_TARGET}/
 
-          cat > analysis-bundle/${{ matrix.target }}/README.md << 'EOREADME'
+          cat > analysis-bundle/${MATRIX_TARGET}/README.md << 'EOREADME'
           # CodeQL Security Analysis Results
 
-          Target: ${{ matrix.target }}
+          Target: ${MATRIX_TARGET}
           Timestamp: $(date -u)
           Findings: $FINDINGS
 
@@ -178,14 +182,16 @@ jobs:
           retention-days: 90
 
       - name: Generate Summary
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          echo "## CodeQL Analysis: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+          echo "## CodeQL Analysis: ${MATRIX_TARGET}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** [OK] Complete" >> $GITHUB_STEP_SUMMARY
           echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "**Artifact:** codeql-analysis-${{ matrix.target }}-${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact:** codeql-analysis-${MATRIX_TARGET}-${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
 
   summary-report:
     name: Analysis Summary

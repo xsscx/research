@@ -414,6 +414,20 @@ jobs:
         run: |
           set -euo pipefail
 
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
           {
             echo "## Sanitizer Corpus Scan — ICC Profiles"
             echo ""
@@ -450,7 +464,10 @@ jobs:
               echo "### Coverage"
               echo ""
               echo '```'
-              cat results/coverage-report.txt
+              while IFS= read -r line; do
+                sanitize_line "$line"
+                echo ""
+              done < results/coverage-report.txt
               echo '```'
             fi
           } >> $GITHUB_STEP_SUMMARY
@@ -679,6 +696,20 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
 
           {
             echo "## Sanitizer Corpus Scan — ICC XML"

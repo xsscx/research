@@ -304,14 +304,15 @@ jobs:
           FUZZ_SECONDS: ${{ env.FUZZ_SECONDS }}
           ASAN_OPTIONS: "symbolize=1:print_scariness=1:print_stacktrace=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2:allocator_may_return_null=1:detect_leaks=0:quarantine_size_mb=256"
           UBSAN_OPTIONS: "symbolize=1:print_stacktrace=1:halt_on_error=0:report_error_type=1"
+          MATRIX_FUZZER: ${{ matrix.fuzzer }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
 
-          FUZZER="bin/${{ matrix.fuzzer }}"
+          FUZZER="bin/${MATRIX_FUZZER}"
           if [ ! -f "$FUZZER" ]; then
-            echo "Fuzzer ${{ matrix.fuzzer }} was not built (compile skip)"
-            echo "**${{ matrix.fuzzer }}:** SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
+            echo "Fuzzer ${MATRIX_FUZZER} was not built (compile skip)"
+            echo "**${MATRIX_FUZZER}:** SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
@@ -325,15 +326,15 @@ jobs:
           fi
 
           DICT_ARG=""
-          if [ -f "${{ matrix.fuzzer }}.dict" ]; then
-            DICT_ARG="-dict=${{ matrix.fuzzer }}.dict"
+          if [ -f "${MATRIX_FUZZER}.dict" ]; then
+            DICT_ARG="-dict=${MATRIX_FUZZER}.dict"
           elif [ -f "icc_core.dict" ]; then
             DICT_ARG="-dict=icc_core.dict"
           fi
 
           SEED_DIR=""
-          if [ -d "${{ matrix.fuzzer }}_seed_corpus" ]; then
-            SEED_DIR="${{ matrix.fuzzer }}_seed_corpus"
+          if [ -d "${MATRIX_FUZZER}_seed_corpus" ]; then
+            SEED_DIR="${MATRIX_FUZZER}_seed_corpus"
           fi
 
           set +e
@@ -352,9 +353,9 @@ jobs:
           set -e
 
           if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 124 ]; then
-            echo "**${{ matrix.fuzzer }}:** PASS (exit: $EXIT_CODE, ${FUZZ_SECONDS}s)" >> $GITHUB_STEP_SUMMARY
+            echo "**${MATRIX_FUZZER}:** PASS (exit: $EXIT_CODE, ${FUZZ_SECONDS}s)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**${{ matrix.fuzzer }}:** FAIL (exit: $EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
+            echo "**${MATRIX_FUZZER}:** FAIL (exit: $EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
           fi
 
           mkdir -p crash-artifacts
@@ -370,16 +371,18 @@ jobs:
           if-no-files-found: ignore
 
       - name: Extract recommended dict entries
+        env:
+          MATRIX_FUZZER: ${{ matrix.fuzzer }}
         run: |
           set -euo pipefail
           mkdir -p dict-updates
           if [ -f /tmp/fuzz-output.log ]; then
             python3 .github/scripts/convert-libfuzzer-dict.py \
               /tmp/fuzz-output.log \
-              "dict-updates/${{ matrix.fuzzer }}.dict" 2>&1 || true
-            if [ -f "dict-updates/${{ matrix.fuzzer }}.dict" ]; then
-              COUNT=$(grep -c '^"' "dict-updates/${{ matrix.fuzzer }}.dict" 2>/dev/null || echo 0)
-              echo "[INFO] Extracted ${COUNT} recommended dict entries for ${{ matrix.fuzzer }}"
+              "dict-updates/${MATRIX_FUZZER}.dict" 2>&1 || true
+            if [ -f "dict-updates/${MATRIX_FUZZER}.dict" ]; then
+              COUNT=$(grep -c '^"' "dict-updates/${MATRIX_FUZZER}.dict" 2>/dev/null || echo 0)
+              echo "[INFO] Extracted ${COUNT} recommended dict entries for ${MATRIX_FUZZER}"
             fi
           fi
 
@@ -409,7 +412,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
-          persist-credentials: true
+          persist-credentials: false
           ref: ${{ github.ref }}
           token: ${{ github.token }}
 
@@ -437,7 +440,7 @@ jobs:
               # Count new entries before merge
               NEW=$(python3 .github/scripts/convert-libfuzzer-dict.py \
                 "$dict_file" "$TARGET" --append --dry-run 2>&1 | \
-                grep -oP 'New:\s+\K[0-9]+' | head -1 || echo 0)
+                grep -oP 'New:\s+\K[0-9]+' | sed -n '1,1p' || echo 0)
               NEW=${NEW:-0}
 
               if [ "$NEW" -gt 0 ] 2>/dev/null; then

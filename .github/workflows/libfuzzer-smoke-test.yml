@@ -290,16 +290,17 @@ jobs:
           BASH_ENV: /dev/null
           ASAN_OPTIONS: "symbolize=1:print_scariness=1:print_stacktrace=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_invalid_pointer_pairs=2:allocator_may_return_null=1:detect_leaks=0:quarantine_size_mb=256"
           UBSAN_OPTIONS: "symbolize=1:print_stacktrace=1:halt_on_error=0:report_error_type=1"
+          MATRIX_FUZZER: ${{ matrix.fuzzer }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
 
-          chmod +x "bin/${{ matrix.fuzzer }}"
+          chmod +x "bin/${MATRIX_FUZZER}"
           mkdir -p corpus
 
           # Check for dictionary
           DICT_ARG=""
-          FNAME="${{ matrix.fuzzer }}"
+          FNAME="${MATRIX_FUZZER}"
           if [ -f "${FNAME}.dict" ]; then
             DICT_ARG="-dict=${FNAME}.dict"
           elif [ -f "icc_core.dict" ]; then
@@ -313,12 +314,12 @@ jobs:
           fi
 
           # Enable deep dump diagnostics for icc_deep_dump_fuzzer
-          if [ "${{ matrix.fuzzer }}" = "icc_deep_dump_fuzzer" ]; then
+          if [ "${MATRIX_FUZZER}" = "icc_deep_dump_fuzzer" ]; then
             export DEEP_DUMP_DIAG=0
           fi
 
           set +e
-          timeout --kill-after=5s 65s "bin/${{ matrix.fuzzer }}" \
+          timeout --kill-after=5s 65s "bin/${MATRIX_FUZZER}" \
             -max_total_time=60 \
             -print_final_stats=1 \
             -detect_leaks=0 \
@@ -333,7 +334,7 @@ jobs:
           set -e
 
           {
-            echo "### ${{ matrix.fuzzer }}"
+            echo "### ${MATRIX_FUZZER}"
             echo ""
             if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 124 ]; then
               echo "**Status:** PASS (exit: $EXIT_CODE)"
@@ -355,16 +356,18 @@ jobs:
 
       - name: Extract recommended dict entries
         if: always()
+        env:
+          MATRIX_FUZZER: ${{ matrix.fuzzer }}
         run: |
           set -euo pipefail
           mkdir -p dict-updates
           if [ -f /tmp/fuzz-output.log ]; then
             python3 .github/scripts/convert-libfuzzer-dict.py \
               /tmp/fuzz-output.log \
-              "dict-updates/${{ matrix.fuzzer }}.dict" 2>&1 || true
-            if [ -f "dict-updates/${{ matrix.fuzzer }}.dict" ]; then
-              COUNT=$(grep -c '^"' "dict-updates/${{ matrix.fuzzer }}.dict" 2>/dev/null || echo 0)
-              echo "[INFO] Extracted ${COUNT} recommended dict entries for ${{ matrix.fuzzer }}"
+              "dict-updates/${MATRIX_FUZZER}.dict" 2>&1 || true
+            if [ -f "dict-updates/${MATRIX_FUZZER}.dict" ]; then
+              COUNT=$(grep -c '^"' "dict-updates/${MATRIX_FUZZER}.dict" 2>/dev/null || echo 0)
+              echo "[INFO] Extracted ${COUNT} recommended dict entries for ${MATRIX_FUZZER}"
             fi
           fi
 
@@ -572,7 +575,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
         with:
-          persist-credentials: true
+          persist-credentials: false
           ref: ${{ github.ref }}
           token: ${{ github.token }}
 

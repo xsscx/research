@@ -125,6 +125,8 @@ jobs:
         id: vcpkg-meta
         env:
           BASH_ENV: /dev/null
+          MATRIX_ARCH: ${{ matrix.arch }}
+          MATRIX_PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           schema=v2
@@ -136,7 +138,7 @@ jobs:
 
           echo "cache_schema=${schema}" >> "${GITHUB_OUTPUT}"
           echo "dependencies_sha=${deps_sha}" >> "${GITHUB_OUTPUT}"
-          echo "bundle_artifact_name=beyondrgb-vcpkg-${schema}-${{ matrix.platform }}-${{ matrix.arch }}-${deps_sha}" >> "${GITHUB_OUTPUT}"
+          echo "bundle_artifact_name=beyondrgb-vcpkg-${schema}-${MATRIX_PLATFORM}-${MATRIX_ARCH}-${deps_sha}" >> "${GITHUB_OUTPUT}"
 
       - name: Cache vcpkg
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_export_restore) }}
@@ -155,11 +157,13 @@ jobs:
         env:
           BASH_ENV: /dev/null
           GH_TOKEN: ${{ github.token }}
+          MATRIX_ARCH: ${{ matrix.arch }}
+          MATRIX_PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           git config --global credential.helper ""
           artifact_name="${{ steps.vcpkg-meta.outputs.bundle_artifact_name }}"
-          artifact_root="$RUNNER_TEMP/vcpkg-import/${{ matrix.platform }}-${{ matrix.arch }}"
+          artifact_root="$RUNNER_TEMP/vcpkg-import/${MATRIX_PLATFORM}-${MATRIX_ARCH}"
           run_id="$(./.github/scripts/find-actions-artifact-run.sh "${GITHUB_REPOSITORY}" "ci-beyondrgb-integration.yml" "main" "${artifact_name}")"
 
           if [[ -n "${run_id}" ]]; then
@@ -183,10 +187,12 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.force_export_restore }}
         env:
           BASH_ENV: /dev/null
+          MATRIX_ARCH: ${{ matrix.arch }}
+          MATRIX_PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           if [[ "${{ steps.restore-vcpkg-unix.outputs.restored }}" != 'true' ]]; then
-            echo "force_export_restore=true requires a published vcpkg export for ${{ matrix.platform }}-${{ matrix.arch }}." >&2
+            echo "force_export_restore=true requires a published vcpkg export for ${MATRIX_PLATFORM}-${MATRIX_ARCH}." >&2
             exit 1
           fi
 
