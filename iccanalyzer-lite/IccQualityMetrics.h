@@ -21,6 +21,10 @@
 
 namespace iccquality {
 
+/// Maximum channel count for fixed-size stack arrays in quality metrics.
+/// All std::array<icFloatNumber, 16> buffers depend on this bound.
+constexpr int kMaxQualityChannels = 16;
+
 struct RoundTripMetrics {
   bool measured = false;
   std::string model;
@@ -238,7 +242,7 @@ inline void visit_bounded_grid_points_impl(int axis,
                                            int grid,
                                            std::array<icFloatNumber, 16> &device,
                                            Fn &fn) {
-  if (axis >= channels) {
+  if (axis >= channels || axis >= kMaxQualityChannels) {
     fn();
     return;
   }
@@ -298,14 +302,15 @@ inline bool build_matrix_trc_transform(CIccProfile *pIcc,
     return false;
   }
 
-  xform.pcs = pIcc->m_Header.pcs;
-  if (xform.pcs != icSigXYZData) {
+  const uint32_t pcs = static_cast<uint32_t>(pIcc->m_Header.pcs);
+  xform.pcs = static_cast<icColorSpaceSignature>(pcs);
+  if (pcs != static_cast<uint32_t>(icSigXYZData)) {
     reason = "Matrix/TRC quality metrics require XYZ PCS";
     return false;
   }
 
-  const icColorSpaceSignature colorSpace = pIcc->m_Header.colorSpace;
-  if (colorSpace == icSigRgbData) {
+  const uint32_t colorSpace = static_cast<uint32_t>(pIcc->m_Header.colorSpace);
+  if (colorSpace == static_cast<uint32_t>(icSigRgbData)) {
     CIccCurve *rTrc = dynamic_cast<CIccCurve*>(pIcc->FindTag(icSigRedTRCTag));
     CIccCurve *gTrc = dynamic_cast<CIccCurve*>(pIcc->FindTag(icSigGreenTRCTag));
     CIccCurve *bTrc = dynamic_cast<CIccCurve*>(pIcc->FindTag(icSigBlueTRCTag));
@@ -578,6 +583,12 @@ inline bool build_classic_lut_transform(CIccTag *tag,
   xform.inputChannels = mbb->InputChannels();
   xform.outputChannels = mbb->OutputChannels();
   xform.type = type;
+
+  if (xform.inputChannels < 1 || xform.inputChannels > kMaxQualityChannels ||
+      xform.outputChannels < 1 || xform.outputChannels > kMaxQualityChannels) {
+    reason = "Classic LUT channel count exceeds safe array bounds";
+    return false;
+  }
 
   for (int i = 0; i < xform.inputChannels; ++i) {
     if (!xform.inputCurves[i]) {
@@ -1067,6 +1078,12 @@ inline void append_mbb_curve_targets(std::vector<std::pair<std::string, CIccCurv
   const int aCurves = mbb->IsInputB() ? mbb->OutputChannels() : mbb->InputChannels();
   const int mCurves = mbb->IsInputMatrix() ? mbb->InputChannels() : mbb->OutputChannels();
   const int bCurves = mbb->IsInputB() ? mbb->InputChannels() : mbb->OutputChannels();
+
+  if (aCurves < 0 || aCurves > kMaxQualityChannels ||
+      mCurves < 0 || mCurves > kMaxQualityChannels ||
+      bCurves < 0 || bCurves > kMaxQualityChannels) {
+    return;
+  }
 
   add_curve_set(mbb->GetCurvesA(), aCurves, "A");
   add_curve_set(mbb->GetCurvesM(), mCurves, "M");
