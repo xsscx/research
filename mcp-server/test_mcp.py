@@ -944,12 +944,11 @@ def test_sanitize_cmake_args():
     """Verify cmake arg sanitization blocks injection."""
     T.section("Security: cmake_configure Arg Sanitization")
 
-    # Valid args
+    # Valid args (must be in _ALLOWED_CMAKE_VARS allowlist)
     valid_cases = [
-        ("-DCMAKE_BUILD_TYPE=Debug", "simple define"),
         ("-DENABLE_TOOLS=ON", "boolean define"),
         ("-DICC_LOG_SAFE=ON -Wno-dev", "multiple valid args"),
-        ("-DCMAKE_CXX_FLAGS=-O2", "flags with dash"),
+        ("-DCMAKE_VERBOSE_MAKEFILE=ON", "safe cmake var"),
         ("", "empty string"),
         ("  ", "whitespace only"),
     ]
@@ -970,6 +969,12 @@ def test_sanitize_cmake_args():
         ("--evil-flag", "double-dash flag"),
         ("NAKED_ARG", "bare word"),
         ("-DFOO=val$(cmd)", "substitution in value"),
+        ("-DCMAKE_PROJECT_INCLUDE=evil", "RCE via PROJECT_INCLUDE"),
+        ("-DCMAKE_TOOLCHAIN_FILE=evil", "RCE via TOOLCHAIN_FILE"),
+        ("-DCMAKE_C_COMPILER=evil", "RCE via C_COMPILER override"),
+        ("-DCMAKE_MAKE_PROGRAM=evil", "RCE via MAKE_PROGRAM"),
+        ("-DCMAKE_MODULE_PATH=evil", "path injection via MODULE_PATH"),
+        ("-DCMAKE_BUILD_TYPE=Debug", "not in extra allowlist"),
     ]
     for raw, label in inject_cases:
         try:
