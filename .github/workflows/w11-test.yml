@@ -35,25 +35,16 @@ jobs:
         shell: pwsh
         run: |
           systeminfo
-          $job = (New-Object -ComObject Microsoft.BackgroundIntelligentTransferManager).CreateJob(
-              "TestJob", 0, [ref]([guid]::Empty)
-          )
-          $job.AddFile(
-              "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip",
-              "$PWD\deps.zip"
-          )
-          $job.Resume()
-          Write-Host "BITS job started..."
           Write-Host "========= Fetching Deps from Releases... ================`n"
-          Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -Destination "deps.zip"
+          Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -Destination "bitsdeps.zip"
           Write-Host "========= Extracting Dependencies ...    ================`n"
-          tar -xf deps.zip
+          tar -xf bitsdeps.zip
+          ls
           Write-Host "========= Fetching Deps from Releases... ================`n"
           curl -L "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -o deps.zip
           Write-Host "========= Extracting Dependencies ... ===================`n"
           Expand-Archive -Path "deps.zip" -DestinationPath "deps" -Force
-                  
-          
+          ls
           Get-CimInstance -ClassName Win32_Processor
           
       - name: Summary Report
