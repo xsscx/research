@@ -109,21 +109,28 @@ static std::vector<std::filesystem::path> resolve_repo_roots() {
     std::filesystem::path analyzerRoot = configured_analyzer_root();
     std::filesystem::path repoRoot = configured_monorepo_root();
     std::filesystem::path projectRoot = configured_project_root();
-    std::filesystem::path sourceDir = std::filesystem::path(__FILE__).parent_path();
+    std::filesystem::path sourceFile(__FILE__);
+    std::filesystem::path sourceDir = sourceFile.parent_path();
     std::filesystem::path iccaRoot = find_named_ancestor(sourceDir, "iccanalyzer-lite");
 
     append_unique_path(roots, repoRoot);
-    append_unique_path(roots, analyzerRoot.parent_path());
+    std::filesystem::path analyzerParent = analyzerRoot.parent_path();
+    append_unique_path(roots, analyzerParent);
     append_unique_path(roots, analyzerRoot);
     append_unique_path(roots, projectRoot);
-    append_unique_path(roots, find_repo_root(sourceDir));
-    append_unique_path(roots, iccaRoot.parent_path());
+    std::filesystem::path repoFromSource = find_repo_root(sourceDir);
+    append_unique_path(roots, repoFromSource);
+    std::filesystem::path iccaParent = iccaRoot.parent_path();
+    append_unique_path(roots, iccaParent);
     append_unique_path(roots, iccaRoot);
 
     std::filesystem::path cwd = std::filesystem::current_path();
-    append_unique_path(roots, find_repo_root(cwd));
-    append_unique_path(roots, find_named_ancestor(cwd, "iccanalyzer-lite").parent_path());
-    append_unique_path(roots, find_named_ancestor(cwd, "iccanalyzer-lite"));
+    std::filesystem::path repoFromCwd = find_repo_root(cwd);
+    append_unique_path(roots, repoFromCwd);
+    std::filesystem::path cwdIcca = find_named_ancestor(cwd, "iccanalyzer-lite");
+    std::filesystem::path cwdIccaParent = cwdIcca.parent_path();
+    append_unique_path(roots, cwdIccaParent);
+    append_unique_path(roots, cwdIcca);
     append_unique_path(roots, cwd);
 
     return roots;
@@ -132,14 +139,16 @@ static std::vector<std::filesystem::path> resolve_repo_roots() {
 static std::filesystem::path resolve_repo_file(const char* relativePath) {
     std::filesystem::path analyzerRoot = configured_analyzer_root();
     if (std::strncmp(relativePath, "tests/", 6) == 0 && !analyzerRoot.empty()) {
-        std::filesystem::path candidate = (analyzerRoot / relativePath).lexically_normal();
+        std::filesystem::path joined = analyzerRoot / relativePath;
+        std::filesystem::path candidate = joined.lexically_normal();
         if (path_exists(candidate)) {
             return candidate;
         }
     }
 
     for (const auto& root : resolve_repo_roots()) {
-        std::filesystem::path candidate = (root / relativePath).lexically_normal();
+        std::filesystem::path joined = root / relativePath;
+        std::filesystem::path candidate = joined.lexically_normal();
         if (path_exists(candidate)) {
             return candidate;
         }
@@ -178,7 +187,11 @@ static std::filesystem::path write_temp_profile(const std::vector<uint8_t>& data
     }
 
     if (!data.empty()) {
-        std::fwrite(data.data(), 1, data.size(), fp);
+        size_t written = std::fwrite(data.data(), 1, data.size(), fp);
+        if (written != data.size()) {
+            std::fclose(fp);
+            return {};
+        }
     }
     std::fclose(fp);
     return out;
@@ -196,7 +209,10 @@ static std::vector<uint8_t> read_file_bytes(const std::filesystem::path& path) {
     std::rewind(fp);
     if (size > 0) {
         data.resize(static_cast<size_t>(size));
-        std::fread(data.data(), 1, data.size(), fp);
+        size_t bytesRead = std::fread(data.data(), 1, data.size(), fp);
+        if (bytesRead != data.size()) {
+            data.resize(bytesRead);
+        }
     }
     std::fclose(fp);
     return data;
