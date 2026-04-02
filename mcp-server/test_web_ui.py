@@ -639,6 +639,16 @@ def test_upload_filename_sanitization():
         check("Upload filename sanitized (rejected)", True)
 
 
+def test_upload_dangerous_extensions():
+    """Reject file uploads with dangerous extensions that could enable RCE."""
+    for ext in [".cmake", ".py", ".sh", ".bat", ".ps1", ".exe"]:
+        r = c.post(
+            "/api/upload",
+            files={"file": (f"evil{ext}", io.BytesIO(b"malicious content"), "application/octet-stream")},
+        )
+        check(f"Upload rejects {ext} extension", r.status_code == 400)
+
+
 # -- Output Download ------------------------------------------
 def test_output_download():
     r = c.post(
@@ -776,6 +786,20 @@ def test_cmake_configure_validation():
         headers={"Content-Type": "application/json"},
     )
     check("CMake configure rejects shell injection", r.status_code == 400)
+
+    # RCE via dangerous CMake variables (defense-in-depth)
+    for var, label in [
+        ("CMAKE_PROJECT_INCLUDE", "PROJECT_INCLUDE"),
+        ("CMAKE_TOOLCHAIN_FILE", "TOOLCHAIN_FILE"),
+        ("CMAKE_C_COMPILER", "C_COMPILER"),
+        ("CMAKE_MAKE_PROGRAM", "MAKE_PROGRAM"),
+    ]:
+        r = c.post(
+            "/api/cmake/configure",
+            content=json.dumps({"extra_cmake_args": f"-D{var}=evil"}),
+            headers={"Content-Type": "application/json"},
+        )
+        check(f"CMake configure rejects {label}", r.status_code == 400)
 
     # Malformed JSON
     r = c.post(
@@ -996,10 +1020,18 @@ def test_operations_endpoints():
     check("check-dependencies has result", "result" in data)
 
     # Coverage gaps (GET, optional severity filter)
+    # Returns 200 with result when networkx is installed, 400 when missing
     r = c.get("/api/coverage-gaps")
-    check("coverage-gaps returns 200 without severity_filter", r.status_code == 200)
     data = r.json()
-    check("coverage-gaps default has result", "result" in data)
+    if r.status_code == 200:
+        check("coverage-gaps returns 200 without severity_filter", True)
+        check("coverage-gaps default has result", "result" in data)
+    else:
+        # networkx not installed — endpoint returns 400 with error message
+        check("coverage-gaps returns 200 without severity_filter",
+              r.status_code == 400 and "networkx" in data.get("error", "").lower())
+        check("coverage-gaps default has result",
+              r.status_code == 400 and "networkx" in data.get("error", "").lower())
 
     # Find artifacts (GET, empty build_dir -> searches all)
     r = c.get("/api/find-artifacts")
@@ -1183,6 +1215,7 @@ def main():
         ("Upload No File Field", test_upload_no_file_field),
         ("Upload Wrong Content-Type", test_upload_wrong_content_type),
         ("Upload Filename Sanitization", test_upload_filename_sanitization),
+        ("Upload Dangerous Extensions", test_upload_dangerous_extensions),
         ("Output Download", test_output_download),
         ("Output Download Empty", test_output_download_empty),
         ("Output Download Sanitization", test_output_download_sanitization),

@@ -605,7 +605,12 @@ def _validate_choice(value: str, valid: set, param_name: str) -> str:
 
 
 def _validate_extra_cmake_args(value: str) -> str:
-    """Validate extra cmake args: length limit, no shell metacharacters."""
+    """Validate extra cmake args: length limit, no shell metacharacters.
+
+    Defense-in-depth: also rejects known dangerous CMake variable names
+    that could enable RCE (e.g. CMAKE_PROJECT_INCLUDE, CMAKE_TOOLCHAIN_FILE).
+    The primary allowlist enforcement is in _sanitize_cmake_args().
+    """
     value = value.strip()
     if not value:
         return ""
@@ -615,6 +620,25 @@ def _validate_extra_cmake_args(value: str) -> str:
     for ch in [";", "|", "`", "$", "(", ")", "<", ">", "&", "\n", "\r", "\x00"]:
         if ch in value:
             raise ValueError(f"extra_cmake_args contains disallowed character: {repr(ch)}")
+    # Reject dangerous CMake variable names (defense-in-depth)
+    _DANGEROUS_CMAKE_PREFIXES = (
+        "CMAKE_PROJECT_INCLUDE", "CMAKE_TOOLCHAIN_FILE",
+        "CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER",
+        "CMAKE_MAKE_PROGRAM", "CMAKE_COMMAND",
+        "CMAKE_LINKER", "CMAKE_AR", "CMAKE_RANLIB",
+        "CMAKE_MODULE_PATH", "CMAKE_PREFIX_PATH",
+        "CMAKE_SYSROOT", "CMAKE_FIND_ROOT",
+        "CMAKE_C_FLAGS", "CMAKE_CXX_FLAGS",
+        "CMAKE_EXE_LINKER_FLAGS", "CMAKE_SHARED_LINKER_FLAGS",
+    )
+    for token in value.split():
+        if token.startswith("-D"):
+            var_name = token[2:].split("=", 1)[0]
+            for prefix in _DANGEROUS_CMAKE_PREFIXES:
+                if var_name.upper() == prefix or var_name.upper().startswith(prefix + "_"):
+                    raise ValueError(
+                        f"extra_cmake_args contains blocked variable: {var_name}"
+                    )
     return value
 
 
@@ -968,6 +992,19 @@ async def api_upload(request: Request) -> Response:
         clean_name = _SAFE_FILENAME_RE.sub("_", Path(orig_name).name)[:200]
         if not clean_name:
             clean_name = "upload.icc"
+
+        # Reject dangerous file extensions that could enable RCE if
+        # referenced by CMake variables or other tooling
+        _DANGEROUS_EXTENSIONS = {
+            ".cmake", ".py", ".sh", ".bash", ".bat", ".cmd", ".ps1",
+            ".exe", ".dll", ".so", ".dylib", ".rb", ".pl", ".php",
+        }
+        ext = Path(clean_name).suffix.lower()
+        if ext in _DANGEROUS_EXTENSIONS:
+            return JSONResponse(
+                {"ok": False, "error": f"File extension '{ext}' is not allowed"},
+                status_code=400,
+            )
 
         # Read with size limit
         data = await upload.read()
