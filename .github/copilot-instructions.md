@@ -1072,8 +1072,8 @@ or absolute path. GitHub blocks `.icc` attachments — rename to `.icc.txt` befo
 **Interpreting results**: Exit 0=clean, 1=finding, 2=error. Look for `[H1]`–`[H169]` prefixes.
 ASAN/UBSAN in stderr = CRITICAL memory safety finding.
 
-**Automated issue→PR→merge**: Create issue → assign Copilot via GitHub UI → agent runs MCP tools +
-`analyze-profile.sh` → commits report → `copilot-auto-merge.yml` squash-merges on completion.
+**Automated issue→PR flow**: Create issue → assign Copilot via GitHub UI → agent runs MCP tools +
+`analyze-profile.sh` → commits report → PR requires human review before merge.
 
 ## Architecture
 
@@ -1237,7 +1237,6 @@ path validation, Docker build policy, tool count sync, and API details.
 
 ### CI workflows
 39 workflows use `workflow_dispatch` (manual trigger). Actions are 100% SHA-pinned. Key workflows:
-- `copilot-auto-merge.yml` — Auto squash-merges Copilot coding agent PRs on agent `workflow_run` completion
 - `libfuzzer-smoke-test.yml` — 60-second smoke test for all 13 fuzzers
 - `cfl-libfuzzer-parallel.yml` — Extended parallel fuzzing with dict auto-selection and auto-merge
 - `codeql-security-analysis.yml` — 17 custom C++ queries x 3 targets + 3 custom Python queries + security-and-quality
