@@ -1094,17 +1094,41 @@ _VALID_CMAKE_OPTIONS = {
     "ICC_LOG_SAFE", "ICC_TRACE_NAN_ENABLED", "ICC_CLUT_DEBUG", "ICC_ENABLE_ASSERTS",
 }
 
+# Allowlist of safe CMake variable names for extra_cmake_args.
+# Only these variables (plus _VALID_CMAKE_OPTIONS) are accepted.
+# This blocks RCE via CMAKE_PROJECT_INCLUDE, CMAKE_TOOLCHAIN_FILE,
+# CMAKE_C_COMPILER, CMAKE_MAKE_PROGRAM, and similar dangerous variables.
+_ALLOWED_CMAKE_VARS = _VALID_CMAKE_OPTIONS | {
+    "CMAKE_VERBOSE_MAKEFILE",
+    "CMAKE_EXPORT_COMPILE_COMMANDS",
+    "CMAKE_COLOR_DIAGNOSTICS",
+    "BUILD_SHARED_LIBS",
+    "BUILD_TESTING",
+}
+
 
 def _sanitize_cmake_args(raw: str) -> list[str]:
     """Parse and validate extra cmake arguments.
 
     Only allows -DVAR=VALUE and -Wflag patterns to prevent injection.
+    Variable names are checked against an allowlist to prevent RCE via
+    dangerous CMake variables like CMAKE_PROJECT_INCLUDE or
+    CMAKE_TOOLCHAIN_FILE (which can execute arbitrary scripts).
     """
     if not raw or not raw.strip():
         return []
     args = []
     for token in raw.split():
-        if _CMAKE_ARG_RE.match(token) or _CMAKE_FLAG_RE.match(token):
+        if _CMAKE_FLAG_RE.match(token):
+            args.append(token)
+        elif _CMAKE_ARG_RE.match(token):
+            var_name = token[2:].split("=", 1)[0]
+            if var_name not in _ALLOWED_CMAKE_VARS:
+                raise ValueError(
+                    f"Rejected cmake variable: '{var_name}'. "
+                    f"Only allowlisted variables are accepted. "
+                    f"Allowed: {', '.join(sorted(_ALLOWED_CMAKE_VARS))}"
+                )
             args.append(token)
         else:
             raise ValueError(
