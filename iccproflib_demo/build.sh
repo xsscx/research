@@ -15,18 +15,39 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # ── Locate iccDEV ────────────────────────────────────────────────────
 ICCDEV_DIR="$REPO_ROOT/iccDEV"
 PROFLIB_DIR="$ICCDEV_DIR/Build/IccProfLib"
+SHARED_LIB="$PROFLIB_DIR/libIccProfLib2.so"
 STATIC_LIB="$PROFLIB_DIR/libIccProfLib2-static.a"
 
-if [ ! -f "$STATIC_LIB" ]; then
-    echo "ERROR: IccProfLib static library not found at:"
-    echo "  $STATIC_LIB"
+if [ ! -f "$SHARED_LIB" ] && [ ! -f "$STATIC_LIB" ]; then
+    echo "ERROR: IccProfLib not found at:"
+    echo "  $PROFLIB_DIR"
     echo ""
     echo "Build iccDEV first:"
     echo "  cd $ICCDEV_DIR/Build && cmake Cmake && make -j\$(nproc)"
     exit 1
 fi
 
-echo "Using IccProfLib from: $PROFLIB_DIR"
+# Prefer shared library -- the static archive may contain LLVM IR bitcode
+# (when iccDEV is built with LTO/CMAKE_INTERPROCEDURAL_OPTIMIZATION) which
+# requires -flto at link time.
+USE_SHARED=0
+LTO_FLAGS=""
+if [ -f "$SHARED_LIB" ]; then
+    USE_SHARED=1
+    echo "Using IccProfLib shared library from: $PROFLIB_DIR"
+else
+    echo "Using IccProfLib static library from: $PROFLIB_DIR"
+    # Check if static lib contains LLVM bitcode (LTO build)
+    FIRST_OBJ=$(ar t "$STATIC_LIB" 2>/dev/null | head -1)
+    if [ -n "$FIRST_OBJ" ]; then
+        ar x "$STATIC_LIB" "$FIRST_OBJ" --output /tmp
+        if file "/tmp/$FIRST_OBJ" 2>/dev/null | grep -q "LLVM IR bitcode"; then
+            echo "Detected LLVM IR bitcode in static lib -- adding -flto"
+            LTO_FLAGS="-flto"
+        fi
+        rm -f "/tmp/$FIRST_OBJ"
+    fi
+fi
 
 # ── Choose compiler ──────────────────────────────────────────────────
 CXX="${CXX:-}"
@@ -51,25 +72,32 @@ INCLUDES=(
 )
 
 # IccProfLib needs -lpthread for some platforms
-# The research repo builds iccDEV with ASAN+UBSAN, so we must link those runtimes
-LIBS=(
-    "$STATIC_LIB"
-    "-lpthread"
-)
+LIBS=("-lpthread")
+
+if [ "$USE_SHARED" -eq 1 ]; then
+    LIBS=("-L$PROFLIB_DIR" "-lIccProfLib2" "-Wl,-rpath,$PROFLIB_DIR" "${LIBS[@]}")
+else
+    LIBS=("$STATIC_LIB" "${LIBS[@]}")
+fi
 
 OUTPUT="$SCRIPT_DIR/iccproflib_demo"
 
-# Detect if static lib was built with sanitizers
+# Detect if the library was built with sanitizers
 SANITIZER_FLAGS=""
-ASAN_COUNT=$(nm "$STATIC_LIB" 2>/dev/null | grep -c '__asan_report' || true)
+if [ "$USE_SHARED" -eq 1 ]; then
+    ASAN_COUNT=$(nm -D "$SHARED_LIB" 2>/dev/null | grep -c '__asan_report' || true)
+else
+    ASAN_COUNT=$(nm "$STATIC_LIB" 2>/dev/null | grep -c '__asan_report' || true)
+fi
 if [ "$ASAN_COUNT" -gt 0 ]; then
-    echo "Detected ASAN+UBSAN in static lib ($ASAN_COUNT refs) — adding sanitizer flags"
+    echo "Detected ASAN+UBSAN in library ($ASAN_COUNT refs) -- adding sanitizer flags"
     SANITIZER_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
 fi
 
 echo "Building: iccproflib_demo.cpp"
 $CXX -std=c++17 -O2 -Wall -Wextra \
     $SANITIZER_FLAGS \
+    $LTO_FLAGS \
     "${INCLUDES[@]}" \
     "$SCRIPT_DIR/iccproflib_demo.cpp" \
     "${LIBS[@]}" \
