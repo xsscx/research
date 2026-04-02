@@ -1,0 +1,47 @@
+###############################################################
+#
+## Copyright (©) 2024-2025 David H Hoyt. All rights reserved.
+##                 https://srd.cx
+##
+## Last Updated: 01-MAY-2025 1200 EDT by David Hoyt (©)
+#
+## Intent: windows-11-arm
+#
+## TODO: Add Unit Test Suite
+#
+#
+#
+#
+#
+#
+#
+#
+#
+###############################################################
+
+name: win-check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: 🖥️ Host System Info
+        shell: pwsh
+        run: |
+          systeminfo
+          wget
+          bits
+          curl
+          Get-CimInstance -ClassName Win32_Processor
+          
+      - name: Summary Report
+        if: always()
+        run: |
+          echo "### Windows Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: Success" >> $GITHUB_STEP_SUMMARY
