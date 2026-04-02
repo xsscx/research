@@ -21,11 +21,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV CC=clang-18 CXX=clang++-18
 
-# Unified clone + patch
-COPY cfl/patches/ /tmp/cfl-patches/
-COPY docker/apply-patches.sh /usr/local/bin/apply-patches.sh
-RUN apply-patches.sh /opt/iccdev /tmp/cfl-patches \
- && rm -rf /tmp/cfl-patches
+# Clone upstream iccDEV -- UNPATCHED
+# CFL patches are for cfl/ fuzzers only. All components built here
+# (ASAN tools, coverage libs, colorbleed_tools, iccanalyzer-lite,
+# icctest) link against unpatched upstream iccDEV by design.
+RUN git clone --depth 1 \
+      https://github.com/InternationalColorConsortium/iccDEV.git \
+      /opt/iccdev \
+ && sed -i '/find_package(wxWidgets/,/endif()/ s/^/# /' \
+      /opt/iccdev/Build/Cmake/CMakeLists.txt 2>/dev/null || true
 
 # Build 1: ASAN + UBSAN (sanitizer testing, no coverage)
 RUN cd /opt/iccdev && mkdir -p build-asan && cd build-asan \
@@ -54,26 +58,22 @@ RUN cd /opt/iccdev && mkdir -p build-coverage && cd build-coverage \
     -DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate" \
  && make -j$(nproc)
 
-# Build 3: ColorBleed unsafe tools (against coverage static libs)
+# Build 3: ColorBleed unsafe tools (unpatched, no sanitizers)
+# Debug build appends 'd' postfix via CMAKE_DEBUG_POSTFIX=d
 COPY colorbleed_tools /opt/colorbleed_tools
 RUN cd /opt/colorbleed_tools \
- && clang++-18 -O2 -DNDEBUG -std=gnu++17 -Wall \
-    -I/opt/iccdev/IccProfLib -I/opt/iccdev/IccXML/IccLibXML \
-    $(pkg-config --cflags libxml-2.0) \
-    IccToXml_unsafe.cpp \
-    /opt/iccdev/build-coverage/IccProfLib/libIccProfLib2-static.a \
-    /opt/iccdev/build-coverage/IccXML/libIccXML2-static.a \
-    -lxml2 -lz -llzma -lm -fprofile-instr-generate \
-    -o /opt/iccdev/build-coverage/iccToXml_unsafe \
- && clang++-18 -O2 -DNDEBUG -std=gnu++17 -Wall \
-    -I/opt/iccdev/IccProfLib -I/opt/iccdev/IccXML/IccLibXML \
-    $(pkg-config --cflags libxml-2.0) \
-    IccFromXml_unsafe.cpp \
-    /opt/iccdev/build-coverage/IccProfLib/libIccProfLib2-static.a \
-    /opt/iccdev/build-coverage/IccXML/libIccXML2-static.a \
-    -lxml2 -lz -llzma -lm -fprofile-instr-generate \
-    -o /opt/iccdev/build-coverage/iccFromXml_unsafe \
+ && CFLAGS="-O2 -DNDEBUG -std=gnu++17 -Wall" \
+ && INCS="-I/opt/iccdev/IccProfLib -I/opt/iccdev/IccXML/IccLibXML $(pkg-config --cflags libxml-2.0)" \
+ && LIBS="/opt/iccdev/build-coverage/IccProfLib/libIccProfLib2-staticd.a \
+          /opt/iccdev/build-coverage/IccXML/libIccXML2-staticd.a \
+          -lxml2 -lz -llzma -lm -fprofile-instr-generate" \
+ && OUTDIR=/opt/iccdev/build-coverage \
+ && clang++-18 $CFLAGS $INCS IccToXml_unsafe.cpp $LIBS -o $OUTDIR/iccToXml_unsafe \
+ && clang++-18 $CFLAGS $INCS IccFromXml_unsafe.cpp $LIBS -o $OUTDIR/iccFromXml_unsafe \
+ && clang++-18 $CFLAGS $INCS IccDumpAll.cpp $LIBS -o $OUTDIR/iccDumpAll \
+ && clang++-18 $CFLAGS $INCS IccDiagnosticLoad.cpp $LIBS -o $OUTDIR/iccDiagnosticLoad \
  && echo "ColorBleed tools:" \
- && ls -lh /opt/iccdev/build-coverage/iccToXml_unsafe /opt/iccdev/build-coverage/iccFromXml_unsafe
+ && ls -lh $OUTDIR/iccToXml_unsafe $OUTDIR/iccFromXml_unsafe \
+           $OUTDIR/iccDumpAll $OUTDIR/iccDiagnosticLoad
 
 WORKDIR /opt/iccdev
