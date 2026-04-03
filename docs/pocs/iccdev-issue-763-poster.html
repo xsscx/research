@@ -129,6 +129,73 @@ a { color: var(--accent-2); }
 .note li + li {
   margin-top: 6px;
 }
+.visual-note p {
+  margin: 0 0 10px;
+}
+.viz-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(200px, 0.92fr);
+  gap: 10px;
+  align-items: start;
+}
+.plot {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.84);
+}
+.plot svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.metric-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.metric {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 9px;
+  background: rgba(255, 255, 255, 0.74);
+}
+.metric .k {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.metric .v {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.chip-row {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+}
 .main {
   margin-top: 18px;
   display: grid;
@@ -350,6 +417,10 @@ a { color: var(--accent-2); }
   .callout {
     grid-template-columns: minmax(0, 1fr);
   }
+  .viz-grid,
+  .metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>
 </head>
@@ -403,6 +474,98 @@ a { color: var(--accent-2); }
         </div>
       </div>
       <div class="stack">
+        <div class="note visual-note">
+          <h2>Derived cept Visuals</h2>
+          <p>
+            Parsed from <code>colorEncodingParamsTag</code> after XML conversion.
+            This is not a rendered image preview. It is the small slice of the
+            PoC that still decodes cleanly enough to visualize without inventing
+            data for the malformed private members.
+          </p>
+          <div class="viz-grid">
+            <div class="plot">
+              <svg viewBox="0 0 260 206" aria-label="Chromaticity inset from cept primaries">
+                <rect x="44" y="18" width="198" height="168" rx="12" ry="12" fill="#fffdf8" stroke="#cdbba5"/>
+                <line x1="44" y1="186" x2="242" y2="186" stroke="#8c7e6d" stroke-width="1.4"/>
+                <line x1="44" y1="18" x2="44" y2="186" stroke="#8c7e6d" stroke-width="1.4"/>
+                <line x1="93.5" y1="18" x2="93.5" y2="186" stroke="#e5d7c5" stroke-width="1"/>
+                <line x1="143.0" y1="18" x2="143.0" y2="186" stroke="#e5d7c5" stroke-width="1"/>
+                <line x1="192.5" y1="18" x2="192.5" y2="186" stroke="#e5d7c5" stroke-width="1"/>
+                <line x1="44" y1="149.0" x2="242" y2="149.0" stroke="#e5d7c5" stroke-width="1"/>
+                <line x1="44" y1="112.0" x2="242" y2="112.0" stroke="#e5d7c5" stroke-width="1"/>
+                <line x1="44" y1="74.0" x2="242" y2="74.0" stroke="#e5d7c5" stroke-width="1"/>
+                <line x1="44" y1="37.0" x2="242" y2="37.0" stroke="#e5d7c5" stroke-width="1"/>
+                <polygon points="202.4,124.4 118.2,74.0 81.1,174.8" fill="rgba(42,110,134,0.16)" stroke="#2a6e86" stroke-width="2.2"/>
+                <circle cx="202.4" cy="124.4" r="4.4" fill="#c53b2b"/>
+                <circle cx="118.2" cy="74.0" r="4.4" fill="#2f8a48"/>
+                <circle cx="81.1" cy="174.8" r="4.4" fill="#406bc4"/>
+                <circle cx="121.4" cy="124.6" r="4.2" fill="#f4f2ec" stroke="#54483d" stroke-width="1.6"/>
+                <text x="208" y="121" font-family="Segoe UI, Trebuchet MS, sans-serif" font-size="12" fill="#6a2d22">R</text>
+                <text x="124" y="69" font-family="Segoe UI, Trebuchet MS, sans-serif" font-size="12" fill="#295f34">G</text>
+                <text x="68" y="180" font-family="Segoe UI, Trebuchet MS, sans-serif" font-size="12" fill="#2c4a87">B</text>
+                <text x="127" y="120" font-family="Segoe UI, Trebuchet MS, sans-serif" font-size="11" fill="#54483d">D65</text>
+                <text x="18" y="23" font-family="Segoe UI, Trebuchet MS, sans-serif" font-size="11" fill="#6d6154">y</text>
+                <text x="238" y="201" font-family="Segoe UI, Trebuchet MS, sans-serif" font-size="11" fill="#6d6154">x</text>
+                <text x="40" y="201" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0.0</text>
+                <text x="88" y="201" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0.2</text>
+                <text x="138" y="201" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0.4</text>
+                <text x="188" y="201" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0.6</text>
+                <text x="8" y="189" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0.0</text>
+                <text x="8" y="152" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0.2</text>
+                <text x="8" y="115" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0.4</text>
+                <text x="8" y="77" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0.6</text>
+                <text x="8" y="40" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0.8</text>
+                <text x="53" y="32" font-family="Palatino Linotype, Book Antiqua, serif" font-size="13" fill="#3f3428">cept chromaticity inset</text>
+              </svg>
+            </div>
+            <div>
+              <div class="plot">
+                <svg viewBox="0 0 196 118" aria-label="Transfer curve inset">
+                  <rect x="18" y="12" width="160" height="92" rx="12" ry="12" fill="#fffdf8" stroke="#cdbba5"/>
+                  <line x1="18" y1="104" x2="178" y2="104" stroke="#8c7e6d" stroke-width="1.4"/>
+                  <line x1="18" y1="12" x2="18" y2="104" stroke="#8c7e6d" stroke-width="1.4"/>
+                  <line x1="58" y1="12" x2="58" y2="104" stroke="#e5d7c5" stroke-width="1"/>
+                  <line x1="98" y1="12" x2="98" y2="104" stroke="#e5d7c5" stroke-width="1"/>
+                  <line x1="138" y1="12" x2="138" y2="104" stroke="#e5d7c5" stroke-width="1"/>
+                  <line x1="18" y1="81" x2="178" y2="81" stroke="#e5d7c5" stroke-width="1"/>
+                  <line x1="18" y1="58" x2="178" y2="58" stroke="#e5d7c5" stroke-width="1"/>
+                  <line x1="18" y1="35" x2="178" y2="35" stroke="#e5d7c5" stroke-width="1"/>
+                  <polyline points="18.0,104.0 18.5,100.3 19.6,94.8 26.0,81.2 34.0,71.9 50.0,59.4 82.0,42.8 114.0,30.6 146.0,20.6 178.0,12.0" fill="none" stroke="#a84d21" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="19.6" cy="94.8" r="3.2" fill="#a84d21"/>
+                  <text x="24" y="28" font-family="Palatino Linotype, Book Antiqua, serif" font-size="12" fill="#3f3428">sRGB-like transfer in cept</text>
+                  <text x="21" y="114" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">0</text>
+                  <text x="170" y="114" font-family="Cascadia Code, Consolas, monospace" font-size="10" fill="#7b6f61">1</text>
+                </svg>
+              </div>
+              <div class="metric-grid">
+                <div class="metric">
+                  <span class="k">Whitepoint</span>
+                  <span class="v">x=0.3127 y=0.3290</span>
+                </div>
+                <div class="metric">
+                  <span class="k">White Luminance</span>
+                  <span class="v">80.0 cd/m2</span>
+                </div>
+                <div class="metric">
+                  <span class="k">Encoding Range</span>
+                  <span class="v">-0.53 to 1.68</span>
+                </div>
+                <div class="metric">
+                  <span class="k">Bit Depths</span>
+                  <span class="v">10 / 12 / 16</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="chip-row">
+            <span class="chip"><span class="dot" style="background:#c53b2b"></span>R 0.64 / 0.33</span>
+            <span class="chip"><span class="dot" style="background:#2f8a48"></span>G 0.30 / 0.60</span>
+            <span class="chip"><span class="dot" style="background:#406bc4"></span>B 0.15 / 0.06</span>
+            <span class="chip"><span class="dot" style="background:#f4f2ec"></span>D65 0.3127 / 0.3290</span>
+            <span class="chip">bg-sRGB</span>
+            <span class="chip">ISO 22028-1</span>
+          </div>
+        </div>
         <div class="note">
           <h2>Source Stack</h2>
           <ul>
