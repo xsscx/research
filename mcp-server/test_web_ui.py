@@ -119,8 +119,10 @@ def test_html_integrity():
     check("Has btn-save-xml CSS class", ".btn-save-xml" in r.text)
     check("Has download-link CSS class", ".download-link" in r.text)
     check("Has clipboard-offscreen CSS class", ".clipboard-offscreen" in r.text)
+    check("Has outputRich container", 'id="outputRich"' in r.text)
     check("Has sanitize() function", "function sanitize(" in r.text)
     check("Has esc() function", "function esc(" in r.text)
+    check("Has renderProfileOverlay() function", "function renderProfileOverlay(" in r.text)
 
 
 def test_graph_viewer_assets():
@@ -214,6 +216,40 @@ def test_heuristic_count_fallback():
     finally:
         web_ui_mod._HEURISTIC_COUNT = saved_count
         web_ui_mod._get_analyzer = saved_get_analyzer
+
+
+def test_overlay_security_v2_schema():
+    findings, summary = web_ui_mod._select_security_findings({
+        "stats": {
+            "checksRun": 520,
+            "severity": {
+                "CRITICAL": 1,
+                "HIGH": 2,
+                "MEDIUM": 3,
+                "LOW": 4,
+                "INFO": 5,
+            },
+        },
+        "findings": [
+            {
+                "id": "H180",
+                "severity": "HIGH",
+                "message": "FromXml(ToXml()) failed",
+                "cwe": "CWE-345",
+            },
+            {
+                "id": "CF-060",
+                "severity": "MEDIUM",
+                "message": "Tag mismatch",
+                "detail": "ICC.1-2022-05 Sec.10",
+            },
+        ],
+    })
+    check("Overlay V2 schema findings parsed", len(findings) == 2)
+    check("Overlay V2 schema keeps first id", findings[0]["id"] == "H180")
+    check("Overlay V2 schema warning count", summary["warnings"] == 9)
+    check("Overlay V2 schema critical count", summary["critical"] == 1)
+    check("Overlay V2 schema checksRun reflected", summary["heuristicsRun"] == 520)
 
 
 # -- List Profiles --------------------------------------------
@@ -368,6 +404,30 @@ def test_security_json():
     # Bad path returns 400
     r2 = c.get("/api/security-json?path=nonexistent-xyz.icc")
     check("SecurityJSON bad path 400", r2.status_code == 400)
+
+
+def test_profile_overlay():
+    r = c.get("/api/profile-overlay?path=sRGB_v4_ICC_preference.icc")
+    check("ProfileOverlay 200", r.status_code == 200)
+    d = r.json()
+    check("ProfileOverlay ok", d["ok"] is True)
+    parsed = d.get("result", {})
+    check("ProfileOverlay has file object", isinstance(parsed.get("file"), dict))
+    check("ProfileOverlay carrier ICC", parsed.get("file", {}).get("carrier") == "ICC")
+    check("ProfileOverlay has conformance object", isinstance(parsed.get("conformance"), dict))
+    check("ProfileOverlay has header cards", isinstance(parsed.get("header"), list) and len(parsed.get("header", [])) >= 16)
+    check("ProfileOverlay has tag table summary", isinstance(parsed.get("tagTableSummary"), dict))
+    check("ProfileOverlay has required tags", isinstance(parsed.get("requiredTags"), list))
+    check("ProfileOverlay has security findings", isinstance(parsed.get("security"), list))
+
+    rb = c.get("/api/profile-overlay?path=ub-runtime-error-type-confusion-CIccTagEmbeddedProfile-iccTiffDump_cpp-Line171.icc")
+    check("ProfileOverlay bug sample 200", rb.status_code == 200)
+    bug = rb.json().get("result", {})
+    check("ProfileOverlay bug carrier TIFF", bug.get("file", {}).get("carrier") == "TIFF")
+    check("ProfileOverlay bug non-conformant", bug.get("conformance", {}).get("status") == "non_conformant")
+
+    r2 = c.get("/api/profile-overlay?path=nonexistent-xyz.icc")
+    check("ProfileOverlay bad path 400", r2.status_code == 400)
 
 
 def test_security_report():
@@ -1027,7 +1087,7 @@ def test_operations_endpoints():
         check("coverage-gaps returns 200 without severity_filter", True)
         check("coverage-gaps default has result", "result" in data)
     else:
-        # networkx not installed — endpoint returns 400 with error message
+        # networkx not installed - endpoint returns 400 with error message
         check("coverage-gaps returns 200 without severity_filter",
               r.status_code == 400 and "networkx" in data.get("error", "").lower())
         check("coverage-gaps default has result",
@@ -1170,6 +1230,7 @@ def test_operations_html_buttons():
     check("HTML has upload_and_analyze button", "upload_and_analyze" in r.text)
     check("HTML has build_tools button", "build_tools" in r.text)
     check("HTML has pawg button", 'data-tool="pawg"' in r.text)
+    check("HTML has profile_overlay button", 'data-tool="profile_overlay"' in r.text)
 
 
 # -- Run all tests --------------------------------------------
@@ -1202,6 +1263,7 @@ def main():
         ("Inspect", test_inspect),
         ("Security Scan", test_security_scan),
         ("Security JSON", test_security_json),
+        ("Profile Overlay", test_profile_overlay),
         ("Security Report", test_security_report),
         ("PAWG", test_pawg),
         ("Registry", test_registry),

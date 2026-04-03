@@ -27,7 +27,7 @@ Health is the source of truth for the live surface, for example:
 - Security-oriented analysis defaults to V2 (`icctest`).
 - Structural inspection and round-trip validation still default to V1.
 - The Web UI lives at `/` and supports deep links such as `#security`,
-  `#security_report`, `#pawg`, `#inspect`, `#graph_viewer`,
+  `#security_report`, `#pawg`, `#profile_overlay`, `#inspect`, `#graph_viewer`,
   `#coverage_gaps`, and `#scan_logs`.
 - `/api/pawg` and `/api/security-report` intentionally expose the
   conformance-focused PAWG view only.
@@ -48,6 +48,9 @@ curl -s 'http://127.0.0.1:8080/api/security-json?path=sRGB_D65_MAT.icc'
 
 # PAWG-oriented conformance report
 curl -s 'http://127.0.0.1:8080/api/pawg?path=sRGB_D65_MAT.icc'
+
+# Three-layer profile overlay JSON for the Web UI
+curl -s 'http://127.0.0.1:8080/api/profile-overlay?path=sRGB_v4_ICC_preference.icc'
 
 # Structural inspection and combined output
 curl -s 'http://127.0.0.1:8080/api/inspect?path=sRGB_D65_MAT.icc'
@@ -116,7 +119,7 @@ issue and request analysis there.
 | `/api/health-check` | Full bundled-tool health verification |
 | `/api/list`, `/api/list-xml` | Browse bundled ICC or XML fixtures |
 | `/api/inspect`, `/api/roundtrip`, `/api/full`, `/api/xml`, `/api/compare` | Core structural workflows |
-| `/api/security`, `/api/security-json`, `/api/security-report`, `/api/pawg` | Security and PAWG-oriented reporting |
+| `/api/security`, `/api/security-json`, `/api/security-report`, `/api/pawg`, `/api/profile-overlay` | Security, PAWG, and overlay reporting |
 | `/api/upload`, `/api/upload-and-analyze`, `/api/output/download`, `/api/xml/download` | File upload and output export |
 | `/api/check-dependencies`, `/api/find-artifacts`, `/api/build-tools`, `/api/cmake/*`, `/api/create-profiles`, `/api/run-tests`, `/api/batch-test`, `/api/validate-xml`, `/api/coverage-report`, `/api/scan-logs` | Maintainer and operations endpoints |
 | `/api/attack-surface`, `/api/coverage-gaps`, `/api/knowledge-graph.json` | Graph and coverage workflows |
@@ -150,6 +153,7 @@ The current 28 MCP tools are grouped into four families:
 | `GET` | `/api/security-json` | `path` | Structured JSON security object |
 | `GET` | `/api/security-report` | `path` | PAWG-aligned conformance-only report with checklist/spec references |
 | `GET` | `/api/pawg` | `path` | PAWG conformance-section view with bundled ICC spec references |
+| `GET` | `/api/profile-overlay` | `path` | Three-layer conformance, mind-map, and secure-parsing JSON model for the Web UI |
 | `GET` | `/api/roundtrip` | `path` | Round-trip transform validation |
 | `GET` | `/api/full` | `path` | Combined analysis (security + round-trip + structure) |
 | `GET` | `/api/xml` | `path` | Binary ICC → XML conversion |
