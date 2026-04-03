@@ -27,6 +27,8 @@ the right part of `docs/`.
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`
 - High-resolution table-first PNG v2 for the same specimen:
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`
+- ICC-homepage-branded PNG v3 for the same specimen:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v3.png`
 
 ### Run or Review Tests
 
@@ -52,6 +54,8 @@ the right part of `docs/`.
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`
 - Matching high-resolution PNG v2 for `test-profiles/sRgbEncoding.icc`:
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`
+- Matching ICC-homepage-branded PNG v3 for `test-profiles/sRgbEncoding.icc`:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v3.png`
 
 ## Notes
 
