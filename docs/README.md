@@ -15,6 +15,10 @@ you want a quick map of the major subtrees.
 | `iccDEV/specifications/html/` | Standalone HTML overlays tying spec clauses to concrete profile examples and parser risks |
 | `icc-format/` | ICC binary format notes and CWE mapping |
 
+Current HTML overlays include the three-layer conformance/vulnerability page for
+`sRGB_v4_ICC_preference.icc` and the annotated `xxd` poster for the compact
+iccMAX specimen `test-profiles/sRgbEncoding.icc`.
+
 ## Research and Evidence
 
 | Path | Purpose |

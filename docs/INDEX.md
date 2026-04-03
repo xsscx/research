@@ -21,6 +21,8 @@ the right part of `docs/`.
 - Runtime analyzer findings: `analysis/`
 - Three-layer HTML overlay for conformance vs bug patterns:
   `iccDEV/specifications/html/icc-profile-conformance-and-vulnerability-overlay.html`
+- Annotated byte-level specimen page for a minimal iccMAX profile:
+  `iccDEV/specifications/html/iccmax-srgbencoding-annotated-dump.html`
 
 ### Run or Review Tests
 
@@ -40,6 +42,8 @@ the right part of `docs/`.
 - ICC specifications and technotes: `iccDEV/specifications/README.md`
 - HTML overlay for `sRGB_v4_ICC_preference.icc` and issue #527:
   `iccDEV/specifications/html/icc-profile-conformance-and-vulnerability-overlay.html`
+- Corkami-style HTML dump poster for `test-profiles/sRgbEncoding.icc`:
+  `iccDEV/specifications/html/iccmax-srgbencoding-annotated-dump.html`
 
 ## Notes
 
