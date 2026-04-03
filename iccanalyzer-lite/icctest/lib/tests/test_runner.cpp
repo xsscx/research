@@ -18,6 +18,9 @@
 #include <set>
 #include <string_view>
 #include <vector>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 extern void test_assert(bool, const char*, const char*, int);
 #define ASSERT(cond)       test_assert((cond), #cond, __FILE__, __LINE__)
@@ -180,20 +183,60 @@ private:
 
 static std::filesystem::path write_temp_profile(const std::vector<uint8_t>& data,
                                                 const char* fileName) {
+#ifndef _WIN32
+    std::string prefix = "icctest";
+    if (fileName && *fileName) {
+        prefix = std::filesystem::path(fileName).stem().string();
+        if (prefix.empty()) {
+            prefix = "icctest";
+        }
+        for (char& ch : prefix) {
+            if (!std::isalnum(static_cast<unsigned char>(ch)) && ch != '-' && ch != '_') {
+                ch = '-';
+            }
+        }
+        if (prefix.size() > 32) {
+            prefix.resize(32);
+        }
+    }
+    std::string tmpl = (std::filesystem::temp_directory_path() /
+                        (prefix + "-XXXXXX")).string();
+    std::vector<char> templateBytes(tmpl.begin(), tmpl.end());
+    templateBytes.push_back('\0');
+    int fd = mkstemp(templateBytes.data());
+    if (fd < 0) {
+        return {};
+    }
+    std::filesystem::path out = templateBytes.data();
+    std::FILE* fp = fdopen(fd, "wb");
+    if (!fp) {
+        close(fd);
+        std::error_code ignored;
+        std::filesystem::remove(out, ignored);
+        return {};
+    }
+#else
     std::filesystem::path out = std::filesystem::temp_directory_path() / fileName;
     std::FILE* fp = std::fopen(out.string().c_str(), "wb");
     if (!fp) {
         return {};
     }
+#endif
 
     if (!data.empty()) {
         size_t written = std::fwrite(data.data(), 1, data.size(), fp);
         if (written != data.size()) {
             std::fclose(fp);
+            std::error_code ignored;
+            std::filesystem::remove(out, ignored);
             return {};
         }
     }
-    std::fclose(fp);
+    if (std::fclose(fp) != 0) {
+        std::error_code ignored;
+        std::filesystem::remove(out, ignored);
+        return {};
+    }
     return out;
 }
 

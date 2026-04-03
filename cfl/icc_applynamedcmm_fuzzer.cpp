@@ -96,6 +96,7 @@
 #include <fcntl.h>
 #include <cstring>
 #include <cmath>
+#include <new>
 #include "IccCmm.h"
 #include "IccUtil.h"
 #include "IccProfile.h"
@@ -213,10 +214,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     // Build hint manager (tool lines 393-403)
     CIccCreateXformHintManager Hint;
-    if (useBPC)
-        Hint.AddHint(new CIccApplyBPCHint());
-    if (adjustPcsLuminance)
-        Hint.AddHint(new CIccLuminanceMatchingHint());
+    if (useBPC) {
+        auto *bpcHint = new (std::nothrow) CIccApplyBPCHint();
+        if (bpcHint) {
+            Hint.AddHint(bpcHint);
+        }
+    }
+    if (adjustPcsLuminance) {
+        auto *luminanceHint = new (std::nothrow) CIccLuminanceMatchingHint();
+        if (luminanceHint) {
+            Hint.AddHint(luminanceHint);
+        }
+    }
 
     // --- Gate 7: AddXform (tool lines 423-430) ---
     // PCC is NULL — tool uses a SEPARATE file for PCC, never self-reference.

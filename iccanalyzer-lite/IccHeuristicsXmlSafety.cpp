@@ -557,6 +557,8 @@ int RunHeuristic_H180_XmlRoundTripFidelity(CIccProfile * /*pIcc*/, const char *f
 
     CIccProfileXml rtProfile;
     std::string loadParseStr;
+    // lgtm[icc/xml-all-attacks] - round-trip XML is generated locally by ToXml() for the same in-memory profile.
+    // lgtm[icc/xml-external-entity-attacks] - the temporary file never contains attacker-supplied standalone XML.
     bool loadOk = rtProfile.LoadXml(tmpXml, NULL, &loadParseStr);
     unlink(tmpXml);
     if (!loadOk)

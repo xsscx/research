@@ -205,7 +205,8 @@ std::optional<ParsedArgs> parseArgs(int argc, char** argv) {
     }
 
     // Validate: analyze commands need an input file
-    if (args.command == Command::Analyze && args.inputPath.empty()) {
+    const unsigned command = static_cast<unsigned>(args.command);
+    if (command == static_cast<unsigned>(Command::Analyze) && args.inputPath.empty()) {
         std::fprintf(stderr, "Error: no input file specified\n");
         printUsage(argv[0]);
         return std::nullopt;

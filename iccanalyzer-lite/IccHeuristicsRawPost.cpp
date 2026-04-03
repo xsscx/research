@@ -1361,14 +1361,16 @@ int RunHeuristic_H52_IntegerUnderflowTagSize(RawProfileContext &ctx)
         if (ctx.ReadAt(tOff + 8, lutHdr, 4)) {
           uint8_t nIn = lutHdr[0], nOut = lutHdr[1], grid = lutHdr[2];
           if (nIn > 0 && nOut > 0 && grid > 0 && nIn <= 15 && nOut <= 15) {
+            const unsigned inputChannels = static_cast<unsigned>(nIn);
+            const uint64_t gridPoints = static_cast<uint64_t>(grid);
             // Fixed header = 48 bytes
             // Input tables = nIn * 256
             // CLUT = grid^nIn * nOut (1-byte entries)
             // Output tables = nOut * 256
             uint64_t inTable = (uint64_t)nIn * 256;
             uint64_t clutEntries = 1;
-            for (int d = 0; d < nIn; d++) {
-              clutEntries *= grid;
+            for (unsigned d = 0; d < inputChannels; ++d) {
+              clutEntries *= gridPoints;
               if (clutEntries > 0x10000000ULL) { clutEntries = 0xFFFFFFFFULL; break; }
             }
             uint64_t clutData = clutEntries * nOut;
@@ -1398,10 +1400,12 @@ int RunHeuristic_H52_IntegerUnderflowTagSize(RawProfileContext &ctx)
           uint16_t nInEntries = ((uint16_t)lutHdr[40] << 8) | lutHdr[41];
           uint16_t nOutEntries = ((uint16_t)lutHdr[42] << 8) | lutHdr[43];
           if (nIn > 0 && nOut > 0 && grid > 0 && nIn <= 15 && nOut <= 15) {
+            const unsigned inputChannels = static_cast<unsigned>(nIn);
+            const uint64_t gridPoints = static_cast<uint64_t>(grid);
             uint64_t inTable = (uint64_t)nIn * nInEntries * 2;
             uint64_t clutEntries = 1;
-            for (int d = 0; d < nIn; d++) {
-              clutEntries *= grid;
+            for (unsigned d = 0; d < inputChannels; ++d) {
+              clutEntries *= gridPoints;
               if (clutEntries > 0x10000000ULL) { clutEntries = 0xFFFFFFFFULL; break; }
             }
             uint64_t clutData = clutEntries * nOut * 2;
