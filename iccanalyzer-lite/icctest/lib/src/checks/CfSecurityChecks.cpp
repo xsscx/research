@@ -15,6 +15,7 @@
 #include "IccTagEmbedIcc.h"
 #include "IccUtil.h"
 
+#include <array>
 #include <cstring>
 #include <cstdint>
 #include <vector>
@@ -29,6 +30,17 @@ static inline uint32_t readU32LE(const uint8_t *p) {
 
 static inline bool IsV5(const ProfileView& pv) {
     return (pv.header().version >> 24) >= 5;
+}
+
+static CIccTagEmbeddedProfile* find_embedded_profile_tag(CIccProfile* profile) {
+    if (!profile) {
+        return nullptr;
+    }
+    CIccTag* tag = profile->FindTag(icSigEmbeddedV5ProfileTag);
+    if (!tag) {
+        return nullptr;
+    }
+    return dynamic_cast<CIccTagEmbeddedProfile*>(tag);
 }
 
 // ---------------------------------------------------------------------------
@@ -223,10 +235,11 @@ static CheckResult check_cf093_private_tag_content_scan(const ProfileView& pv) {
         }
         if (sz >= 64 && d[0]=='M' && d[1]=='Z') {
             uint32_t peOff = readU32LE(&d[60]);
-            const uint64_t peHeaderEnd = static_cast<uint64_t>(peOff) + 4ull;
-            if (peHeaderEnd <= static_cast<uint64_t>(sz)) {
+            if (peOff <= sz - 4) {
                 size_t peIndex = static_cast<size_t>(peOff);
-                if (d[peIndex]=='P' && d[peIndex+1]=='E') {
+                std::array<uint8_t, 4> peHeader{};
+                std::memcpy(peHeader.data(), d + peIndex, peHeader.size());
+                if (peHeader[0]=='P' && peHeader[1]=='E') {
                     findings.push_back({id, Severity::CRITICAL,
                         "PE executable in private tag '" + std::string(sigStr) + "'",
                         "", "CWE-506: Embedded Malicious Code"});
@@ -316,22 +329,17 @@ static CheckResult check_cf157_embedded_profile_recursive_depth(const ProfileVie
 
     int depth = 0;
     const int kMaxNestingDepth = 4;
-    CIccProfile *pCurrent = pIcc;
-    // lgtm[cpp/use-after-expired-lifetime] - embedded profiles are owned by tags in the live parent profile chain.
-    while (pCurrent) {
-        CIccTag *pCurrentTag = pCurrent->FindTag(icSigEmbeddedV5ProfileTag);
-        if (!pCurrentTag) break;
-
-        auto *pCurrentEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pCurrentTag);
-        if (!pCurrentEmbed) break;
+    CIccTagEmbeddedProfile *pCurrentEmbed = pEmbed;
+    while (pCurrentEmbed) {
         CIccProfile *nextProfile = pCurrentEmbed->GetProfile();
-        if (!nextProfile) break;
-
+        if (!nextProfile) {
+            break;
+        }
         depth++;
         if (depth > kMaxNestingDepth) {
             break;
         }
-        pCurrent = nextProfile;
+        pCurrentEmbed = find_embedded_profile_tag(nextProfile);
     }
 
     if (depth > kMaxNestingDepth) {
