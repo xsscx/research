@@ -172,6 +172,7 @@ jobs:
         with:
           category: "/language:cpp/iccdev-${{ matrix.branch }}"
           output: codeql-results
+          upload: never
 
       - name: Process results
         id: results

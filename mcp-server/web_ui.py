@@ -604,6 +604,17 @@ def _validate_choice(value: str, valid: set, param_name: str) -> str:
     return value
 
 
+def _constant_time_equals(lhs: str, rhs: str) -> bool:
+    return len(lhs) == len(rhs) and secrets.compare_digest(lhs, rhs)
+
+
+def _constant_time_prefix(lhs: str, prefix: str) -> bool:
+    prefix_with_sep = prefix + "_"
+    return len(lhs) > len(prefix) and len(lhs) >= len(prefix_with_sep) and secrets.compare_digest(
+        lhs[: len(prefix_with_sep)], prefix_with_sep
+    )
+
+
 def _validate_extra_cmake_args(value: str) -> str:
     """Validate extra cmake args: length limit, no shell metacharacters.
 
@@ -634,8 +645,11 @@ def _validate_extra_cmake_args(value: str) -> str:
     for token in value.split():
         if token.startswith("-D"):
             var_name = token[2:].split("=", 1)[0]
+            normalized = var_name.upper()
             for prefix in _DANGEROUS_CMAKE_PREFIXES:
-                if var_name.upper() == prefix or var_name.upper().startswith(prefix + "_"):
+                if _constant_time_equals(normalized, prefix) or _constant_time_prefix(
+                    normalized, prefix
+                ):
                     raise ValueError(
                         f"extra_cmake_args contains blocked variable: {var_name}"
                     )
@@ -1156,7 +1170,7 @@ async def api_coverage_gaps(request: Request) -> Response:
 async def api_dump_all(request: Request) -> Response:
     """GET /api/dump-all - deep tag dump via iccDumpAll."""
     try:
-        path = request.query_params.get("path", "")
+        path = _validate_path(request.query_params.get("path", ""), "path")
         if not path:
             return JSONResponse({"ok": False, "error": "path is required"}, status_code=400)
         verbosity_raw = request.query_params.get("verbosity", "100")
@@ -1178,7 +1192,7 @@ async def api_dump_all(request: Request) -> Response:
 async def api_diagnostic_load(request: Request) -> Response:
     """GET /api/diagnostic-load - deep diagnostic load analysis."""
     try:
-        path = request.query_params.get("path", "")
+        path = _validate_path(request.query_params.get("path", ""), "path")
         if not path:
             return JSONResponse({"ok": False, "error": "path is required"}, status_code=400)
         mode = request.query_params.get("mode", "all").strip().lower()[:20]

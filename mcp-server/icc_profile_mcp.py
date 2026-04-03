@@ -307,6 +307,7 @@ def register_allowed_base(base: Path) -> None:
 
 MAX_OUTPUT_BYTES = 10 * 1024 * 1024  # 10 MB cap on subprocess output
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB cap on uploaded profiles
+MAX_PATH_LEN = 512
 _UPLOAD_DIR: Path | None = None  # lazily created secure temp dir
 
 # Matches sanitize-sed.sh: strip C0 control chars except LF (\n), plus DEL (0x7F).
@@ -316,6 +317,43 @@ _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 _CTRL_CHAR_RE = re.compile(
     r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]"
 )
+_SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9._/\\~ :-]+$")
+
+
+def _path_within_base(candidate: Path, base: Path) -> bool:
+    try:
+        candidate.relative_to(base)
+        return True
+    except ValueError:
+        return False
+
+
+def _looks_like_absolute_path(value: str) -> bool:
+    return value.startswith("/") or (len(value) >= 3 and value[1] == ":" and value[2] in "/\\")
+
+
+def _validate_path(path: str, param_name: str = "path") -> str:
+    """Validate a user-supplied profile path."""
+    if not isinstance(path, str) or not path.strip():
+        raise ValueError(f"{param_name} is required")
+    value = path.strip()
+    if len(value) > MAX_PATH_LEN:
+        raise ValueError(f"{param_name} exceeds {MAX_PATH_LEN} characters")
+    if "\x00" in value:
+        raise ValueError(f"{param_name} contains null bytes")
+    if ".." in Path(value).parts:
+        raise ValueError(f"{param_name} contains path traversal sequence")
+    if not _SAFE_PATH_RE.match(value):
+        raise ValueError(f"{param_name} contains disallowed characters")
+
+    if _looks_like_absolute_path(value):
+        candidate = Path(value).resolve()
+        for base_resolved in _ALLOWED_BASES_RESOLVED:
+            if _path_within_base(candidate, base_resolved):
+                return str(candidate)
+        raise ValueError(f"{param_name} must resolve within an allowed base directory")
+
+    return value
 
 
 def _sanitize_output(text: str) -> str:
@@ -344,16 +382,22 @@ def _resolve_profile(path: str) -> Path:
     Security: resolves symlinks and verifies the real path stays within
     allowed directories to prevent path traversal and symlink attacks.
     """
-    p = Path(path)
-    # Reject obviously malicious input
-    if "\x00" in path:
-        raise ValueError("Path contains null bytes")
+    validated = _validate_path(path)
+    p = Path(validated)
+
+    if _looks_like_absolute_path(validated):
+        candidate = p.resolve()
+        for base_resolved in _ALLOWED_BASES_RESOLVED:
+            if _path_within_base(candidate, base_resolved) and candidate.is_file():
+                return candidate
+        raise FileNotFoundError(
+            f"Profile not found: {path}. "
+            f"Searched: repo root, test-profiles/, extended-test-profiles/"
+        )
 
     for base, base_resolved in zip(_ALLOWED_BASES, _ALLOWED_BASES_RESOLVED):
         candidate = (base / p).resolve()
-        try:
-            candidate.relative_to(base_resolved)
-        except ValueError:
+        if not _path_within_base(candidate, base_resolved):
             continue
         if candidate.is_file():
             return candidate
@@ -1107,6 +1151,18 @@ _ALLOWED_CMAKE_VARS = _VALID_CMAKE_OPTIONS | {
 }
 
 
+def _constant_time_equals(lhs: str, rhs: str) -> bool:
+    return len(lhs) == len(rhs) and secrets.compare_digest(lhs, rhs)
+
+
+def _is_allowed_cmake_var(var_name: str) -> bool:
+    normalized = var_name.upper()
+    for allowed in _ALLOWED_CMAKE_VARS:
+        if _constant_time_equals(normalized, allowed):
+            return True
+    return False
+
+
 def _sanitize_cmake_args(raw: str) -> list[str]:
     """Parse and validate extra cmake arguments.
 
@@ -1123,7 +1179,7 @@ def _sanitize_cmake_args(raw: str) -> list[str]:
             args.append(token)
         elif _CMAKE_ARG_RE.match(token):
             var_name = token[2:].split("=", 1)[0]
-            if var_name not in _ALLOWED_CMAKE_VARS:
+            if not _is_allowed_cmake_var(var_name):
                 raise ValueError(
                     f"Rejected cmake variable: '{var_name}'. "
                     f"Only allowlisted variables are accepted. "

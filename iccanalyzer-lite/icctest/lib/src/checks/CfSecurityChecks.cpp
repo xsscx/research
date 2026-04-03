@@ -23,9 +23,6 @@
 using namespace icctest;
 
 // Helpers for raw byte scanning
-static inline uint32_t readU32BE(const uint8_t *p) {
-    return ((uint32_t)p[0]<<24)|((uint32_t)p[1]<<16)|((uint32_t)p[2]<<8)|p[3];
-}
 static inline uint32_t readU32LE(const uint8_t *p) {
     return p[0]|((uint32_t)p[1]<<8)|((uint32_t)p[2]<<16)|((uint32_t)p[3]<<24);
 }
@@ -200,7 +197,10 @@ static CheckResult check_cf093_private_tag_content_scan(const ProfileView& pv) {
 
         uint32_t off = it->TagInfo.offset;
         uint32_t sz = it->TagInfo.size;
-        if (off >= fileSize || off + sz > fileSize || sz < 4) continue;
+        uint64_t tagEnd = static_cast<uint64_t>(off) + static_cast<uint64_t>(sz);
+        if (static_cast<uint64_t>(off) >= static_cast<uint64_t>(fileSize) ||
+            tagEnd > static_cast<uint64_t>(fileSize) ||
+            sz < 4) continue;
 
         privateScanned++;
         const uint8_t *d = &fileData[off];
@@ -223,10 +223,14 @@ static CheckResult check_cf093_private_tag_content_scan(const ProfileView& pv) {
         }
         if (sz >= 64 && d[0]=='M' && d[1]=='Z') {
             uint32_t peOff = readU32LE(&d[60]);
-            if (static_cast<uint64_t>(peOff) + 4 <= sz && d[peOff]=='P' && d[peOff+1]=='E') {
-                findings.push_back({id, Severity::CRITICAL,
-                    "PE executable in private tag '" + std::string(sigStr) + "'",
-                    "", "CWE-506: Embedded Malicious Code"});
+            const uint64_t peHeaderEnd = static_cast<uint64_t>(peOff) + 4ull;
+            if (peHeaderEnd <= static_cast<uint64_t>(sz)) {
+                size_t peIndex = static_cast<size_t>(peOff);
+                if (d[peIndex]=='P' && d[peIndex+1]=='E') {
+                    findings.push_back({id, Severity::CRITICAL,
+                        "PE executable in private tag '" + std::string(sigStr) + "'",
+                        "", "CWE-506: Embedded Malicious Code"});
+                }
             }
         }
     }
@@ -313,18 +317,21 @@ static CheckResult check_cf157_embedded_profile_recursive_depth(const ProfileVie
     int depth = 0;
     const int kMaxNestingDepth = 4;
     CIccProfile *pCurrent = pIcc;
+    // lgtm[cpp/use-after-expired-lifetime] - embedded profiles are owned by tags in the live parent profile chain.
     while (pCurrent) {
         CIccTag *pCurrentTag = pCurrent->FindTag(icSigEmbeddedV5ProfileTag);
         if (!pCurrentTag) break;
 
         auto *pCurrentEmbed = dynamic_cast<CIccTagEmbeddedProfile *>(pCurrentTag);
-        if (!pCurrentEmbed || !pCurrentEmbed->GetProfile()) break;
+        if (!pCurrentEmbed) break;
+        CIccProfile *nextProfile = pCurrentEmbed->GetProfile();
+        if (!nextProfile) break;
 
         depth++;
         if (depth > kMaxNestingDepth) {
             break;
         }
-        pCurrent = pCurrentEmbed->GetProfile();
+        pCurrent = nextProfile;
     }
 
     if (depth > kMaxNestingDepth) {
