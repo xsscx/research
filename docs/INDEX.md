@@ -54,7 +54,7 @@ the right part of `docs/`.
 ### Study ICC Design And Parsing
 
 - ICC specifications and technotes: `iccDEV/specifications/README.md`
-- HTML overlay for `sRGB_v4_ICC_preference.icc` and issue #527:
+- HTML overlay for issue #599 and the `gbd ` signed-overflow PoC:
   `iccDEV/specifications/html/icc-profile-conformance-and-vulnerability-overlay.html`
 - Corkami-style HTML dump poster for `test-profiles/sRgbEncoding.icc`:
   `iccDEV/specifications/html/iccmax-srgbencoding-annotated-dump.html`
