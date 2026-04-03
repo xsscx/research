@@ -271,7 +271,8 @@
       <div class="chip-row">
         <a class="chip note" href="../ICC.2-2023.pdf">ICC.2-2023</a>
         <a class="chip note" href="../../../icc-format/ICC-Binary-Format-Reference.md">ICC binary format reference</a>
-        <a class="chip note" href="../png/iccmax-srgbencoding-annotated-dump.png">PNG poster</a>
+        <a class="chip note" href="../png/iccmax-srgbencoding-annotated-dump.png">PNG poster v1</a>
+        <a class="chip note" href="../png/iccmax-srgbencoding-annotated-dump-v2.png">PNG poster v2</a>
         <a class="chip note" href="../../../../.github/scripts/icc2txt.sh">icc2txt.sh</a>
         <a class="chip note" href="../../../../.github/scripts/icc2txt.zsh">icc2txt.zsh</a>
         <a class="chip note" href="../../../../.github/scripts/icc2txt.ps1">icc2txt.ps1</a>
@@ -464,10 +465,12 @@ pwsh -NoProfile -File .github/scripts/icc2txt.ps1 test-profiles/sRgbEncoding.icc
 
         <article class="note-card">
           <h3>Poster renderer</h3>
-          <pre>python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster.py</pre>
+          <pre>python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster.py
+python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster_v2.py</pre>
           <p class="caption">
-            This writes the paired bitmap poster to
-            <code>docs/iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png</code>.
+            The first command writes the original paired bitmap poster. The
+            second writes the higher-resolution table-first
+            <code>docs/iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png</code>.
           </p>
         </article>
 
