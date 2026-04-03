@@ -317,7 +317,7 @@ _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 _CTRL_CHAR_RE = re.compile(
     r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]"
 )
-_SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9._/\\~ :-]+$")
+_SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9._/\\~ :+-]+$")
 
 
 def _path_within_base(candidate: Path, base: Path) -> bool:
