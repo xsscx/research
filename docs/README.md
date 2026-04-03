@@ -15,9 +15,10 @@ you want a quick map of the major subtrees.
 | `iccDEV/specifications/html/` | Standalone HTML overlays tying spec clauses to concrete profile examples and parser risks |
 | `icc-format/` | ICC binary format notes and CWE mapping |
 
-Current HTML overlays include the three-layer conformance/vulnerability page for
-`sRGB_v4_ICC_preference.icc` and the annotated `xxd` poster for the compact
-iccMAX specimen `test-profiles/sRgbEncoding.icc`.
+Current HTML overlays include the visual issue `#599` byte-to-patch poster for
+`test-profiles/ub-runtime-error-signed-integer-overflowIccTagLut_cpp-Line5638.icc`
+and the annotated `xxd` poster for the compact iccMAX specimen
+`test-profiles/sRgbEncoding.icc`.
 
 The same iccMAX specimen also has a generated PNG poster at
 `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`.
