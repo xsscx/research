@@ -3711,6 +3711,132 @@ def test_tiff_corrupt(suite):
     suite.assert_no_asan("tiff_corrupt.asan_clean", ["-a", corrupt])
 
 
+def test_bigtiff_analysis(suite):
+    """Test BigTIFF image analysis — LE, BE, tiled, and SubIFD variants."""
+    # --- BigTIFF LE (strip-based) ---
+    le_path = CORPUS_DIR / "bigtiff_le.tif"
+    if le_path.exists():
+        le = str(le_path)
+
+        suite.assert_output_contains(
+            "bigtiff_le.detects_format",
+            ["-a", le], r"IMAGE FILE ANALYSIS.*TIFF"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_le.dimensions",
+            ["-a", le], r"Dimensions:.*64.*64"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_le.h139_ok",
+            ["-a", le], r"\[H139\].*Strip Geometry"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_le.h140_ok",
+            ["-a", le], r"\[H140\].*Dimension"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_le.h141_ok",
+            ["-a", le], r"\[H141\].*IFD"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_le.h149_ok",
+            ["-a", le], r"\[H149\].*IFD Chain Cycle"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_le.h150_strip_na",
+            ["-a", le], r"\[H150\].*Tile Geometry"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_le.no_icc",
+            ["-a", le], r"No embedded ICC profile"
+        )
+
+        suite.assert_no_asan("bigtiff_le.asan_clean", ["-a", le])
+
+    # --- BigTIFF BE (Motorola byte order) ---
+    be_path = CORPUS_DIR / "bigtiff_be.tif"
+    if be_path.exists():
+        be = str(be_path)
+
+        suite.assert_output_contains(
+            "bigtiff_be.detects_format",
+            ["-a", be], r"IMAGE FILE ANALYSIS.*TIFF"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_be.dimensions",
+            ["-a", be], r"Dimensions:.*64.*64"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_be.h139_ok",
+            ["-a", be], r"\[H139\].*Strip Geometry"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_be.h149_ok",
+            ["-a", be], r"\[H149\].*IFD Chain Cycle"
+        )
+
+        suite.assert_no_asan("bigtiff_be.asan_clean", ["-a", be])
+
+    # --- BigTIFF tiled (exercises H150 tile geometry) ---
+    tiled_path = CORPUS_DIR / "bigtiff_tiled.tif"
+    if tiled_path.exists():
+        tiled = str(tiled_path)
+
+        suite.assert_output_contains(
+            "bigtiff_tiled.detects_format",
+            ["-a", tiled], r"IMAGE FILE ANALYSIS.*TIFF"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_tiled.h139_tiled_na",
+            ["-a", tiled], r"\[H139\].*Strip Geometry.*\n.*Tiled image"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_tiled.h150_tile_ok",
+            ["-a", tiled], r"\[H150\].*Tile Geometry.*\n.*\[OK\].*Tile geometry valid"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_tiled.tile_size",
+            ["-a", tiled], r"Tile Size:.*32.*32"
+        )
+
+        suite.assert_no_asan("bigtiff_tiled.asan_clean", ["-a", tiled])
+
+    # --- BigTIFF SubIFD (multi-page, exercises H141/H149 IFD chain) ---
+    subifd_path = CORPUS_DIR / "bigtiff_subifd.tif"
+    if subifd_path.exists():
+        subifd = str(subifd_path)
+
+        suite.assert_output_contains(
+            "bigtiff_subifd.detects_format",
+            ["-a", subifd], r"IMAGE FILE ANALYSIS.*TIFF"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_subifd.h141_multipage",
+            ["-a", subifd], r"\[H141\].*IFD.*\n.*Multi-page TIFF.*2 directories"
+        )
+
+        suite.assert_output_contains(
+            "bigtiff_subifd.h149_acyclic",
+            ["-a", subifd], r"\[H149\].*IFD Chain Cycle.*\n.*\[OK\].*acyclic"
+        )
+
+        suite.assert_no_asan("bigtiff_subifd.asan_clean", ["-a", subifd])
+
+
 def test_html_xml_output(suite):
     """Test XML+XSLT (HTML) export mode."""
     good = str(CORPUS_DIR / "valid_srgb.icc")
@@ -7357,6 +7483,7 @@ examples:
         ("Registry Output", test_registry_output),
         ("TIFF Analysis", test_tiff_analysis),
         ("TIFF Corrupt", test_tiff_corrupt),
+        ("BigTIFF Analysis", test_bigtiff_analysis),
         ("HTML/XML Output", test_html_xml_output),
         ("Report Output", test_report_output),
         ("PAWG Output", test_pawg_output),
