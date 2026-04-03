@@ -347,11 +347,10 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
         (void)write(fd, xmlOutput.data(), xmlOutput.size());
         close(fd);
 
-        // Step 4: LoadXml
+        // Step 4: LoadXml — disable XXE before parsing locally-generated XML
+        xmlSubstituteEntitiesDefault(0);
         CIccProfileXml rtProfile;
         std::string parseErr;
-        // lgtm[icc/xml-all-attacks] - round-trip XML is emitted by ToXml() from the same in-memory profile in this isolated child process.
-        // lgtm[icc/xml-external-entity-attacks] - the XML file is produced locally by ToXml() for this profile round-trip check.
         if (!rtProfile.LoadXml(tmpPath, nullptr, &parseErr)) {
             unlink(tmpPath);
             close(pipeFd[1]);
