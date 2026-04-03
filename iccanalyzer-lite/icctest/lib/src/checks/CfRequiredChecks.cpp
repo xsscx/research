@@ -67,6 +67,16 @@ static bool IsPrintable4CC(uint32_t sig) {
 
 static CheckResult check_cf040_common_required_tags_non_devicelink(const ProfileView& pv) {
     auto cls = static_cast<icProfileClassSignature>(pv.header().deviceClass);
+    if (cls == icSigColorEncodingClass) {
+        std::vector<Finding> findings;
+        if (!pv.hasTag(icSigReferenceNameTag))
+            findings.push_back({CheckID{CheckID::Kind::Conformance, 40}, Severity::HIGH,
+                "Missing referenceNameTag (rfnm)",
+                "ICC.2 ColorEncoding profiles require rfnm", ""});
+        if (findings.empty())
+            return CheckResult::ok("ColorEncoding required tags present");
+        return {CheckResult::Status::FINDINGS, "Missing ColorEncoding required tags", std::move(findings)};
+    }
     if (cls == icSigLinkClass)
         return CheckResult::skip("DeviceLink — common required tags checked in CF-044");
 
@@ -688,6 +698,7 @@ static CheckResult check_cf097_private_tag_documentation(const ProfileView& pv) 
         icSigBToA0Tag, icSigBToA1Tag, icSigBToA2Tag,
         icSigBlueMatrixColumnTag, icSigBlueTRCTag,
         icSigCopyrightTag, icSigProfileDescriptionTag,
+        icSigReferenceNameTag,
         icSigMediaWhitePointTag, icSigRedMatrixColumnTag,
         icSigGreenMatrixColumnTag, icSigRedTRCTag,
         icSigGreenTRCTag, icSigGrayTRCTag,
@@ -759,6 +770,7 @@ static CheckResult check_cf098_undocumented_private_tags(const ProfileView& pv) 
     // Extended known tag set includes DToB/BToD
     static const icTagSignature knownTags[] = {
         icSigProfileDescriptionTag, icSigCopyrightTag, icSigMediaWhitePointTag,
+        icSigReferenceNameTag,
         icSigChromaticAdaptationTag, icSigRedMatrixColumnTag, icSigGreenMatrixColumnTag,
         icSigBlueMatrixColumnTag, icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag,
         icSigAToB0Tag, icSigAToB1Tag, icSigAToB2Tag,
@@ -852,7 +864,7 @@ static CheckResult check_cf111_required_tags_per_version(const ProfileView& pv) 
     int major = VersionMajor(pv);
     auto cls = static_cast<icProfileClassSignature>(pv.header().deviceClass);
 
-    if (major >= 4 && cls != icSigLinkClass) {
+    if (major >= 4 && cls != icSigLinkClass && cls != icSigColorEncodingClass) {
         // chad required for v4+ non-DeviceLink if white point != D50
         double iX = S15Fixed16ToDouble(pv.header().illuminantX);
         double iY = S15Fixed16ToDouble(pv.header().illuminantY);

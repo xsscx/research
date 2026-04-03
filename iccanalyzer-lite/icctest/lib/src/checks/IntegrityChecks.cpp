@@ -48,6 +48,7 @@ static const icTagSignature* integrity_known_standard_tags() {
         icSigOutputResponseTag, icSigPreview0Tag,
         icSigPreview1Tag, icSigPreview2Tag,
         icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+        icSigReferenceNameTag,
         icSigRedMatrixColumnTag, icSigRedTRCTag,
         icSigTechnologyTag, icSigViewingCondDescTag,
         icSigViewingConditionsTag, icSigColorantOrderTag,
@@ -138,6 +139,9 @@ static std::set<icTagSignature> build_h123_allowed_tags(uint32_t deviceClass) {
         case icSigNamedColorClass:
             allowed.insert(icSigNamedColor2Tag);
             break;
+        case icSigColorEncodingClass:
+            allowed.insert(icSigReferenceNameTag);
+            break;
         default:
             break;
     }
@@ -189,10 +193,13 @@ static CheckResult check_h122_tag_pad(const ProfileView& pv) {
     CheckBuilder cb;
 
     for (const auto& t : pv.rawTagTable()) {
-        if (t.size % 4 != 0) {
-            // Tag data should be padded to 4-byte boundary
-            // This is a warning, not an error
-            cb.info(sfmt("Tag '%s' size %u not 4-byte padded", sigStr(t.signature).c_str(), t.size));
+        uint64_t paddedEnd =
+            (static_cast<uint64_t>(t.offset) + static_cast<uint64_t>(t.size) + 3ull) & ~3ull;
+        if (paddedEnd > pv.rawSize()) {
+            cb.info(sfmt("Tag '%s' padded extent (%llu) exceeds file size %zu",
+                         sigStr(t.signature).c_str(),
+                         static_cast<unsigned long long>(paddedEnd),
+                         pv.rawSize()));
         }
     }
 

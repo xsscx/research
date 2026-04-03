@@ -106,6 +106,13 @@ static CheckResult check_h12_alignment(const ProfileView& pv) {
 static CheckResult check_h13_required_tags(const ProfileView& pv) {
     CheckBuilder cb;
 
+    if (pv.header().deviceClass == kClassColorEncoding) {
+        if (!pv.hasTag(icSigReferenceNameTag)) {
+            cb.high("Missing required referenceNameTag ('rfnm') for ColorEncoding profile");
+        }
+        return cb.done("Required tags present");
+    }
+
     // All classes require: desc, wtpt, cprt
     if (!pv.hasTag(static_cast<icTagSignature>(kSigDesc))) {
         cb.high("Missing required profileDescriptionTag ('desc')");

@@ -463,6 +463,21 @@ int RunCF008_PCSIlluminantD50(CIccProfile *pIcc) {
   printf("%s[CF-008]%s PCS Illuminant D50 Precision (%sICC.1-2022-05 §7.2.16%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
+  if (pIcc->m_Header.deviceClass == icSigColorEncodingClass) {
+    double ix = icFtoD(pIcc->m_Header.illuminant.X);
+    double iy = icFtoD(pIcc->m_Header.illuminant.Y);
+    double iz = icFtoD(pIcc->m_Header.illuminant.Z);
+    printf("         illuminant X=%.4f, Y=%.4f, Z=%.4f\n", ix, iy, iz);
+    if (fabs(ix) > 0.0001 || fabs(iy) > 0.0001 || fabs(iz) > 0.0001) {
+      printf("         %s[FAIL]%s ColorEncoding profiles must zero header illuminant fields\n",
+             ColorError(), ColorReset());
+      return 1;
+    }
+    printf("         %s[OK]%s ColorEncoding header illuminant is zero as required\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
   // D50 reference values in s15Fixed16Number
   // X = 0.9642 → 0x0000F6D6, Y = 1.0000 → 0x00010000, Z = 0.8249 → 0x0000D32D
   static const double kD50_X = 0.9642;
@@ -520,11 +535,13 @@ int RunCF009_ChadTagRequirement(CIccProfile *pIcc) {
   icUInt32Number version = pIcc->m_Header.version;
   int major = (version >> 24) & 0xFF;
   bool isDeviceLink = (pIcc->m_Header.deviceClass == icSigLinkClass);
+  bool isColorEncoding = (pIcc->m_Header.deviceClass == icSigColorEncodingClass);
 
   // chad tag is relevant for v4+ non-DeviceLink profiles
-  if (major < 4 || isDeviceLink) {
+  if (major < 4 || isDeviceLink || isColorEncoding) {
     printf("         Version %d.x %s — chad tag check not applicable\n",
-           major, isDeviceLink ? "(DeviceLink)" : "");
+           major,
+           isDeviceLink ? "(DeviceLink)" : (isColorEncoding ? "(ColorEncoding)" : ""));
     printf("         %s[OK]%s Not required for this profile type\n",
            ColorSuccess(), ColorReset());
     return 0;

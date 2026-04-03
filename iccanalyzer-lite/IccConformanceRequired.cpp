@@ -79,6 +79,17 @@ static int RunCF040_CommonRequiredTags(CIccProfile *pIcc) {
   printf("%s[CF-040]%s Common Required Tags (Non-DeviceLink) (%sICC.1-2022-05 §8.2%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
+  if (pIcc->m_Header.deviceClass == icSigColorEncodingClass) {
+    if (!CheckTagPresent(pIcc, icSigReferenceNameTag, "referenceNameTag")) {
+      printf("         %s[FAIL]%s referenceNameTag required for ColorEncoding profile\n",
+             ColorError(), ColorReset());
+      return 1;
+    }
+    printf("         %s[OK]%s ColorEncoding required tags present\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
   if (pIcc->m_Header.deviceClass == icSigLinkClass) {
     printf("         DeviceLink profile — common required tags check not applicable\n");
     printf("         %s[OK]%s Skipped (DeviceLink has own requirements in CF-044)\n",
@@ -1305,6 +1316,7 @@ static int RunCF096_PrivateTagSignatureRange(CIccProfile *pIcc) {
     icSigOutputResponseTag, icSigPreview0Tag,
     icSigPreview1Tag, icSigPreview2Tag,
     icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+    icSigReferenceNameTag,
     icSigRedMatrixColumnTag, icSigRedTRCTag,
     icSigTechnologyTag, icSigViewingCondDescTag,
     icSigViewingConditionsTag, icSigColorantOrderTag,
@@ -1401,6 +1413,7 @@ static int RunCF097_PrivateTagDocumentation(CIccProfile *pIcc) {
     icSigProfileSequenceDescTag, icSigTechnologyTag,
     icSigViewingCondDescTag, icSigViewingConditionsTag,
     icSigProfileSequceIdTag,
+    icSigReferenceNameTag,
     icSigPerceptualRenderingIntentGamutTag,
     icSigSaturationRenderingIntentGamutTag,
     (icTagSignature)0
@@ -1471,6 +1484,7 @@ static int RunCF098_UndocumentedPrivateTags(CIccProfile *pIcc) {
     icSigOutputResponseTag, icSigPreview0Tag,
     icSigPreview1Tag, icSigPreview2Tag,
     icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+    icSigReferenceNameTag,
     icSigRedMatrixColumnTag, icSigRedTRCTag,
     icSigTechnologyTag, icSigViewingCondDescTag,
     icSigViewingConditionsTag, icSigColorantOrderTag,
@@ -1623,7 +1637,7 @@ static int RunCF111_RequiredTagsPerVersion(CIccProfile *pIcc) {
 
   // v4.2+ chromaticAdaptationTag is required when the adopted white point
   // does not equal D50 illuminant (for non-DeviceLink profiles)
-  if (version >= 4 && cls != icSigLinkClass) {
+  if (version >= 4 && cls != icSigLinkClass && cls != icSigColorEncodingClass) {
     // CF-009 already checks chad requirement — here we note version-specific detail
     if (pIcc->FindTag(icSigChromaticAdaptationTag) == nullptr) {
       // Check if adopted white != D50
