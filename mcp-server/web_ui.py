@@ -98,11 +98,13 @@ from icc_profile_mcp import (  # noqa: E402
 # ---------------------------------------------------------------------------
 _HERE = Path(__file__).resolve().parent
 _INDEX_HTML = _HERE / "index.html"
+_REPORT_HTML = _HERE / "report.html"
 _CYTOSCAPE_JS = _HERE / "cytoscape.min.js"
 _FAVICON_ICO = _HERE / "favicon.ico"
-_INDEX_CONTENT: str | None = None  # cached on first request
+_HTML_CACHE: dict[str, str] = {}
 MAX_PATH_LEN = 512
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024  # 50 MB cap on file downloads
+MAX_REPORT_BYTES = 64 * 1024  # keep the corkami-style page readable
 # Allow only safe profile-path characters (alphanumeric, dash, underscore, dot, slash, tilde)
 # Include backslash for Windows path compatibility
 _SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9._/\\~ :+-]+$")
@@ -117,6 +119,120 @@ _ALLOWED_XML_DIRS = frozenset({
     "test-profiles", "extended-test-profiles",
     "fuzz/xml/icc", "fuzz/xml/icc/minimized",
 })
+
+_DOC_SOURCE_PATHS = (
+    "docs/icc-format/ICC-Binary-Format-Reference.md",
+    "docs/iccDEV/specifications/README.md",
+    "docs/iccDEV/specifications/ICC.1-2022-05.pdf",
+    "docs/iccDEV/specifications/ICC.2-2023.pdf",
+)
+
+_HEADER_FIELD_SPECS = (
+    ("Profile size", 0, 4, "ICC.1-2022-05 Sec.7.2.2", "u32"),
+    ("CMM type", 4, 4, "ICC.1-2022-05 Sec.7.2.3", "fourcc"),
+    ("Version", 8, 4, "ICC.1-2022-05 Sec.7.2.4", "version"),
+    ("Device class", 12, 4, "ICC.1-2022-05 Sec.7.2.5", "class"),
+    ("Color space", 16, 4, "ICC.1-2022-05 Sec.7.2.6", "fourcc"),
+    ("PCS", 20, 4, "ICC.1-2022-05 Sec.7.2.7", "fourcc"),
+    ("Date/time", 24, 12, "ICC.1-2022-05 Sec.7.2.8", "datetime"),
+    ("Magic", 36, 4, "ICC.1-2022-05 Sec.7.2.9", "magic"),
+    ("Platform", 40, 4, "ICC.1-2022-05 Sec.7.2.10", "fourcc"),
+    ("Profile flags", 44, 4, "ICC.1-2022-05 Sec.7.2.11", "flags"),
+    ("Manufacturer", 48, 4, "ICC.1-2022-05 Sec.7.2.12", "fourcc"),
+    ("Model", 52, 4, "ICC.1-2022-05 Sec.7.2.13", "fourcc"),
+    ("Device attributes", 56, 8, "ICC.1-2022-05 Sec.7.2.14", "u64"),
+    ("Rendering intent", 64, 4, "ICC.1-2022-05 Sec.7.2.15", "intent"),
+    ("PCS illuminant", 68, 12, "ICC.1-2022-05 Sec.7.2.16", "xyz"),
+    ("Creator", 80, 4, "ICC.1-2022-05 Sec.7.2.17", "fourcc"),
+    ("Profile ID", 84, 16, "ICC.1-2022-05 Sec.7.2.18", "profile_id"),
+    ("Reserved", 100, 28, "ICC.1-2022-05 Sec.7.2.19", "reserved"),
+)
+
+_PROFILE_CLASS_NAMES = {
+    "scnr": "Input",
+    "mntr": "Display",
+    "prtr": "Output",
+    "link": "DeviceLink",
+    "spac": "ColorSpace",
+    "abst": "Abstract",
+    "nmcl": "NamedColor",
+    "cenc": "ColorEncoding",
+    "mid ": "MaterialID",
+    "mvis": "MultiVisualization",
+}
+
+_RENDERING_INTENT_NAMES = {
+    0: "Perceptual",
+    1: "Relative Colorimetric",
+    2: "Saturation",
+    3: "Absolute Colorimetric",
+}
+
+_TAG_SIGNATURE_NAMES = {
+    "A2B0": "AToB0Tag",
+    "A2B1": "AToB1Tag",
+    "A2B2": "AToB2Tag",
+    "A2B3": "AToB3Tag",
+    "B2A0": "BToA0Tag",
+    "B2A1": "BToA1Tag",
+    "B2A2": "BToA2Tag",
+    "B2A3": "BToA3Tag",
+    "bTRC": "blueTRCTag",
+    "bXYZ": "blueMatrixColumnTag",
+    "bkpt": "mediaBlackPointTag",
+    "c2sp": "customToStandardPccTag",
+    "chad": "chromaticAdaptationTag",
+    "clro": "colorantOrderTag",
+    "clrt": "colorantTableTag",
+    "cprt": "copyrightTag",
+    "desc": "profileDescriptionTag",
+    "dmdd": "deviceModelDescTag",
+    "dmnd": "deviceMfgDescTag",
+    "gBD0": "gamutBoundaryDescription0Tag",
+    "gBD1": "gamutBoundaryDescription1Tag",
+    "gbd0": "gamutBoundaryDescription0Tag",
+    "gbd1": "gamutBoundaryDescription1Tag",
+    "gTRC": "greenTRCTag",
+    "gXYZ": "greenMatrixColumnTag",
+    "lumi": "luminanceTag",
+    "meas": "measurementTag",
+    "meta": "metadataTag",
+    "ncl2": "namedColor2Tag",
+    "rTRC": "redTRCTag",
+    "rig0": "perceptualRenderingIntentGamutTag",
+    "rig2": "saturationRenderingIntentGamutTag",
+    "rXYZ": "redMatrixColumnTag",
+    "s2cp": "standardToCustomPccTag",
+    "svcn": "spectralViewingConditionsTag",
+    "targ": "charTargetTag",
+    "tech": "technologyTag",
+    "vued": "viewingCondDescTag",
+    "view": "viewingConditionsTag",
+    "wtpt": "mediaWhitePointTag",
+}
+
+_TAG_TYPE_NAMES = {
+    "XYZ ": "XYZArrayType",
+    "chad": "chromaticAdaptationType",
+    "curv": "curveType",
+    "desc": "textDescriptionType",
+    "gbd ": "gamutBoundaryDescType",
+    "mAB ": "lutAToBType",
+    "mBA ": "lutBToAType",
+    "mft1": "lut8Type",
+    "mft2": "lut16Type",
+    "mluc": "multiLocalizedUnicodeType",
+    "mpet": "multiProcessElementType",
+    "ncl2": "namedColor2Type",
+    "para": "parametricCurveType",
+    "sf32": "s15Fixed16ArrayType",
+    "sig ": "signatureType",
+    "svcn": "spectralViewingConditionsType",
+    "text": "textType",
+    "view": "viewingConditionsType",
+}
+
+_PAWG_ITEM_RE = re.compile(r"^\[(OK|WARN|FAIL|N/A|GAP| -- )\]\s+([SCQ]\d+)\s+(.*)$")
 
 # Limit concurrent subprocess executions
 _MAX_CONCURRENT = 4
@@ -261,7 +377,6 @@ def _validate_xml_directory(value: str) -> str:
             f"directory must be one of: {', '.join(sorted(_ALLOWED_XML_DIRS))}"
         )
     return value
-
 
 _KNOWN_PROFILE_CLASSES = {
     "scnr": "Input device profile",
@@ -935,25 +1050,482 @@ async def _build_profile_overlay(path: str) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Route handlers
-# ---------------------------------------------------------------------------
-async def index(request: Request) -> Response:
-    """Serve the single-page HTML UI with per-request CSP nonce."""
-    global _INDEX_CONTENT
-    if _INDEX_CONTENT is None:
-        if not _INDEX_HTML.is_file():
-            return HTMLResponse("<h1>index.html not found</h1>", status_code=500)
-        _INDEX_CONTENT = _INDEX_HTML.read_text(encoding="utf-8")
+def _render_html_template(template_path: Path, missing_html: str) -> HTMLResponse:
+    """Serve a cached HTML template with a fresh CSP nonce."""
+    key = str(template_path)
+    if key not in _HTML_CACHE:
+        if not template_path.is_file():
+            return HTMLResponse(missing_html, status_code=500)
+        _HTML_CACHE[key] = template_path.read_text(encoding="utf-8")
 
-    # Generate a fresh nonce for each request
     nonce = secrets.token_urlsafe(32)
-    html = _INDEX_CONTENT.replace("<style>", f'<style nonce="{nonce}">', 1)
+    html = _HTML_CACHE[key].replace("<style>", f'<style nonce="{nonce}">', 1)
     html = html.replace("<script>", f'<script nonce="{nonce}">', 1)
 
     headers = dict(_SECURITY_HEADERS)
     headers["Content-Security-Policy"] = _CSP_NONCE_TEMPLATE.format(nonce=nonce)
     return HTMLResponse(html, headers=headers)
+
+
+def _read_u16be(data: bytes, offset: int) -> int:
+    if offset < 0 or offset + 2 > len(data):
+        return 0
+    return int.from_bytes(data[offset:offset + 2], "big", signed=False)
+
+
+def _read_u32be(data: bytes, offset: int) -> int:
+    if offset < 0 or offset + 4 > len(data):
+        return 0
+    return int.from_bytes(data[offset:offset + 4], "big", signed=False)
+
+
+def _read_u64be(data: bytes, offset: int) -> int:
+    if offset < 0 or offset + 8 > len(data):
+        return 0
+    return int.from_bytes(data[offset:offset + 8], "big", signed=False)
+
+
+def _raw_hex(raw: bytes) -> str:
+    return " ".join(f"{byte:02X}" for byte in raw)
+
+
+def _fourcc(raw: bytes) -> str:
+    chars: list[str] = []
+    for byte in raw[:4]:
+        if 32 <= byte <= 126:
+            chars.append(chr(byte))
+        else:
+            chars.append(".")
+    return "".join(chars)
+
+
+def _format_fourcc(raw: bytes) -> str:
+    value = _fourcc(raw)
+    if value == "....":
+        return value
+    return f"{value!r}"
+
+
+def _decode_version(value: int) -> str:
+    major = (value >> 24) & 0xFF
+    minor = (value >> 20) & 0x0F
+    bugfix = (value >> 16) & 0x0F
+    return f"{major}.{minor}.{bugfix}"
+
+
+def _decode_datetime(data: bytes, offset: int) -> str:
+    parts = [_read_u16be(data, offset + i * 2) for i in range(6)]
+    return (
+        f"{parts[0]:04d}-{parts[1]:02d}-{parts[2]:02d} "
+        f"{parts[3]:02d}:{parts[4]:02d}:{parts[5]:02d}"
+    )
+
+
+def _decode_s15fixed16(raw: bytes) -> float:
+    if len(raw) != 4:
+        return 0.0
+    return int.from_bytes(raw, "big", signed=True) / 65536.0
+
+
+def _decode_xyz(data: bytes, offset: int) -> str:
+    x = _decode_s15fixed16(data[offset:offset + 4])
+    y = _decode_s15fixed16(data[offset + 4:offset + 8])
+    z = _decode_s15fixed16(data[offset + 8:offset + 12])
+    return f"X={x:.4f}, Y={y:.4f}, Z={z:.4f}"
+
+
+def _decode_profile_flags(value: int) -> str:
+    bits: list[str] = []
+    if value & 0x00000001:
+        bits.append("Embedded")
+    if value & 0x00000002:
+        bits.append("Dependent")
+    if value & 0x00000008:
+        bits.append("HDR-to-SDR")
+    labels = ", ".join(bits) if bits else "none"
+    return f"0x{value:08X} ({labels})"
+
+
+def _decode_reserved(raw: bytes) -> str:
+    return "all zero" if all(byte == 0 for byte in raw) else "non-zero bytes present"
+
+
+def _format_header_value(name: str, decoder: str, raw: bytes, data: bytes, offset: int) -> str:
+    if decoder == "u32":
+        value = _read_u32be(data, offset)
+        return f"{value} (0x{value:08X})"
+    if decoder == "u64":
+        value = _read_u64be(data, offset)
+        return f"0x{value:016X}"
+    if decoder == "fourcc":
+        text = _fourcc(raw)
+        if name == "Platform" and text == "....":
+            return "unspecified"
+        return text if text == "...." else f"{text!r}"
+    if decoder == "version":
+        return _decode_version(_read_u32be(data, offset))
+    if decoder == "class":
+        sig = _fourcc(raw)
+        label = _PROFILE_CLASS_NAMES.get(sig, "Unknown")
+        return f"{sig!r} ({label})"
+    if decoder == "datetime":
+        return _decode_datetime(data, offset)
+    if decoder == "magic":
+        sig = _fourcc(raw)
+        return f"{sig!r} {'OK' if sig == 'acsp' else 'INVALID'}"
+    if decoder == "flags":
+        return _decode_profile_flags(_read_u32be(data, offset))
+    if decoder == "intent":
+        value = _read_u32be(data, offset)
+        label = _RENDERING_INTENT_NAMES.get(value, "Unknown")
+        return f"{label} (0x{value:08X})"
+    if decoder == "xyz":
+        return _decode_xyz(data, offset)
+    if decoder == "profile_id":
+        return raw.hex()
+    if decoder == "reserved":
+        return _decode_reserved(raw)
+    return _raw_hex(raw)
+
+
+def _build_header_fields(data: bytes) -> list[dict[str, object]]:
+    fields: list[dict[str, object]] = []
+    for idx, (name, start, size, spec_ref, decoder) in enumerate(_HEADER_FIELD_SPECS):
+        raw = data[start:start + size]
+        fields.append({
+            "id": f"hdr-{idx}",
+            "name": name,
+            "start": start,
+            "size": size,
+            "specRef": spec_ref,
+            "rawHex": _raw_hex(raw),
+            "value": _format_header_value(name, decoder, raw, data, start),
+            "group": "header",
+            "detail": f"{name} ({size} bytes) - {spec_ref}",
+        })
+    return fields
+
+
+def _build_tag_entries(data: bytes) -> tuple[dict[str, object], list[dict[str, object]]]:
+    raw_tag_count = _read_u32be(data, 128) if len(data) >= 132 else 0
+    available_entries = max((len(data) - 132) // 12, 0) if len(data) > 132 else 0
+    parsed_count = min(raw_tag_count, available_entries)
+    tag_count = {
+        "id": "tag-count",
+        "name": "Tag count",
+        "start": 128,
+        "size": 4,
+        "specRef": "ICC.1-2022-05 Sec.7.3",
+        "rawHex": _raw_hex(data[128:132]),
+        "value": raw_tag_count,
+        "parsedCount": parsed_count,
+        "availableEntries": available_entries,
+        "group": "table",
+        "detail": "Tag table entry count",
+    }
+
+    tags: list[dict[str, object]] = []
+    for idx in range(parsed_count):
+        entry_start = 132 + idx * 12
+        sig_raw = data[entry_start:entry_start + 4]
+        signature = _fourcc(sig_raw)
+        data_offset = _read_u32be(data, entry_start + 4)
+        data_size = _read_u32be(data, entry_start + 8)
+        body_end = min(data_offset + data_size, len(data))
+        raw_type = data[data_offset:data_offset + 4] if data_offset + 4 <= len(data) else b""
+        type_signature = _fourcc(raw_type) if raw_type else "...."
+        padding = (-data_size) % 4
+        tags.append({
+            "id": f"tag-{idx}",
+            "index": idx,
+            "signature": signature,
+            "tagName": _TAG_SIGNATURE_NAMES.get(signature, "Unknown tag"),
+            "typeSignature": type_signature,
+            "typeName": _TAG_TYPE_NAMES.get(type_signature, "Unknown type"),
+            "tableOffset": entry_start,
+            "dataOffset": data_offset,
+            "dataSize": data_size,
+            "padding": padding,
+            "bodyEnd": body_end,
+            "group": "tag",
+            "detail": (
+                f"{signature!r} at 0x{data_offset:04X}, "
+                f"{data_size} bytes, type {type_signature!r}"
+            ),
+        })
+    return tag_count, tags
+
+
+def _status_counts(items: list[dict[str, object]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        status = str(item.get("status", "unknown")).lower()
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
+def _line_ascii(raw: bytes) -> str:
+    return "".join(chr(byte) if 32 <= byte <= 126 else "." for byte in raw)
+
+
+def _build_hex_lines(data: bytes, region_ids: list[int], regions: list[dict[str, object]]) -> list[dict[str, object]]:
+    display = data[:MAX_REPORT_BYTES]
+    lines: list[dict[str, object]] = []
+    for offset in range(0, len(display), 16):
+        chunk = display[offset:offset + 16]
+        chunk_regions = region_ids[offset:offset + len(chunk)]
+        runs: list[dict[str, object]] = []
+        if chunk:
+            run_start = 0
+            current = chunk_regions[0]
+            for idx in range(1, len(chunk)):
+                if chunk_regions[idx] != current:
+                    runs.append({
+                        "start": run_start,
+                        "end": idx,
+                        "regionId": regions[current]["id"] if current >= 0 else "",
+                    })
+                    run_start = idx
+                    current = chunk_regions[idx]
+            runs.append({
+                "start": run_start,
+                "end": len(chunk),
+                "regionId": regions[current]["id"] if current >= 0 else "",
+            })
+        lines.append({
+            "offset": offset,
+            "cells": [f"{byte:02X}" for byte in chunk],
+            "ascii": _line_ascii(chunk),
+            "runs": runs,
+        })
+    return lines
+
+
+def _parse_pawg_report(text: str) -> dict[str, object]:
+    categories: list[dict[str, object]] = []
+    meta: dict[str, str] = {}
+    coverage: list[str] = []
+    current: dict[str, object] | None = None
+    for raw_line in _sanitize_output(text).splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line in {"Security", "Conformance", "Quality"}:
+            current = {"name": line, "items": []}
+            categories.append(current)
+            continue
+        if current is not None:
+            match = _PAWG_ITEM_RE.match(line)
+            if match:
+                current["items"].append({
+                    "status": match.group(1).strip(),
+                    "id": match.group(2),
+                    "text": match.group(3),
+                })
+                continue
+        if line.startswith(("Date:", "File:", "SHA-256:", "Size:", "View:")):
+            key, _, value = line.partition(":")
+            meta[key.lower()] = value.strip()
+        elif line.startswith(("Checks evaluated:", "Checks mapped:", "Registry total:", "Spec coverage:")):
+            coverage.append(line)
+    for category in categories:
+        items = category.get("items", [])
+        category["summary"] = _status_counts(items if isinstance(items, list) else [])
+    return {"meta": meta, "coverage": coverage, "categories": categories}
+
+
+async def _load_security_json_payload(path: str, engine: str) -> dict[str, object]:
+    result = await analyze_security_json(path, engine=engine)
+    sep = "\n--- stderr ---\n"
+    if sep in result:
+        result = result[:result.index(sep)]
+    if result.lstrip().startswith("--- stderr ---"):
+        result = ""
+    result = result.strip()
+    if not result or not result.startswith("{"):
+        heuristic_count = _get_heuristic_count()
+        if engine == "v1":
+            return {
+                "engine": engine,
+                "crashRecovery": True,
+                "results": [],
+                "summary": {
+                    "totalHeuristics": heuristic_count,
+                    "heuristicsRun": 0,
+                    "ok": 0,
+                    "warnings": 0,
+                    "critical": 1,
+                    "crashRecovery": True,
+                    "note": (
+                        "Profile triggered crash recovery (SIGSEGV or SIGABRT) - "
+                        "no JSON output available. Use /api/security for text analysis."
+                    ),
+                },
+            }
+        return {
+            "engine": engine,
+            "crashRecovery": True,
+            "results": [],
+            "stats": {
+                "checksRun": 0,
+                "findings": 0,
+                "crashRecovery": True,
+                "note": (
+                    "Profile triggered crash recovery (SIGSEGV or SIGABRT) - "
+                    "no JSON output available. Use /api/security for text analysis."
+                ),
+            },
+        }
+    return json.loads(result)
+
+
+async def _build_profile_report(path: str, engine: str) -> dict[str, object]:
+    profile = _resolve_profile(path)
+    data = profile.read_bytes()
+    display_bytes = min(len(data), MAX_REPORT_BYTES)
+
+    header_fields = _build_header_fields(data)
+    tag_count, tag_entries = _build_tag_entries(data)
+
+    regions: list[dict[str, object]] = []
+    regions.extend(header_fields)
+    regions.append(tag_count)
+    for tag in tag_entries:
+        entry_start = int(tag["tableOffset"])
+        signature = str(tag["signature"])
+        data_offset = int(tag["dataOffset"])
+        data_size = int(tag["dataSize"])
+        padding = int(tag["padding"])
+        type_signature = str(tag["typeSignature"])
+
+        regions.append({
+            "id": f"{tag['id']}-sig",
+            "name": f"{signature} signature",
+            "start": entry_start,
+            "size": 4,
+            "specRef": "ICC.1-2022-05 Sec.7.3",
+            "group": "table",
+            "detail": f"Tag entry {tag['index']} signature",
+        })
+        regions.append({
+            "id": f"{tag['id']}-offset",
+            "name": f"{signature} offset",
+            "start": entry_start + 4,
+            "size": 4,
+            "specRef": "ICC.1-2022-05 Sec.7.3",
+            "group": "table",
+            "detail": f"Tag entry {tag['index']} data offset",
+        })
+        regions.append({
+            "id": f"{tag['id']}-size",
+            "name": f"{signature} size",
+            "start": entry_start + 8,
+            "size": 4,
+            "specRef": "ICC.1-2022-05 Sec.7.3",
+            "group": "table",
+            "detail": f"Tag entry {tag['index']} data size",
+        })
+        if data_offset < len(data) and data_size > 0:
+            regions.append({
+                "id": f"{tag['id']}-body",
+                "name": f"{signature} body",
+                "start": data_offset,
+                "size": min(data_size, len(data) - data_offset),
+                "specRef": "ICC.1-2022-05 Sec.7.3.1",
+                "group": "tag",
+                "detail": (
+                    f"{tag['tagName']} / {type_signature!r} "
+                    f"({data_size} bytes)"
+                ),
+            })
+            pad_start = data_offset + data_size
+            if padding and pad_start < len(data):
+                regions.append({
+                    "id": f"{tag['id']}-pad",
+                    "name": f"{signature} padding",
+                    "start": pad_start,
+                    "size": min(padding, len(data) - pad_start),
+                    "specRef": "ICC.1-2022-05 Sec.7.3",
+                    "group": "pad",
+                    "detail": f"4-byte alignment padding after {signature!r}",
+                })
+
+    region_ids = [-1] * display_bytes
+    for region_index, region in enumerate(regions):
+        start = int(region["start"])
+        end = min(start + int(region["size"]), display_bytes)
+        if end <= 0 or start >= display_bytes:
+            continue
+        for pos in range(max(start, 0), end):
+            if region_ids[pos] == -1:
+                region_ids[pos] = region_index
+
+    security_payload = await _load_security_json_payload(path, engine)
+    pawg_report = await analyze_security_report(path, engine=engine)
+    pawg = _parse_pawg_report(pawg_report)
+
+    all_results = security_payload.get("results", [])
+    if not isinstance(all_results, list):
+        all_results = []
+    conformance_all = [
+        item for item in all_results
+        if str(item.get("name", "")).startswith("CF-")
+    ]
+    conformance_non_ok = [
+        item for item in conformance_all
+        if str(item.get("status", "")).lower() not in {"ok", "skip"}
+    ]
+    heuristic_non_ok = [
+        item for item in all_results
+        if not str(item.get("name", "")).startswith("CF-")
+        and str(item.get("status", "")).lower() not in {"ok", "skip"}
+    ]
+
+    return {
+        "meta": {
+            "requestPath": path,
+            "resolvedPath": str(profile),
+            "fileName": profile.name,
+            "engine": engine,
+            "size": len(data),
+            "displayBytes": display_bytes,
+            "truncated": len(data) > MAX_REPORT_BYTES,
+            "maxDisplayBytes": MAX_REPORT_BYTES,
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "tagCount": tag_count["value"],
+            "parsedTags": tag_count["parsedCount"],
+        },
+        "docs": list(_DOC_SOURCE_PATHS),
+        "headerFields": header_fields,
+        "tagCount": tag_count,
+        "tagEntries": tag_entries,
+        "regions": regions,
+        "hexLines": _build_hex_lines(data, region_ids, regions),
+        "pawg": pawg,
+        "conformance": {
+            "summary": _status_counts(conformance_all),
+            "nonOk": conformance_non_ok,
+            "all": conformance_all,
+        },
+        "heuristics": {
+            "summary": _status_counts(heuristic_non_ok),
+            "nonOk": heuristic_non_ok,
+        },
+        "securityJson": security_payload.get("summary") or security_payload.get("stats") or {},
+    }
+
+
+# ---------------------------------------------------------------------------
+# Route handlers
+# ---------------------------------------------------------------------------
+async def index(request: Request) -> Response:
+    """Serve the single-page HTML UI with per-request CSP nonce."""
+    return _render_html_template(_INDEX_HTML, "<h1>index.html not found</h1>")
+
+
+async def report_page(request: Request) -> Response:
+    """Serve the standalone ICC binary report page."""
+    return _render_html_template(_REPORT_HTML, "<h1>report.html not found</h1>")
 
 
 async def serve_cytoscape_js(request: Request) -> Response:
@@ -1044,54 +1616,11 @@ async def api_security(request: Request) -> Response:
 async def api_security_json(request: Request) -> Response:
     """GET /api/security-json?path=<profile>&engine=v1|v2|auto"""
     try:
-        import json as _json
         path = _validate_path(request.query_params.get("path", ""), "path")
         engine = request.query_params.get("engine", DEFAULT_ANALYSIS_ENGINE)
         async with (await _get_semaphore()):
-            result = await analyze_security_json(path, engine=engine)
-        # Defense-in-depth: strip any residual stderr if present
-        sep = "\n--- stderr ---\n"
-        if sep in result:
-            result = result[: result.index(sep)]
-        if result.lstrip().startswith("--- stderr ---"):
-            result = ""
-        # Handle crash recovery: if no JSON output, return structured error
-        result = result.strip()
-        if not result or not result.startswith("{"):
-            _h_count = _get_heuristic_count()
-            crash_payload = {
-                "engine": engine,
-                "crashRecovery": True,
-                "results": [],
-            }
-            if engine == "v1":
-                crash_payload["summary"] = {
-                    "totalHeuristics": _h_count,
-                    "heuristicsRun": 0,
-                    "ok": 0,
-                    "warnings": 0,
-                    "critical": 1,
-                    "crashRecovery": True,
-                    "note": (
-                        "Profile triggered crash recovery (SIGSEGV/SIGABRT) - "
-                        "no JSON output available. Use /api/security for text analysis."
-                    ),
-                }
-            else:
-                crash_payload["stats"] = {
-                    "checksRun": 0,
-                    "findings": 0,
-                    "crashRecovery": True,
-                    "note": (
-                        "Profile triggered crash recovery (SIGSEGV/SIGABRT) - "
-                        "no JSON output available. Use /api/security for text analysis."
-                    ),
-                }
-            return JSONResponse({
-                "ok": True,
-                "result": crash_payload,
-            })
-        return JSONResponse({"ok": True, "result": _json.loads(result)})
+            result = await _load_security_json_payload(path, engine)
+        return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
@@ -1218,6 +1747,18 @@ async def api_compare(request: Request) -> Response:
         path_b = _validate_path(request.query_params.get("path_b", ""), "path_b")
         async with (await _get_semaphore()):
             result = await compare_profiles(path_a, path_b)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_report(request: Request) -> Response:
+    """GET /api/report?path=<profile>&engine=v1|v2|auto"""
+    try:
+        path = _validate_path(request.query_params.get("path", ""), "path")
+        engine = request.query_params.get("engine", DEFAULT_ANALYSIS_ENGINE)
+        async with (await _get_semaphore()):
+            result = await _build_profile_report(path, engine)
         return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
@@ -1917,6 +2458,7 @@ async def api_knowledge_graph_json(request: Request) -> Response:
 # ---------------------------------------------------------------------------
 routes = [
     Route("/", index, methods=["GET"]),
+    Route("/report", report_page, methods=["GET"]),
     Route("/favicon.ico", serve_favicon, methods=["GET"]),
     Route("/.well-known/appspecific/com.chrome.devtools.json", no_content, methods=["GET"]),
     Route("/static/cytoscape.min.js", serve_cytoscape_js, methods=["GET"]),
@@ -1935,6 +2477,7 @@ routes = [
     Route("/api/xml", api_xml, methods=["GET"]),
     Route("/api/xml/download", api_xml_download, methods=["GET"]),
     Route("/api/compare", api_compare, methods=["GET"]),
+    Route("/api/report", api_report, methods=["GET"]),
     Route("/api/upload", api_upload, methods=["POST"]),
     Route("/api/output/download", api_output_download, methods=["POST"]),
     Route("/api/cmake/configure", api_cmake_configure, methods=["POST"]),

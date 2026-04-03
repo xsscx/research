@@ -527,6 +527,7 @@ footer {
   <nav class="toolbar" id="toolbar" role="navigation" aria-label="Analysis tools">
     <button data-tool="list"      class="active">List Profiles</button>
     <button data-tool="inspect"  >Inspect</button>
+    <button data-tool="profile_report" >Binary Report</button>
     <button data-tool="security" >Security Scan</button>
     <button data-tool="security_json" >Security (JSON)</button>
     <button data-tool="security_report" >Security (Report)</button>
@@ -594,6 +595,7 @@ footer {
 const TOOLS = {
   list:      { label: "List Profiles",  endpoint: "/api/list",      fields: ["directory"], method: "GET" },
   inspect:   { label: "Inspect",        endpoint: "/api/inspect",   fields: ["path"],      method: "GET" },
+  profile_report: { label: "Binary Report", endpoint: null, fields: ["path", "engine"], method: null },
   security:  { label: "Security Scan",  endpoint: "/api/security",  fields: ["path"],      method: "GET" },
   security_json:   { label: "Security (JSON)",   endpoint: "/api/security-json",   fields: ["path"], method: "GET" },
   security_report: { label: "Security (Report)", endpoint: "/api/security-report", fields: ["path"], method: "GET" },
@@ -1093,6 +1095,31 @@ function renderInputs() {
         </div>
         <div id="graphViewerFrame" class="graph-frame"></div>
       </div>`;
+  } else if (currentTool === "profile_report") {
+    html = `
+      <div class="input-row">
+        <div class="field field-wide">
+          <label for="inp-path">Profile</label>
+          <input id="inp-path" value="${esc(DEFAULT_PROFILE)}" placeholder="e.g. sRGB_D65_MAT.icc" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="inp-engine">Engine</label>
+          <select id="inp-engine">
+            <option value="auto" selected>Auto</option>
+            <option value="v1">V1</option>
+            <option value="v2">V2</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btnRun">Open Report</button>
+      </div>
+      <div class="file-upload-row">
+        <input type="file" id="fileInput" accept=".icc,.icm,.icc2" class="hidden-input">
+        <button class="btn-upload" id="btnUpload">Browse Choose File</button>
+        <button class="btn-upload" id="btnTogglePicker">Profiles Server Profiles</button>
+        <span class="upload-status" id="uploadStatus"></span>
+      </div>
+      <div id="profilePicker"></div>
+      <p class="tool-hint">Opens a standalone page with a corkami-style hex dump, header field map, tag table, PAWG checklist, and full CF-series conformance ledger.</p>`;
   } else {
     const defaultVal = currentTool === "xml" ? DEFAULT_XML_PROFILE : DEFAULT_PROFILE;
     const xmlSaveBtn = currentTool === "xml"
@@ -1506,10 +1533,34 @@ async function handleFileUpload() {
   }
 }
 
+function openProfileReport() {
+  const pathEl = document.getElementById("inp-path");
+  const engineEl = document.getElementById("inp-engine");
+  const path = pathEl ? pathEl.value.trim() : "";
+  const engine = engineEl ? engineEl.value.trim() : "auto";
+  if (!path) {
+    setStatus("err", "path is required");
+    if (pathEl) pathEl.focus();
+    return;
+  }
+  const url = `/report?path=${encodeURIComponent(path)}&engine=${encodeURIComponent(engine || "auto")}`;
+  const child = window.open(url, "_blank", "noopener");
+  if (!child) {
+    window.location.href = url;
+    return;
+  }
+  setStatus("ok", "Binary report opened in a new tab");
+}
+
 /* -- Run the selected tool ------------------------------- */
 async function run() {
   const tool = TOOLS[currentTool];
   const optionalGetFields = new Set(["build_dir", "severity_filter"]);
+
+  if (currentTool === "profile_report") {
+    openProfileReport();
+    return;
+  }
 
   // graph_viewer has no API endpoint -- handled by loadGraphViewer()
   if (!tool.endpoint) return;

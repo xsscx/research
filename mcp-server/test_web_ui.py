@@ -159,6 +159,7 @@ def test_form_fields_per_tool():
     # Map of tool -> required inp-* field IDs that must exist in a renderInputs branch
     tool_fields = {
         "list":              ["inp-directory"],
+        "profile_report":    ["inp-path", "inp-engine"],
         "cmake_configure":   ["inp-build_type", "inp-sanitizers", "inp-compiler", "inp-generator"],
         "cmake_build":       ["inp-build_dir", "inp-target", "inp-jobs"],
         "create_profiles":   ["inp-build_dir"],
@@ -359,6 +360,7 @@ def test_method_enforcement():
     check("POST /api/health -> 405", c.post("/api/health").status_code == 405)
     check("POST /api/list -> 405", c.post("/api/list").status_code == 405)
     check("POST /api/inspect -> 405", c.post("/api/inspect").status_code == 405)
+    check("POST /api/report -> 405", c.post("/api/report").status_code == 405)
 
 
 # -- 404 for Unknown Routes -----------------------------------
@@ -375,6 +377,174 @@ def test_inspect():
     d = r.json()
     check("Inspect ok", d["ok"] is True)
     check("Inspect has output", len(d["result"]) > 50)
+
+
+def test_report_page():
+    r = c.get("/report?path=sRGB_D65_MAT.icc&engine=v2")
+    check("Report page 200", r.status_code == 200)
+    check("Report page is HTML", "text/html" in r.headers.get("content-type", ""))
+    check("Report page has title", "<title>ICC Binary Report</title>" in r.text)
+    check("Report page has header map section", "Header Map" in r.text)
+    check("Report page has conformance section", "Conformance Findings" in r.text)
+    check("Report page fetches /api/report", "/api/report?path=" in r.text)
+
+
+def test_profile_report_api():
+    saved_build = web_ui_mod._build_profile_report
+    calls: list[tuple[str, str]] = []
+
+    async def fake_build(path: str, engine: str) -> dict:
+        calls.append((path, engine))
+        return {
+            "meta": {
+                "requestPath": path,
+                "resolvedPath": f"E:/fake/{path}",
+                "fileName": "sRGB_D65_MAT.icc",
+                "engine": engine,
+                "size": 588,
+                "displayBytes": 588,
+                "truncated": False,
+                "maxDisplayBytes": 65536,
+                "sha256": "00" * 32,
+                "tagCount": 11,
+                "parsedTags": 11,
+            },
+            "docs": [
+                "docs/icc-format/ICC-Binary-Format-Reference.md",
+                "docs/iccDEV/specifications/ICC.1-2022-05.pdf",
+            ],
+            "headerFields": [
+                {
+                    "id": "hdr-0",
+                    "name": "Profile size",
+                    "start": 0,
+                    "size": 4,
+                    "specRef": "ICC.1-2022-05 Sec.7.2.2",
+                    "rawHex": "00 00 02 4C",
+                    "value": "588 (0x0000024C)",
+                    "group": "header",
+                    "detail": "Profile size (4 bytes) - ICC.1-2022-05 Sec.7.2.2",
+                },
+            ],
+            "tagCount": {
+                "id": "tag-count",
+                "name": "Tag count",
+                "start": 128,
+                "size": 4,
+                "specRef": "ICC.1-2022-05 Sec.7.3",
+                "rawHex": "00 00 00 0B",
+                "value": 11,
+                "parsedCount": 11,
+                "availableEntries": 11,
+                "group": "table",
+                "detail": "Tag table entry count",
+            },
+            "tagEntries": [
+                {
+                    "id": "tag-0",
+                    "index": 0,
+                    "signature": "desc",
+                    "tagName": "profileDescriptionTag",
+                    "typeSignature": "mluc",
+                    "typeName": "multiLocalizedUnicodeType",
+                    "tableOffset": 132,
+                    "dataOffset": 264,
+                    "dataSize": 84,
+                    "padding": 0,
+                    "bodyEnd": 348,
+                    "group": "tag",
+                    "detail": "'desc' at 0x0108, 84 bytes, type 'mluc'",
+                },
+            ],
+            "regions": [
+                {
+                    "id": "hdr-0",
+                    "name": "Profile size",
+                    "start": 0,
+                    "size": 4,
+                    "specRef": "ICC.1-2022-05 Sec.7.2.2",
+                    "group": "header",
+                    "detail": "Profile size field",
+                },
+            ],
+            "hexLines": [
+                {
+                    "offset": 0,
+                    "cells": ["00", "00", "02", "4C"],
+                    "ascii": "...L",
+                    "runs": [{"start": 0, "end": 4, "regionId": "hdr-0"}],
+                },
+            ],
+            "pawg": {
+                "meta": {"file": path},
+                "coverage": ["Checks evaluated: 31"],
+                "categories": [
+                    {
+                        "name": "Conformance",
+                        "items": [{"status": "WARN", "id": "C1", "text": "Example item"}],
+                        "summary": {"warn": 1},
+                    },
+                ],
+            },
+            "conformance": {
+                "summary": {"warn": 1, "ok": 1},
+                "nonOk": [
+                    {
+                        "name": "CF-EXAMPLE",
+                        "status": "WARN",
+                        "specRef": "ICC.1-2022-05 Sec.7.3",
+                        "detail": "Example conformance note",
+                    },
+                ],
+                "all": [
+                    {
+                        "name": "CF-EXAMPLE",
+                        "status": "WARN",
+                        "specRef": "ICC.1-2022-05 Sec.7.3",
+                        "detail": "Example conformance note",
+                    },
+                ],
+            },
+            "heuristics": {
+                "summary": {"critical": 1},
+                "nonOk": [
+                    {
+                        "name": "HX-EXAMPLE",
+                        "status": "CRITICAL",
+                        "detail": "Example security finding",
+                        "severity": "CRITICAL",
+                    },
+                ],
+            },
+            "securityJson": {"checksRun": 173, "findings": 2},
+        }
+
+    web_ui_mod._build_profile_report = fake_build
+    try:
+        r = c.get("/api/report?path=sRGB_D65_MAT.icc&engine=v2")
+        check("ProfileReport 200", r.status_code == 200)
+        d = r.json()
+        check("ProfileReport ok", d["ok"] is True)
+        check("ProfileReport build called once", calls == [("sRGB_D65_MAT.icc", "v2")])
+        result = d.get("result", {})
+        check("ProfileReport has meta", result.get("meta", {}).get("fileName") == "sRGB_D65_MAT.icc")
+        check("ProfileReport has docs", len(result.get("docs", [])) == 2)
+        check("ProfileReport has header fields", len(result.get("headerFields", [])) == 1)
+        check("ProfileReport has tag entries", len(result.get("tagEntries", [])) == 1)
+        check("ProfileReport has hex lines", len(result.get("hexLines", [])) == 1)
+        check("ProfileReport has PAWG category",
+              result.get("pawg", {}).get("categories", [{}])[0].get("name") == "Conformance")
+        check("ProfileReport has CF finding",
+              result.get("conformance", {}).get("nonOk", [{}])[0].get("name") == "CF-EXAMPLE")
+        check("ProfileReport has heuristic finding",
+              result.get("heuristics", {}).get("nonOk", [{}])[0].get("name") == "HX-EXAMPLE")
+        check("ProfileReport has security stats",
+              result.get("securityJson", {}).get("checksRun") == 173)
+    finally:
+        web_ui_mod._build_profile_report = saved_build
+
+    r2 = c.get("/api/report?path=../../etc/passwd")
+    check("ProfileReport bad path 400", r2.status_code == 400)
 
 
 def test_security_scan():
@@ -1220,6 +1390,7 @@ def test_operations_method_enforcement():
 def test_operations_html_buttons():
     """Index page should include all operations tool buttons."""
     r = c.get("/")
+    check("HTML has profile_report button", "profile_report" in r.text)
     check("HTML has health_check button", "health_check" in r.text)
     check("HTML has check_dependencies button", "check_dependencies" in r.text)
     check("HTML has find_artifacts button", "find_artifacts" in r.text)
@@ -1261,6 +1432,8 @@ def main():
         ("Method Enforcement", test_method_enforcement),
         ("Unknown Routes", test_unknown_routes),
         ("Inspect", test_inspect),
+        ("Report Page", test_report_page),
+        ("Profile Report", test_profile_report_api),
         ("Security Scan", test_security_scan),
         ("Security JSON", test_security_json),
         ("Profile Overlay", test_profile_overlay),
