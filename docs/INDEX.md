@@ -17,6 +17,7 @@ the right part of `docs/`.
 - Vulnerability taxonomy: `iccDEV/vulnerability-taxonomy.md`
 - CVE inventory: `cve/iccDEV-CVE-Report.md`
 - PoC notes and reproductions: `pocs/`
+- Issue 763 visual poster: `pocs/iccdev-issue-763-poster.html`
 - Static-analysis workflow: `iccDEV/codeql/README.md`
 - Runtime analyzer findings: `analysis/`
 - Three-layer HTML overlay for conformance vs bug patterns:

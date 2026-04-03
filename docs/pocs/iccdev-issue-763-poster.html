@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iccDEV Issue 763 Poster</title>
+<style>
+* { box-sizing: border-box; }
+:root {
+  --paper: #f6f0e4;
+  --paper-2: #fbf8f1;
+  --ink: #201811;
+  --muted: #685d51;
+  --line: #d4c2ad;
+  --accent: #a84d21;
+  --accent-2: #2a6e86;
+  --warn: #c76b2d;
+  --danger: #b4362b;
+  --ok: #2f6e41;
+  --header-soft: rgba(168, 77, 33, 0.13);
+  --tag-soft: rgba(42, 110, 134, 0.14);
+  --bug-soft: rgba(180, 54, 43, 0.12);
+  --mono: "Cascadia Code", "Consolas", monospace;
+  --serif: "Palatino Linotype", "Book Antiqua", serif;
+  --sans: "Segoe UI", "Trebuchet MS", sans-serif;
+}
+html {
+  background: linear-gradient(180deg, #dfd4c5 0%, #d4c5b2 100%);
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--sans);
+  background:
+    radial-gradient(circle at top left, rgba(168, 77, 33, 0.11), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(42, 110, 134, 0.12), transparent 30%),
+    linear-gradient(180deg, #f7f1e7 0%, #efe5d6 100%);
+}
+a { color: var(--accent-2); }
+.page {
+  width: min(1640px, calc(100vw - 22px));
+  margin: 14px auto 26px;
+}
+.hero,
+.panel,
+.note,
+.fact {
+  background: rgba(255, 251, 245, 0.96);
+  border: 2px solid var(--line);
+  box-shadow: 0 12px 34px rgba(51, 35, 14, 0.13);
+}
+.hero {
+  border-radius: 28px;
+  padding: 22px 24px 18px;
+}
+.eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.hero h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: clamp(31px, 4.5vw, 58px);
+  line-height: 0.98;
+}
+.subhead {
+  margin: 10px 0 0;
+  max-width: 90ch;
+  color: var(--muted);
+  font-size: 16px;
+}
+.hero-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+}
+.fact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.fact {
+  border-radius: 16px;
+  padding: 10px 12px;
+}
+.fact .label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.fact .value {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.stack {
+  display: grid;
+  gap: 10px;
+}
+.note {
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+.note h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-family: var(--serif);
+}
+.note p,
+.note li,
+.note td,
+.note th {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.note ul,
+.note ol {
+  margin: 0;
+  padding-left: 18px;
+}
+.note li + li {
+  margin-top: 6px;
+}
+.main {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(850px, 1.18fr) minmax(360px, 0.82fr);
+  gap: 16px;
+  align-items: start;
+}
+.panel {
+  border-radius: 26px;
+  padding: 16px 18px 18px;
+}
+.title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 28px;
+}
+.subtitle {
+  margin: 6px 0 14px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.legend-item {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.8);
+}
+.swatch {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-right: 7px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+}
+.dump {
+  border: 2px dashed var(--line);
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.86);
+}
+.dump-head,
+.row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1.55fr) 180px minmax(240px, 0.9fr);
+  gap: 12px;
+}
+.dump-head {
+  padding: 10px 12px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  background: rgba(244, 237, 227, 0.96);
+}
+.row {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(212, 194, 173, 0.56);
+  align-items: start;
+}
+.row:first-of-type {
+  border-top: 0;
+}
+.row.hi {
+  background: linear-gradient(90deg, var(--header-soft) 0%, rgba(255,255,255,0.2) 38%, var(--tag-soft) 100%);
+}
+.row .off,
+.row .bytes,
+.row .ascii {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.row .bytes {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.row .ascii {
+  color: #5c5144;
+}
+.row .note {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  border-radius: 0;
+  font-size: 13px;
+}
+.callout {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.78);
+}
+.card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-family: var(--serif);
+}
+.card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 7px 6px;
+  border-top: 1px solid rgba(212, 194, 173, 0.75);
+}
+.table thead th {
+  border-top: 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.status {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.status.bad {
+  color: #7f1f17;
+  background: rgba(180, 54, 43, 0.13);
+}
+.status.fix {
+  color: #205f39;
+  background: rgba(47, 110, 65, 0.14);
+}
+.status.warn {
+  color: #8a5616;
+  background: rgba(199, 107, 45, 0.14);
+}
+.flow {
+  display: grid;
+  gap: 10px;
+}
+.flow-step {
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--accent);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.78);
+}
+.flow-step h3 {
+  margin: 0 0 5px;
+  font-size: 15px;
+  font-family: var(--serif);
+}
+.flow-step p {
+  margin: 0;
+}
+.code,
+.diff {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: #fbf8f2;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.48;
+  overflow-x: auto;
+  white-space: pre;
+}
+.diff .add { color: #205f39; }
+.diff .del { color: #8b231a; }
+.footer {
+  margin-top: 14px;
+  padding: 12px 14px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 1260px) {
+  .main,
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 940px) {
+  .fact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dump-head,
+  .row {
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+  .row .ascii,
+  .row .note,
+  .dump-head div:nth-child(3),
+  .dump-head div:nth-child(4) {
+    grid-column: 2;
+  }
+  .callout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <p class="eyebrow">iccDEV Issue 763 / AddXform Ownership Bug</p>
+    <h1>One cenc header, one stale delete</h1>
+    <p class="subhead">
+      This poster is built around the exact 728-byte PoC from
+      <a href="https://github.com/InternationalColorConsortium/iccDEV/issues/763">iccDEV issue #763</a>.
+      The left side is a full XXD-style dump of the profile. The right side
+      shows why the bytes do not directly corrupt memory by themselves: they
+      push <code>CIccNamedColorCmm::AddXform()</code> into the color-encoding
+      ownership path, then the old cleanup path frees the same profile again on
+      failure. CFL-078 keeps the rejection, but removes the double-cleanup.
+    </p>
+    <div class="hero-grid">
+      <div class="fact-grid">
+        <div class="fact">
+          <span class="label">PoC File</span>
+          <span class="value">huaf-CIccNamedColorCmm-AddXform-IccCmm_cpp-Line10564.icc</span>
+        </div>
+        <div class="fact">
+          <span class="label">Actual Size</span>
+          <span class="value">728 bytes / 0x02D8</span>
+        </div>
+        <div class="fact">
+          <span class="label">Declared Size</span>
+          <span class="value">720 bytes / 0x02D0</span>
+        </div>
+        <div class="fact">
+          <span class="label">Trigger Tool</span>
+          <span class="value"><code>iccApplyNamedCmm</code></span>
+        </div>
+        <div class="fact">
+          <span class="label">Header Class</span>
+          <span class="value"><code>cenc</code></span>
+        </div>
+        <div class="fact">
+          <span class="label">Header PCS</span>
+          <span class="value"><code>NULL</code></span>
+        </div>
+        <div class="fact">
+          <span class="label">Tag Count</span>
+          <span class="value">3 tags: <code>rfnm</code>, <code>csnm</code>, <code>cept</code></span>
+        </div>
+        <div class="fact">
+          <span class="label">Patch</span>
+          <span class="value"><code>cfl/patches/078-addxform-cenc-uaf-guard.patch</code></span>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="note">
+          <h2>Source Stack</h2>
+          <ul>
+            <li><a href="https://github.com/InternationalColorConsortium/iccDEV/issues/763">iccDEV issue #763</a> for the repro, crash site, and patched outcome.</li>
+            <li><code>cfl/patches/078-addxform-cenc-uaf-guard.patch</code> for the actual ownership fix.</li>
+            <li><code>docs/iccDEV/Tools/iccApplyNamedCmm/README.md</code> for tool invocation and intent <code>50</code> context.</li>
+            <li><code>docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv</code> for the repo-side CFL-078 classification.</li>
+            <li><code>docs/iccDEV/specifications/ICC.1-2022-05.pdf</code> and <code>ICC.2-2023.pdf</code> for why this header is obviously malformed while still selecting a v5 color-encoding class.</li>
+          </ul>
+        </div>
+        <div class="note">
+          <h2>Why This Works Better Than #700</h2>
+          <p>
+            Issue #700 is a config bug chain. Issue #763 is a compact profile-led
+            trigger: the key branch selector is visible in the first 32 bytes, the
+            entire file fits on one poster, and the post-patch outcome is easy to
+            explain: the same file now exits as <code>Invalid Profile</code>
+            instead of dying in cleanup at <code>IccCmm.cpp:10564</code>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="main">
+    <section class="panel">
+      <h2 class="title">Trigger Profile XXD</h2>
+      <p class="subtitle">
+        Full 728-byte dump of the PoC. Highlighted rows are the ones that matter
+        for the UAF story: the <code>cenc</code> header, the invalid
+        <code>NULL</code> PCS, the tiny private tag table, the oversized
+        <code>cept</code> payload, and the trailing bytes past the declared size.
+      </p>
+      <div class="legend">
+        <span class="legend-item"><span class="swatch" style="background:var(--header-soft)"></span>header trigger bytes</span>
+        <span class="legend-item"><span class="swatch" style="background:var(--tag-soft)"></span>tag table and cept payload</span>
+        <span class="legend-item"><span class="swatch" style="background:var(--bug-soft)"></span>rows that feed the invalid-profile exit</span>
+      </div>
+      <div class="dump">
+        <div class="dump-head">
+          <div>Offset</div>
+          <div>Hex</div>
+          <div>ASCII</div>
+          <div>Why It Matters</div>
+        </div>
+        <div class="row hi"><div class="off">0x0000</div><div class="bytes">00 00 02 D0 4E 55 4C 4C 00 05 00 00 63 65 6E 63</div><div class="ascii">....NULL....cenc</div><div class="note">declared size 0x02D0 vs actual 728, CMM='NULL', version 0.0.5, class='cenc'</div></div>
+        <div class="row hi"><div class="off">0x0010</div><div class="bytes">52 47 42 20 4E 55 4C 4C 00 00 00 00 00 00 00 00</div><div class="ascii">RGB NULL........</div><div class="note">data space RGB but PCS='NULL' which violates ICC.1 expectations for a non-DeviceLink profile</div></div>
+        <div class="row hi"><div class="off">0x0020</div><div class="bytes">00 00 00 00 61 63 73 70 00 50 00 00 00 00 00 00</div><div class="ascii">....acsp.P......</div><div class="note">acsp magic keeps loaders interested; platform bytes start drifting from normal ICC values</div></div>
+        <div class="row"><div class="off">0x0030</div><div class="bytes">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</div><div class="ascii">................</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0040</div><div class="bytes">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</div><div class="ascii">................</div><div class="note">&nbsp;</div></div>
+        <div class="row hi"><div class="off">0x0050</div><div class="bytes">4E 55 4C 4C 00 00 00 00 00 00 00 00 00 00 00 00</div><div class="ascii">NULL............</div><div class="note">creator='NULL' and header-reserved area leads into non-zero reserved byte at header offset 100</div></div>
+        <div class="row hi"><div class="off">0x0060</div><div class="bytes">00 00 00 00 6A 00 00 00 00 00 00 00 00 00 00 00</div><div class="ascii">....j...........</div><div class="note">0x64 carries 0x6A inside the reserved tail; analyzer flags header bytes 100-127 as non-zero</div></div>
+        <div class="row"><div class="off">0x0070</div><div class="bytes">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</div><div class="ascii">................</div><div class="note">&nbsp;</div></div>
+        <div class="row hi"><div class="off">0x0080</div><div class="bytes">00 00 00 03 72 66 6E 6D 00 00 00 A8 00 00 00 14</div><div class="ascii">....rfnm........</div><div class="note">tag table has only 3 entries: rfnm, csnm, cept</div></div>
+        <div class="row"><div class="off">0x0090</div><div class="bytes">63 73 6E 6D 00 00 00 BC 00 00 00 10 63 65 70 74</div><div class="ascii">csnm........cept</div><div class="note">&nbsp;</div></div>
+        <div class="row hi"><div class="off">0x00A0</div><div class="bytes">00 00 00 CC 00 00 02 04 75 74 66 38 00 00 00 00</div><div class="ascii">........utf8....</div><div class="note">rfnm body starts with utf8 and 'ISO 22028-1' then csnm starts immediately after</div></div>
+        <div class="row"><div class="off">0x00B0</div><div class="bytes">49 53 4F 20 32 32 30 32 38 2D 31 00 75 74 66 38</div><div class="ascii">ISO 22028-1.utf8</div><div class="note">&nbsp;</div></div>
+        <div class="row hi"><div class="off">0x00C0</div><div class="bytes">00 00 00 00 62 67 2D 73 52 47 42 00 74 73 74 72</div><div class="ascii">....bg-sRGB.tstr</div><div class="note">csnm body is 'bg-sRGB'; cept starts at 0x00CC and owns most of the file</div></div>
+        <div class="row hi"><div class="off">0x00D0</div><div class="bytes">00 00 00 24 63 65 70 74 00 00 00 0F 72 58 59 5A</div><div class="ascii">...$cept....rXYZ</div><div class="note">cept is a tstr structure whose member list drives the cenc AddXform path</div></div>
+        <div class="row"><div class="off">0x00E0</div><div class="bytes">00 00 00 C4 00 00 00 14 67 58 59 5A 00 00 00 D8</div><div class="ascii">........gXYZ....</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x00F0</div><div class="bytes">00 00 00 14 62 58 59 5A 00 00 00 EC 00 00 00 14</div><div class="ascii">....bXYZ........</div><div class="note">&nbsp;</div></div>
+        <div class="row hi"><div class="off">0x0100</div><div class="bytes">66 75 6E 63 00 00 01 00 00 00 00 70 77 6C 75 6D</div><div class="ascii">func.......pwlum</div><div class="note">nested cept members: func, pwlum, wXYZ, eRng, bits, imst, ibkg, srnd, ailm, mwpl, mwpc, mbpc</div></div>
+        <div class="row"><div class="off">0x0110</div><div class="bytes">00 00 01 70 00 00 00 0C 77 58 59 5A 00 00 01 7C</div><div class="ascii">...p....wXYZ...|</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0120</div><div class="bytes">00 00 00 10 65 52 6E 67 00 00 01 8C 00 00 00 10</div><div class="ascii">....eRng........</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0130</div><div class="bytes">62 69 74 73 00 00 01 9C 00 00 00 0B 69 6D 73 74</div><div class="ascii">bits........imst</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0140</div><div class="bytes">00 00 01 A8 00 00 00 21 69 62 6B 67 00 00 01 B4</div><div class="ascii">.......!ibkg....</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0150</div><div class="bytes">00 00 00 0C 73 72 6E 64 00 00 01 C0 00 00 00 0C</div><div class="ascii">....srnd........</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0160</div><div class="bytes">61 69 6C 6D 00 00 01 CC 00 00 00 0C 6D 77 70 6C</div><div class="ascii">ailm........mwpl</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0170</div><div class="bytes">00 00 01 D8 00 00 00 0C 6D 77 70 63 00 00 01 E4</div><div class="ascii">........mwpc....</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0180</div><div class="bytes">00 00 00 10 6D 62 70 63 00 00 01 F4 00 00 00 10</div><div class="ascii">....mbpc........</div><div class="note">&nbsp;</div></div>
+        <div class="row hi"><div class="off">0x0190</div><div class="bytes">66 6C 33 32 00 00 00 00 3F 23 D7 0A 3E A8 F5 C3</div><div class="ascii">fl32....?#..>...</div><div class="note">first float blocks and curve/mparam data for the cept payload</div></div>
+        <div class="row"><div class="off">0x01A0</div><div class="bytes">3C F5 C2 8F 66 6C 33 32 00 00 00 00 3E 99 99 9A</div><div class="ascii">&lt;...fl32....>...</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x01B0</div><div class="bytes">3F 19 99 9A 3D CC CC CD 66 6C 33 32 00 00 00 00</div><div class="ascii">?...=...fl32....</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x01C0</div><div class="bytes">3E 19 99 9A 3D 75 C2 8F 3F 4A 3D 71 63 75 72 66</div><div class="ascii">>...=u..?J=qcurf</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x01D0</div><div class="bytes">00 00 00 00 00 03 00 00 BB 4D 2E 1C 3B 4D 2E 1C</div><div class="ascii">.........M..;M..</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x01E0</div><div class="bytes">70 61 72 66 00 00 00 00 00 03 00 00 3E D5 55 55</div><div class="ascii">parf........>.UU</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x01F0</div><div class="bytes">BF 87 0A 41 BF 80 00 00 00 00 00 00 00 00 00 00</div><div class="ascii">...A............</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0200</div><div class="bytes">70 61 72 66 00 00 00 00 00 00 00 00 3F 80 00 00</div><div class="ascii">parf........?...</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0210</div><div class="bytes">41 4E B8 52 00 00 00 00 00 00 00 00 70 61 72 66</div><div class="ascii">AN.R........parf</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0220</div><div class="bytes">00 00 00 00 00 03 00 00 3E D5 55 55 3F 87 0A 3D</div><div class="ascii">........>.UU?..=</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0230</div><div class="bytes">3F 80 00 00 00 00 00 00 00 00 00 00 66 6C 33 32</div><div class="ascii">?...........fl32</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0240</div><div class="bytes">00 00 00 00 42 A0 00 00 66 6C 33 32 00 00 00 00</div><div class="ascii">....B...fl32....</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0250</div><div class="bytes">3E A0 1A 37 3E A8 72 B0 66 6C 33 32 00 00 00 00</div><div class="ascii">>..7>.r.fl32....</div><div class="note">&nbsp;</div></div>
+        <div class="row hi"><div class="off">0x0260</div><div class="bytes">BF 07 AE 14 3F D7 0A 3D 75 69 30 38 00 00 00 00</div><div class="ascii">....?..=ui08....</div><div class="note">ui08 + sig' + dorc fields close out the cept structure with more non-standard payload data</div></div>
+        <div class="row"><div class="off">0x0270</div><div class="bytes">0A 0C 10 00 73 69 67 27 00 00 00 00 64 6F 72 63</div><div class="ascii">....sig'....dorc</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0280</div><div class="bytes">06 5E 00 00 00 00 00 00 66 6C 33 32 00 00 00 00</div><div class="ascii">.^......fl32....</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x0290</div><div class="bytes">41 80 00 00 66 6C 33 32 00 00 00 00 40 83 33 33</div><div class="ascii">A...fl32....@.33</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x02A0</div><div class="bytes">66 6C 33 32 00 00 00 00 42 80 00 00 66 6C 33 32</div><div class="ascii">fl32....B...fl32</div><div class="note">&nbsp;</div></div>
+        <div class="row"><div class="off">0x02B0</div><div class="bytes">00 00 00 00 42 A0 00 00 66 6C 33 32 00 00 00 00</div><div class="ascii">....B...fl32....</div><div class="note">&nbsp;</div></div>
+        <div class="row hi"><div class="off">0x02C0</div><div class="bytes">3E A0 1A 37 3E A8 72 B0 66 6C 33 32 00 00 00 00</div><div class="ascii">>..7>.r.fl32....</div><div class="note">tail bytes extend the file 8 bytes past the declared size, reinforcing the invalid-profile exit</div></div>
+        <div class="row"><div class="off">0x02D0</div><div class="bytes">3E A0 1A 37 3E A8 72 B0</div><div class="ascii">>..7>.r.</div><div class="note">&nbsp;</div></div>
+      </div>
+
+      <div class="callout">
+        <div class="card">
+          <h3>Critical Header Bytes</h3>
+          <p>
+            The most important field is at <code>0x0C</code>:
+            <code>63 65 6E 63</code> = <code>cenc</code>. That class is what
+            selects the color-encoding ownership path that CFL-078 guards.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Not A Normal ICC</h3>
+          <p>
+            The same header also advertises <code>PCS='NULL'</code>, declares
+            720 bytes while the file is 728 bytes, and carries non-zero reserved
+            header data. The file is supposed to fail validation.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Why The Tail Matters</h3>
+          <p>
+            <code>cept</code> consumes most of the file and the last 8 bytes sit
+            past the declared size. Those bytes help drive the invalid-profile
+            return, which is exactly where the old cleanup path touched stale
+            ownership.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <h2 class="title">Patch Compare</h2>
+      <p class="subtitle">
+        The profile chooses the branch. The bug lives in cleanup. Before CFL-078,
+        failure after the inner cenc path could reach a stale <code>delete</code>
+        or detach on a profile that had already been consumed internally.
+      </p>
+
+      <section class="note">
+        <h2>Byte To Code Map</h2>
+        <table class="table">
+          <thead>
+            <tr><th>Profile bytes</th><th>Why they matter</th><th>Patched effect</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>0x0C-0x0F = cenc</code></td>
+              <td>Marks the profile as a color-encoding class. Patch comments note that this class can transfer ownership inside the inner AddXform path.</td>
+              <td><span class="status fix">guarded</span> save <code>deviceClass</code> first, then skip caller-side delete for <code>icSigColorEncodingClass</code>.</td>
+            </tr>
+            <tr>
+              <td><code>0x14-0x17 = NULL</code></td>
+              <td>Invalid PCS keeps the profile on a failure path after the class-specific work has already happened.</td>
+              <td><span class="status fix">rejected safely</span> same bad PCS now returns an invalid-profile status instead of a UAF.</td>
+            </tr>
+            <tr>
+              <td><code>0x00 size</code> and <code>0x02D0-0x02D7</code></td>
+              <td>Declared size is 720 but the file is 728, which helps preserve the invalid-profile exit that exercises cleanup.</td>
+              <td><span class="status fix">unchanged semantics</span> patch does not accept the file; it only prevents cleanup on stale ownership.</td>
+            </tr>
+            <tr>
+              <td><code>cept</code> payload at <code>0x00CC</code></td>
+              <td>The large private payload is the bulk of the malformed color-encoding object that keeps AddXform from succeeding.</td>
+              <td><span class="status warn">still invalid</span> the payload remains invalid and still fails, but no longer crashes.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="note">
+        <h2>Crash Path</h2>
+        <div class="flow">
+          <div class="flow-step">
+            <h3>1. Open profile</h3>
+            <p>The tool opens the PoC and sees <code>deviceClass = cenc</code> before any transform is built.</p>
+          </div>
+          <div class="flow-step">
+            <h3>2. Enter inner AddXform</h3>
+            <p>The cenc path is special: per CFL-078 comments, the inner creation path can delete or replace the original profile object.</p>
+          </div>
+          <div class="flow-step">
+            <h3>3. Validation fails</h3>
+            <p>The same profile also carries <code>NULL</code> PCS, size mismatch, private tags, and malformed cept content, so AddXform does not succeed.</p>
+          </div>
+          <div class="flow-step">
+            <h3>4. Old cleanup was wrong</h3>
+            <p>Pre-patch code still ran <code>delete pProfile</code> on the caller side, even though the cenc path had already taken ownership. That is the HUAF at <code>IccCmm.cpp:10564</code>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="note">
+        <h2>CFL-078 Diff Focus</h2>
+        <pre class="diff"><span class="add">+ icProfileClassSignature savedClass = pProfile-&gt;m_Header.deviceClass;</span>
+ 
+ icStatusCMM rv = AddXform(pProfile, nIntent, nInterp, pPcc, nLutType,
+                           bUseD2BxB2DxTags, pHintManager);
+ 
+ <span class="del">if (rv != icCmmStatOk)</span>
+ <span class="add">if (rv != icCmmStatOk &amp;&amp; savedClass != icSigColorEncodingClass)</span>
+   delete pProfile;</pre>
+        <p>
+          The same pattern was applied to four overloads in
+          <code>IccProfLib/IccCmm.cpp</code>, including the named-color path that
+          crashes in the issue report. The reference overload also guards
+          <code>CopyAttach(nullptr)</code> so detached IO state is not touched
+          after cenc ownership transfer.
+        </p>
+      </section>
+
+      <section class="note">
+        <h2>Before And After</h2>
+        <table class="table">
+          <thead>
+            <tr><th>Build</th><th>Observed behavior</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="status bad">pre-patch</span></td>
+              <td>UBSAN reports an invalid vptr and ASAN reports heap-use-after-free in <code>CIccNamedColorCmm::AddXform()</code> at <code>IccCmm.cpp:10564</code>.</td>
+            </tr>
+            <tr>
+              <td><span class="status fix">post-patch</span></td>
+              <td>The same PoC is still rejected, but the output is simply <code>Invalid Profile</code> and the stale cleanup path is skipped for cenc.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="note">
+        <h2>Analyzer Cross-Checks</h2>
+        <ul>
+          <li><code>H1</code>: header size 720 does not match the 728-byte file.</li>
+          <li><code>H6</code> and <code>CF-014</code>: PCS is <code>NULL</code> instead of <code>XYZ </code> or <code>Lab </code>.</li>
+          <li><code>H40</code> and <code>CF-015</code>: reserved header bytes are non-zero.</li>
+          <li><code>H134</code>: the <code>cept</code> tag carries non-zero reserved bytes.</li>
+          <li><code>CF-092</code> and <code>CF-097</code>: all three tags are private and undocumented.</li>
+        </ul>
+      </section>
+
+      <section class="note">
+        <h2>Review Target</h2>
+        <p>
+          If you want this pushed further toward corkami style, the next move is a
+          pure poster treatment with SVG leader lines from the
+          <code>cenc</code>/<code>NULL</code>/<code>cept</code> bytes directly to
+          the cleanup hunk, but the content model is now aligned to the real
+          issue and patch.
+        </p>
+      </section>
+    </aside>
+  </div>
+
+  <div class="footer">
+    Local references: <code>docs/iccDEV/Tools/iccApplyNamedCmm/README.md</code>,
+    <code>cfl/patches/078-addxform-cenc-uaf-guard.patch</code>,
+    <code>docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv</code>.
+    External references:
+    <a href="https://github.com/InternationalColorConsortium/iccDEV/issues/763">iccDEV issue #763</a>,
+    <a href="https://github.com/xsscx/fuzz/raw/refs/heads/master/graphics/icc/huaf-CIccNamedColorCmm-AddXform-IccCmm_cpp-Line10564.icc">PoC profile</a>.
+  </div>
+</div>
+</body>
+</html>
