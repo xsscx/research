@@ -199,8 +199,9 @@ static std::filesystem::path write_temp_profile(const std::vector<uint8_t>& data
             prefix.resize(32);
         }
     }
-    std::string tmpl = (std::filesystem::temp_directory_path() /
-                        (prefix + "-XXXXXX")).string();
+    std::filesystem::path templatePath = std::filesystem::temp_directory_path();
+    templatePath /= prefix + "-XXXXXX";
+    std::string tmpl = templatePath.string();
     std::vector<char> templateBytes(tmpl.begin(), tmpl.end());
     templateBytes.push_back('\0');
     int fd = mkstemp(templateBytes.data());
