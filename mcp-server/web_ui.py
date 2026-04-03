@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
+import json
 import os
 import re
 import secrets
@@ -259,6 +261,678 @@ def _validate_xml_directory(value: str) -> str:
             f"directory must be one of: {', '.join(sorted(_ALLOWED_XML_DIRS))}"
         )
     return value
+
+
+_KNOWN_PROFILE_CLASSES = {
+    "scnr": "Input device profile",
+    "mntr": "Display device profile",
+    "prtr": "Output device profile",
+    "link": "DeviceLink profile",
+    "abst": "Abstract profile",
+    "spac": "ColorSpace profile",
+    "nmcl": "Named color profile",
+}
+
+_KNOWN_COLOR_SPACES = {
+    "XYZ ": "nCIEXYZ",
+    "Lab ": "CIELAB",
+    "Luv ": "CIELUV",
+    "YCbr": "YCbCr",
+    "Yxy ": "CIEYxy",
+    "RGB ": "RGB",
+    "GRAY": "Gray",
+    "HSV ": "HSV",
+    "HLS ": "HLS",
+    "CMYK": "CMYK",
+    "CMY ": "CMY",
+    "2CLR": "2-color",
+    "3CLR": "3-color",
+    "4CLR": "4-color",
+    "5CLR": "5-color",
+    "6CLR": "6-color",
+    "7CLR": "7-color",
+    "8CLR": "8-color",
+    "9CLR": "9-color",
+    "ACLR": "10-color",
+    "BCLR": "11-color",
+    "CCLR": "12-color",
+    "DCLR": "13-color",
+    "ECLR": "14-color",
+    "FCLR": "15-color",
+}
+
+_KNOWN_PCS = {
+    "XYZ ": "PCSXYZ",
+    "Lab ": "PCSLAB",
+}
+
+_KNOWN_PLATFORMS = {
+    "\x00\x00\x00\x00": "Unspecified",
+    "APPL": "Apple Computer, Inc.",
+    "MSFT": "Microsoft Corporation",
+    "SGI ": "Silicon Graphics",
+    "SUNW": "Sun Microsystems",
+    "TGNT": "Taligent",
+}
+
+_RENDERING_INTENTS = {
+    0: "Perceptual",
+    1: "Media-relative colorimetric",
+    2: "Saturation",
+    3: "ICC-absolute colorimetric",
+}
+
+_OVERLAY_SECURITY_ORDER = {
+    "CRITICAL": 0,
+    "HIGH": 1,
+    "MEDIUM": 2,
+    "LOW": 3,
+    "INFO": 4,
+}
+
+
+def _hex_bytes(data: bytes) -> str:
+    return data.hex().upper()
+
+
+def _signature_text(data: bytes) -> str:
+    if len(data) != 4:
+        return _hex_bytes(data)
+    chars = []
+    for byte in data:
+        if 32 <= byte <= 126:
+            chars.append(chr(byte))
+        else:
+            chars.append(".")
+    return "".join(chars)
+
+
+def _is_printable_signature(data: bytes) -> bool:
+    return len(data) == 4 and all(byte == 0 or 32 <= byte <= 126 for byte in data)
+
+
+def _u16(data: bytes) -> int:
+    return int.from_bytes(data, "big", signed=False)
+
+
+def _u32(data: bytes) -> int:
+    return int.from_bytes(data, "big", signed=False)
+
+
+def _s15fixed16(data: bytes) -> float:
+    return int.from_bytes(data, "big", signed=True) / 65536.0
+
+
+def _carrier_from_bytes(data: bytes) -> str:
+    if len(data) >= 40 and data[36:40] == b"acsp":
+        return "ICC"
+    if len(data) >= 4 and (data[:4] == b"II*\x00" or data[:4] == b"MM\x00*"):
+        return "TIFF"
+    if len(data) >= 8 and data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "PNG"
+    if len(data) >= 2 and data[:2] == b"\xff\xd8":
+        return "JPEG"
+    if len(data) >= 4 and data[:4] == b"%PDF":
+        return "PDF"
+    return "Unknown"
+
+
+def _date_tuple_ok(values: tuple[int, int, int, int, int, int]) -> bool:
+    year, month, day, hour, minute, second = values
+    return (
+        1900 <= year <= 2100
+        and 1 <= month <= 12
+        and 1 <= day <= 31
+        and 0 <= hour <= 23
+        and 0 <= minute <= 59
+        and 0 <= second <= 59
+    )
+
+
+def _build_header_cards(data: bytes, file_size: int) -> tuple[list[dict], dict]:
+    if len(data) < 128:
+        return [], {
+            "ok": False,
+            "reason": "File is smaller than the fixed 128-byte ICC header",
+        }
+
+    version_bytes = data[8:12]
+    version_major = version_bytes[0]
+    version_minor = version_bytes[1] >> 4
+    version_bugfix = version_bytes[1] & 0x0F
+    class_sig = data[12:16]
+    class_text = _signature_text(class_sig)
+    color_sig = data[16:20]
+    color_text = _signature_text(color_sig)
+    pcs_sig = data[20:24]
+    pcs_text = _signature_text(pcs_sig)
+    date_values = tuple(_u16(data[i:i + 2]) for i in range(24, 36, 2))
+    date_ok = _date_tuple_ok(date_values)
+    magic_ok = data[36:40] == b"acsp"
+    platform_sig = data[40:44]
+    platform_text = _signature_text(platform_sig)
+    flags_value = _u32(data[44:48])
+    intent_value = _u32(data[64:68])
+    illuminant = (
+        _s15fixed16(data[68:72]),
+        _s15fixed16(data[72:76]),
+        _s15fixed16(data[76:80]),
+    )
+    illuminant_ok = data[68:80] == bytes.fromhex("0000F6D6000100000000D32D")
+    reserved_ok = data[100:128] == (b"\x00" * 28)
+
+    fields = [
+        {
+            "offset": [0, 3],
+            "name": "Profile size",
+            "raw": _hex_bytes(data[0:4]),
+            "decoded": _u32(data[0:4]),
+            "ok": _u32(data[0:4]) == file_size and _u32(data[0:4]) >= 128,
+            "specRef": "ICC.1-2022-05 Sec.7.2.2",
+            "riskNotes": "Reject size mismatches before offset plus length arithmetic.",
+        },
+        {
+            "offset": [4, 7],
+            "name": "Preferred CMM type",
+            "raw": _hex_bytes(data[4:8]),
+            "decoded": _signature_text(data[4:8]),
+            "ok": _is_printable_signature(data[4:8]),
+            "specRef": "ICC.1-2022-05 Sec.7.2.3",
+            "riskNotes": "Treat unknown signatures as data, not as trusted dispatch keys.",
+        },
+        {
+            "offset": [8, 11],
+            "name": "Profile version",
+            "raw": _hex_bytes(version_bytes),
+            "decoded": f"{version_major}.{version_minor}.{version_bugfix}",
+            "ok": version_major in {2, 4, 5},
+            "specRef": "ICC.1-2022-05 Sec.7.2.4",
+            "riskNotes": "Stop before tag expectations branch on impossible version values.",
+        },
+        {
+            "offset": [12, 15],
+            "name": "Profile or device class",
+            "raw": _hex_bytes(class_sig),
+            "decoded": _KNOWN_PROFILE_CLASSES.get(class_text, f"Unknown ({class_text})"),
+            "ok": class_text in _KNOWN_PROFILE_CLASSES,
+            "specRef": "ICC.1-2022-05 Sec.7.2.5",
+            "riskNotes": "Class drives required tags and transform semantics, so invalid values must fail closed.",
+        },
+        {
+            "offset": [16, 19],
+            "name": "Data color space",
+            "raw": _hex_bytes(color_sig),
+            "decoded": _KNOWN_COLOR_SPACES.get(color_text, f"Unknown ({color_text})"),
+            "ok": color_text in _KNOWN_COLOR_SPACES,
+            "specRef": "ICC.1-2022-05 Sec.7.2.6",
+            "riskNotes": "Do not infer channel counts from unknown signatures.",
+        },
+        {
+            "offset": [20, 23],
+            "name": "PCS",
+            "raw": _hex_bytes(pcs_sig),
+            "decoded": _KNOWN_PCS.get(pcs_text, f"Unknown ({pcs_text})"),
+            "ok": pcs_text in _KNOWN_PCS,
+            "specRef": "ICC.1-2022-05 Sec.7.2.7",
+            "riskNotes": "PCS must be validated before colorimetric math or tag traversal.",
+        },
+        {
+            "offset": [24, 35],
+            "name": "Creation date and time",
+            "raw": _hex_bytes(data[24:36]),
+            "decoded": (
+                f"{date_values[0]:04d}-{date_values[1]:02d}-{date_values[2]:02d} "
+                f"{date_values[3]:02d}:{date_values[4]:02d}:{date_values[5]:02d}"
+            ),
+            "ok": date_ok,
+            "specRef": "ICC.1-2022-05 Sec.7.2.8",
+            "riskNotes": "Malformed dates are a cheap corruption signal and should be surfaced early.",
+        },
+        {
+            "offset": [36, 39],
+            "name": "File signature",
+            "raw": _hex_bytes(data[36:40]),
+            "decoded": _signature_text(data[36:40]),
+            "ok": magic_ok,
+            "specRef": "ICC.1-2022-05 Sec.7.2.9",
+            "riskNotes": "Fail fast on missing acsp magic and do not continue into tag loading.",
+        },
+        {
+            "offset": [40, 43],
+            "name": "Primary platform",
+            "raw": _hex_bytes(platform_sig),
+            "decoded": _KNOWN_PLATFORMS.get(platform_text, platform_text),
+            "ok": platform_sig == b"\x00\x00\x00\x00" or _is_printable_signature(platform_sig),
+            "specRef": "ICC.1-2022-05 Sec.7.2.10",
+            "riskNotes": "Unknown platform codes are metadata, not permission to choose alternate parser paths.",
+        },
+        {
+            "offset": [44, 47],
+            "name": "Profile flags",
+            "raw": _hex_bytes(data[44:48]),
+            "decoded": (
+                f"embedded={'yes' if flags_value & 0x1 else 'no'}, "
+                f"independent={'no' if flags_value & 0x2 else 'yes'}"
+            ),
+            "ok": (flags_value & ~0x3) == 0,
+            "specRef": "ICC.1-2022-05 Sec.7.2.11",
+            "riskNotes": "Validate reserved flag bits before the object is treated as embedded or stand-alone.",
+        },
+        {
+            "offset": [48, 51],
+            "name": "Device manufacturer",
+            "raw": _hex_bytes(data[48:52]),
+            "decoded": _signature_text(data[48:52]),
+            "ok": _is_printable_signature(data[48:52]),
+            "specRef": "ICC.1-2022-05 Sec.7.2.12",
+            "riskNotes": "Treat this as descriptive metadata only.",
+        },
+        {
+            "offset": [52, 55],
+            "name": "Device model",
+            "raw": _hex_bytes(data[52:56]),
+            "decoded": _signature_text(data[52:56]),
+            "ok": _is_printable_signature(data[52:56]),
+            "specRef": "ICC.1-2022-05 Sec.7.2.13",
+            "riskNotes": "Do not build model-specific behavior on untrusted model bytes.",
+        },
+        {
+            "offset": [56, 63],
+            "name": "Device attributes",
+            "raw": _hex_bytes(data[56:64]),
+            "decoded": f"0x{_hex_bytes(data[56:64])}",
+            "ok": True,
+            "specRef": "ICC.1-2022-05 Sec.7.2.14",
+            "riskNotes": "Decode attribute flags defensively and ignore unknown bits.",
+        },
+        {
+            "offset": [64, 67],
+            "name": "Rendering intent",
+            "raw": _hex_bytes(data[64:68]),
+            "decoded": _RENDERING_INTENTS.get(intent_value, f"Unknown ({intent_value})"),
+            "ok": intent_value in _RENDERING_INTENTS,
+            "specRef": "ICC.1-2022-05 Sec.7.2.15",
+            "riskNotes": "Reject impossible enum values before transform selection.",
+        },
+        {
+            "offset": [68, 79],
+            "name": "PCS illuminant",
+            "raw": _hex_bytes(data[68:80]),
+            "decoded": f"X={illuminant[0]:.4f} Y={illuminant[1]:.4f} Z={illuminant[2]:.4f}",
+            "ok": illuminant_ok,
+            "specRef": "ICC.1-2022-05 Sec.7.2.16",
+            "riskNotes": "Use fixed-value header checks as early reject points.",
+        },
+        {
+            "offset": [80, 83],
+            "name": "Profile creator",
+            "raw": _hex_bytes(data[80:84]),
+            "decoded": _signature_text(data[80:84]),
+            "ok": _is_printable_signature(data[80:84]),
+            "specRef": "ICC.1-2022-05 Sec.7.2.17",
+            "riskNotes": "Creator bytes are provenance only and should never affect trust.",
+        },
+        {
+            "offset": [84, 99],
+            "name": "Profile ID",
+            "raw": _hex_bytes(data[84:100]),
+            "decoded": _hex_bytes(data[84:100]).lower(),
+            "ok": True,
+            "specRef": "ICC.1-2022-05 Sec.7.2.18",
+            "riskNotes": "Treat the profile ID as descriptive unless independently recomputed.",
+        },
+        {
+            "offset": [100, 127],
+            "name": "Reserved",
+            "raw": _hex_bytes(data[100:128]),
+            "decoded": "all zeros" if reserved_ok else "non-zero reserved bytes",
+            "ok": reserved_ok,
+            "specRef": "ICC.1-2022-05 Sec.7.2.19",
+            "riskNotes": "Reserved bytes should be zero before any deeper parsing continues.",
+        },
+    ]
+
+    gate_ok = all(field["ok"] for field in fields)
+    return fields, {
+        "ok": gate_ok,
+        "magicOk": magic_ok,
+        "classSignature": class_text,
+        "colorSpace": color_text,
+        "pcs": pcs_text,
+        "reason": "" if gate_ok else "One or more fixed-header invariants failed",
+    }
+
+
+def _parse_tag_table(data: bytes, *, display_limit: int = 32) -> tuple[list[dict], dict, set[str]]:
+    if len(data) < 132:
+        return [], {
+            "ok": False,
+            "count": 0,
+            "displayCount": 0,
+            "reason": "File is too small to contain a tag table",
+            "duplicates": [],
+            "overlapPairs": 0,
+            "outOfBounds": 0,
+            "tableEnd": 0,
+            "truncatedDisplay": False,
+        }, set()
+
+    count = _u32(data[128:132])
+    table_end = 132 + (count * 12)
+    entries: list[dict] = []
+    signatures: dict[str, int] = {}
+    ranges: list[tuple[int, int]] = []
+    out_of_bounds = 0
+    misaligned = 0
+    bad_offsets = 0
+    valid_region = table_end <= len(data)
+    max_parseable = max(0, (len(data) - 132) // 12)
+    entries_to_read = min(count, max_parseable)
+
+    for idx in range(entries_to_read):
+        base = 132 + (idx * 12)
+        sig = _signature_text(data[base:base + 4])
+        offset = _u32(data[base + 4:base + 8])
+        size = _u32(data[base + 8:base + 12])
+        end = offset + size
+        signatures[sig] = signatures.get(sig, 0) + 1
+        in_bounds = size > 0 and offset >= table_end and end <= len(data)
+        aligned = (offset % 4) == 0
+        if not in_bounds:
+            out_of_bounds += 1
+        if not aligned:
+            misaligned += 1
+        if offset < table_end:
+            bad_offsets += 1
+        type_sig = ""
+        if in_bounds and end <= len(data) and size >= 4:
+            type_sig = _signature_text(data[offset:offset + 4])
+            ranges.append((offset, end))
+        if idx < display_limit:
+            entries.append({
+                "index": idx,
+                "sig": sig,
+                "offset": offset,
+                "size": size,
+                "type": type_sig or "OOB",
+                "ok": in_bounds and aligned,
+                "specRef": "ICC.1-2022-05 Sec.7.3.1",
+                "riskNotes": "Validate offset plus size with overflow-safe arithmetic before reading tag payload bytes.",
+            })
+
+    duplicates = sorted(sig for sig, seen in signatures.items() if seen > 1)
+    ranges.sort()
+    overlap_pairs = 0
+    active_ends: list[int] = []
+    for start, end in ranges:
+        while active_ends and active_ends[0] <= start:
+            import heapq
+            heapq.heappop(active_ends)
+        overlap_pairs += len(active_ends)
+        if end > start:
+            import heapq
+            heapq.heappush(active_ends, end)
+
+    ok = (
+        count > 0
+        and valid_region
+        and out_of_bounds == 0
+        and misaligned == 0
+        and bad_offsets == 0
+        and not duplicates
+        and overlap_pairs == 0
+    )
+    reason_parts = []
+    if count == 0:
+        reason_parts.append("tag count is zero")
+    if not valid_region:
+        reason_parts.append("tag table extends beyond EOF")
+    if out_of_bounds:
+        reason_parts.append(f"{out_of_bounds} tag entries extend beyond EOF")
+    if misaligned:
+        reason_parts.append(f"{misaligned} tag entries are not 4-byte aligned")
+    if bad_offsets:
+        reason_parts.append(f"{bad_offsets} tag entries point into the tag table itself")
+    if duplicates:
+        reason_parts.append("duplicate tag signatures are present")
+    if overlap_pairs:
+        reason_parts.append(f"{overlap_pairs} overlapping tag-data pairs detected")
+
+    return entries, {
+        "ok": ok,
+        "count": count,
+        "displayCount": len(entries),
+        "tableEnd": table_end,
+        "duplicates": duplicates[:12],
+        "overlapPairs": overlap_pairs,
+        "outOfBounds": out_of_bounds,
+        "misaligned": misaligned,
+        "truncatedDisplay": count > display_limit,
+        "reason": "; ".join(reason_parts) if reason_parts else "",
+    }, set(signatures)
+
+
+def _infer_required_tags(class_sig: str, color_sig: str, tag_sigs: set[str]) -> tuple[list[str], str]:
+    if class_sig == "spac":
+        return ["desc", "cprt", "wtpt", "A2B0", "B2A0"], "ColorSpace baseline"
+    if class_sig in {"mntr", "scnr", "prtr"}:
+        if color_sig == "GRAY":
+            return ["desc", "cprt", "wtpt", "kTRC"], "Gray device profile"
+        if color_sig == "RGB " and {"rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC"}.issubset(tag_sigs):
+            required = ["desc", "cprt", "wtpt", "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC"]
+            if "chad" in tag_sigs:
+                required.append("chad")
+            return required, "RGB matrix or TRC device profile"
+        required = ["desc", "cprt", "wtpt"]
+        if "A2B0" in tag_sigs:
+            required.append("A2B0")
+        if "B2A0" in tag_sigs:
+            required.append("B2A0")
+        if "chad" in tag_sigs:
+            required.append("chad")
+        return required, "LUT-based device profile"
+    if class_sig == "abst":
+        return ["desc", "cprt", "A2B0"], "Abstract profile"
+    if class_sig == "link":
+        return ["desc", "cprt", "A2B0"], "DeviceLink profile"
+    if class_sig == "nmcl":
+        return ["desc", "cprt", "ncl2"], "Named color profile"
+    return ["desc", "cprt"], "Generic baseline"
+
+
+def _build_required_tags(
+    header_summary: dict,
+    tag_sigs: set[str],
+) -> tuple[list[dict], dict]:
+    if not header_summary.get("magicOk"):
+        return [], {
+            "ok": False,
+            "reachable": False,
+            "basis": "Not evaluated because the root object failed ICC header identity checks",
+        }
+
+    class_sig = header_summary.get("classSignature", "")
+    color_sig = header_summary.get("colorSpace", "")
+    required, basis = _infer_required_tags(class_sig, color_sig, tag_sigs)
+    cards = []
+    for sig in required:
+        cards.append({
+            "sig": sig,
+            "present": sig in tag_sigs,
+            "specRef": "ICC.1-2022-05 Annex G",
+            "riskNotes": "Missing required tags should stop semantic interpretation before transforms execute.",
+        })
+    return cards, {
+        "ok": all(card["present"] for card in cards),
+        "reachable": True,
+        "basis": basis,
+    }
+
+
+def _build_transform_path(tag_sigs: set[str]) -> dict:
+    forward = [sig for sig in ("A2B0", "A2B1", "A2B2", "D2B0", "D2B1", "D2B2") if sig in tag_sigs]
+    reverse = [sig for sig in ("B2A0", "B2A1", "B2A2", "B2D0", "B2D1", "B2D2") if sig in tag_sigs]
+    matrix = [sig for sig in ("rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC", "kTRC") if sig in tag_sigs]
+    return {
+        "forward": forward,
+        "reverse": reverse,
+        "matrix": matrix,
+        "embedded": "ICC5" in tag_sigs,
+        "summary": (
+            "Forward and reverse transform tags should be typed and bounds-checked before traversal."
+        ),
+    }
+
+
+def _select_security_findings(result: dict) -> tuple[list[dict], dict]:
+    if "findings" in result:
+        findings = []
+        for item in result.get("findings", []):
+            severity = str(item.get("severity", "INFO")).upper()
+            findings.append({
+                "id": str(item.get("id", "?")),
+                "name": item.get("message", "Unnamed finding"),
+                "severity": severity.lower(),
+                "ok": False,
+                "status": "finding",
+                "specRef": item.get("detail", ""),
+                "detail": item.get("detail", "") or item.get("cwe", ""),
+            })
+        findings.sort(key=lambda item: (_OVERLAY_SECURITY_ORDER.get(item["severity"].upper(), 9), item["id"]))
+        stats = result.get("stats", {})
+        severity_counts = stats.get("severity", {})
+        warning_count = sum(
+            int(severity_counts.get(level, 0))
+            for level in ("LOW", "MEDIUM", "HIGH")
+        )
+        return findings[:12], {
+            "warnings": warning_count,
+            "critical": int(severity_counts.get("CRITICAL", 0)),
+            "heuristicsRun": int(stats.get("checksRun", 0)),
+            "totalHeuristics": int(stats.get("checksRun", 0)),
+        }
+
+    findings = []
+    for item in result.get("results", []):
+        status = str(item.get("status", "")).lower()
+        if status in {"ok", "skip"}:
+            continue
+        severity = str(item.get("severity", "INFO")).upper()
+        findings.append({
+            "id": f"H{item.get('id', '?')}",
+            "name": item.get("name", "Unnamed finding"),
+            "severity": severity.lower(),
+            "ok": False,
+            "status": status,
+            "specRef": item.get("specRef", ""),
+            "detail": item.get("detail", ""),
+        })
+    findings.sort(key=lambda item: (_OVERLAY_SECURITY_ORDER.get(item["severity"].upper(), 9), item["id"]))
+    summary = result.get("summary", {})
+    return findings[:12], {
+        "warnings": int(summary.get("warnings", 0)),
+        "critical": int(summary.get("critical", 0)),
+        "heuristicsRun": int(summary.get("heuristicsRun", 0)),
+        "totalHeuristics": int(summary.get("totalHeuristics", 0)),
+    }
+
+
+def _overlay_score(gates: dict[str, bool], security_summary: dict) -> int:
+    score = 100
+    score -= security_summary.get("warnings", 0) * 2
+    score -= security_summary.get("critical", 0) * 15
+    if not gates.get("header", False):
+        score = min(score, 35)
+    if not gates.get("tagTable", False):
+        score = min(score, 45)
+    if not gates.get("requiredTags", False):
+        score = min(score, 60)
+    return max(0, score)
+
+
+async def _build_profile_overlay(path: str) -> dict:
+    profile = _resolve_profile(path)
+    data = profile.read_bytes()
+    file_size = len(data)
+    carrier = _carrier_from_bytes(data)
+    header_cards, header_summary = _build_header_cards(data, file_size)
+    tag_entries, tag_summary, tag_sigs = _parse_tag_table(data)
+    required_tags, required_summary = _build_required_tags(header_summary, tag_sigs)
+    transform_path = _build_transform_path(tag_sigs)
+
+    security_payload = {"results": [], "summary": {}}
+    try:
+        security_payload = json.loads(await analyze_security_json(path, engine="v2"))
+    except Exception:
+        try:
+            security_payload = json.loads(await analyze_security_json(path, engine="v1"))
+        except Exception:
+            security_payload = {"results": [], "summary": {}}
+    security_findings, security_summary = _select_security_findings(security_payload)
+
+    gates = {
+        "header": bool(header_summary.get("ok")),
+        "tagTable": bool(tag_summary.get("ok")),
+        "requiredTags": bool(required_summary.get("ok")),
+    }
+    if not all(gates.values()):
+        status = "non_conformant"
+    elif security_findings:
+        status = "warning"
+    else:
+        status = "conformant"
+
+    status_label = {
+        "conformant": "Conformant",
+        "warning": "Conformant with warnings",
+        "non_conformant": "Non-conformant",
+    }[status]
+
+    extension = profile.suffix.lower().lstrip(".") or "none"
+    extension_match = (
+        (carrier == "ICC" and extension in {"icc", "icm", "icc2", "iccp"})
+        or (carrier == "TIFF" and extension in {"tif", "tiff"})
+        or carrier in {"Unknown", "PNG", "JPEG", "PDF"}
+    )
+
+    return {
+        "file": {
+            "name": profile.name,
+            "path": path,
+            "size": file_size,
+            "carrier": carrier,
+            "extension": extension,
+            "extensionMatchesCarrier": extension_match,
+            "sha256": hashlib.sha256(data).hexdigest(),
+        },
+        "conformance": {
+            "status": status,
+            "label": status_label,
+            "score": _overlay_score(gates, security_summary),
+            "spec": "ICC.1:2022",
+            "gates": gates,
+            "reasons": {
+                "header": header_summary.get("reason", ""),
+                "tagTable": tag_summary.get("reason", ""),
+                "requiredTags": required_summary.get("basis", ""),
+            },
+        },
+        "header": header_cards,
+        "tagTable": tag_entries,
+        "tagTableSummary": tag_summary,
+        "requiredTags": required_tags,
+        "requiredTagsSummary": required_summary,
+        "transformPath": transform_path,
+        "metadata": {
+            "profileClass": header_summary.get("classSignature", ""),
+            "colorSpace": header_summary.get("colorSpace", ""),
+            "pcs": header_summary.get("pcs", ""),
+            "carrier": carrier,
+            "extensionMismatch": not extension_match,
+        },
+        "security": security_findings,
+        "securitySummary": security_summary,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -575,6 +1249,17 @@ async def api_registry(request: Request) -> Response:
             data = _json.loads(result)
             return JSONResponse({"ok": True, "engine": engine, "registry": data})
         return JSONResponse({"ok": False, "error": "Invalid registry output"}, status_code=500)
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
+
+
+async def api_profile_overlay(request: Request) -> Response:
+    """GET /api/profile-overlay?path=<profile> - structured three-layer overlay view."""
+    try:
+        path = _validate_path(request.query_params.get("path", ""), "path")
+        async with (await _get_semaphore()):
+            result = await _build_profile_overlay(path)
+        return JSONResponse({"ok": True, "result": result})
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _safe_error(exc)}, status_code=400)
 
@@ -1237,6 +1922,7 @@ routes = [
     Route("/static/cytoscape.min.js", serve_cytoscape_js, methods=["GET"]),
     Route("/api/health", api_health, methods=["GET"]),
     Route("/api/registry", api_registry, methods=["GET"]),
+    Route("/api/profile-overlay", api_profile_overlay, methods=["GET"]),
     Route("/api/list", api_list, methods=["GET"]),
     Route("/api/list-xml", api_list_xml, methods=["GET"]),
     Route("/api/inspect", api_inspect, methods=["GET"]),

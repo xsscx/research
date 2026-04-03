@@ -332,6 +332,187 @@ footer {
 .graph-legend-swatch { display: inline-flex; align-items: center; gap: 3px; }
 .graph-legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .graph-detail { position: absolute; top: 8px; right: 8px; z-index: 10; max-width: 320px; max-height: 400px; overflow: auto; background: #1e1e2e; border: 1px solid #555; border-radius: 6px; padding: 10px; font-size: 12px; color: #cdd6f4; display: none; white-space: pre-wrap; font-family: monospace; }
+.is-hidden { display: none !important; }
+.output-rich {
+  padding: 1rem;
+  color: var(--text);
+}
+.overlay-shell { display: flex; flex-direction: column; gap: 1rem; }
+.overlay-hero,
+.overlay-layer {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(22, 27, 34, 0.92);
+  padding: 1rem;
+}
+.overlay-eyebrow {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+.overlay-title-row,
+.overlay-chip-row,
+.overlay-gate-row,
+.overlay-node-grid,
+.overlay-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.overlay-title-row {
+  align-items: center;
+  justify-content: space-between;
+}
+.overlay-title-row h2,
+.overlay-layer h3,
+.overlay-card h4 {
+  margin: 0;
+}
+.overlay-subtitle,
+.overlay-note,
+.overlay-card dd,
+.overlay-summary {
+  color: var(--muted);
+}
+.overlay-status-badge,
+.overlay-chip,
+.overlay-gate {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.overlay-status-badge.conformant,
+.overlay-chip.ok,
+.overlay-gate.ok {
+  background: rgba(63, 185, 80, 0.14);
+  color: #7ee787;
+  border-color: rgba(63, 185, 80, 0.35);
+}
+.overlay-status-badge.warning,
+.overlay-chip.warn,
+.overlay-gate.warn {
+  background: rgba(210, 153, 34, 0.14);
+  color: #e3b341;
+  border-color: rgba(210, 153, 34, 0.35);
+}
+.overlay-status-badge.non_conformant,
+.overlay-chip.fail,
+.overlay-gate.fail {
+  background: rgba(248, 81, 73, 0.14);
+  color: #ff938a;
+  border-color: rgba(248, 81, 73, 0.35);
+}
+.overlay-grid,
+.overlay-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+.overlay-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #11161d;
+  padding: 0.9rem;
+}
+.overlay-card dl {
+  margin: 0;
+}
+.overlay-card dt {
+  margin-top: 0.6rem;
+  color: #9fb3c8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.overlay-card dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+.overlay-node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.overlay-node {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #11161d;
+  padding: 0.9rem;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+.overlay-node:hover {
+  border-color: var(--accent);
+}
+.overlay-node strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+.overlay-node-center {
+  background: linear-gradient(180deg, rgba(88, 166, 255, 0.12), rgba(22, 27, 34, 0.92));
+}
+.overlay-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+.overlay-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.overlay-table th,
+.overlay-table td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.overlay-table th {
+  color: #9fb3c8;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.overlay-list {
+  margin: 0.7rem 0 0;
+  padding-left: 1.1rem;
+}
+.overlay-list li { margin: 0.3rem 0; }
+.overlay-inline-code,
+.overlay-mono {
+  font-family: var(--mono);
+  color: #cdd9e5;
+}
+.overlay-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.overlay-section {
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+}
+.overlay-section:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+@media (max-width: 720px) {
+  .overlay-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
 </style>
 </head>
 <body>
@@ -350,6 +531,7 @@ footer {
     <button data-tool="security_json" >Security (JSON)</button>
     <button data-tool="security_report" >Security (Report)</button>
     <button data-tool="pawg" >PAWG</button>
+    <button data-tool="profile_overlay" >Profile Overlay</button>
     <button data-tool="roundtrip">Round-Trip</button>
     <button data-tool="full"     >Full Analysis</button>
     <button data-tool="xml"      >To XML</button>
@@ -392,6 +574,7 @@ footer {
     <button class="copy-btn copy-hidden" id="copyBtn" aria-label="Copy output to clipboard">Copy</button>
     <div class="placeholder" id="placeholder">Select a tool and click <strong>Run</strong></div>
     <pre id="outputPre" class="hidden-input"></pre>
+    <div id="outputRich" class="output-rich is-hidden"></div>
   </section>
 
   <footer>
@@ -415,6 +598,7 @@ const TOOLS = {
   security_json:   { label: "Security (JSON)",   endpoint: "/api/security-json",   fields: ["path"], method: "GET" },
   security_report: { label: "Security (Report)", endpoint: "/api/security-report", fields: ["path"], method: "GET" },
   pawg:            { label: "PAWG",              endpoint: "/api/pawg",            fields: ["path"], method: "GET" },
+  profile_overlay: { label: "Profile Overlay",   endpoint: "/api/profile-overlay", fields: ["path"], method: "GET" },
   roundtrip: { label: "Round-Trip",     endpoint: "/api/roundtrip", fields: ["path"],      method: "GET" },
   full:      { label: "Full Analysis",  endpoint: "/api/full",      fields: ["path"],      method: "GET" },
   xml:       { label: "To XML",         endpoint: "/api/xml",       fields: ["path"],      method: "GET" },
@@ -445,6 +629,7 @@ const DIRS = ["test-profiles", "extended-test-profiles"];
 
 const DEFAULT_PROFILE = "BlacklightPoster_411039.icc";
 const DEFAULT_XML_PROFILE = "BlacklightPoster_411039.icc";
+const DEFAULT_OVERLAY_PROFILE = "sRGB_v4_ICC_preference.icc";
 
 let currentTool = "list";
 let profileCache = {};   // directory -> [{name, size}]
@@ -457,6 +642,7 @@ const $inputPanel = document.getElementById("inputPanel");
 const $status     = document.getElementById("status");
 const $output     = document.getElementById("output");
 const $pre        = document.getElementById("outputPre");
+const $rich       = document.getElementById("outputRich");
 const $placeholder= document.getElementById("placeholder");
 const $copyBtn    = document.getElementById("copyBtn");
 
@@ -879,6 +1065,24 @@ function renderInputs() {
         ${saveBtn}
       </div>
       <p class="tool-hint">Deep diagnostic load analysis comparing OpenIccProfile vs ReadIccProfile vs ValidateIccProfile with IO tracing.</p>`;
+  } else if (currentTool === "profile_overlay") {
+    html = `
+      <div class="input-row">
+        <div class="field">
+          <label for="inp-path">Profile</label>
+          <input id="inp-path" value="${esc(DEFAULT_OVERLAY_PROFILE)}" placeholder="e.g. sRGB_v4_ICC_preference.icc" autocomplete="off">
+        </div>
+        <button class="btn-run" id="btnRun">Render Overlay</button>
+        ${saveBtn}
+      </div>
+      <div class="file-upload-row">
+        <input type="file" id="fileInput" accept=".icc,.icm,.icc2,.tif,.tiff" class="hidden-input">
+        <button class="btn-upload" id="btnUpload">Browse Choose File</button>
+        <button class="btn-upload" id="btnTogglePicker">Profiles Server Profiles</button>
+        <span class="upload-status" id="uploadStatus"></span>
+      </div>
+      <div id="profilePicker"></div>
+      <p class="tool-hint">Three-layer conformance overlay backed by live analyzer findings plus direct header and tag-table parsing.</p>`;
   } else if (currentTool === "graph_viewer") {
     html = `
       <div class="graph-viewer-container">
@@ -1343,10 +1547,13 @@ async function run() {
       const data = await resp.json();
       const ms = (performance.now() - t0).toFixed(0);
       if (data.ok) {
-        const rendered = normalizeOutput(data.result);
         setStatus("ok", `${tool.label} completed in ${ms} ms`);
-        showOutput(rendered);
-        lastOutput = rendered;
+        lastOutput = normalizeOutput(data.result);
+        if (currentTool === "profile_overlay") {
+          showRichOutput(renderProfileOverlay(data.result));
+        } else {
+          showOutput(lastOutput);
+        }
         enableSave(true);
       } else {
         const safeErr = sanitize(data.error || "Unknown error");
@@ -1400,10 +1607,13 @@ async function run() {
     const ms = (performance.now() - t0).toFixed(0);
 
     if (data.ok) {
-      const rendered = normalizeOutput(data.result);
       setStatus("ok", `${tool.label} completed in ${ms} ms`);
-      showOutput(rendered);
-      lastOutput = rendered;
+      lastOutput = normalizeOutput(data.result);
+      if (currentTool === "profile_overlay") {
+        showRichOutput(renderProfileOverlay(data.result));
+      } else {
+        showOutput(lastOutput);
+      }
       enableSave(true);
     } else {
       const safeErr = sanitize(data.error || "Unknown error");
@@ -1440,10 +1650,271 @@ function normalizeOutput(value) {
   }
 }
 
+function renderOverlayPills(items, cls) {
+  if (!items || !items.length) return '<span class="overlay-note">None</span>';
+  return items.map(item => `<span class="overlay-chip ${cls} overlay-mono">${esc(String(item))}</span>`).join("");
+}
+
+function renderOverlayFieldCard(title, raw, decoded, specRef, riskNotes, statusOk) {
+  const safeDecoded = esc(decoded || "").replace(/\n/g, "<br>");
+  const safeRiskNotes = esc(riskNotes || "").replace(/\n/g, "<br>");
+  return `
+    <article class="overlay-card">
+      <h4>${esc(title)}</h4>
+      <div class="overlay-chip ${statusOk ? "ok" : "fail"}">${statusOk ? "Pass" : "Check failed"}</div>
+      <dl>
+        <dt>Raw bytes or signature</dt>
+        <dd class="overlay-mono">${esc(raw || "")}</dd>
+        <dt>Decoded meaning</dt>
+        <dd>${safeDecoded}</dd>
+        <dt>Spec reference</dt>
+        <dd>${esc(specRef || "")}</dd>
+        <dt>Parser risk notes</dt>
+        <dd>${safeRiskNotes}</dd>
+      </dl>
+    </article>`;
+}
+
+function renderProfileOverlay(result) {
+  const file = result.file || {};
+  const conformance = result.conformance || {};
+  const tagTableSummary = result.tagTableSummary || {};
+  const requiredTagsSummary = result.requiredTagsSummary || {};
+  const transformPath = result.transformPath || {};
+  const metadata = result.metadata || {};
+  const securitySummary = result.securitySummary || {};
+  const gates = conformance.gates || {};
+
+  const headerCards = (result.header || []).map(field => renderOverlayFieldCard(
+    `${field.name} @ ${Array.isArray(field.offset) ? field.offset.join("-") : ""}`,
+    field.raw,
+    String(field.decoded),
+    field.specRef,
+    field.riskNotes,
+    Boolean(field.ok),
+  )).join("");
+
+  const tagCards = (result.tagTable || []).map(entry => renderOverlayFieldCard(
+    `#${entry.index} ${entry.sig}`,
+    `${entry.sig} @ ${entry.offset} (${entry.size} bytes)`,
+    `type=${entry.type}`,
+    entry.specRef,
+    entry.riskNotes,
+    Boolean(entry.ok),
+  )).join("");
+
+  const requiredCards = (result.requiredTags || []).map(entry => renderOverlayFieldCard(
+    entry.sig,
+    entry.sig,
+    entry.present ? "Present in tag table" : "Missing from tag table",
+    entry.specRef,
+    entry.riskNotes,
+    Boolean(entry.present),
+  )).join("");
+
+  const securityCards = (result.security || []).map(entry => renderOverlayFieldCard(
+    `${entry.id} ${entry.name}`,
+    entry.id,
+    `${entry.severity.toUpperCase()} / ${entry.status}`,
+    entry.specRef,
+    entry.detail,
+    false,
+  )).join("");
+
+  const transformCards = [
+    renderOverlayFieldCard(
+      "Forward transform tags",
+      (transformPath.forward || []).join(" "),
+      (transformPath.forward || []).length ? "Forward device-to-PCS path is present" : "No forward transform tags detected",
+      "ICC.1-2022-05 Sec.10.10-Sec.10.13",
+      "Validate tag type and payload bounds before traversing LUT or matrix data.",
+      (transformPath.forward || []).length > 0,
+    ),
+    renderOverlayFieldCard(
+      "Reverse transform tags",
+      (transformPath.reverse || []).join(" "),
+      (transformPath.reverse || []).length ? "Reverse PCS-to-device path is present" : "No reverse transform tags detected",
+      "ICC.1-2022-05 Sec.10.10-Sec.10.13",
+      "Reverse paths should be independently typed and bounds-checked.",
+      (transformPath.reverse || []).length > 0,
+    ),
+    renderOverlayFieldCard(
+      "Matrix or TRC tags",
+      (transformPath.matrix || []).join(" "),
+      (transformPath.matrix || []).length ? "Matrix or tone-response path is present" : "No matrix or TRC path detected",
+      "ICC.1-2022-05 Annex G",
+      "Channel-specific tags should agree with the declared data color space before transform execution.",
+      (transformPath.matrix || []).length > 0,
+    ),
+    renderOverlayFieldCard(
+      "Embedded profile branch",
+      transformPath.embedded ? "ICC5" : "none",
+      transformPath.embedded ? "Embedded ICC branch present" : "No embedded ICC branch present",
+      "ICC Technote Profile Embedding",
+      "Never recurse into embedded content until the tag type and bounds are both trusted.",
+      !transformPath.embedded,
+    ),
+  ].join("");
+
+  const metadataCards = [
+    renderOverlayFieldCard(
+      "Carrier identity",
+      `${file.extension || "none"} / ${file.carrier || "Unknown"}`,
+      file.extensionMatchesCarrier ? "Extension matches detected carrier" : "Extension and carrier disagree",
+      "Carrier sniffing before ICC parsing",
+      "Do not trust the file extension when deciding whether the root object is ICC data.",
+      Boolean(file.extensionMatchesCarrier),
+    ),
+    renderOverlayFieldCard(
+      "File digest",
+      file.sha256 || "",
+      `${file.size || 0} bytes`,
+      "Filesystem provenance",
+      "Show digest and detected file type together so analysts can spot mislabeled samples quickly.",
+      true,
+    ),
+    renderOverlayFieldCard(
+      "Profile identity",
+      `${metadata.profileClass || ""} / ${metadata.colorSpace || ""} / ${metadata.pcs || ""}`,
+      `${file.name || ""}`,
+      "ICC.1-2022-05 Sec.7.2",
+      "Header identity fields determine whether required-tag logic and transform rules are meaningful.",
+      Boolean(gates.header),
+    ),
+  ].join("");
+
+  return `
+    <div class="overlay-shell">
+      <section class="overlay-hero">
+        <div class="overlay-eyebrow">Layer 1</div>
+        <div class="overlay-title-row">
+          <div>
+            <h2>${esc(file.name || "Profile Overlay")}</h2>
+            <p class="overlay-subtitle">Three-layer view for ICC conformance, graph-shaped profile structure, and secure parsing guidance.</p>
+          </div>
+          <div class="overlay-status-badge ${esc(conformance.status || "warning")}">${esc(conformance.label || "Conformant with warnings")}</div>
+        </div>
+        <div class="overlay-chip-row">
+          <span class="overlay-chip ${gates.header ? "ok" : "fail"}">Header: ${gates.header ? "pass" : "fail"}</span>
+          <span class="overlay-chip ${gates.tagTable ? "ok" : "fail"}">Tag table: ${gates.tagTable ? "pass" : "fail"}</span>
+          <span class="overlay-chip ${gates.requiredTags ? "ok" : "fail"}">Required tags: ${gates.requiredTags ? "pass" : "fail"}</span>
+          <span class="overlay-chip ${conformance.status === "conformant" ? "ok" : conformance.status === "warning" ? "warn" : "fail"}">Score: ${esc(String(conformance.score || 0))}</span>
+          <span class="overlay-chip warn">Security warnings: ${esc(String(securitySummary.warnings || 0))}</span>
+        </div>
+        <div class="overlay-table-wrap">
+          <table class="overlay-table">
+            <thead>
+              <tr>
+                <th>Gate</th>
+                <th>Status</th>
+                <th>Why it matters</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Header</td>
+                <td>${gates.header ? "Pass" : "Fail"}</td>
+                <td>${esc((conformance.reasons || {}).header || "All fixed-header checks passed.")}</td>
+              </tr>
+              <tr>
+                <td>Tag table</td>
+                <td>${gates.tagTable ? "Pass" : "Fail"}</td>
+                <td>${esc((conformance.reasons || {}).tagTable || "Tag count, uniqueness, and layout checks passed.")}</td>
+              </tr>
+              <tr>
+                <td>Required tags</td>
+                <td>${gates.requiredTags ? "Pass" : "Fail"}</td>
+                <td>${esc((conformance.reasons || {}).requiredTags || "Class-specific required tags are present.")}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="overlay-layer">
+        <div class="overlay-eyebrow">Layer 2</div>
+        <h3>Visual mind map</h3>
+        <p class="overlay-note">Click a node to jump to the corresponding secure parsing section.</p>
+        <div class="overlay-node-grid">
+          <button type="button" class="overlay-node" data-target="overlay-section-header"><strong>Header</strong><span class="overlay-note">128-byte identity envelope and fixed-value checks.</span></button>
+          <button type="button" class="overlay-node" data-target="overlay-section-tag-table"><strong>Tag table</strong><span class="overlay-note">Offsets, sizes, alignment, uniqueness, and overlap policy.</span></button>
+          <button type="button" class="overlay-node overlay-node-center" data-target="overlay-section-metadata"><strong>Profile identity</strong><span class="overlay-note">${esc(file.carrier || "Unknown")} carrier, ${esc(metadata.profileClass || "unknown class")}, ${esc(metadata.colorSpace || "unknown space")}.</span></button>
+          <button type="button" class="overlay-node" data-target="overlay-section-required-tags"><strong>Required tags</strong><span class="overlay-note">Annex G essentials for the declared profile class.</span></button>
+          <button type="button" class="overlay-node" data-target="overlay-section-transform-path"><strong>Transform path</strong><span class="overlay-note">Forward, reverse, matrix, and embedded-profile traversal.</span></button>
+          <button type="button" class="overlay-node" data-target="overlay-section-security"><strong>Security findings</strong><span class="overlay-note">Warnings and crash-prevention checks from live analyzer output.</span></button>
+        </div>
+      </section>
+
+      <section class="overlay-layer">
+        <div class="overlay-eyebrow">Layer 3</div>
+        <h3>Secure parsing guidance</h3>
+        <div class="overlay-sections">
+          <section class="overlay-section" id="overlay-section-header">
+            <h3>Header</h3>
+            <p class="overlay-summary">Each header field below shows raw bytes, decoded meaning, the spec anchor, and the parser risk note.</p>
+            <div class="overlay-card-grid">${headerCards || '<div class="overlay-note">No header fields available.</div>'}</div>
+          </section>
+          <section class="overlay-section" id="overlay-section-tag-table">
+            <h3>Tag table</h3>
+            <div class="overlay-chip-row">
+              <span class="overlay-chip ${tagTableSummary.ok ? "ok" : "fail"}">count=${esc(String(tagTableSummary.count || 0))}</span>
+              <span class="overlay-chip ${tagTableSummary.overlapPairs ? "fail" : "ok"}">overlaps=${esc(String(tagTableSummary.overlapPairs || 0))}</span>
+              <span class="overlay-chip ${tagTableSummary.duplicates && tagTableSummary.duplicates.length ? "fail" : "ok"}">duplicates=${esc(String((tagTableSummary.duplicates || []).length))}</span>
+              <span class="overlay-chip ${tagTableSummary.outOfBounds ? "fail" : "ok"}">oob=${esc(String(tagTableSummary.outOfBounds || 0))}</span>
+            </div>
+            <p class="overlay-summary">${esc(tagTableSummary.reason || "Tag table structure is internally consistent.")}</p>
+            <div class="overlay-card-grid">${tagCards || '<div class="overlay-note">No tag entries available.</div>'}</div>
+          </section>
+          <section class="overlay-section" id="overlay-section-required-tags">
+            <h3>Required tags</h3>
+            <p class="overlay-summary">${esc(requiredTagsSummary.basis || "Class-specific required tag analysis.")}</p>
+            <div class="overlay-card-grid">${requiredCards || '<div class="overlay-note">Required tags were not evaluated because the root object is not a valid ICC profile.</div>'}</div>
+          </section>
+          <section class="overlay-section" id="overlay-section-transform-path">
+            <h3>Transform path</h3>
+            <div class="overlay-chip-row">
+              <span class="overlay-chip ok">Forward: ${(transformPath.forward || []).length}</span>
+              <span class="overlay-chip ok">Reverse: ${(transformPath.reverse || []).length}</span>
+              <span class="overlay-chip ok">Matrix/TRC: ${(transformPath.matrix || []).length}</span>
+              <span class="overlay-chip ${transformPath.embedded ? "warn" : "ok"}">Embedded: ${transformPath.embedded ? "yes" : "no"}</span>
+            </div>
+            <div class="overlay-card-grid">${transformCards}</div>
+          </section>
+          <section class="overlay-section" id="overlay-section-metadata">
+            <h3>Metadata and provenance</h3>
+            <div class="overlay-card-grid">${metadataCards}</div>
+          </section>
+          <section class="overlay-section" id="overlay-section-security">
+            <h3>Security findings</h3>
+            <div class="overlay-chip-row">
+              <span class="overlay-chip warn">Warnings: ${esc(String(securitySummary.warnings || 0))}</span>
+              <span class="overlay-chip ${securitySummary.critical ? "fail" : "ok"}">Critical: ${esc(String(securitySummary.critical || 0))}</span>
+              <span class="overlay-chip ok">Heuristics run: ${esc(String(securitySummary.heuristicsRun || 0))}</span>
+            </div>
+            <div class="overlay-card-grid">${securityCards || '<div class="overlay-note">No warning-level security findings were returned.</div>'}</div>
+          </section>
+        </div>
+      </section>
+    </div>`;
+}
+
+function showRichOutput(html) {
+  $placeholder.classList.add("hidden-input");
+  $pre.classList.add("hidden-input");
+  $rich.classList.remove("is-hidden");
+  $copyBtn.classList.remove("copy-hidden");
+  $rich.innerHTML = html;
+  $output.scrollTop = 0;
+  const old = document.getElementById("downloadLink");
+  if (old) old.remove();
+}
+
 function showOutput(text) {
   text = normalizeOutput(text);
   if (!text) {
     $pre.classList.add("hidden-input");
+    $rich.classList.add("is-hidden");
+    $rich.innerHTML = "";
     $copyBtn.classList.add("copy-hidden");
     $placeholder.classList.remove("hidden-input");
     // Remove any existing download link
@@ -1452,6 +1923,8 @@ function showOutput(text) {
     return;
   }
   $placeholder.classList.add("hidden-input");
+  $rich.classList.add("is-hidden");
+  $rich.innerHTML = "";
   $pre.classList.remove("hidden-input");
   $copyBtn.classList.remove("copy-hidden");
   $pre.textContent = sanitize(text);
@@ -1475,7 +1948,7 @@ function showOutput(text) {
 }
 
 function copyOutput() {
-  const text = $pre.textContent;
+  const text = lastOutput || $pre.textContent;
   if (!text) return;
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(() => {
@@ -1578,6 +2051,12 @@ function sanitize(s) {
 
 /* -- Boot ------------------------------------------------ */
 $copyBtn.addEventListener("click", copyOutput);
+$rich.addEventListener("click", e => {
+  const node = e.target.closest("[data-target]");
+  if (!node) return;
+  const target = document.getElementById(node.getAttribute("data-target"));
+  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 const initHash = location.hash.replace(/^#/, "");
 if (initHash && TOOLS[initHash]) {
   selectTool(initHash);
