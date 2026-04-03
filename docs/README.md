@@ -28,6 +28,10 @@ There is also a higher-resolution table-first variant at
 The ICC-homepage-branded table-first `v3` poster is at
 `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v3.png`.
 
+Two additional corkami-inspired variants are now available:
+`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v4.png` and
+`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v5.png`.
+
 ## Research and Evidence
 
 | Path | Purpose |
