@@ -5049,6 +5049,90 @@ static void test_image_truncated_tiff_regression() {
     expect_heuristic_result(result, 150, CheckResult::Status::SKIP, 0);
 }
 
+static void test_image_bigtiff_le_regression() {
+    std::printf("  test_image_bigtiff_le_regression...\n");
+
+    auto imagePath = resolve_repo_file("tests/corpus/bigtiff_le.tif");
+    if (imagePath.empty()) {
+        std::printf("    (skipped -- bigtiff_le.tif not found)\n");
+        return;
+    }
+
+    auto result = analyze_image_checks(imagePath, {139, 140, 141, 149, 150});
+    ASSERT_EQ(5, result.stats.checksRun);
+    expect_heuristic_result(result, 139, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 140, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 141, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 149, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 150, CheckResult::Status::OK, 0);
+
+    const auto* h150 = find_per_check(result, CheckID::Kind::Heuristic, 150);
+    ASSERT_TRUE(h150 != nullptr);
+    ASSERT_EQ(std::string("Strip-based image - tile geometry N/A"), h150->result.summary);
+}
+
+static void test_image_bigtiff_be_regression() {
+    std::printf("  test_image_bigtiff_be_regression...\n");
+
+    auto imagePath = resolve_repo_file("tests/corpus/bigtiff_be.tif");
+    if (imagePath.empty()) {
+        std::printf("    (skipped -- bigtiff_be.tif not found)\n");
+        return;
+    }
+
+    auto result = analyze_image_checks(imagePath, {139, 140, 141, 149, 150});
+    ASSERT_EQ(5, result.stats.checksRun);
+    expect_heuristic_result(result, 139, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 140, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 141, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 149, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 150, CheckResult::Status::OK, 0);
+}
+
+static void test_image_bigtiff_tiled_regression() {
+    std::printf("  test_image_bigtiff_tiled_regression...\n");
+
+    auto imagePath = resolve_repo_file("tests/corpus/bigtiff_tiled.tif");
+    if (imagePath.empty()) {
+        std::printf("    (skipped -- bigtiff_tiled.tif not found)\n");
+        return;
+    }
+
+    auto result = analyze_image_checks(imagePath, {139, 140, 141, 149, 150});
+    ASSERT_EQ(5, result.stats.checksRun);
+    // H139 OK (tiled image -- strip geometry N/A)
+    expect_heuristic_result(result, 139, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 140, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 141, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 149, CheckResult::Status::OK, 0);
+    // H150 should report tile geometry valid
+    expect_heuristic_result(result, 150, CheckResult::Status::OK, 0);
+
+    const auto* h150 = find_per_check(result, CheckID::Kind::Heuristic, 150);
+    ASSERT_TRUE(h150 != nullptr);
+    ASSERT_EQ(std::string("Tile geometry valid"), h150->result.summary);
+}
+
+static void test_image_bigtiff_subifd_regression() {
+    std::printf("  test_image_bigtiff_subifd_regression...\n");
+
+    auto imagePath = resolve_repo_file("tests/corpus/bigtiff_subifd.tif");
+    if (imagePath.empty()) {
+        std::printf("    (skipped -- bigtiff_subifd.tif not found)\n");
+        return;
+    }
+
+    auto result = analyze_image_checks(imagePath, {139, 140, 141, 149, 150});
+    ASSERT_EQ(5, result.stats.checksRun);
+    expect_heuristic_result(result, 139, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 140, CheckResult::Status::OK, 0);
+    // H141 should detect multi-page TIFF
+    expect_heuristic_result(result, 141, CheckResult::Status::OK, 0);
+    // H149 should validate acyclic IFD chain across pages
+    expect_heuristic_result(result, 149, CheckResult::Status::OK, 0);
+    expect_heuristic_result(result, 150, CheckResult::Status::OK, 0);
+}
+
 void test_runner() {
     std::printf("test_runner:\n");
     test_version_string();
@@ -5114,6 +5198,10 @@ void test_runner() {
     test_cf115_only_emits_raw_findings_when_quarantined();
     test_image_tiff_with_embedded_icc_regression();
     test_image_truncated_tiff_regression();
+    test_image_bigtiff_le_regression();
+    test_image_bigtiff_be_regression();
+    test_image_bigtiff_tiled_regression();
+    test_image_bigtiff_subifd_regression();
     // Analysis tests use setup_registry() which clears auto-registrations
     test_analyze_minimal_profile();
     test_analyze_bad_magic();
