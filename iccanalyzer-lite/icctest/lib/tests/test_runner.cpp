@@ -3867,6 +3867,63 @@ static void test_copy_constructor_null_pcs_regression() {
     }
 }
 
+static void test_color_encoding_profile_regression() {
+    std::printf("  test_color_encoding_profile_regression...\n");
+
+    auto profilePath = resolve_repo_file("test-profiles/sRgbEncoding.icc");
+    if (profilePath.empty()) {
+        std::printf("    (skipped — test-profiles/sRgbEncoding.icc not found)\n");
+        return;
+    }
+
+    {
+        auto result = analyze_corpus_heuristics(profilePath, {4, 6, 8, 13, 110, 112, 122, 123, 127, 170});
+        ASSERT_EQ(10, result.stats.checksRun);
+        expect_heuristic_result(result, 4, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 6, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 8, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 13, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 110, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 112, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 122, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 123, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 127, CheckResult::Status::OK, 0);
+        expect_heuristic_result(result, 170, CheckResult::Status::FINDINGS, 3);
+
+        const auto* h170 = find_per_check(result, CheckID::Kind::Heuristic, 170);
+        ASSERT_TRUE(h170 != nullptr);
+        if (!h170) {
+            return;
+        }
+
+        bool sawCencMessage = false;
+        bool sawTypeConfusion = false;
+        for (const auto& finding : h170->result.findings) {
+            if (finding.message.find("ColorEncoding profile uses null PCS as required") != std::string::npos) {
+                sawCencMessage = true;
+            }
+            if (finding.cweNote.find("CWE-843") != std::string::npos &&
+                finding.cweNote.find("invalid vptr") != std::string::npos) {
+                sawTypeConfusion = true;
+            }
+        }
+        ASSERT_TRUE(sawCencMessage);
+        ASSERT_TRUE(sawTypeConfusion);
+    }
+
+    {
+        auto result = analyze_corpus_checks(profilePath, {8, 9, 40, 92, 97, 98, 111});
+        ASSERT_EQ(7, result.stats.checksRun);
+        expect_conformance_result(result, 8, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 9, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 40, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 92, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 97, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 98, CheckResult::Status::OK, 0);
+        expect_conformance_result(result, 111, CheckResult::Status::OK, 0);
+    }
+}
+
 static void test_h20_tag_type_signature_regression() {
     std::printf("  test_h20_tag_type_signature_regression...\n");
 
@@ -5220,6 +5277,7 @@ void test_runner() {
     test_dictionary_tag_element_bounds_regression();
     test_lut_data_sufficiency_regression();
     test_copy_constructor_null_pcs_regression();
+    test_color_encoding_profile_regression();
     test_h18_technology_signature_regression();
     test_h20_tag_type_signature_regression();
     test_h21_h24_tag_struct_regressions();

@@ -2798,6 +2798,40 @@ def test_heuristic_detection(suite):
         r"\[H170\][\s\S]*PCS signature valid for copy-constructor safety"
     )
 
+    srgb_encoding = str(TEST_PROFILES / "sRgbEncoding.icc")
+    suite.assert_output_contains(
+        "heuristic.cenc_h170_refined",
+        ["-a", "--legacy", srgb_encoding],
+        r"H170[\s\S]*ColorEncoding profile uses null PCS as required"
+    )
+    suite.assert_output_not_contains(
+        "heuristic.cenc_no_icc1_required_tag_noise",
+        ["-a", "--legacy", srgb_encoding],
+        r"Missing required tag 'desc' for non-DeviceLink class|"
+        r"Missing required tag 'cprt' for non-DeviceLink class|"
+        r"Missing required tag 'wtpt' for non-DeviceLink class|"
+        r"Missing wtpt tag \(required for non-DeviceLink\)|"
+        r"not found in private tag registry"
+    )
+    suite.assert_output_not_contains(
+        "conformance.cenc_no_private_tag_noise",
+        ["-a", "--legacy", srgb_encoding],
+        r"Private/unknown tag: 'rfnm'|"
+        r"Private/unregistered: 'rfnm'|"
+        r"Undocumented private tag: 'rfnm'|"
+        r"Unrecognized: 'rfnm'"
+    )
+    suite.assert_output_not_contains(
+        "conformance.cenc_no_d50_required_tag_failures",
+        ["-a", "--legacy", srgb_encoding],
+        r"PCS illuminant [XYZ]=.*!= D50|"
+        r"chad tag required when adopted white != D50|"
+        r"profileDescriptionTag required|"
+        r"copyrightTag required|"
+        r"mediaWhitePointTag required|"
+        r"V4\+ requires chad when adopted white"
+    )
+
     # --- H52 integer underflow in tag size / CFL-065 regression ---
 
     h52_poc = os.path.join(REPO_ROOT, "test-profiles", "cfl065-nEnd-underflow-v4.icc")

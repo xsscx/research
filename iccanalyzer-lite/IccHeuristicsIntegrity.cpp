@@ -262,6 +262,9 @@ int RunHeuristic_H123_NonRequiredTags(CIccProfile *pIcc) {
     case icSigNamedColorClass:
       allowed.insert(icSigNamedColor2Tag);
       break;
+    case icSigColorEncodingClass:
+      allowed.insert(icSigReferenceNameTag);
+      break;
     default:
       break;
   }
@@ -481,6 +484,7 @@ int RunHeuristic_H126_PrivateTagMalware(CIccProfile *pIcc, const char *filename)
     icSigOutputResponseTag, icSigPreview0Tag,
     icSigPreview1Tag, icSigPreview2Tag,
     icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+    icSigReferenceNameTag,
     icSigRedMatrixColumnTag, icSigRedTRCTag,
     icSigTechnologyTag, icSigViewingCondDescTag,
     icSigViewingConditionsTag, icSigColorantOrderTag,
@@ -614,6 +618,7 @@ int RunHeuristic_H127_PrivateTagRegistry(CIccProfile *pIcc) {
     icSigOutputResponseTag, icSigPreview0Tag,
     icSigPreview1Tag, icSigPreview2Tag,
     icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+    icSigReferenceNameTag,
     icSigRedMatrixColumnTag, icSigRedTRCTag,
     icSigTechnologyTag, icSigViewingCondDescTag,
     icSigViewingConditionsTag, icSigColorantOrderTag,

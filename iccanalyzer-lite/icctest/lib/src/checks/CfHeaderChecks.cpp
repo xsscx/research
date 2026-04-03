@@ -303,6 +303,16 @@ static CheckResult check_cf008_pcs_illuminant_d50_precision(const ProfileView& p
     const auto& h = pv.header();
     CheckID cfId{CheckID::Kind::Conformance, 8};
 
+    if (h.deviceClass == static_cast<uint32_t>(icSigColorEncodingClass)) {
+        if (h.illuminantX == 0 && h.illuminantY == 0 && h.illuminantZ == 0) {
+            return CheckResult::ok("ColorEncoding header illuminant is zero as required");
+        }
+        return {CheckResult::Status::FINDINGS, "ColorEncoding header illuminant must be zero", {
+            {cfId, Severity::HIGH,
+             "ColorEncoding profiles must zero header illuminant fields",
+             "ICC.2 ColorEncoding header rules", ""}}};
+    }
+
     double x = S15Fixed16ToDouble(h.illuminantX);
     double y = S15Fixed16ToDouble(h.illuminantY);
     double z = S15Fixed16ToDouble(h.illuminantZ);
@@ -342,6 +352,8 @@ static CheckResult check_cf009_chromatic_adaptation_tag_requirement(const Profil
     if (major < 4) return CheckResult::ok("v2 profile — chad not required");
     if (h.deviceClass == static_cast<uint32_t>(icSigLinkClass))
         return CheckResult::ok("DeviceLink — chad not required");
+    if (h.deviceClass == static_cast<uint32_t>(icSigColorEncodingClass))
+        return CheckResult::ok("ColorEncoding — chad not required");
 
     double x = S15Fixed16ToDouble(h.illuminantX);
     double y = S15Fixed16ToDouble(h.illuminantY);
