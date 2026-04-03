@@ -274,6 +274,8 @@
         <a class="chip note" href="../png/iccmax-srgbencoding-annotated-dump.png">PNG poster v1</a>
         <a class="chip note" href="../png/iccmax-srgbencoding-annotated-dump-v2.png">PNG poster v2</a>
         <a class="chip note" href="../png/iccmax-srgbencoding-annotated-dump-v3.png">PNG poster v3</a>
+        <a class="chip note" href="../png/iccmax-srgbencoding-annotated-dump-v4.png">PNG poster v4</a>
+        <a class="chip note" href="../png/iccmax-srgbencoding-annotated-dump-v5.png">PNG poster v5</a>
         <a class="chip note" href="../../../../.github/scripts/icc2txt.sh">icc2txt.sh</a>
         <a class="chip note" href="../../../../.github/scripts/icc2txt.zsh">icc2txt.zsh</a>
         <a class="chip note" href="../../../../.github/scripts/icc2txt.ps1">icc2txt.ps1</a>
@@ -468,13 +470,17 @@ pwsh -NoProfile -File .github/scripts/icc2txt.ps1 test-profiles/sRgbEncoding.icc
           <h3>Poster renderer</h3>
           <pre>python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster.py
 python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster_v2.py
-python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster_v3.py</pre>
+python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster_v3.py
+python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster_v4.py
+python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster_v5.py</pre>
           <p class="caption">
             The first command writes the original paired bitmap poster. The
             second writes the higher-resolution table-first
             <code>docs/iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png</code>.
             The third writes the ICC-homepage-branded
             <code>docs/iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v3.png</code>.
+            The fourth and fifth write the GIF-style and TIFF-style corkami
+            variants at <code>...-v4.png</code> and <code>...-v5.png</code>.
           </p>
         </article>
 

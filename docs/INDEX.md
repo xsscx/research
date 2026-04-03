@@ -29,6 +29,10 @@ the right part of `docs/`.
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`
 - ICC-homepage-branded PNG v3 for the same specimen:
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v3.png`
+- GIF-style PNG v4 for the same specimen:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v4.png`
+- TIFF-style PNG v5 for the same specimen:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v5.png`
 
 ### Run or Review Tests
 
@@ -56,6 +60,10 @@ the right part of `docs/`.
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`
 - Matching ICC-homepage-branded PNG v3 for `test-profiles/sRgbEncoding.icc`:
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v3.png`
+- Matching GIF-style PNG v4 for `test-profiles/sRgbEncoding.icc`:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v4.png`
+- Matching TIFF-style PNG v5 for `test-profiles/sRgbEncoding.icc`:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v5.png`
 
 ## Notes
 
