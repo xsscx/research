@@ -14,6 +14,16 @@ item traces back to a specific section in one of these documents.
 | **ICC.2-2023.pdf** | v5.1 (iccMAX) | Extended profile specification — spectral PCS, MPE, calculator elements | CF-080..CF-089, CF-113..CF-115 |
 | **ICC.1_Adaptive_Gain_Curve.pdf** | April 2025 amendment | ADGC tag — RGB+Input/Display only | CF-123..CF-136 |
 
+## HTML Overlays
+
+- `html/icc-profile-conformance-and-vulnerability-overlay.html` - Three-layer
+  view comparing `test-profiles/sRGB_v4_ICC_preference.icc` with the
+  bug-triggering TIFF carrier stored as
+  `test-profiles/ub-runtime-error-type-confusion-CIccTagEmbeddedProfile-iccTiffDump_cpp-Line171.icc`.
+  The page connects ICC.1 header and tag-table rules, Annex G required tags,
+  Web UI and MCP analysis flow, and the upstream `iccTiffDump` type-confusion
+  fix from issue `#527` / PR `#549`.
+
 ## Older Specifications
 
 | Document | Scope |

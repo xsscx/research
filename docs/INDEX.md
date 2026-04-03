@@ -19,6 +19,8 @@ the right part of `docs/`.
 - PoC notes and reproductions: `pocs/`
 - Static-analysis workflow: `iccDEV/codeql/README.md`
 - Runtime analyzer findings: `analysis/`
+- Three-layer HTML overlay for conformance vs bug patterns:
+  `iccDEV/specifications/html/icc-profile-conformance-and-vulnerability-overlay.html`
 
 ### Run or Review Tests
 
@@ -32,6 +34,12 @@ the right part of `docs/`.
 - Call graph notes: `callgraph/CALLGRAPH_EXAMINATION_INDEX.md`
 - TIFF analysis package: `tiffimg/START_HERE.md`
 - XNU image fuzzer notes: `xnuimagefuzzer/ICC_PROFILE_ANALYSIS.md`
+
+### Study ICC Design And Parsing
+
+- ICC specifications and technotes: `iccDEV/specifications/README.md`
+- HTML overlay for `sRGB_v4_ICC_preference.icc` and issue #527:
+  `iccDEV/specifications/html/icc-profile-conformance-and-vulnerability-overlay.html`
 
 ## Notes
 
