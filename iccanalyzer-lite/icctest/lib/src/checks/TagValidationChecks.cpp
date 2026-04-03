@@ -371,11 +371,12 @@ static CheckResult check_h21_tag_struct_member_inspection(const ProfileView& pv)
             icUInt32Number size;
         };
         std::vector<StructMemberInfo> members;
-        if (elems) {
-            members.reserve(elems->size());
-            for (const auto& elem : *elems) {
-                members.push_back({elem.TagInfo.sig, elem.TagInfo.size});
-            }
+        if (!elems) {
+            continue;
+        }
+        members.reserve(elems->size());
+        for (const auto& elem : *elems) {
+            members.push_back({elem.TagInfo.sig, elem.TagInfo.size});
         }
         int memberCount = static_cast<int>(members.size());
         if (memberCount > 100) {
