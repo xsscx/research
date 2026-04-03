@@ -92,8 +92,8 @@ jobs:
           if [ ! -d "iccDEV" ]; then
             git clone https://github.com/InternationalColorConsortium/iccDEV.git
           fi
-          cd colorbleed_tools/iccDEV && cd Build && cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ Cmake && make -j"$(nproc)"
-          cd ../../ && make -j"$(nproc)" clean all test
+          cd iccDEV/Build && cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ Cmake && make -j"$(nproc)"
+          cd ../.. && make -j"$(nproc)" clean all test
       - name: Generate Checksums
         shell: bash --noprofile --norc {0}
         env:
@@ -130,14 +130,18 @@ jobs:
           unset GITHUB_TOKEN || true
           echo "### Linux Build Summary (${MATRIX_COMPILER})" >> "$GITHUB_STEP_SUMMARY"
           echo "- Compiler: ${MATRIX_COMPILER}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: [OK] Success" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "#### Artifacts" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          sanitize_codeblock "$(ls -lh colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe)" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "#### SHA256 Checksums" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          sanitize_codeblock "$(cat colorbleed_tools/SHA256SUMS)" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f colorbleed_tools/iccToXml_unsafe ] && [ -f colorbleed_tools/iccFromXml_unsafe ]; then
+            echo "- Status: [OK] Success" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "#### Artifacts" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            sanitize_codeblock "$(ls -lh colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe)" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "#### SHA256 Checksums" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            sanitize_codeblock "$(cat colorbleed_tools/SHA256SUMS)" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Status: [FAIL] Build did not produce expected binaries" >> "$GITHUB_STEP_SUMMARY"
+          fi
