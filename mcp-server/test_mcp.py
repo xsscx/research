@@ -211,7 +211,7 @@ def test_absolute_path_escape():
         try:
             _resolve_profile(path)
             T.ok(f"absolute({path})", False, "resolved")
-        except FileNotFoundError:
+        except (ValueError, FileNotFoundError):
             T.ok(f"absolute({path})", True)
 
     T.section_summary()
@@ -725,13 +725,13 @@ async def test_error_handling():
     try:
         await inspect_profile("../../etc/passwd")
         T.ok("err_traversal_inspect", False, "no exception")
-    except FileNotFoundError:
+    except (ValueError, FileNotFoundError):
         T.ok("err_traversal_inspect", True)
 
     try:
         await analyze_security("/etc/passwd")
         T.ok("err_absolute_security", False, "no exception")
-    except FileNotFoundError:
+    except (ValueError, FileNotFoundError):
         T.ok("err_absolute_security", True)
 
     T.section_summary()
