@@ -126,7 +126,11 @@ static CheckResult check_h110_class_tag_validation_raw_fallback(const ProfileVie
     size_t rawLen = pv.rawSize();
     uint32_t profileClass = hdr.deviceClass;
 
-    if (profileClass != kClassLink) {
+    if (profileClass == kClassColorEncoding) {
+        if (!rawTagPresentOnFallback(pv, icSigReferenceNameTag)) {
+            cb.warn("Missing required tag 'rfnm' for ColorEncoding class");
+        }
+    } else if (profileClass != kClassLink) {
         if (!rawTagHeaderReadable(pv, icSigProfileDescriptionTag, 24u)) {
             cb.warn("Missing required tag 'desc' for non-DeviceLink class");
         }
@@ -173,6 +177,9 @@ static CheckResult check_h110_class_tag_validation_raw_fallback(const ProfileVie
         case kClassNamedColor:
             className = "NamedColor (nmcl)";
             break;
+        case kClassColorEncoding:
+            className = "ColorEncoding (cenc)";
+            break;
         default:
             cb.warn(sfmt("Unknown profile class: 0x%08X", profileClass));
             break;
@@ -192,7 +199,12 @@ static CheckResult check_h110_class_tag_validation_raw_fallback(const ProfileVie
         }
     }
 
-    if (profileClass != kClassLink) {
+    if (profileClass == kClassColorEncoding) {
+        if (hdr.pcs != 0x00000000u) {
+            cb.warn("ColorEncoding PCS must be null (0x00000000)",
+                    "CWE-20: Invalid PCS for ColorEncoding profile");
+        }
+    } else if (profileClass != kClassLink) {
         if (hdr.pcs != icSigLabData && hdr.pcs != icSigXYZData) {
             if (hdr.pcs < 0x72300000u || hdr.pcs > 0x72FFFFFFu) {
                 cb.warn(
@@ -203,6 +215,7 @@ static CheckResult check_h110_class_tag_validation_raw_fallback(const ProfileVie
     }
 
     if (profileClass != kClassLink &&
+        profileClass != kClassColorEncoding &&
         rawXyzTagUsable(pv, icSigMediaWhitePointTag) &&
         !rawS15Fixed16ArrayTagUsable(pv, icSigChromaticAdaptationTag, 12u)) {
         auto wtpt = pv.rawTag(icSigMediaWhitePointTag);
@@ -329,11 +342,23 @@ static CheckResult check_h112_d50_precision(const ProfileView& pv) {
     CheckBuilder cb;
     if (pv.rawSize() < 80) return CheckResult::skip("File too small");
     const uint8_t* d = pv.rawData();
+    uint32_t cls = pv.header().deviceClass;
 
     // D50 at bytes 68-79 (3 x s15Fixed16Number)
     int32_t xi = readS32BE(d + 68);
     int32_t yi = readS32BE(d + 72);
     int32_t zi = readS32BE(d + 76);
+
+    if (cls == kClassColorEncoding) {
+        if (xi != 0 || yi != 0 || zi != 0) {
+            double x = xi / 65536.0;
+            double y = yi / 65536.0;
+            double z = zi / 65536.0;
+            cb.warn(sfmt("ColorEncoding header illuminant must be zero; found "
+                         "(%.6f, %.6f, %.6f)", x, y, z));
+        }
+        return cb.done("D50 precision validated");
+    }
 
     // Exact ICC D50 values
     if (xi != kD50X || yi != kD50Y || zi != kD50Z) {
@@ -618,7 +643,11 @@ static CheckResult check_h110_class_tag_validation(const ProfileView& pv) {
         {static_cast<icTagSignature>(0), nullptr}
     };
 
-    if (profileClass != icSigLinkClass) {
+    if (profileClass == icSigColorEncodingClass) {
+        if (!p->FindTag(icSigReferenceNameTag)) {
+            cb.warn("Missing required tag 'rfnm' for ColorEncoding class");
+        }
+    } else if (profileClass != icSigLinkClass) {
         for (int i = 0; commonRequired[i].sig != static_cast<icTagSignature>(0); ++i) {
             if (!p->FindTag(commonRequired[i].sig)) {
                 cb.warn(sfmt("Missing required tag '%s' for non-DeviceLink class",
@@ -663,6 +692,9 @@ static CheckResult check_h110_class_tag_validation(const ProfileView& pv) {
         case icSigNamedColorClass:
             className = "NamedColor (nmcl)";
             break;
+        case icSigColorEncodingClass:
+            className = "ColorEncoding (cenc)";
+            break;
         default:
             cb.warn(sfmt("Unknown profile class: 0x%08X", static_cast<unsigned>(profileClass)));
             break;
@@ -682,7 +714,12 @@ static CheckResult check_h110_class_tag_validation(const ProfileView& pv) {
         }
     }
 
-    if (profileClass != icSigLinkClass) {
+    if (profileClass == icSigColorEncodingClass) {
+        if (p->m_Header.pcs != icSigNoColorData) {
+            cb.warn("ColorEncoding PCS must be null (0x00000000)",
+                    "CWE-20: Invalid PCS for ColorEncoding profile");
+        }
+    } else if (profileClass != icSigLinkClass) {
         if (p->m_Header.pcs != icSigLabData && p->m_Header.pcs != icSigXYZData) {
             icUInt32Number pcsVal = static_cast<icUInt32Number>(p->m_Header.pcs);
             if (pcsVal < 0x72300000u || pcsVal > 0x72FFFFFFu) {
@@ -694,7 +731,8 @@ static CheckResult check_h110_class_tag_validation(const ProfileView& pv) {
         }
     }
 
-    if (profileClass != icSigLinkClass) {
+    if (profileClass != icSigLinkClass &&
+        profileClass != icSigColorEncodingClass) {
         CIccTag* chadTag = p->FindTag(icSigChromaticAdaptationTag);
         CIccTag* wtptTag = p->FindTag(icSigMediaWhitePointTag);
         if (wtptTag && !chadTag) {

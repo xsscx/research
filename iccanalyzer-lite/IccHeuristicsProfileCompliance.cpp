@@ -527,6 +527,7 @@ int RunHeuristic_H108_PrivateTags(CIccProfile *pIcc) {
     icSigOutputResponseTag, icSigPreview0Tag,
     icSigPreview1Tag, icSigPreview2Tag,
     icSigProfileDescriptionTag, icSigProfileSequenceDescTag,
+    icSigReferenceNameTag,
     icSigRedMatrixColumnTag, icSigRedTRCTag,
     icSigTechnologyTag, icSigViewingCondDescTag,
     icSigViewingConditionsTag, icSigColorantOrderTag,
@@ -674,7 +675,12 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
   };
 
   // Check common required tags
-  if (profileClass != icSigLinkClass) {
+  if (profileClass == icSigColorEncodingClass) {
+    if (!pIcc->FindTag(icSigReferenceNameTag)) {
+      hc.warn("HEURISTIC: Missing required tag 'rfnm' for ColorEncoding class");
+    }
+  }
+  else if (profileClass != icSigLinkClass) {
     for (int i = 0; commonRequired[i].sig != (icTagSignature)0; i++) {
       if (!pIcc->FindTag(commonRequired[i].sig)) {
         hc.warn("HEURISTIC: Missing required tag '%s' for non-DeviceLink class",
@@ -719,6 +725,9 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
     case icSigNamedColorClass:
       className = "NamedColor (nmcl)";
       break;
+    case icSigColorEncodingClass:
+      className = "ColorEncoding (cenc)";
+      break;
     default:
       hc.warn("HEURISTIC: Unknown profile class: 0x%08X", (unsigned)profileClass);
       break;
@@ -739,7 +748,13 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
   }
 
   // Class↔Colorspace: non-DeviceLink PCS must be Lab or XYZ (or v5 spectral)
-  if (profileClass != icSigLinkClass) {
+  if (profileClass == icSigColorEncodingClass) {
+    if (pIcc->m_Header.pcs != icSigNoColorData) {
+      hc.warn("HEURISTIC: ColorEncoding PCS must be null (0x00000000)");
+      hc.cweNote("CWE-20: Invalid PCS for ColorEncoding profile class");
+    }
+  }
+  else if (profileClass != icSigLinkClass) {
     if (pIcc->m_Header.pcs != icSigLabData && pIcc->m_Header.pcs != icSigXYZData) {
       icUInt32Number pcsVal = (icUInt32Number)pIcc->m_Header.pcs;
       if (pcsVal < 0x72300000 || pcsVal > 0x72FFFFFF) {
@@ -751,7 +766,8 @@ int RunHeuristic_H110_ClassTagValidation(CIccProfile *pIcc) {
   }
 
   // ICC.1-2022-05 Annex G: chromaticAdaptationTag required when adopted white ≠ D50
-  if (profileClass != icSigLinkClass) {
+  if (profileClass != icSigLinkClass &&
+      profileClass != icSigColorEncodingClass) {
     CIccTag *chadTag = pIcc->FindTag(icSigChromaticAdaptationTag);
     CIccTag *wtptTag = pIcc->FindTag(icSigMediaWhitePointTag);
     if (wtptTag && !chadTag) {
@@ -826,6 +842,11 @@ int RunHeuristic_H111_ReservedBytes(const char *filename) {
 int RunHeuristic_H112_WtptValidation(CIccProfile *pIcc) {
   auto &hc = HeuristicCollector::instance();
   hc.begin(112, "Wtpt Profile-Class Validation");
+
+  if (pIcc->m_Header.deviceClass == icSigColorEncodingClass) {
+    hc.info("      ColorEncoding profiles use rfnm and zero header illuminant; wtpt is not required");
+    return hc.end("Wtpt validation skipped for ColorEncoding profile");
+  }
 
   CIccTag *tag = pIcc->FindTag(icSigMediaWhitePointTag);
   if (!tag) {

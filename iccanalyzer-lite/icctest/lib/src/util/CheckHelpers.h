@@ -902,11 +902,13 @@ constexpr uint32_t kClassLink        = 0x6C696E6B; // 'link'
 constexpr uint32_t kClassColorSpace  = 0x73706163; // 'spac'
 constexpr uint32_t kClassAbstract    = 0x61627374; // 'abst'
 constexpr uint32_t kClassNamedColor  = 0x6E6D636C; // 'nmcl'
+constexpr uint32_t kClassColorEncoding = 0x63656E63; // 'cenc'
 
 // Common tag signatures
 constexpr uint32_t kSigDesc   = 0x64657363; // 'desc'
 constexpr uint32_t kSigWtpt   = 0x77747074; // 'wtpt'
 constexpr uint32_t kSigCprt   = 0x63707274; // 'cprt'
+constexpr uint32_t kSigRfnm   = 0x72666E6D; // 'rfnm'
 constexpr uint32_t kSigChad   = 0x63686164; // 'chad'
 constexpr uint32_t kSigAToB0  = 0x41324230; // 'A2B0'
 constexpr uint32_t kSigBToA0  = 0x42324130; // 'B2A0'

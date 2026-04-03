@@ -90,7 +90,8 @@ static CheckResult check_h4_class(const ProfileView& pv) {
 
     static const uint32_t kValidClasses[] = {
         kClassInput, kClassDisplay, kClassOutput, kClassLink,
-        kClassColorSpace, kClassAbstract, kClassNamedColor
+        kClassColorSpace, kClassAbstract, kClassNamedColor,
+        kClassColorEncoding
     };
 
     bool valid = false;
@@ -158,6 +159,14 @@ static CheckResult check_h6_pcs(const ProfileView& pv) {
     const auto& hdr = pv.header();
     uint32_t cls = hdr.deviceClass;
 
+    if (cls == kClassColorEncoding) {
+        if (hdr.pcs != 0x00000000u) {
+            cb.high("ColorEncoding profiles must use null PCS (0x00000000)",
+                    "CWE-20: Improper Input Validation");
+        }
+        return cb.done("PCS validated");
+    }
+
     // DeviceLink profiles can have any PCS; others must be XYZ or Lab
     if (cls != kClassLink) {
         if (hdr.pcs != 0x58595A20 && hdr.pcs != 0x4C616220) {
@@ -188,6 +197,14 @@ static CheckResult check_h7_intent(const ProfileView& pv) {
 static CheckResult check_h8_illuminant(const ProfileView& pv) {
     CheckBuilder cb;
     const auto& hdr = pv.header();
+
+    if (hdr.deviceClass == kClassColorEncoding) {
+        if (hdr.illuminantX != 0 || hdr.illuminantY != 0 || hdr.illuminantZ != 0) {
+            cb.high("ColorEncoding profiles must zero the header illuminant fields",
+                    "CWE-20: Improper Input Validation");
+        }
+        return cb.done("PCS illuminant valid");
+    }
 
     if (hdr.illuminantX != kD50X || hdr.illuminantY != kD50Y || hdr.illuminantZ != kD50Z) {
         double x = hdr.illuminantX / 65536.0;
