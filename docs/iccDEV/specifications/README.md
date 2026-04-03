@@ -16,13 +16,12 @@ item traces back to a specific section in one of these documents.
 
 ## HTML Overlays
 
-- `html/icc-profile-conformance-and-vulnerability-overlay.html` - Three-layer
-  view comparing `test-profiles/sRGB_v4_ICC_preference.icc` with the
-  bug-triggering TIFF carrier stored as
-  `test-profiles/ub-runtime-error-type-confusion-CIccTagEmbeddedProfile-iccTiffDump_cpp-Line171.icc`.
-  The page connects ICC.1 header and tag-table rules, Annex G required tags,
-  Web UI and MCP analysis flow, and the upstream `iccTiffDump` type-confusion
-  fix from issue `#527` / PR `#549`.
+- `html/icc-profile-conformance-and-vulnerability-overlay.html` - Poster-style
+  rev 2 overlay for issue `#599`, built around the exact
+  `xxd` bytes of `test-profiles/ub-runtime-error-signed-integer-overflowIccTagLut_cpp-Line5638.icc`.
+  The page highlights the `gbd ` trigger window, shows how the visible
+  `wtpt` bytes become `m_NumberOfTriangles`, and compares the historical
+  vulnerable arithmetic with the local patch stack and current `iccDEV` mirror.
 - `html/iccmax-srgbencoding-annotated-dump.html` - Corkami-style annotated
   specimen for the 160-byte `test-profiles/sRgbEncoding.icc` sample. The page
   pairs an exact `xxd` dump with `cenc` class notes, tag-table anatomy, and
