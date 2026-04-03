@@ -103,7 +103,7 @@ MAX_PATH_LEN = 512
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024  # 50 MB cap on file downloads
 # Allow only safe profile-path characters (alphanumeric, dash, underscore, dot, slash, tilde)
 # Include backslash for Windows path compatibility
-_SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9._/\\~ :-]+$")
+_SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9._/\\~ :+-]+$")
 # Filename sanitization for Content-Disposition: keep only safe chars
 _SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._-]")
 
