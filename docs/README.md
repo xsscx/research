@@ -22,6 +22,9 @@ iccMAX specimen `test-profiles/sRgbEncoding.icc`.
 The same iccMAX specimen also has a generated PNG poster at
 `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`.
 
+There is also a higher-resolution table-first variant at
+`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`.
+
 ## Research and Evidence
 
 | Path | Purpose |

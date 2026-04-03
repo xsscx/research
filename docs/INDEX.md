@@ -25,6 +25,8 @@ the right part of `docs/`.
   `iccDEV/specifications/html/iccmax-srgbencoding-annotated-dump.html`
 - Static PNG poster for the same minimal iccMAX specimen:
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`
+- High-resolution table-first PNG v2 for the same specimen:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`
 
 ### Run or Review Tests
 
@@ -48,6 +50,8 @@ the right part of `docs/`.
   `iccDEV/specifications/html/iccmax-srgbencoding-annotated-dump.html`
 - Matching PNG poster for `test-profiles/sRgbEncoding.icc`:
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`
+- Matching high-resolution PNG v2 for `test-profiles/sRgbEncoding.icc`:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`
 
 ## Notes
 
