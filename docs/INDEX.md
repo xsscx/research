@@ -44,6 +44,7 @@ the right part of `docs/`.
 - Saved parity and release checkpoint:
   `analysis/ICCANALYZER_PARITY_AND_MCP_RELEASE_STATUS_2026-03-29.md`
 - ICC binary format notes: `icc-format/ICC-Binary-Format-Reference.md`
+- ICC poster example: `icc-format/icc-sRgbEncoding-poster.html`
 
 ### Understand Generated Research Artifacts
 

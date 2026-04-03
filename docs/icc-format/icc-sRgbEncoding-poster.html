@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICC Poster - sRgbEncoding.icc</title>
+<style>
+* { box-sizing: border-box; }
+:root {
+  --paper: #f6f0e5;
+  --ink: #1f1b16;
+  --muted: #655d52;
+  --line: #cabda9;
+  --accent: #c95d2a;
+  --accent-2: #2b6f8c;
+  --header: #f2c45a;
+  --class: #8fbf6c;
+  --space: #69b3a2;
+  --pcs: #d96c6c;
+  --magic: #4d7ad3;
+  --reserved: #ddd4c5;
+  --tagcount: #b06ab3;
+  --tagsig: #db7d52;
+  --tagoffset: #87a96b;
+  --tagsize: #c48d3f;
+  --tagbody: #78a6d1;
+  --tagpad: #bdb3a4;
+  --ok: #2f7a3f;
+  --warn: #b56a1b;
+  --gap: #8a5db5;
+  --mono: "Cascadia Code", "Consolas", monospace;
+  --title: "Palatino Linotype", "Book Antiqua", serif;
+}
+html {
+  background: #dad1c4;
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(201, 93, 42, 0.12), transparent 32%),
+    linear-gradient(180deg, #f8f3ea 0%, #f0e6d8 100%);
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+}
+a {
+  color: var(--accent-2);
+}
+.page {
+  width: min(1520px, calc(100vw - 28px));
+  margin: 18px auto 28px;
+}
+.hero,
+.panel,
+.chip,
+.rail-card {
+  background: rgba(255, 252, 247, 0.95);
+  border: 2px solid var(--line);
+  box-shadow: 0 14px 36px rgba(49, 39, 24, 0.12);
+}
+.hero {
+  border-radius: 28px;
+  padding: 24px 28px 20px;
+}
+.eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 700;
+}
+.hero h1 {
+  margin: 0;
+  font-family: var(--title);
+  font-size: clamp(34px, 5vw, 58px);
+  line-height: 0.98;
+}
+.hero p {
+  margin: 10px 0 0;
+  max-width: 84ch;
+  color: var(--muted);
+  font-size: 16px;
+}
+.meta-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.chip {
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+.chip .label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.chip .value {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.segment-bar {
+  margin-top: 16px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 80% 2.5% 7.5% 10%;
+}
+.segment-bar span {
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.seg-header { background: rgba(242, 196, 90, 0.7); }
+.seg-count { background: rgba(176, 106, 179, 0.42); }
+.seg-entry { background: rgba(219, 125, 82, 0.42); }
+.seg-body { background: rgba(120, 166, 209, 0.42); }
+.poster {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(760px, 1.1fr) minmax(340px, 0.78fr);
+  gap: 18px;
+  align-items: start;
+}
+.panel {
+  border-radius: 26px;
+  padding: 18px;
+}
+.panel-title {
+  margin: 0 0 6px;
+  font-family: var(--title);
+  font-size: 28px;
+}
+.panel-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.swatch {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  margin-right: 7px;
+  vertical-align: middle;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+}
+.legend-item {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.74);
+}
+.hexboard {
+  border: 2px dashed var(--line);
+  border-radius: 22px;
+  padding: 12px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(246,239,229,0.92) 100%);
+}
+.hex-head,
+.hex-line {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) 210px;
+  gap: 12px;
+  align-items: start;
+}
+.hex-head {
+  padding: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.hex-line {
+  padding: 9px 0;
+  border-bottom: 1px dotted rgba(101, 93, 82, 0.28);
+}
+.hex-line:last-child {
+  border-bottom: 0;
+}
+.offset {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  padding-top: 2px;
+}
+.bytes,
+.ascii {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.chunk {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-right: 3px;
+  margin-bottom: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.byte-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.c-header { background: rgba(242, 196, 90, 0.42); }
+.c-class { background: rgba(143, 191, 108, 0.42); }
+.c-space { background: rgba(105, 179, 162, 0.42); }
+.c-pcs { background: rgba(217, 108, 108, 0.36); }
+.c-magic { background: rgba(77, 122, 211, 0.32); }
+.c-reserved { background: rgba(221, 212, 197, 0.82); }
+.c-tagcount { background: rgba(176, 106, 179, 0.34); }
+.c-tagsig { background: rgba(219, 125, 82, 0.35); }
+.c-tagoffset { background: rgba(135, 169, 107, 0.38); }
+.c-tagsize { background: rgba(196, 141, 63, 0.34); }
+.c-tagbody { background: rgba(120, 166, 209, 0.35); }
+.c-tagpad { background: rgba(189, 179, 164, 0.72); }
+.rail {
+  display: grid;
+  gap: 14px;
+}
+.rail-card {
+  border-radius: 22px;
+  padding: 16px 18px;
+}
+.rail-card h2 {
+  margin: 0 0 10px;
+  font-family: var(--title);
+  font-size: 24px;
+}
+.rail-card p,
+.rail-card li,
+.rail-card td,
+.rail-card th {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.rail-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.rail-card li + li {
+  margin-top: 8px;
+}
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.mini-table th,
+.mini-table td {
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(202, 189, 169, 0.9);
+  padding: 7px 0;
+}
+.mini-table th {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+.status {
+  display: inline-block;
+  min-width: 48px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.ok { background: rgba(47, 122, 63, 0.14); color: var(--ok); }
+.warn { background: rgba(181, 106, 27, 0.16); color: var(--warn); }
+.gap { background: rgba(138, 93, 181, 0.14); color: var(--gap); }
+.footer {
+  margin-top: 18px;
+  border-top: 2px solid var(--line);
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+code {
+  font-family: var(--mono);
+}
+@media (max-width: 1180px) {
+  .meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .poster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .page {
+    width: min(100vw - 14px, 100%);
+  }
+  .hero {
+    padding: 18px;
+  }
+  .panel {
+    padding: 14px;
+  }
+  .hex-head,
+  .hex-line {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+  .byte-note {
+    grid-column: 2;
+  }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <p class="eyebrow">Corkami-Inspired ICC Binary Poster</p>
+    <h1>sRgbEncoding.icc</h1>
+    <p>
+      A 160-byte ICC.2/v5 color-encoding profile reduced to the bare skeleton:
+      128-byte header, one tag table entry, one UTF-8 payload, and several
+      deliberate conformance gaps. The layout is modeled after corkami&#39;s
+      binary posters: bytes on the left, meaning on the right.
+    </p>
+    <div class="meta-grid">
+      <div class="chip">
+        <span class="label">Sample</span>
+        <span class="value">test-profiles/sRgbEncoding.icc</span>
+      </div>
+      <div class="chip">
+        <span class="label">Length</span>
+        <span class="value">160 bytes (0x00A0)</span>
+      </div>
+      <div class="chip">
+        <span class="label">Version</span>
+        <span class="value">5.0.0 / class <code>cenc</code></span>
+      </div>
+      <div class="chip">
+        <span class="label">SHA-256</span>
+        <span class="value">6931416486764e4e680d247464a1c935ea91c56f568fedf66f15460f3c9e1766</span>
+      </div>
+      <div class="chip">
+        <span class="label">Analysis Snapshot</span>
+        <span class="value">PAWG + security JSON sampled 2026-04-03 UTC</span>
+      </div>
+    </div>
+    <div class="segment-bar" aria-label="profile segments">
+      <span class="seg-header">0x000-0x07F header</span>
+      <span class="seg-count">count</span>
+      <span class="seg-entry">tag entry</span>
+      <span class="seg-body">tag body + pad</span>
+    </div>
+  </section>
+
+  <div class="poster">
+    <section class="panel">
+      <h2 class="panel-title">Annotated Hex</h2>
+      <p class="panel-note">
+        Every byte in the file is shown below. The large zero-filled band in the
+        middle is not empty space in the poster - it is the actual reserved
+        header area.
+      </p>
+      <div class="legend">
+        <span class="legend-item"><span class="swatch" style="background:var(--header)"></span>core header fields</span>
+        <span class="legend-item"><span class="swatch" style="background:var(--class)"></span>class and data space</span>
+        <span class="legend-item"><span class="swatch" style="background:var(--pcs)"></span>non-conformant PCS / illuminant zeros</span>
+        <span class="legend-item"><span class="swatch" style="background:var(--tagcount)"></span>tag table</span>
+        <span class="legend-item"><span class="swatch" style="background:var(--tagbody)"></span>tag payload</span>
+      </div>
+      <div class="hexboard">
+        <div class="hex-head">
+          <div>Offset</div>
+          <div>Hex</div>
+          <div>Meaning</div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0000</div>
+          <div class="bytes">
+            <span class="chunk c-header">00 00 00 A0</span>
+            <span class="chunk c-reserved">00 00 00 00</span>
+            <span class="chunk c-header">05 00 00 00</span>
+            <span class="chunk c-class">63 65 6E 63</span>
+          </div>
+          <div class="byte-note">
+            Size, empty CMM, v5 BCD, class <code>cenc</code>.
+          </div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0010</div>
+          <div class="bytes">
+            <span class="chunk c-space">52 47 42 20</span>
+            <span class="chunk c-pcs">00 00 00 00</span>
+            <span class="chunk c-pcs">00 00 00 00</span>
+            <span class="chunk c-pcs">00 00 00 00</span>
+          </div>
+          <div class="byte-note">
+            Data color space <code>RGB </code>, but PCS and date/time start as zero.
+          </div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0020</div>
+          <div class="bytes">
+            <span class="chunk c-pcs">00 00 00 00</span>
+            <span class="chunk c-magic">61 63 73 70</span>
+            <span class="chunk c-reserved">00 00 00 00</span>
+            <span class="chunk c-reserved">00 00 00 00</span>
+          </div>
+          <div class="byte-note">
+            More zero date/time bytes, then the required ICC magic <code>acsp</code>.
+          </div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0030</div>
+          <div class="bytes">
+            <span class="chunk c-reserved">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span>
+          </div>
+          <div class="byte-note">
+            Platform, flags, manufacturer, model and device attributes are all zero.
+          </div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0040</div>
+          <div class="bytes">
+            <span class="chunk c-reserved">00 00 00 00</span>
+            <span class="chunk c-pcs">00 00 00 00 00 00 00 00 00 00 00 00</span>
+          </div>
+          <div class="byte-note">
+            Rendering intent is 0 (perceptual), but PCS illuminant is all zeros instead of D50.
+          </div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0050</div>
+          <div class="bytes">
+            <span class="chunk c-reserved">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span>
+          </div>
+          <div class="byte-note">
+            Creator plus the first half of the profile ID remain unset.
+          </div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0060</div>
+          <div class="bytes">
+            <span class="chunk c-reserved">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span>
+          </div>
+          <div class="byte-note">
+            Second half of the profile ID and reserved bytes 100-111.
+          </div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0070</div>
+          <div class="bytes">
+            <span class="chunk c-reserved">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span>
+          </div>
+          <div class="byte-note">
+            Reserved bytes 112-127. This part is conformant: all zeros.
+          </div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0080</div>
+          <div class="bytes">
+            <span class="chunk c-tagcount">00 00 00 01</span>
+            <span class="chunk c-tagsig">72 66 6E 6D</span>
+            <span class="chunk c-tagoffset">00 00 00 90</span>
+            <span class="chunk c-tagsize">00 00 00 0D</span>
+          </div>
+          <div class="byte-note">
+            One tag entry: signature <code>rfnm</code>, body at <code>0x90</code>, length <code>13</code>.
+          </div>
+        </div>
+
+        <div class="hex-line">
+          <div class="offset">0x0090</div>
+          <div class="bytes">
+            <span class="chunk c-tagbody">75 74 66 38</span>
+            <span class="chunk c-tagbody">00 00 00 00</span>
+            <span class="chunk c-tagbody">73 52 47 42</span>
+            <span class="chunk c-tagpad">00 00 00 00</span>
+          </div>
+          <div class="byte-note">
+            Tag type <code>utf8</code>, zero reserved dword, UTF-8 payload <code>sRGB</code>, then 3 bytes of pad.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="rail">
+      <section class="rail-card">
+        <h2>Structure</h2>
+        <ul>
+          <li><code>0x000-0x07F</code> is the fixed 128-byte ICC header.</li>
+          <li><code>0x080-0x083</code> stores the tag count as a big-endian uint32.</li>
+          <li><code>0x084-0x08F</code> is the only tag directory entry: signature, offset, size.</li>
+          <li><code>0x090-0x09C</code> holds the tag body. The file ends at <code>0x09F</code> after alignment padding.</li>
+          <li>The profile is intentionally tiny enough that the entire object fits on one poster without truncation.</li>
+        </ul>
+      </section>
+
+      <section class="rail-card">
+        <h2>Header Walkthrough</h2>
+        <table class="mini-table">
+          <thead>
+            <tr><th>Offset</th><th>Meaning</th><th>Spec</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>0x00</code></td><td>Profile size = 160 bytes, matches file length.</td><td>ICC.1-2022-05 Sec.7.2.2</td></tr>
+            <tr><td><code>0x08</code></td><td>Version = 5.0.0 encoded as BCD.</td><td>ICC.1-2022-05 Sec.7.2.4</td></tr>
+            <tr><td><code>0x0C</code></td><td>Class = <code>cenc</code> (Color Encoding profile, v5 / iccMAX).</td><td>ICC.2-2023 class registry</td></tr>
+            <tr><td><code>0x10</code></td><td>Data color space = <code>RGB </code>.</td><td>ICC.1-2022-05 Sec.7.2.6</td></tr>
+            <tr><td><code>0x14</code></td><td>PCS = all zeros, which the analyzer flags as non-conformant.</td><td>ICC.1-2022-05 Sec.7.2.7</td></tr>
+            <tr><td><code>0x24</code></td><td>Magic = <code>acsp</code>, the canonical ICC signature.</td><td>ICC.1-2022-05 Sec.7.2.9</td></tr>
+            <tr><td><code>0x44</code></td><td>Rendering intent = 0 (Perceptual).</td><td>ICC.1-2022-05 Sec.7.2.15</td></tr>
+            <tr><td><code>0x68</code></td><td>PCS illuminant is zeroed instead of D50.</td><td>ICC.1-2022-05 Sec.7.2.16</td></tr>
+            <tr><td><code>0x64-0x7F</code></td><td>Profile ID and reserved bytes are all zero.</td><td>ICC.1-2022-05 Sec.7.2.18-19</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="rail-card">
+        <h2>Tag Entry</h2>
+        <table class="mini-table">
+          <thead>
+            <tr><th>Field</th><th>Value</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Count</td><td><code>1</code></td><td>Header size permits exactly one 12-byte entry before the body.</td></tr>
+            <tr><td>Signature</td><td><code>rfnm</code></td><td>Treated as private / undocumented by the analyzer.</td></tr>
+            <tr><td>Offset</td><td><code>0x00000090</code></td><td>4-byte aligned and within file bounds.</td></tr>
+            <tr><td>Size</td><td><code>0x0000000D</code></td><td>13-byte tag body, followed by 3 pad bytes.</td></tr>
+            <tr><td>Type</td><td><code>utf8</code></td><td>UTF-8 tag payload begins with a valid type signature and zero reserved dword.</td></tr>
+            <tr><td>Payload</td><td><code>sRGB</code></td><td>The body stores only the string payload plus padding.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="rail-card">
+        <h2>Spec Ledger</h2>
+        <table class="mini-table">
+          <thead>
+            <tr><th>Status</th><th>Check</th><th>Evidence</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="status ok">OK</span></td><td>Header size</td><td><code>0xA0</code> matches the actual file size.</td></tr>
+            <tr><td><span class="status ok">OK</span></td><td>Magic</td><td><code>61 63 73 70</code> = <code>acsp</code>.</td></tr>
+            <tr><td><span class="status ok">OK</span></td><td>Tag alignment</td><td>The only tag starts at <code>0x90</code> and the file ends cleanly on a 4-byte boundary.</td></tr>
+            <tr><td><span class="status ok">OK</span></td><td>Reserved bytes</td><td>Bytes <code>0x64-0x7F</code> are all zero.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>PCS signature</td><td>Header PCS is <code>00000000</code>, not Lab / XYZ.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>Illuminant</td><td>PCS illuminant is all zeros, not D50.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>Date</td><td>Date/time field is all zeros, yielding month 0 and day 0.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>Required text tags</td><td><code>desc</code>, <code>cprt</code>, and <code>wtpt</code> are absent.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>Private tag documentation</td><td><code>rfnm</code> is not documented in the sampled registry output.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="rail-card">
+        <h2>PAWG Snapshot</h2>
+        <table class="mini-table">
+          <thead>
+            <tr><th>Status</th><th>Item</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="status gap">GAP</span></td><td>S1</td><td>Channel counts cannot be reconciled because PCS is zeroed.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>S4</td><td>Illuminant does not correspond to D50.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>S5</td><td>PCS is neither Lab nor XYZ.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>S7</td><td>Tag table is structurally valid but semantically suspicious.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>S11</td><td>Private tag <code>rfnm</code> is present.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>C2</td><td>Expected textual tags are missing for the stated version and class.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>C4</td><td>Required tags for the profile class are missing.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>C7</td><td>No registry-backed documentation for the private tag.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>C10</td><td>Header content does not fully conform to the specification.</td></tr>
+            <tr><td><span class="status warn">WARN</span></td><td>C12</td><td>White point / illuminant encoding is not acceptable.</td></tr>
+            <tr><td><span class="status gap">GAP</span></td><td>Q1, Q3</td><td>Round-trip and smoothness metrics are not meaningful without a normal transform path.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="rail-card">
+        <h2>Why This Is A Good Poster Sample</h2>
+        <ul>
+          <li>It is small enough that every byte can be shown on one page without scrolling through a large LUT.</li>
+          <li>It still exercises the ICC skeleton: header, tag count, tag entry, tag type, payload, and padding.</li>
+          <li>The non-zero bytes are sparse, which makes spec violations obvious at a glance.</li>
+          <li>It demonstrates the gap between a minimally parseable binary object and a conformant, production-ready ICC profile.</li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+
+  <div class="footer">
+    Sources inside this repo: <code>docs/icc-format/ICC-Binary-Format-Reference.md</code>,
+    <code>docs/iccDEV/specifications/README.md</code>, and
+    <code>test-profiles/sRgbEncoding.icc</code>.
+    Presentation style is intentionally inspired by corkami&#39;s binary posters in
+    <a href="https://github.com/corkami/pics/tree/master/binary">corkami/pics</a>.
+  </div>
+</div>
+</body>
+</html>
