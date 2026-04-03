@@ -32,6 +32,10 @@ Two additional corkami-inspired variants are now available:
 `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v4.png` and
 `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v5.png`.
 
+No-logo follow-on variants based on `ico_png` and `bmp5` are at
+`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v6.png` and
+`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v7.png`.
+
 ## Research and Evidence
 
 | Path | Purpose |
