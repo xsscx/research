@@ -19,6 +19,9 @@ Current HTML overlays include the three-layer conformance/vulnerability page for
 `sRGB_v4_ICC_preference.icc` and the annotated `xxd` poster for the compact
 iccMAX specimen `test-profiles/sRgbEncoding.icc`.
 
+The same iccMAX specimen also has a generated PNG poster at
+`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`.
+
 ## Research and Evidence
 
 | Path | Purpose |

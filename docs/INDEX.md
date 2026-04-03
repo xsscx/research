@@ -23,6 +23,8 @@ the right part of `docs/`.
   `iccDEV/specifications/html/icc-profile-conformance-and-vulnerability-overlay.html`
 - Annotated byte-level specimen page for a minimal iccMAX profile:
   `iccDEV/specifications/html/iccmax-srgbencoding-annotated-dump.html`
+- Static PNG poster for the same minimal iccMAX specimen:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`
 
 ### Run or Review Tests
 
@@ -44,6 +46,8 @@ the right part of `docs/`.
   `iccDEV/specifications/html/icc-profile-conformance-and-vulnerability-overlay.html`
 - Corkami-style HTML dump poster for `test-profiles/sRgbEncoding.icc`:
   `iccDEV/specifications/html/iccmax-srgbencoding-annotated-dump.html`
+- Matching PNG poster for `test-profiles/sRgbEncoding.icc`:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`
 
 ## Notes
 
