@@ -45,6 +45,7 @@ the right part of `docs/`.
   `analysis/ICCANALYZER_PARITY_AND_MCP_RELEASE_STATUS_2026-03-29.md`
 - ICC binary format notes: `icc-format/ICC-Binary-Format-Reference.md`
 - ICC poster example: `icc-format/icc-sRgbEncoding-poster.html`
+- ICC poster example v2: `icc-format/icc-sRgbEncoding-poster-v2.html`
 
 ### Understand Generated Research Artifacts
 
