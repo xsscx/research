@@ -12,6 +12,7 @@ you want a quick map of the major subtrees.
 | `iccDEV/shell-helpers/` | Build, sanitizer, and platform workflows |
 | `iccDEV/codeql/` | Query catalog and maintainer workflow |
 | `iccDEV/specifications/` | ICC specifications and technotes |
+| `iccDEV/specifications/html/` | Standalone HTML overlays tying spec clauses to concrete profile examples and parser risks |
 | `icc-format/` | ICC binary format notes and CWE mapping |
 
 ## Research and Evidence
