@@ -23,6 +23,10 @@ item traces back to a specific section in one of these documents.
   The page connects ICC.1 header and tag-table rules, Annex G required tags,
   Web UI and MCP analysis flow, and the upstream `iccTiffDump` type-confusion
   fix from issue `#527` / PR `#549`.
+- `html/iccmax-srgbencoding-annotated-dump.html` - Corkami-style annotated
+  specimen for the 160-byte `test-profiles/sRgbEncoding.icc` sample. The page
+  pairs an exact `xxd` dump with `cenc` class notes, tag-table anatomy, and
+  class-specific conformance context from ICC.2 / iccMAX.
 
 ## Older Specifications
 
