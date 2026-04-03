@@ -33,6 +33,10 @@ the right part of `docs/`.
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v4.png`
 - TIFF-style PNG v5 for the same specimen:
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v5.png`
+- No-logo `ico_png`-style PNG v6 for the same specimen:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v6.png`
+- No-logo `bmp5`-style PNG v7 for the same specimen:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v7.png`
 
 ### Run or Review Tests
 
@@ -64,6 +68,10 @@ the right part of `docs/`.
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v4.png`
 - Matching TIFF-style PNG v5 for `test-profiles/sRgbEncoding.icc`:
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v5.png`
+- Matching no-logo `ico_png`-style PNG v6 for `test-profiles/sRgbEncoding.icc`:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v6.png`
+- Matching no-logo `bmp5`-style PNG v7 for `test-profiles/sRgbEncoding.icc`:
+  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v7.png`
 
 ## Notes
 
