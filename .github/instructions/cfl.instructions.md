@@ -166,15 +166,25 @@ for historical reference.
 5. Rebuild: `cd cfl && ./build.sh` — verify "Applied: NNN-name.patch"
 6. Test PoC with patched fuzzer — verify exit 0, 0 ASAN
 7. File upstream issue per gold standard template
-   ([iccDEV#753](https://github.com/InternationalColorConsortium/iccDEV/issues/753))
+   ([iccDEV#753](https://github.com/InternationalColorConsortium/iccDEV/issues/753),
+   [iccDEV#769](https://github.com/InternationalColorConsortium/iccDEV/issues/769))
 8. Report upstream at `github.com/InternationalColorConsortium/iccDEV/issues`
 
-**Upstream issue format** (gold standard — [#753](https://github.com/InternationalColorConsortium/iccDEV/issues/753)):
-Zero prose, zero opinions, zero analysis. Pure reproduction recipe:
+**Upstream issue format** (gold standard -- [#753](https://github.com/InternationalColorConsortium/iccDEV/issues/753), [#769](https://github.com/InternationalColorConsortium/iccDEV/issues/769)):
+Zero prose, zero opinions, zero analysis. Pure reproduction recipe.
+Include structured `## Metadata` block (CWE, file:line, sanitizer type).
+Cut shadow byte legend unless UAF/double-free. One bug per issue.
 
 ```markdown
 ## Maintainer Repro
 <UTC timestamp>
+
+## Metadata
+- CWE: CWE-{N}
+- File: {file}:{line}
+- Function: {class}::{method}()
+- Sanitizer: {ASAN|UBSAN|IntSan} ({error type})
+- Bisect: {SHA} ({date})
 
 ## Bisect
 Date: <date>
@@ -182,9 +192,10 @@ Commit: <sha>
 
 ## Build Unpatched
 <exact clone/checkout/build/run commands in code block>
+<MUST include -fsanitize=integer for UIO bugs>
 
 ## Unpatched Output
-<verbatim error line(s)>
+<SUMMARY line + frames #0-#4 ONLY>
 
 ## Clean
 <git checkout/reset commands>
