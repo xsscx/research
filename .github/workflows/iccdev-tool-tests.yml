@@ -4,7 +4,6 @@
 # Intent: Build iccDEV with full ASAN+UBSAN instrumentation,
 #         generate test profiles via CreateAllProfiles.sh,
 #         then run the 103-test coverage baseline suite
-#         and 72-test CFL patch validation suite
 #         against all 14 iccDEV CLI tools.
 #
 # Hardening:
@@ -35,26 +34,22 @@ on:
     paths:
       - '.github/scripts/iccdev-tool-coverage-baseline.sh'
       - '.github/scripts/iccdev-json-cfg-tests.sh'
-      - '.github/scripts/test-cfl-patches.sh'
       - '.github/workflows/iccdev-tool-tests.yml'
       - 'docs/Testing/json-cli-exercise/**'
       - 'docs/Testing/test-data/**'
       - 'docs/Testing/json-configs/**'
       - 'docs/Testing/malformed-json/**'
       - 'docs/iccDEV/Tools/test-data/**'
-      - 'cfl/patches/*.patch'
   pull_request:
     paths:
       - '.github/scripts/iccdev-tool-coverage-baseline.sh'
       - '.github/scripts/iccdev-json-cfg-tests.sh'
-      - '.github/scripts/test-cfl-patches.sh'
       - '.github/workflows/iccdev-tool-tests.yml'
       - 'docs/Testing/json-cli-exercise/**'
       - 'docs/Testing/test-data/**'
       - 'docs/Testing/json-configs/**'
       - 'docs/Testing/malformed-json/**'
       - 'docs/iccDEV/Tools/test-data/**'
-      - 'cfl/patches/*.patch'
   workflow_dispatch:
     inputs:
       ref:
@@ -64,7 +59,6 @@ on:
         type: choice
         options:
           - master
-          - cfl
   schedule:
     - cron: '30 6 * * 3'  # Weekly Wednesday 06:30 UTC
 
@@ -77,7 +71,7 @@ jobs:
   # Job 1: Build iccDEV with ASAN+UBSAN + all 14 CLI tools
   #############################################################################
   build-and-test:
-    name: "iccDEV Tools (${{ github.event.inputs.ref || 'master' }}) • ASAN+UBSAN • 331 tests"
+    name: "iccDEV Tools (${{ github.event.inputs.ref || 'master' }}) • ASAN+UBSAN • 259 tests"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -158,40 +152,16 @@ jobs:
           echo "iccDEV commit ($REF): $(cd iccDEV && git log --oneline -1)"
 
       # -----------------------------------------------------------------------
-      # Apply CFL patches (security hardening for tools)
+      # Source cleanup (strip stray U+FE0F from upstream)
       # -----------------------------------------------------------------------
-      - name: Apply CFL patches and source cleanup
+      - name: Source cleanup
         env:
           BASH_ENV: /dev/null
         run: |
           set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          echo "Applying CFL patches to iccDEV..."
-          APPLIED=0
-          SKIPPED=0
-          for p in cfl/patches/*.patch; do
-            [ -f "$p" ] || continue
-            pname="$(basename "$p")"
-            if patch -p1 -d iccDEV --forward --dry-run -s < "$p" >/dev/null 2>&1; then
-              patch -p1 -d iccDEV --forward -s < "$p"
-              echo "  [APPLIED] $pname"
-              APPLIED=$((APPLIED + 1))
-            elif patch -p1 -d iccDEV --reverse --dry-run -s < "$p" >/dev/null 2>&1; then
-              echo "  [SKIP]    $pname (already applied)"
-              SKIPPED=$((SKIPPED + 1))
-            else
-              echo "  [WARN]    $pname (context mismatch — may be upstreamed)"
-              SKIPPED=$((SKIPPED + 1))
-            fi
-          done
-          echo ""
-          echo "Patches: $APPLIED applied, $SKIPPED skipped"
-
-          # Strip stray U+FE0F (emoji variation selector) from upstream source
           SIGUTILS="iccDEV/IccProfLib/IccSignatureUtils.h"
           if [ -f "$SIGUTILS" ] && grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
             sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
@@ -439,52 +409,6 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       # -----------------------------------------------------------------------
-      # CFL Patch Validation Tests (72 tests — all 27 active CFL patches)
-      # -----------------------------------------------------------------------
-      - name: CFL Patch Validation Tests (72 tests)
-        if: success() || failure()
-        env:
-          BASH_ENV: /dev/null
-          LD_LIBRARY_PATH: "${{ github.workspace }}/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccDEV/Build/IccXML"
-          ASAN_OPTIONS: "halt_on_error=0,detect_leaks=0"
-          UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
-          LLVM_PROFILE_FILE: "/dev/null"
-          ICCDEV_ROOT: "${{ github.workspace }}/iccDEV"
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-
-          chmod +x .github/scripts/test-cfl-patches.sh
-
-          echo "::group::CFL Patch Validation Output"
-          .github/scripts/test-cfl-patches.sh 2>&1 || {
-            rc=$?
-            echo "::endgroup::"
-            echo ""
-            echo "::error::CFL patch validation failed with exit code $rc"
-            echo "Review failed tests in /tmp/cfl-patch-test-output/"
-            exit "$rc"
-          }
-          echo "::endgroup::"
-
-          {
-            echo ""
-            echo "### CFL Patch Validation Tests"
-            echo ""
-            echo "**72 tests** validating all 27 active CFL security patches"
-            echo ""
-            echo "- CFL-001..030: Library patches (ASAN/UBSAN/output validation)"
-            echo "- CFL-031..043: JSON config patches (24 malformed JSON negative tests)"
-            echo "- CFL-049..057: Recent patches (LUT dump, format specifiers, uninitialized members)"
-            echo "- Cross-tool: 5 clean-baseline tests (DumpProfile, ToXml, FromXml, RoundTrip, ApplyToLink)"
-            echo ""
-            echo "Reference: [iccDEV#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700)"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      # -----------------------------------------------------------------------
       # Generate LUT visualization SVGs + TIFFs (iccDumpProfile LUTS)
       # -----------------------------------------------------------------------
       - name: Generate LUT visualizations (SVG + TIFF)
@@ -637,7 +561,6 @@ jobs:
           name: iccdev-tool-test-logs
           path: |
             /tmp/iccdev-tool-output/
-            /tmp/cfl-patch-test-output/
           if-no-files-found: warn
           retention-days: 14
           compression-level: 9
@@ -770,10 +693,5 @@ jobs:
             echo "ICCDEV_TOOLS_DIR=build/Tools ICCDEV_TESTING_DIR=Testing \\"
             echo "  LD_LIBRARY_PATH=build/IccProfLib:build/IccXML \\"
             echo "  .github/scripts/iccdev-tool-coverage-baseline.sh --asan"
-            echo ""
-            echo "# 6. Run the 72-test CFL patch validation suite"
-            echo "ICCDEV_ROOT=\$(pwd)/.. \\"
-            echo "  LD_LIBRARY_PATH=build/IccProfLib:build/IccXML \\"
-            echo "  .github/scripts/test-cfl-patches.sh"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
