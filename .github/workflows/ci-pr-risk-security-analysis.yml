@@ -164,10 +164,11 @@ jobs:
           declare -a UNPINNED_LIST=()
           declare -a TAG_ONLY_LIST=()
 
+          # Extract only YAML-level uses: directives (skip script content in run: blocks)
           while IFS= read -r wf; do
-            while IFS= read -r line; do
+            # Use awk to skip lines inside run: blocks -- only match top-level uses:
+            while IFS= read -r action_ref; do
               TOTAL_ACTIONS=$((TOTAL_ACTIONS + 1))
-              action_ref=$(echo "$line" | sed 's/.*uses:[[:space:]]*//' | tr -d '"' | tr -d "'")
               wf_base=$(basename "$wf")
 
               if grep -qE '@[0-9a-f]{40}' <<< "$action_ref"; then
@@ -179,7 +180,16 @@ jobs:
                 UNPINNED_ACTIONS=$((UNPINNED_ACTIONS + 1))
                 UNPINNED_LIST+=("$wf_base: $action_ref")
               fi
-            done < <(grep -n 'uses:' "$wf" | grep -v '#' | grep -v 'docker://' || true)
+            done < <(awk '
+              /^[[:space:]]*run:[[:space:]]*\|/ { in_run=1; next }
+              in_run && /^[[:space:]]*[a-zA-Z_-]+:/ && !/^[[:space:]]{6,}/ { in_run=0 }
+              in_run { next }
+              /^[[:space:]]*-?[[:space:]]*uses:[[:space:]]/ {
+                sub(/.*uses:[[:space:]]*/, "")
+                gsub(/["'\'']/, "")
+                if ($0 !~ /^#/ && $0 !~ /docker:\/\//) print
+              }
+            ' "$wf")
           done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
 
           if [[ $TOTAL_ACTIONS -eq 0 ]]; then
@@ -202,12 +212,9 @@ jobs:
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "<details><summary>[WARN] Tag-only actions (${#TAG_ONLY_LIST[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
               for item in "${TAG_ONLY_LIST[@]}"; do
-                sanitize_line "$item"  >> "$GITHUB_STEP_SUMMARY"
-                echo "" >> "$GITHUB_STEP_SUMMARY"
+                echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
               done
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
               echo "</details>" >> "$GITHUB_STEP_SUMMARY"
             fi
 
@@ -215,12 +222,9 @@ jobs:
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "<details><summary>[CRITICAL] Unpinned actions (${#UNPINNED_LIST[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
               for item in "${UNPINNED_LIST[@]}"; do
-                sanitize_line "$item" >> "$GITHUB_STEP_SUMMARY"
-                echo "" >> "$GITHUB_STEP_SUMMARY"
+                echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
               done
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
               echo "</details>" >> "$GITHUB_STEP_SUMMARY"
             fi
           fi
@@ -258,8 +262,10 @@ jobs:
 
           while IFS= read -r wf; do
             wf_base=$(basename "$wf")
+            # Extract only the YAML on: section (between on: and next top-level key)
+            on_section=$(awk '/^on:/{f=1;print;next} /^[a-zA-Z]/{f=0} f{print}' "$wf")
 
-            if grep -q 'pull_request_target' "$wf"; then
+            if grep -q 'pull_request_target' <<< "$on_section"; then
               DANGEROUS_COUNT=$((DANGEROUS_COUNT + 1))
               echo "[CRITICAL] \`$(sanitize_line "$wf_base")\` uses \`pull_request_target\`" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -268,12 +274,16 @@ jobs:
               echo "" >> "$GITHUB_STEP_SUMMARY"
             fi
 
-            if grep -qE 'issue_comment|workflow_run' "$wf"; then
-              if grep -q 'issue_comment' "$wf"; then
-                DANGEROUS_COUNT=$((DANGEROUS_COUNT + 1))
-                echo "[HIGH] \`$(sanitize_line "$wf_base")\` uses \`issue_comment\` trigger" >> "$GITHUB_STEP_SUMMARY"
-                echo "" >> "$GITHUB_STEP_SUMMARY"
-              fi
+            if grep -q 'issue_comment' <<< "$on_section"; then
+              DANGEROUS_COUNT=$((DANGEROUS_COUNT + 1))
+              echo "[HIGH] \`$(sanitize_line "$wf_base")\` uses \`issue_comment\` trigger" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
+            if grep -q 'workflow_run' <<< "$on_section"; then
+              DANGEROUS_COUNT=$((DANGEROUS_COUNT + 1))
+              echo "[MEDIUM] \`$(sanitize_line "$wf_base")\` uses \`workflow_run\` trigger" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
             fi
           done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
 
@@ -493,26 +503,28 @@ jobs:
 
           while IFS= read -r wf; do
             wf_base=$(basename "$wf")
-            in_run_block=false
 
-            while IFS= read -r line; do
-              if grep -qE '^\s+run:\s*\|' <<< "$line"; then
-                in_run_block=true
-                continue
-              fi
-
-              if $in_run_block; then
-                if grep -qE '^\s+\S' <<< "$line" && ! grep -qE '^\s{4,}' <<< "$line"; then
-                  in_run_block=false
-                fi
-
-                if grep -qE '\$\{\{[^}]*(matrix\.|github\.event\.(issue|pull_request)\.(title|body)|github\.head_ref|inputs\.)' <<< "$line"; then
-                  INJECTION_COUNT=$((INJECTION_COUNT + 1))
-                  trimmed=$(echo "$line" | sed 's/^[[:space:]]*//')
-                  INJECTION_LIST+=("$wf_base: $trimmed")
-                fi
-              fi
-            done < "$wf"
+            # Use awk to find expressions only inside run: blocks (indentation-aware)
+            while IFS= read -r match; do
+              INJECTION_COUNT=$((INJECTION_COUNT + 1))
+              INJECTION_LIST+=("$wf_base: $match")
+            done < <(awk '
+              /^[[:space:]]*run:[[:space:]]*\|/ {
+                in_run = 1
+                match($0, /^[[:space:]]*/); run_indent = RLENGTH
+                next
+              }
+              in_run {
+                match($0, /^[[:space:]]*/); cur = RLENGTH
+                if ($0 !~ /^[[:space:]]*$/ && cur <= run_indent) { in_run = 0 }
+              }
+              in_run && /\$\{\{/ {
+                if (/matrix\./ || /github\.event\.(issue|pull_request)\.(title|body)/ || /github\.head_ref/ || /inputs\./) {
+                  gsub(/^[[:space:]]+/, "")
+                  print
+                }
+              }
+            ' "$wf")
           done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
 
           if [[ $INJECTION_COUNT -eq 0 ]]; then
@@ -567,6 +579,10 @@ jobs:
             while IFS= read -r line; do
               line_num=$((line_num + 1))
               if grep -q 'GITHUB_STEP_SUMMARY' <<< "$line"; then
+                # Skip static-only writes (no variables or command substitution)
+                if ! grep -qE '\$[a-zA-Z_{(]|`' <<< "$line"; then
+                  continue
+                fi
                 SUMMARY_WRITES=$((SUMMARY_WRITES + 1))
                 if grep -q 'sanitize_line\|sanitize_print\|escape_html\|Sanitize-Line\|Sanitize-Print\|Safe-EchoForSummary' <<< "$line"; then
                   SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
@@ -799,45 +815,52 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           TRIVY_INDICATORS=0
+          SELF_WF="ci-pr-risk-security-analysis.yml"
 
-          # Pattern 1: curl/wget to external hosts in workflows
-          EXT_CALLS=$(grep -rnE 'curl|wget' .github/workflows/ 2>/dev/null | grep -vE '#|localhost|127\.0\.0\.1|github\.com|ghcr\.io|docker\.io|color\.org' | wc -l || echo 0)
+          # Pattern 1: curl/wget piped to shell in workflows (exclude self)
+          EXT_CALLS=$(grep -rnE 'curl.*\|\s*(ba)?sh|wget.*\|\s*(ba)?sh' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | wc -l || echo 0)
           if [[ $EXT_CALLS -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
-            echo "[WARN] $EXT_CALLS external network call(s) in workflows (check for data exfiltration)" >> "$GITHUB_STEP_SUMMARY"
+            echo "[CRITICAL] $EXT_CALLS curl/wget|bash pipe(s) in workflows (remote code execution vector)" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-          # Pattern 2: Base64 encoding (common obfuscation)
-          B64_CALLS=$(grep -rnE 'base64|b64encode|btoa' .github/workflows/ 2>/dev/null | grep -v '#' | wc -l || echo 0)
+          # Pattern 2: Base64 encoding (common obfuscation, exclude self)
+          B64_CALLS=$(grep -rnE 'base64|b64encode|btoa' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | wc -l || echo 0)
           if [[ $B64_CALLS -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
             echo "[WARN] $B64_CALLS base64 encoding reference(s) detected (check for credential obfuscation)" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-          # Pattern 3: Environment variable dumping
-          ENV_DUMP=$(grep -rnE 'printenv|env\b|set\b.*>|export.*>|echo.*SECRET|echo.*TOKEN' .github/workflows/ 2>/dev/null | grep -v '#' | grep -v 'BASH_ENV' | grep -v 'GITHUB_ENV' | wc -l || echo 0)
+          # Pattern 3: Environment variable dumping (exclude self)
+          ENV_DUMP=$(grep -rnE 'printenv|echo.*SECRET|echo.*TOKEN' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | grep -v 'BASH_ENV' | grep -v 'GITHUB_ENV' | wc -l || echo 0)
           if [[ $ENV_DUMP -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
             echo "[WARN] $ENV_DUMP environment dump pattern(s) detected" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-          # Pattern 4: git push / git tag in workflows (tag rewriting)
-          GIT_PUSH=$(grep -rnE 'git (push|tag -f|tag -d)' .github/workflows/ 2>/dev/null | grep -v '#' | wc -l || echo 0)
+          # Pattern 4: git push / git tag force in workflows (exclude self)
+          GIT_PUSH=$(grep -rnE 'git (push|tag -f|tag -d)' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | wc -l || echo 0)
           if [[ $GIT_PUSH -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
             echo "[HIGH] $GIT_PUSH git push/tag-force pattern(s) detected (tag rewriting vector)" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-          # Pattern 5: Checkout of PR head with write permissions
-          PR_CHECKOUT=$(grep -rl 'pull_request_target' .github/workflows/ 2>/dev/null | while read -r f; do
-            if grep -q 'ref.*pull_request.*head' "$f" 2>/dev/null; then
-              echo "1"
+          # Pattern 5: pull_request_target trigger + PR head checkout (on: section only, exclude self)
+          PR_CHECKOUT=0
+          while IFS= read -r f; do
+            f_base=$(basename "$f")
+            [[ "$f_base" == "$SELF_WF" ]] && continue
+            on_section=$(awk '/^on:/{fl=1;print;next} /^[a-zA-Z]/{fl=0} fl{print}' "$f")
+            if grep -q 'pull_request_target' <<< "$on_section"; then
+              if grep -q 'ref.*pull_request.*head' "$f" 2>/dev/null; then
+                PR_CHECKOUT=$((PR_CHECKOUT + 1))
+              fi
             fi
-          done | wc -l || echo 0)
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
           if [[ $PR_CHECKOUT -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
             echo "[CRITICAL] $PR_CHECKOUT workflow(s) checkout PR head code with elevated permissions" >> "$GITHUB_STEP_SUMMARY"
@@ -1024,9 +1047,17 @@ jobs:
           $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
           foreach ($wf in $workflows) {
             $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+            $inRunBlock = $false
             foreach ($ln in $lines) {
+              # Track run: | blocks to skip script content
+              if ($ln -match '^\s*run:\s*\|') { $inRunBlock = $true; continue }
+              if ($inRunBlock) {
+                # Exit run block when we hit a non-indented YAML key
+                if ($ln -match '^\s{0,5}[a-zA-Z_-]+:' -and $ln -notmatch '^\s{6,}') { $inRunBlock = $false }
+                else { continue }
+              }
               if ($ln -match '^\s*#') { continue }
-              if ($ln -notmatch 'uses:') { continue }
+              if ($ln -notmatch '^\s*-?\s*uses:\s') { continue }
               if ($ln -match 'docker://') { continue }
               $totalActions++
               $actionRef = ($ln -replace '.*uses:\s*', '').Trim().Trim('"').Trim("'")
@@ -1086,14 +1117,23 @@ jobs:
             function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
           }
 
-          $dangerousTriggers = @('pull_request_target', 'issue_comment', 'issues')
+          $dangerousTriggers = @('pull_request_target', 'issue_comment', 'workflow_run')
           $findings = @()
 
           $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
           foreach ($wf in $workflows) {
-            $content = Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
+            $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+            # Extract only the YAML on: section
+            $inOnSection = $false
+            $onLines = @()
+            foreach ($ln in $lines) {
+              if ($ln -match '^on:') { $inOnSection = $true; $onLines += $ln; continue }
+              if ($inOnSection -and $ln -match '^[a-zA-Z]') { $inOnSection = $false }
+              if ($inOnSection) { $onLines += $ln }
+            }
+            $onText = $onLines -join "`n"
             foreach ($trigger in $dangerousTriggers) {
-              if ($content -match $trigger) {
+              if ($onText -match $trigger) {
                 $findings += "$($wf.Name): $trigger"
               }
             }
@@ -1278,15 +1318,19 @@ jobs:
           foreach ($wf in $workflows) {
             $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
             $inRunBlock = $false
+            $runIndent = 0
             $lineNum = 0
             foreach ($ln in $lines) {
               $lineNum++
-              if ($ln -match '^\s+run:\s*\|') {
+              # Detect run: | line and record its indentation
+              if ($ln -match '^(\s*)run:\s*\|') {
                 $inRunBlock = $true
+                $runIndent = $matches[1].Length
                 continue
               }
               if ($inRunBlock) {
-                if ($ln -match '^\s+\S' -and $ln -notmatch '^\s{4,}') {
+                # Non-blank line with indentation <= run: line exits the block
+                if ($ln -match '^\S' -or ($ln -match '^(\s*)\S' -and $matches[1].Length -le $runIndent)) {
                   $inRunBlock = $false
                 }
               }
@@ -1343,6 +1387,10 @@ jobs:
             foreach ($ln in $lines) {
               $lineNum++
               if ($ln -match 'GITHUB_STEP_SUMMARY') {
+                # Skip static-only writes (no variable interpolation)
+                if ($ln -notmatch '\$[a-zA-Z_{(]' -and $ln -notmatch '`') {
+                  continue
+                }
                 $totalSummaryWrites++
                 $isSanitized = $false
                 foreach ($s in ($bashSanitizers + $pwshSanitizers)) {
@@ -1354,15 +1402,7 @@ jobs:
                 if ($isSanitized) {
                   $sanitizedWrites++
                 } else {
-                  # Static strings (no variable interpolation) are safe
-                  if ($ln -match '^\s*(echo\s+"[^$]*"|echo\s+''[^$]*'')\s*>>' -or
-                      $ln -match 'echo\s+"(#|---|\||```)' -or
-                      $ln -match '^\s*\}\s*>>' -or
-                      $ln -match 'Out-File.*GITHUB_STEP_SUMMARY' -and $ln -notmatch '\$[^e]') {
-                    $sanitizedWrites++
-                  } else {
-                    $unsanitizedList += "$($wf.Name):$lineNum"
-                  }
+                  $unsanitizedList += "$($wf.Name):$lineNum"
                 }
               }
             }
@@ -1533,24 +1573,44 @@ jobs:
             function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
           }
 
+          $selfWf = "ci-pr-risk-security-analysis.yml"
           $indicators = @(
             @{Name='aquasecurity/trivy-action'; Pattern='aquasecurity/trivy'; Severity='CRITICAL'},
             @{Name='Tag-only action refs (not SHA-pinned)'; Pattern='uses:.*@v\d'; Severity='HIGH'},
             @{Name='curl|bash pipe (remote script exec)'; Pattern='curl.*\|\s*(ba)?sh'; Severity='CRITICAL'},
             @{Name='wget|bash pipe (remote script exec)'; Pattern='wget.*\|\s*(ba)?sh'; Severity='CRITICAL'},
-            @{Name='Invoke-WebRequest|IEX (remote exec)'; Pattern='Invoke-WebRequest.*Invoke-Expression|iwr.*iex'; Severity='CRITICAL'},
-            @{Name='pull_request_target with checkout'; Pattern='pull_request_target'; Severity='HIGH'},
-            @{Name='github.event.pull_request.head.sha in run'; Pattern='github\.event\.pull_request\.head\.sha'; Severity='MEDIUM'}
+            @{Name='Invoke-WebRequest|IEX (remote exec)'; Pattern='Invoke-WebRequest.*Invoke-Expression|iwr.*iex'; Severity='CRITICAL'}
           )
 
           $findings = @()
           $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
           foreach ($wf in $workflows) {
+            # Skip self-workflow to avoid self-scan false positives
+            if ($wf.Name -eq $selfWf) { continue }
             $content = Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
             foreach ($ind in $indicators) {
               if ($content -match $ind.Pattern) {
                 $findings += @{Workflow=$wf.Name; Indicator=$ind.Name; Severity=$ind.Severity}
               }
+            }
+            # Check pull_request_target only in on: section
+            $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+            $inOnSection = $false
+            $onText = ""
+            foreach ($ln in $lines) {
+              if ($ln -match '^on:') { $inOnSection = $true; $onText += "$ln`n"; continue }
+              if ($inOnSection -and $ln -match '^[a-zA-Z]') { $inOnSection = $false }
+              if ($inOnSection) { $onText += "$ln`n" }
+            }
+            if ($onText -match 'pull_request_target') {
+              $findings += @{Workflow=$wf.Name; Indicator='pull_request_target trigger'; Severity='HIGH'}
+              # Check if it also checks out PR head
+              if ($content -match 'ref.*pull_request.*head') {
+                $findings += @{Workflow=$wf.Name; Indicator='pull_request_target with PR head checkout'; Severity='CRITICAL'}
+              }
+            }
+            if ($onText -match 'issue_comment') {
+              $findings += @{Workflow=$wf.Name; Indicator='issue_comment trigger'; Severity='MEDIUM'}
             }
           }
 
