@@ -567,7 +567,7 @@ jobs:
           if [ "${{ env.grand_failed }}" -eq 0 ]; then
             echo "**ALL CLEAN** - No sanitizer findings detected across all modes" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**${{ env.grand_failed }} FINDING(S)** - Sanitizer detections captured (ASAN/UBSAN/validation errors)" >> $GITHUB_STEP_SUMMARY
+            echo "**$(sanitize_line "${{ env.grand_failed }}") FINDING(S)** - Sanitizer detections captured (ASAN/UBSAN/validation errors)" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Check test success

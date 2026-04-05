@@ -74,7 +74,7 @@ jobs:
             --outdir seed-output/crafted \
             --profiles test-profiles
           echo "### Crafted Seeds" >> "$GITHUB_STEP_SUMMARY"
-          echo "$(ls seed-output/crafted/ | wc -l) synthetic seeds generated" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(sanitize_line "$(ls seed-output/crafted/ | wc -l)") synthetic seeds generated" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run seed-pipeline.sh
         env:
@@ -108,8 +108,8 @@ jobs:
           fi
           .github/scripts/seed-pipeline.sh "$image_dir"
           echo "### Pipeline Seeds" >> "$GITHUB_STEP_SUMMARY"
-          echo "$(ls temp/pipeline-staging/embedded/ 2>/dev/null | wc -l) ICC-embedded seeds" >> "$GITHUB_STEP_SUMMARY"
-          echo "$(ls temp/pipeline-staging/rejected/ 2>/dev/null | wc -l) rejected files" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(sanitize_line "$(ls temp/pipeline-staging/embedded/ 2>/dev/null | wc -l)") ICC-embedded seeds" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(sanitize_line "$(ls temp/pipeline-staging/rejected/ 2>/dev/null | wc -l)") rejected files" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Package seed corpus
         env:
@@ -142,8 +142,8 @@ jobs:
             [ -s "seed-output/icc/${bn}.icc" ] || rm -f "seed-output/icc/${bn}.icc"
           done
           echo "### Packaged Output" >> "$GITHUB_STEP_SUMMARY"
-          echo "- TIFF seeds: $(ls seed-output/tiff/ | wc -l)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- ICC seeds: $(ls seed-output/icc/ | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- TIFF seeds: $(sanitize_line "$(ls seed-output/tiff/ | wc -l)")" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ICC seeds: $(sanitize_line "$(ls seed-output/icc/ | wc -l)")" >> "$GITHUB_STEP_SUMMARY"
           tar czf seed-corpus.tar.gz -C seed-output .
 
       - name: Upload seed corpus artifact

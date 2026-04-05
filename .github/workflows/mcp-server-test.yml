@@ -292,5 +292,5 @@ jobs:
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           echo "## MCP Server Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** $(sanitize_line "${{ job.status }}")" >> $GITHUB_STEP_SUMMARY
           echo "**Python:** 3.12" >> $GITHUB_STEP_SUMMARY

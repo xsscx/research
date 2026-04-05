@@ -187,11 +187,11 @@ jobs:
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          echo "## CodeQL Analysis: ${MATRIX_TARGET}" >> $GITHUB_STEP_SUMMARY
+          echo "## CodeQL Analysis: $(sanitize_line "${MATRIX_TARGET}")" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** [OK] Complete" >> $GITHUB_STEP_SUMMARY
-          echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "**Artifact:** codeql-analysis-${MATRIX_TARGET}-${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(sanitize_line "$(date -u)")" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact:** codeql-analysis-$(sanitize_line "${MATRIX_TARGET}")-$(sanitize_line "${{ github.run_id }}")" >> $GITHUB_STEP_SUMMARY
 
   summary-report:
     name: Analysis Summary
@@ -214,7 +214,7 @@ jobs:
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           echo "# CodeQL Security Analysis Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID:** $(sanitize_line "${{ github.run_id }}")" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(sanitize_line "$(date -u)")" >> $GITHUB_STEP_SUMMARY
           echo "**Targets:** iccanalyzer-lite, colorbleed_tools" >> $GITHUB_STEP_SUMMARY
           echo "**Total Queries:** 30 (15 per target)" >> $GITHUB_STEP_SUMMARY

@@ -197,20 +197,20 @@ jobs:
           else
             PIN_PCT=$((PINNED_ACTIONS * 100 / TOTAL_ACTIONS))
             if [[ $UNPINNED_ACTIONS -eq 0 && $TAG_ONLY_ACTIONS -eq 0 ]]; then
-              echo "[OK] All $TOTAL_ACTIONS actions are SHA-pinned ($PIN_PCT%)" >> "$GITHUB_STEP_SUMMARY"
+              echo "[OK] All $(sanitize_line "$TOTAL_ACTIONS") actions are SHA-pinned ($(sanitize_line "$PIN_PCT")%)" >> "$GITHUB_STEP_SUMMARY"
             else
               echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
               echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-              echo "| Total actions | $TOTAL_ACTIONS |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| SHA-pinned | $PINNED_ACTIONS ($PIN_PCT%) |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| Tag-only (MEDIUM risk) | $TAG_ONLY_ACTIONS |" >> "$GITHUB_STEP_SUMMARY"
-              echo "| Unpinned (CRITICAL risk) | $UNPINNED_ACTIONS |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Total actions | $(sanitize_line "$TOTAL_ACTIONS") |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| SHA-pinned | $(sanitize_line "$PINNED_ACTIONS") ($(sanitize_line "$PIN_PCT")%) |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Tag-only (MEDIUM risk) | $(sanitize_line "$TAG_ONLY_ACTIONS") |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Unpinned (CRITICAL risk) | $(sanitize_line "$UNPINNED_ACTIONS") |" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
             fi
 
             if [[ ${#TAG_ONLY_LIST[@]} -gt 0 ]]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "<details><summary>[WARN] Tag-only actions (${#TAG_ONLY_LIST[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+              echo "<details><summary>[WARN] Tag-only actions ($(sanitize_line "${#TAG_ONLY_LIST[@]}"))</summary>" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
               for item in "${TAG_ONLY_LIST[@]}"; do
                 echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
@@ -220,7 +220,7 @@ jobs:
 
             if [[ ${#UNPINNED_LIST[@]} -gt 0 ]]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "<details><summary>[CRITICAL] Unpinned actions (${#UNPINNED_LIST[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+              echo "<details><summary>[CRITICAL] Unpinned actions ($(sanitize_line "${#UNPINNED_LIST[@]}"))</summary>" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
               for item in "${UNPINNED_LIST[@]}"; do
                 echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
@@ -291,7 +291,7 @@ jobs:
             echo "[OK] No dangerous triggers detected" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "**Total dangerous triggers: $DANGEROUS_COUNT**" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Total dangerous triggers: $(sanitize_line "$DANGEROUS_COUNT")**" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
@@ -383,13 +383,13 @@ jobs:
 
           echo "| Check | Compliant | Non-compliant |" >> "$GITHUB_STEP_SUMMARY"
           echo "|-------|-----------|---------------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| BASH_ENV=/dev/null | $WF_WITH_BASH_ENV | $WF_MISSING_BASH_ENV |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| credential.helper cleanup | $WF_WITH_CRED_CLEANUP | $WF_MISSING_CRED |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| persist-credentials: false | $WF_WITH_PERSIST_FALSE | $((TOTAL_WF - WF_WITH_PERSIST_FALSE)) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| BASH_ENV=/dev/null | $(sanitize_line "$WF_WITH_BASH_ENV") | $(sanitize_line "$WF_MISSING_BASH_ENV") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| credential.helper cleanup | $(sanitize_line "$WF_WITH_CRED_CLEANUP") | $(sanitize_line "$WF_MISSING_CRED") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| persist-credentials: false | $(sanitize_line "$WF_WITH_PERSIST_FALSE") | $(sanitize_line "$((TOTAL_WF - WF_WITH_PERSIST_FALSE))") |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           if [[ ${#MISSING_ENV[@]} -gt 0 ]]; then
-            echo "<details><summary>[HIGH] Missing BASH_ENV=/dev/null (${#MISSING_ENV[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>[HIGH] Missing BASH_ENV=/dev/null ($(sanitize_line "${#MISSING_ENV[@]}"))</summary>" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             for item in "${MISSING_ENV[@]}"; do
               echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
@@ -399,7 +399,7 @@ jobs:
           fi
 
           if [[ ${#MISSING_PERSIST[@]} -gt 0 ]]; then
-            echo "<details><summary>[MEDIUM] Missing persist-credentials: false (${#MISSING_PERSIST[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>[MEDIUM] Missing persist-credentials: false ($(sanitize_line "${#MISSING_PERSIST[@]}"))</summary>" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             for item in "${MISSING_PERSIST[@]}"; do
               echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
@@ -487,9 +487,9 @@ jobs:
             HARD_PCT=$((HARDENED_STEPS * 100 / TOTAL_STEPS))
             echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
             echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Total run: blocks | $TOTAL_STEPS |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| With set -euo pipefail | $HARDENED_STEPS ($HARD_PCT%) |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Missing hardening | $UNHARDENED |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Total run: blocks | $(sanitize_line "$TOTAL_STEPS") |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| With set -euo pipefail | $(sanitize_line "$HARDENED_STEPS") ($(sanitize_line "$HARD_PCT")%) |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Missing hardening | $(sanitize_line "$UNHARDENED") |" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No run: blocks found" >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -557,7 +557,7 @@ jobs:
           if [[ $INJECTION_COUNT -eq 0 ]]; then
             echo "[OK] No injectable expressions detected in run: blocks" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "[CRITICAL] Found $INJECTION_COUNT injectable expression(s):" >> "$GITHUB_STEP_SUMMARY"
+            echo "[CRITICAL] Found $(sanitize_line "$INJECTION_COUNT") injectable expression(s):" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             for item in "${INJECTION_LIST[@]}"; do
@@ -605,33 +605,60 @@ jobs:
 
             while IFS= read -r line; do
               line_num=$((line_num + 1))
-              if grep -q 'GITHUB_STEP_SUMMARY' <<< "$line"; then
-                # Extract the content being written (strip the >> $GITHUB_STEP_SUMMARY target)
-                content_part=$(sed 's/>>.*GITHUB_STEP_SUMMARY.*//; s/Out-File.*GITHUB_STEP_SUMMARY.*//' <<< "$line")
-                # Skip static-only writes (no variables or command substitution in content)
-                if ! grep -qE '\$[a-zA-Z_{(]|\$\(|`' <<< "$content_part"; then
-                  continue
-                fi
-                SUMMARY_WRITES=$((SUMMARY_WRITES + 1))
-                if grep -q 'sanitize_line\|sanitize_print\|escape_html\|Sanitize-Line\|Sanitize-Print\|Safe-EchoForSummary' <<< "$line"; then
-                  SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
-                else
-                  UNSANITIZED_WRITES=$((UNSANITIZED_WRITES + 1))
-                fi
+
+              # Strip single-quoted content first (regex patterns, not actual writes)
+              write_check=$(sed "s/'[^']*'//g" <<< "$line")
+              # Only match actual writes to GITHUB_STEP_SUMMARY (>> redirect or Out-File)
+              if ! grep -qE '>>.*GITHUB_STEP_SUMMARY|Out-File.*GITHUB_STEP_SUMMARY' <<< "$write_check"; then
+                continue
+              fi
+
+              # Extract the content before the redirect/pipe target
+              content_part=$(sed 's/>>.*GITHUB_STEP_SUMMARY.*//' <<< "$line")
+              content_part=$(sed 's/|[[:space:]]*Out-File.*GITHUB_STEP_SUMMARY.*//' <<< "$content_part")
+
+              # Strip single-quoted content (no interpolation in bash single quotes)
+              content_stripped=$(sed "s/'[^']*'//g" <<< "$content_part")
+
+              # Strip the redirect variable reference itself
+              content_stripped="${content_stripped//\$GITHUB_STEP_SUMMARY/}"
+              content_stripped="${content_stripped//\$env:GITHUB_STEP_SUMMARY/}"
+
+              # Skip static-only writes (no variables or command substitution)
+              if ! grep -qE '\$[a-zA-Z_{(]|\$\(' <<< "$content_stripped"; then
+                continue
+              fi
+
+              SUMMARY_WRITES=$((SUMMARY_WRITES + 1))
+
+              # Check if any sanitizer function is used on this line
+              if grep -qE 'sanitize_line|sanitize_print|sanitize_codeblock|sanitize_ref|sanitize_filename|escape_html|Sanitize-Line|Sanitize-Print|Safe-EchoForSummary|Escape-Html|elements-sanitized' <<< "$line"; then
+                SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
+              else
+                UNSANITIZED_WRITES=$((UNSANITIZED_WRITES + 1))
+                UNSANITIZED_LIST+=("${wf_base}:${line_num}")
               fi
             done < "$wf"
           done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
 
-          if [[ $SUMMARY_WRITES -gt 0 ]]; then
-            echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
-            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Total GITHUB_STEP_SUMMARY writes | $SUMMARY_WRITES |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Via sanitizer function | $SANITIZED_WRITES |" >> "$GITHUB_STEP_SUMMARY"
-            echo "| Direct/unsanitized | $UNSANITIZED_WRITES |" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "[OK] No GITHUB_STEP_SUMMARY writes found" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Total GITHUB_STEP_SUMMARY writes | $(sanitize_line "$SUMMARY_WRITES") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Via sanitizer function | $(sanitize_line "$SANITIZED_WRITES") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Direct/unsanitized | $(sanitize_line "$UNSANITIZED_WRITES") |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ ${#UNSANITIZED_LIST[@]} -gt 0 && ${#UNSANITIZED_LIST[@]} -le 30 ]]; then
+            echo "**Unsanitized writes ($(sanitize_line "${#UNSANITIZED_LIST[@]}")):**" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            for item in "${UNSANITIZED_LIST[@]}"; do
+              echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          elif [[ ${#UNSANITIZED_LIST[@]} -gt 30 ]]; then
+            echo "**$(sanitize_line "${#UNSANITIZED_LIST[@]}") unsanitized writes found (too many to list)**" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: "7. Permissions Minimization Audit"
         env:
@@ -684,14 +711,14 @@ jobs:
 
           echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
           echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Total workflows | $TOTAL_WF |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| With explicit permissions | $WF_WITH_PERMS |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Missing permissions block | $WF_NO_PERMS |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| With write/write-all | $WF_WITH_WRITE_ALL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Total workflows | $(sanitize_line "$TOTAL_WF") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| With explicit permissions | $(sanitize_line "$WF_WITH_PERMS") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Missing permissions block | $(sanitize_line "$WF_NO_PERMS") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| With write/write-all | $(sanitize_line "$WF_WITH_WRITE_ALL") |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           if [[ ${#NO_PERMS[@]} -gt 0 ]]; then
-            echo "<details><summary>[HIGH] Missing permissions block (${#NO_PERMS[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>[HIGH] Missing permissions block ($(sanitize_line "${#NO_PERMS[@]}"))</summary>" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             for item in "${NO_PERMS[@]}"; do
               echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
@@ -701,7 +728,7 @@ jobs:
           fi
 
           if [[ ${#WRITE_ALL[@]} -gt 0 ]]; then
-            echo "<details><summary>[MEDIUM] Workflows with write access (${#WRITE_ALL[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>[MEDIUM] Workflows with write access ($(sanitize_line "${#WRITE_ALL[@]}"))</summary>" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             for item in "${WRITE_ALL[@]}"; do
               echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
@@ -816,7 +843,7 @@ jobs:
             RISK_EMOJI="[CRITICAL]"
           fi
 
-          echo "### $RISK_EMOJI Supply-Chain Risk: $RISK_LEVEL (Score: $RISK_SCORE)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### $(sanitize_line "$RISK_EMOJI") Supply-Chain Risk: $(sanitize_line "$RISK_LEVEL") (Score: $(sanitize_line "$RISK_SCORE"))" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           if [[ ${#RISK_ITEMS[@]} -gt 0 ]]; then
@@ -865,7 +892,7 @@ jobs:
           EXT_CALLS=$(grep -rnE 'curl.*\|\s*(ba)?sh|wget.*\|\s*(ba)?sh' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | wc -l || echo 0)
           if [[ $EXT_CALLS -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
-            echo "[CRITICAL] $EXT_CALLS curl/wget|bash pipe(s) in workflows (remote code execution vector)" >> "$GITHUB_STEP_SUMMARY"
+            echo "[CRITICAL] $(sanitize_line "$EXT_CALLS") curl/wget|bash pipe(s) in workflows (remote code execution vector)" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -873,7 +900,7 @@ jobs:
           B64_CALLS=$(grep -rnE 'base64|b64encode|btoa' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | wc -l || echo 0)
           if [[ $B64_CALLS -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
-            echo "[WARN] $B64_CALLS base64 encoding reference(s) detected (check for credential obfuscation)" >> "$GITHUB_STEP_SUMMARY"
+            echo "[WARN] $(sanitize_line "$B64_CALLS") base64 encoding reference(s) detected (check for credential obfuscation)" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -881,7 +908,7 @@ jobs:
           ENV_DUMP=$(grep -rnE 'printenv|echo.*SECRET|echo.*TOKEN' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | grep -v 'BASH_ENV' | grep -v 'GITHUB_ENV' | wc -l || echo 0)
           if [[ $ENV_DUMP -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
-            echo "[WARN] $ENV_DUMP environment dump pattern(s) detected" >> "$GITHUB_STEP_SUMMARY"
+            echo "[WARN] $(sanitize_line "$ENV_DUMP") environment dump pattern(s) detected" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -889,7 +916,7 @@ jobs:
           GIT_PUSH=$(grep -rnE 'git (push|tag -f|tag -d)' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | wc -l || echo 0)
           if [[ $GIT_PUSH -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
-            echo "[HIGH] $GIT_PUSH git push/tag-force pattern(s) detected (tag rewriting vector)" >> "$GITHUB_STEP_SUMMARY"
+            echo "[HIGH] $(sanitize_line "$GIT_PUSH") git push/tag-force pattern(s) detected (tag rewriting vector)" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -907,7 +934,7 @@ jobs:
           done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
           if [[ $PR_CHECKOUT -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
-            echo "[CRITICAL] $PR_CHECKOUT workflow(s) checkout PR head code with elevated permissions" >> "$GITHUB_STEP_SUMMARY"
+            echo "[CRITICAL] $(sanitize_line "$PR_CHECKOUT") workflow(s) checkout PR head code with elevated permissions" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -915,7 +942,7 @@ jobs:
             echo "[OK] No Trivy-pattern indicators detected" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "**Total Trivy-pattern indicators: $TRIVY_INDICATORS**" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Total Trivy-pattern indicators: $(sanitize_line "$TRIVY_INDICATORS")**" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
@@ -1135,10 +1162,10 @@ jobs:
             $pct = [math]::Round(($pinnedActions / $totalActions) * 100, 1)
             $report += "| Metric | Count |"
             $report += "|--------|-------|"
-            $report += "| Total actions | $totalActions |"
-            $report += "| SHA-pinned | $pinnedActions ($pct%) |"
-            $report += "| Tag-only | $tagOnlyActions |"
-            $report += "| Unpinned | $unpinnedActions |"
+            $report += "| Total actions | $(Sanitize-Line "$totalActions") |"
+            $report += "| SHA-pinned | $(Sanitize-Line "$pinnedActions") ($(Sanitize-Line "$pct")%) |"
+            $report += "| Tag-only | $(Sanitize-Line "$tagOnlyActions") |"
+            $report += "| Unpinned | $(Sanitize-Line "$unpinnedActions") |"
             $report += ""
             if ($tagOnlyList.Count -gt 0) {
               $report += "**Tag-only actions:**"
@@ -1152,7 +1179,7 @@ jobs:
             }
           }
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] SHA pinning audit complete (Windows): $pinnedActions/$totalActions pinned"
 
       - name: "2. Dangerous Trigger Detection (Windows)"
@@ -1206,7 +1233,7 @@ jobs:
             }
           }
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] Dangerous trigger detection complete (Windows): $($findings.Count) findings"
 
       - name: "3. Credential Hygiene Audit (Windows)"
@@ -1273,10 +1300,10 @@ jobs:
           $report += ""
           $report += "| Check | Workflows |"
           $report += "|-------|-----------|"
-          $report += "| Total workflows scanned | $totalWf |"
-          $report += "| BASH_ENV=/dev/null present | $bashEnvCount |"
-          $report += "| credential.helper cleanup | $credCleanupCount |"
-          $report += "| Token unset/removal | $tokenUnsetCount |"
+          $report += "| Total workflows scanned | $(Sanitize-Line "$totalWf") |"
+          $report += "| BASH_ENV=/dev/null present | $(Sanitize-Line "$bashEnvCount") |"
+          $report += "| credential.helper cleanup | $(Sanitize-Line "$credCleanupCount") |"
+          $report += "| Token unset/removal | $(Sanitize-Line "$tokenUnsetCount") |"
           $report += ""
           if ($issues.Count -gt 0) {
             $report += "**Issues found:**"
@@ -1285,7 +1312,7 @@ jobs:
             $report += "[OK] All workflows have proper credential hygiene"
           }
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] Credential hygiene audit complete (Windows)"
 
       - name: "4. Shell Hardening Audit (Windows)"
@@ -1354,15 +1381,15 @@ jobs:
           $report += ""
           $report += "| Metric | Count |"
           $report += "|--------|-------|"
-          $report += "| Total run: blocks | $totalBlocks |"
-          $report += "| Bash: set -euo pipefail | $hardenedBlocks |"
-          $report += "| PowerShell: ErrorActionPreference | $pwshHardenedBlocks |"
+          $report += "| Total run: blocks | $(Sanitize-Line "$totalBlocks") |"
+          $report += "| Bash: set -euo pipefail | $(Sanitize-Line "$hardenedBlocks") |"
+          $report += "| PowerShell: ErrorActionPreference | $(Sanitize-Line "$pwshHardenedBlocks") |"
           if ($totalBlocks -gt 0) {
             $bashPct = [math]::Round(($hardenedBlocks / $totalBlocks) * 100, 1)
-            $report += "| Bash hardening rate | $bashPct% |"
+            $report += "| Bash hardening rate | $(Sanitize-Line "$bashPct")% |"
           }
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] Shell hardening audit complete (Windows): $hardenedBlocks/$totalBlocks hardened"
 
       - name: "5. Expression Injection Scan (Windows)"
@@ -1427,12 +1454,12 @@ jobs:
           if ($findings.Count -eq 0) {
             $report += "[OK] No expression injection patterns found in run: blocks"
           } else {
-            $report += "**Findings ($($findings.Count)):**"
+            $report += "**Findings ($(Sanitize-Line "$($findings.Count)")):**"
             $report += ""
             foreach ($f in $findings) { $report += "- ``$(Sanitize-Line $f)``" }
           }
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] Expression injection scan complete (Windows): $($findings.Count) findings"
 
       - name: "6. Output Sanitization Audit (Windows)"
@@ -1453,8 +1480,10 @@ jobs:
           $totalSummaryWrites = 0
           $sanitizedWrites = 0
           $unsanitizedList = @()
-          $bashSanitizers = @('sanitize_line', 'sanitize_print', 'escape_html')
-          $pwshSanitizers = @('Sanitize-Line', 'Sanitize-Print', 'Safe-EchoForSummary', 'Escape-Html')
+          $allSanitizers = @('sanitize_line', 'sanitize_print', 'sanitize_codeblock',
+            'sanitize_ref', 'sanitize_filename', 'escape_html',
+            'Sanitize-Line', 'Sanitize-Print', 'Safe-EchoForSummary', 'Escape-Html',
+            'elements-sanitized')
 
           $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
           foreach ($wf in $workflows) {
@@ -1462,26 +1491,40 @@ jobs:
             $lineNum = 0
             foreach ($ln in $lines) {
               $lineNum++
-              if ($ln -match 'GITHUB_STEP_SUMMARY') {
-                # Strip the output target reference before checking for variable interpolation
-                $contentPart = $ln -replace '>>.*GITHUB_STEP_SUMMARY.*', '' -replace 'Out-File.*GITHUB_STEP_SUMMARY.*', '' -replace '\$env:GITHUB_STEP_SUMMARY', ''
-                # Skip static-only writes (no variables or command substitution in content)
-                if ($contentPart -notmatch '\$[a-zA-Z_{(]' -and $contentPart -notmatch '\$\(' -and $contentPart -notmatch '`') {
-                  continue
+
+              # Strip single-quoted content first (regex patterns are not actual writes)
+              $writeCheck = $ln -replace "'[^']*'", ''
+              # Only match actual writes (>> redirect or Out-File pipe)
+              if ($writeCheck -notmatch '>>.*GITHUB_STEP_SUMMARY' -and $writeCheck -notmatch 'Out-File.*GITHUB_STEP_SUMMARY') {
+                continue
+              }
+
+              # Extract content before redirect target
+              $contentPart = $ln -replace '>>.*GITHUB_STEP_SUMMARY.*', '' -replace '\|?\s*Out-File.*GITHUB_STEP_SUMMARY.*', ''
+
+              # Strip single-quoted content (no interpolation in bash single quotes)
+              $contentStripped = $contentPart -replace "'[^']*'", ''
+
+              # Strip the redirect variable reference itself
+              $contentStripped = $contentStripped -replace '\$GITHUB_STEP_SUMMARY', '' -replace '\$env:GITHUB_STEP_SUMMARY', ''
+
+              # Skip static-only writes (no variables or command substitution)
+              if ($contentStripped -notmatch '\$[a-zA-Z_{(]' -and $contentStripped -notmatch '\$\(') {
+                continue
+              }
+
+              $totalSummaryWrites++
+              $isSanitized = $false
+              foreach ($s in $allSanitizers) {
+                if ($ln -match [regex]::Escape($s)) {
+                  $isSanitized = $true
+                  break
                 }
-                $totalSummaryWrites++
-                $isSanitized = $false
-                foreach ($s in ($bashSanitizers + $pwshSanitizers)) {
-                  if ($ln -match [regex]::Escape($s)) {
-                    $isSanitized = $true
-                    break
-                  }
-                }
-                if ($isSanitized) {
-                  $sanitizedWrites++
-                } else {
-                  $unsanitizedList += "$($wf.Name):$lineNum"
-                }
+              }
+              if ($isSanitized) {
+                $sanitizedWrites++
+              } else {
+                $unsanitizedList += "$($wf.Name):$lineNum"
               }
             }
           }
@@ -1491,16 +1534,19 @@ jobs:
           $report += ""
           $report += "| Metric | Count |"
           $report += "|--------|-------|"
-          $report += "| GITHUB_STEP_SUMMARY writes | $totalSummaryWrites |"
-          $report += "| Sanitized writes | $sanitizedWrites |"
-          $report += "| Potentially unsanitized | $($unsanitizedList.Count) |"
+          $report += "| GITHUB_STEP_SUMMARY writes | $(Sanitize-Line "$totalSummaryWrites") |"
+          $report += "| Sanitized writes | $(Sanitize-Line "$sanitizedWrites") |"
+          $report += "| Potentially unsanitized | $(Sanitize-Line "$($unsanitizedList.Count)") |"
           $report += ""
-          if ($unsanitizedList.Count -gt 0 -and $unsanitizedList.Count -le 20) {
-            $report += "**Potentially unsanitized writes:**"
+          if ($unsanitizedList.Count -gt 0 -and $unsanitizedList.Count -le 30) {
+            $report += "**Unsanitized writes ($(Sanitize-Line "$($unsanitizedList.Count)")):**"
+            $report += ""
             foreach ($u in $unsanitizedList) { $report += "- ``$(Sanitize-Line $u)``" }
+          } elseif ($unsanitizedList.Count -gt 30) {
+            $report += "**$(Sanitize-Line "$($unsanitizedList.Count)") unsanitized writes (too many to list)**"
           }
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] Output sanitization audit complete (Windows): $sanitizedWrites/$totalSummaryWrites sanitized"
 
       - name: "7. Permissions Audit (Windows)"
@@ -1538,8 +1584,8 @@ jobs:
           $report += ""
           $report += "| Metric | Count |"
           $report += "|--------|-------|"
-          $report += "| With permissions: block | $withPerms |"
-          $report += "| Without permissions: block | $withoutPerms |"
+          $report += "| With permissions: block | $(Sanitize-Line "$withPerms") |"
+          $report += "| Without permissions: block | $(Sanitize-Line "$withoutPerms") |"
           $report += ""
           if ($missingList.Count -gt 0) {
             $report += "**Missing permissions: block:**"
@@ -1548,7 +1594,7 @@ jobs:
             $report += "[OK] All workflows have explicit permissions"
           }
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] Permissions audit complete (Windows): $withPerms with, $withoutPerms without"
 
       - name: "8. Supply-Chain Risk Score (Windows)"
@@ -1653,7 +1699,7 @@ jobs:
           $report = @()
           $report += "## 8. Supply-Chain Risk Score (Windows Validation)"
           $report += ""
-          $report += "**Score: $score/100 (Grade: $grade)**"
+          $report += "**Score: $(Sanitize-Line "$score")/100 (Grade: $(Sanitize-Line "$grade"))**"
           $report += ""
           if ($deductions.Count -gt 0) {
             $report += "| Deduction | Detail |"
@@ -1665,7 +1711,7 @@ jobs:
             $report += "[OK] Perfect supply-chain security score"
           }
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] Supply-chain risk score (Windows): $score/100 ($grade)"
 
       - name: "9. Trivy-Specific Indicator Check (Windows)"
@@ -1737,7 +1783,7 @@ jobs:
             }
           }
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] Trivy indicator check complete (Windows): $($findings.Count) indicators"
 
       - name: "10. Inventory & Cross-Platform Summary"
@@ -1816,18 +1862,18 @@ jobs:
           $report += "|-------|-------|"
           $report += "| Platform | Windows (PowerShell) |"
           $report += "| Sanitizer | sanitize.ps1 ($(Sanitizer-Version 2>$null)) |"
-          $report += "| Analysis target | $env:ANALYSIS_TARGET |"
+          $report += "| Analysis target | $(Sanitize-Line $env:ANALYSIS_TARGET) |"
           if ($env:ANALYSIS_TARGET -eq 'Specific PR number' -and $env:PR_NUMBER) {
-            $report += "| PR number | #$env:PR_NUMBER |"
+            $report += "| PR number | #$(Sanitize-Line $env:PR_NUMBER) |"
           }
           if ($env:ANALYSIS_TARGET -eq 'Specific git ref' -and $env:GIT_REF) {
-            $report += "| Git ref | $env:GIT_REF |"
+            $report += "| Git ref | $(Sanitize-Line $env:GIT_REF) |"
           }
-          $report += "| Severity threshold | $env:SEVERITY_THRESHOLD |"
+          $report += "| Severity threshold | $(Sanitize-Line $env:SEVERITY_THRESHOLD) |"
           $report += "| Repository | $(Sanitize-Line $env:GITHUB_REPOSITORY) |"
-          $report += "| Run ID | $env:GITHUB_RUN_ID |"
-          $report += "| Commit | $(git rev-parse --short HEAD 2>$null) |"
-          $report += "| Timestamp | $(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ' -AsUTC) |"
+          $report += "| Run ID | $(Sanitize-Line $env:GITHUB_RUN_ID) |"
+          $report += "| Commit | $(Sanitize-Line $(git rev-parse --short HEAD 2>$null)) |"
+          $report += "| Timestamp | $(Sanitize-Line $(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ' -AsUTC)) |"
           $report += ""
           $report += "---"
           $report += ""
@@ -1838,5 +1884,5 @@ jobs:
           $report += "- ``.github/instructions/workflow-governance``"
           $report += "- ``.github/scripts/sanitize.ps1`` (PowerShell sanitizer)"
           $report += ""
-          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8  # elements-sanitized
           Write-Host "[OK] PR Risk & Security Analysis complete (Windows)"
