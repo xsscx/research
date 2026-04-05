@@ -170,9 +170,9 @@ jobs:
               action_ref=$(echo "$line" | sed 's/.*uses:[[:space:]]*//' | tr -d '"' | tr -d "'")
               wf_base=$(basename "$wf")
 
-              if echo "$action_ref" | grep -qE '@[0-9a-f]{40}'; then
+              if grep -qE '@[0-9a-f]{40}' <<< "$action_ref"; then
                 PINNED_ACTIONS=$((PINNED_ACTIONS + 1))
-              elif echo "$action_ref" | grep -qE '@v[0-9]'; then
+              elif grep -qE '@v[0-9]' <<< "$action_ref"; then
                 TAG_ONLY_ACTIONS=$((TAG_ONLY_ACTIONS + 1))
                 TAG_ONLY_LIST+=("$wf_base: $action_ref")
               else
@@ -324,23 +324,22 @@ jobs:
           while IFS= read -r wf; do
             TOTAL_WF=$((TOTAL_WF + 1))
             wf_base=$(basename "$wf")
-            wf_content=$(cat "$wf")
 
-            if echo "$wf_content" | grep -q 'BASH_ENV.*dev.null\|BASH_ENV:.*dev.null'; then
+            if grep -q 'BASH_ENV.*dev.null\|BASH_ENV:.*dev.null' "$wf"; then
               WF_WITH_BASH_ENV=$((WF_WITH_BASH_ENV + 1))
             else
               WF_MISSING_BASH_ENV=$((WF_MISSING_BASH_ENV + 1))
               MISSING_ENV+=("$wf_base")
             fi
 
-            if echo "$wf_content" | grep -q 'credential.helper'; then
+            if grep -q 'credential.helper' "$wf"; then
               WF_WITH_CRED_CLEANUP=$((WF_WITH_CRED_CLEANUP + 1))
             else
               WF_MISSING_CRED=$((WF_MISSING_CRED + 1))
               MISSING_CRED+=("$wf_base")
             fi
 
-            if echo "$wf_content" | grep -q 'persist-credentials.*false'; then
+            if grep -q 'persist-credentials.*false' "$wf"; then
               WF_WITH_PERSIST_FALSE=$((WF_WITH_PERSIST_FALSE + 1))
             else
               MISSING_PERSIST+=("$wf_base")
@@ -414,7 +413,7 @@ jobs:
             while IFS= read -r line; do
               line_num=$((line_num + 1))
 
-              if echo "$line" | grep -qE '^\s+run:\s*\|'; then
+              if grep -qE '^\s+run:\s*\|' <<< "$line"; then
                 if $in_run_block && ! $has_pipefail; then
                   UNHARDENED=$((UNHARDENED + 1))
                 fi
@@ -425,7 +424,7 @@ jobs:
               fi
 
               if $in_run_block; then
-                if echo "$line" | grep -qE '^\s+\S' && ! echo "$line" | grep -qE '^\s{4,}'; then
+                if grep -qE '^\s+\S' <<< "$line" && ! grep -qE '^\s{4,}' <<< "$line"; then
                   if ! $has_pipefail; then
                     UNHARDENED=$((UNHARDENED + 1))
                     UNHARDENED_LIST+=("$wf_base:$line_num")
@@ -434,7 +433,7 @@ jobs:
                   fi
                   in_run_block=false
                 fi
-                if echo "$line" | grep -q 'set -euo pipefail\|set -euxo pipefail'; then
+                if grep -q 'set -euo pipefail\|set -euxo pipefail' <<< "$line"; then
                   has_pipefail=true
                 fi
               fi
@@ -497,17 +496,17 @@ jobs:
             in_run_block=false
 
             while IFS= read -r line; do
-              if echo "$line" | grep -qE '^\s+run:\s*\|'; then
+              if grep -qE '^\s+run:\s*\|' <<< "$line"; then
                 in_run_block=true
                 continue
               fi
 
               if $in_run_block; then
-                if echo "$line" | grep -qE '^\s+\S' && ! echo "$line" | grep -qE '^\s{4,}'; then
+                if grep -qE '^\s+\S' <<< "$line" && ! grep -qE '^\s{4,}' <<< "$line"; then
                   in_run_block=false
                 fi
 
-                if echo "$line" | grep -qE '\$\{\{[^}]*(matrix\.|github\.event\.(issue|pull_request)\.(title|body)|github\.head_ref|inputs\.)'; then
+                if grep -qE '\$\{\{[^}]*(matrix\.|github\.event\.(issue|pull_request)\.(title|body)|github\.head_ref|inputs\.)' <<< "$line"; then
                   INJECTION_COUNT=$((INJECTION_COUNT + 1))
                   trimmed=$(echo "$line" | sed 's/^[[:space:]]*//')
                   INJECTION_LIST+=("$wf_base: $trimmed")
@@ -567,9 +566,9 @@ jobs:
 
             while IFS= read -r line; do
               line_num=$((line_num + 1))
-              if echo "$line" | grep -q 'GITHUB_STEP_SUMMARY'; then
+              if grep -q 'GITHUB_STEP_SUMMARY' <<< "$line"; then
                 SUMMARY_WRITES=$((SUMMARY_WRITES + 1))
-                if echo "$line" | grep -q 'sanitize_line\|sanitize_print\|escape_html\|Sanitize-Line\|Sanitize-Print\|Safe-EchoForSummary'; then
+                if grep -q 'sanitize_line\|sanitize_print\|escape_html\|Sanitize-Line\|Sanitize-Print\|Safe-EchoForSummary' <<< "$line"; then
                   SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
                 else
                   UNSANITIZED_WRITES=$((UNSANITIZED_WRITES + 1))
@@ -625,11 +624,10 @@ jobs:
           while IFS= read -r wf; do
             TOTAL_WF=$((TOTAL_WF + 1))
             wf_base=$(basename "$wf")
-            wf_content=$(cat "$wf")
 
-            if echo "$wf_content" | grep -qE '^permissions:'; then
+            if grep -qE '^permissions:' "$wf"; then
               WF_WITH_PERMS=$((WF_WITH_PERMS + 1))
-              if echo "$wf_content" | grep -qE 'permissions:\s*write-all|contents:\s*write'; then
+              if grep -qE 'permissions:\s*write-all|contents:\s*write' "$wf"; then
                 WF_WITH_WRITE_ALL=$((WF_WITH_WRITE_ALL + 1))
                 WRITE_ALL+=("$wf_base")
               fi

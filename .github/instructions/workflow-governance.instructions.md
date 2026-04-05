@@ -127,6 +127,64 @@ Findings from the WASM workflow governance audit (March 2026):
 | 5 | Missing `set -euo pipefail` | HIGH | Add to every `run:` block |
 | 6 | Unsanitized GITHUB_STEP_SUMMARY writes | HIGH | Use `sanitize_line()` |
 | 7 | `sanitize_line "$MULTILINE"` → 1 line | MEDIUM | Use `while read` per-line |
+| 8 | `echo "$var" \| grep -q` SIGPIPE under pipefail | HIGH | Use `grep -q "pat" <<< "$var"` or `grep -q "pat" file` |
+| 9 | `${{ github.event.inputs.* }}` in `run:` blocks | CRITICAL | Move to `env:` block, use `$ENV_VAR` |
+
+## SIGPIPE / Broken Pipe Avoidance — MANDATORY
+
+**Rule**: NEVER use `echo "$variable" | grep -q "pattern"` in any `run:` block
+that has `set -o pipefail` (which is ALL steps per our governance).
+
+**Root cause**: When `grep -q` finds a match, it immediately exits and closes
+stdin. If the variable is large, `echo` gets SIGPIPE trying to write remaining
+data to the closed pipe. Under `pipefail`, the non-zero exit from `echo`
+propagates as pipeline failure.
+
+**Three safe alternatives** (in preference order):
+
+```bash
+# 1. BEST — here-string (no pipe, no subshell)
+if grep -qE 'pattern' <<< "$variable"; then ...
+
+# 2. GOOD — grep reads file directly (for file content checks)
+if grep -q 'pattern' "$filepath"; then ...
+
+# 3. OK — bash pattern matching (no external command)
+if [[ "$variable" =~ pattern ]]; then ...
+```
+
+**WRONG** (causes SIGPIPE under pipefail):
+```bash
+# WRONG — broken pipe when $variable is large
+if echo "$variable" | grep -q 'pattern'; then ...
+# WRONG — same issue with printf
+if printf '%s' "$variable" | grep -q 'pattern'; then ...
+```
+
+This bug appeared in 3 separate workflow steps across 3 fix cycles (March 2026).
+Always use here-strings or direct file grep.
+
+## Script Injection Prevention — MANDATORY
+
+**Rule**: NEVER place `${{ github.event.inputs.* }}`, `${{ github.head_ref }}`,
+`${{ github.event.pull_request.title }}`, `${{ github.event.issue.body }}`,
+or any other user-controlled expression directly in `run:` blocks.
+
+```yaml
+# WRONG — injectable via crafted input value
+run: echo "Building ref ${{ github.event.inputs.ref }}"
+
+# CORRECT — safe via env intermediary
+env:
+  TARGET_REF: ${{ github.event.inputs.ref }}
+run: echo "Building ref ${TARGET_REF}"
+```
+
+Expressions in `name:`, `with:`, `key:`, and `if:` fields are evaluated by the
+GitHub Actions YAML parser (not shell), so they are safe from shell injection.
+However, governance rules still prefer env intermediaries for consistency.
+
+Reference: https://docs.github.com/en/actions/reference/security/secure-use
 
 ## sanitize-sed.sh — Source of Truth
 
