@@ -37,8 +37,16 @@ jobs:
           persist-credentials: false
 
       - name: Host System Info
-        shell: pwsh
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+          POWERSHELL_UPDATECHECK: Off
         run: |
+          $ErrorActionPreference = 'Stop'
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
           systeminfo
           Write-Host "========= Fetching Deps from Releases... ================`n"
           Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -Destination "bitsdeps.zip"
@@ -51,11 +59,13 @@ jobs:
           Expand-Archive -Path "deps.zip" -DestinationPath "deps" -Force
           ls
           Get-CimInstance -ClassName Win32_Processor
-          
+
       - name: Summary Report
         if: always()
+        shell: bash
         env:
           BASH_ENV: /dev/null
+          JOB_STATUS: ${{ job.status }}
         run: |
           set -euo pipefail
           git config --global credential.helper ""
@@ -75,5 +85,5 @@ jobs:
             sanitize_line() { escape_html "$1"; }
           fi
 
-          echo "### Windows Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Status: $(sanitize_line "${{ job.status }}")" >> $GITHUB_STEP_SUMMARY
+          echo "### Windows Build Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: $(sanitize_line "${JOB_STATUS}")" >> "$GITHUB_STEP_SUMMARY"
