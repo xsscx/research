@@ -139,7 +139,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          brew install cmake llvm-18 libpng libtiff libxml2 nlohmann-json ccache
+          brew install cmake llvm@18 libpng libtiff libxml2 nlohmann-json ccache
           ccache --zero-stats || true
 
       - name: Disable wxWidgets for CFL
@@ -581,7 +581,7 @@ jobs:
           cmake -B build -S . `
                 -DCMAKE_TOOLCHAIN_FILE="..\..\scripts\buildsystems\vcpkg.cmake" `
                 -DVCPKG_MANIFEST_MODE=OFF `
-                -DCMAKE_BUILD_TYPE=${MATRIX_BUILD_TYPE} `
+                -DCMAKE_BUILD_TYPE=$env:MATRIX_BUILD_TYPE `
                 -Wno-dev
 
       - name: Build
@@ -591,7 +591,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
           cd Build/Cmake
-          cmake --build build --config ${MATRIX_BUILD_TYPE} -- /m /maxcpucount
+          cmake --build build --config $env:MATRIX_BUILD_TYPE -- /m /maxcpucount
 
       - name: Test
         run: |
