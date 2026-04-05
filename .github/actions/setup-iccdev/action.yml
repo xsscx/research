@@ -1,0 +1,228 @@
+name: 'Setup iccDEV'
+description: 'Clone, cache, normalize, and build the iccDEV library'
+inputs:
+  path:
+    description: 'Clone target directory relative to workspace'
+    required: false
+    default: 'iccanalyzer-lite/iccDEV'
+  ref:
+    description: 'Git branch or tag to clone'
+    required: false
+    default: 'master'
+  depth:
+    description: 'Clone depth (0 for full history)'
+    required: false
+    default: '1'
+  build-type:
+    description: 'CMake build type: Debug or Release'
+    required: false
+    default: 'Debug'
+  sanitizers:
+    description: 'Sanitizer preset: asan-ubsan, coverage-only, none'
+    required: false
+    default: 'asan-ubsan'
+  enable-tools:
+    description: 'Build iccDEV CLI tools'
+    required: false
+    default: 'false'
+  disable-wxwidgets:
+    description: 'Disable wxWidgets GUI components'
+    required: false
+    default: 'true'
+  apply-cfl-patches:
+    description: 'Apply CFL security patches from cfl/patches/'
+    required: false
+    default: 'false'
+  cache-key-prefix:
+    description: 'Cache key prefix (empty to disable caching)'
+    required: false
+    default: ''
+
+outputs:
+  commit-sha:
+    description: 'iccDEV commit SHA'
+    value: ${{ steps.clone.outputs.commit-sha }}
+  cache-hit:
+    description: 'Whether the cache was hit'
+    value: ${{ steps.cache-repo.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Cache iccDEV repository
+      if: inputs.cache-key-prefix != ''
+      id: cache-repo
+      uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ runner.os }}-${{ inputs.cache-key-prefix }}-iccdev-${{ inputs.ref }}-v2
+
+    - name: Clone iccDEV
+      id: clone
+      if: steps.cache-repo.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        BASH_ENV: /dev/null
+        ICCDEV_PATH: ${{ inputs.path }}
+        ICCDEV_REF: ${{ inputs.ref }}
+        ICCDEV_DEPTH: ${{ inputs.depth }}
+      run: |
+        set -euo pipefail
+        git config --global credential.helper ""
+        unset GITHUB_TOKEN || true
+
+        if [ -d "${ICCDEV_PATH}" ]; then
+          rm -rf "${ICCDEV_PATH}"
+        fi
+
+        DEPTH_FLAG=""
+        if [ "${ICCDEV_DEPTH}" != "0" ]; then
+          DEPTH_FLAG="--depth ${ICCDEV_DEPTH}"
+        fi
+
+        git clone ${DEPTH_FLAG} --branch "${ICCDEV_REF}" \
+          https://github.com/InternationalColorConsortium/iccDEV.git \
+          "${ICCDEV_PATH}"
+
+        cd "${ICCDEV_PATH}"
+        SHA=$(git rev-parse --short HEAD)
+        echo "commit-sha=${SHA}" >> "$GITHUB_OUTPUT"
+        echo "[OK] Cloned iccDEV at ${SHA}"
+
+    - name: Normalize iccDEV source
+      shell: bash
+      env:
+        BASH_ENV: /dev/null
+        ICCDEV_PATH: ${{ inputs.path }}
+        DISABLE_WX: ${{ inputs.disable-wxwidgets }}
+      run: |
+        set -euo pipefail
+        git config --global credential.helper ""
+        unset GITHUB_TOKEN || true
+
+        SIGUTILS="${ICCDEV_PATH}/IccProfLib/IccSignatureUtils.h"
+        if [ -f "${SIGUTILS}" ]; then
+          sed -i 's/\xef\xb8\x8f//g' "${SIGUTILS}"
+          echo "[OK] Stripped U+FE0F from IccSignatureUtils.h"
+        fi
+
+        CMAKE_FILE="${ICCDEV_PATH}/Build/Cmake/CMakeLists.txt"
+        if [ -f "${CMAKE_FILE}" ]; then
+          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' "${CMAKE_FILE}"
+          echo "[OK] Removed debug postfix"
+        fi
+
+        if [ "${DISABLE_WX}" = "true" ] && [ -f "${CMAKE_FILE}" ]; then
+          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' "${CMAKE_FILE}"
+          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' "${CMAKE_FILE}"
+          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' "${CMAKE_FILE}"
+          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' "${CMAKE_FILE}"
+          echo "[OK] Disabled wxWidgets"
+        fi
+
+    - name: Apply CFL patches
+      if: inputs.apply-cfl-patches == 'true'
+      shell: bash
+      env:
+        BASH_ENV: /dev/null
+        ICCDEV_PATH: ${{ inputs.path }}
+      run: |
+        set -euo pipefail
+        git config --global credential.helper ""
+        unset GITHUB_TOKEN || true
+
+        PATCH_DIR="cfl/patches"
+        if [ ! -d "${PATCH_DIR}" ]; then
+          echo "[SKIP] No CFL patches directory"
+          exit 0
+        fi
+
+        cd "${ICCDEV_PATH}"
+        APPLIED=0
+        SKIPPED=0
+        FAILED=0
+
+        for p in $(find "../../${PATCH_DIR}" -name '*.patch' -type f | sort); do
+          PNAME=$(basename "$p")
+          if git apply --check "$p" 2>/dev/null; then
+            git apply "$p"
+            APPLIED=$((APPLIED + 1))
+          elif git apply --check --reverse "$p" 2>/dev/null; then
+            SKIPPED=$((SKIPPED + 1))
+          else
+            echo "[WARN] Patch failed: ${PNAME}"
+            FAILED=$((FAILED + 1))
+          fi
+        done
+        echo "[OK] Patches: ${APPLIED} applied, ${SKIPPED} already applied, ${FAILED} failed"
+
+    - name: Build iccDEV libraries
+      shell: bash
+      env:
+        BASH_ENV: /dev/null
+        ICCDEV_PATH: ${{ inputs.path }}
+        BUILD_TYPE: ${{ inputs.build-type }}
+        SANITIZER_PRESET: ${{ inputs.sanitizers }}
+        ENABLE_TOOLS: ${{ inputs.enable-tools }}
+      run: |
+        set -euo pipefail
+        git config --global credential.helper ""
+        unset GITHUB_TOKEN || true
+
+        BUILD_DIR="${ICCDEV_PATH}/Build"
+        cd "${BUILD_DIR}"
+        find . -mindepth 1 -maxdepth 1 ! -name Cmake ! -name XCode -exec rm -rf {} + 2>/dev/null || true
+
+        TOOLS_FLAG="-DENABLE_TOOLS=OFF"
+        if [ "${ENABLE_TOOLS}" = "true" ]; then
+          TOOLS_FLAG="-DENABLE_TOOLS=ON -DENABLE_SHARED_LIBS=ON -DENABLE_STATIC_LIBS=ON"
+        fi
+
+        case "${SANITIZER_PRESET}" in
+          asan-ubsan)
+            SANITIZER_C_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3"
+            SANITIZER_CXX_FLAGS="${SANITIZER_C_FLAGS} -std=c++17"
+            SANITIZER_LINK_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate"
+            CMAKE_EXTRA="-DICC_LOG_SAFE=ON -DICC_TRACE_NAN_ENABLED=ON"
+            ;;
+          asan-ubsan-no-coverage)
+            SANITIZER_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -O0 -g3 -fstack-protector-strong"
+            SANITIZER_CXX_FLAGS="${SANITIZER_C_FLAGS} -std=c++17"
+            SANITIZER_LINK_FLAGS="-fsanitize=address,undefined"
+            CMAKE_EXTRA="-DENABLE_ASAN=ON -DENABLE_UBSAN=ON"
+            ;;
+          coverage-only)
+            SANITIZER_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+            SANITIZER_CXX_FLAGS="${SANITIZER_C_FLAGS}"
+            SANITIZER_LINK_FLAGS="-fprofile-instr-generate"
+            CMAKE_EXTRA="-DENABLE_COVERAGE=ON -DENABLE_STATIC_LIBS=OFF -DENABLE_TESTS=OFF"
+            ;;
+          none)
+            SANITIZER_C_FLAGS=""
+            SANITIZER_CXX_FLAGS=""
+            SANITIZER_LINK_FLAGS=""
+            CMAKE_EXTRA="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF"
+            ;;
+          *)
+            echo "[FAIL] Unknown sanitizer preset: ${SANITIZER_PRESET}"
+            exit 1
+            ;;
+        esac
+
+        COMPILER_C="clang"
+        COMPILER_CXX="clang++"
+
+        cmake Cmake \
+          -DCMAKE_C_COMPILER="${COMPILER_C}" \
+          -DCMAKE_CXX_COMPILER="${COMPILER_CXX}" \
+          -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+          -DCMAKE_C_FLAGS="${SANITIZER_C_FLAGS}" \
+          -DCMAKE_CXX_FLAGS="${SANITIZER_CXX_FLAGS}" \
+          -DCMAKE_EXE_LINKER_FLAGS="${SANITIZER_LINK_FLAGS}" \
+          -DCMAKE_SHARED_LINKER_FLAGS="${SANITIZER_LINK_FLAGS}" \
+          ${TOOLS_FLAG} \
+          ${CMAKE_EXTRA} \
+          -Wno-dev
+
+        make -j"$(nproc)"
+        echo "[OK] Built iccDEV (${BUILD_TYPE}, sanitizers=${SANITIZER_PRESET}, tools=${ENABLE_TOOLS})"
