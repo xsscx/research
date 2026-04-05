@@ -88,9 +88,7 @@ jobs:
           path: |
             cfl/iccDEV/Build/IccProfLib
             cfl/iccDEV/Build/IccXML
-            cfl/iccDEV/Build/CMakeCache.txt
-            cfl/iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-cfl-${{ hashFiles('cfl/patches/*.patch') }}
+          key: ${{ runner.os }}-iccdev-build-cfl-v2-${{ hashFiles('cfl/patches/*.patch') }}
 
       - name: Apply CFL patches to iccDEV
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
@@ -130,6 +128,7 @@ jobs:
           sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' Build/Cmake/CMakeLists.txt
 
           cd Build
+          rm -f CMakeCache.txt && rm -rf CMakeFiles
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake/ \
             -DCMAKE_C_COMPILER=clang-18 \
