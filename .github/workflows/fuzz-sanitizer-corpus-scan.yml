@@ -102,11 +102,7 @@ jobs:
           path: |
             iccanalyzer-lite/iccDEV/Build/IccProfLib
             iccanalyzer-lite/iccDEV/Build/IccXML
-            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
-            iccanalyzer-lite/iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-fuzz-${{ hashFiles('.github/workflows/fuzz-sanitizer-corpus-scan.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-iccdev-build-fuzz-
+          key: ${{ runner.os }}-iccdev-build-fuzz-v2-${{ hashFiles('.github/workflows/fuzz-sanitizer-corpus-scan.yml') }}
 
       - name: Build iccDEV libraries
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
@@ -116,6 +112,8 @@ jobs:
         run: |
           set -euo pipefail
           cd iccanalyzer-lite/iccDEV/Build
+          rm -f CMakeCache.txt
+          rm -rf CMakeFiles
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_C_COMPILER=clang-18 \
