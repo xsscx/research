@@ -333,7 +333,7 @@ jobs:
           FUZZER="bin/${MATRIX_FUZZER}"
           if [ ! -f "$FUZZER" ]; then
             echo "Fuzzer ${MATRIX_FUZZER} was not built (compile skip)"
-            echo "**${MATRIX_FUZZER}:** SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
+            echo "**$(sanitize_line "${MATRIX_FUZZER}"):** SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
@@ -374,9 +374,9 @@ jobs:
           set -e
 
           if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 124 ]; then
-            echo "**${MATRIX_FUZZER}:** PASS (exit: $EXIT_CODE, ${FUZZ_SECONDS}s)" >> $GITHUB_STEP_SUMMARY
+            echo "**$(sanitize_line "${MATRIX_FUZZER}"):** PASS (exit: $(sanitize_line "$EXIT_CODE"), $(sanitize_line "${FUZZ_SECONDS}")s)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**${MATRIX_FUZZER}:** FAIL (exit: $EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
+            echo "**$(sanitize_line "${MATRIX_FUZZER}"):** FAIL (exit: $(sanitize_line "$EXIT_CODE"))" >> $GITHUB_STEP_SUMMARY
           fi
 
           mkdir -p crash-artifacts

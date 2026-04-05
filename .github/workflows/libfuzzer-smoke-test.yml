@@ -347,7 +347,7 @@ jobs:
           # Collect crash artifacts
           CRASHES=$(find . -name "crash-*" -o -name "leak-*" -o -name "oom-*" 2>/dev/null | wc -l)
           if [ "$CRASHES" -gt 0 ]; then
-            echo "**Crashes found:** $CRASHES" >> $GITHUB_STEP_SUMMARY
+            echo "**Crashes found:** $(sanitize_line "$CRASHES")" >> $GITHUB_STEP_SUMMARY
             mkdir -p crash-artifacts
             find . -name "crash-*" -exec cp {} crash-artifacts/ \; 2>/dev/null || true
             find . -name "leak-*" -exec cp {} crash-artifacts/ \; 2>/dev/null || true

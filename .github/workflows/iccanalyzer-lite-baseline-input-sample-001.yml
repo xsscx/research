@@ -442,7 +442,7 @@ jobs:
           if [ "${{ env.failed }}" -eq 0 ]; then
             echo "**ALL CLEAN** - No sanitizer findings detected" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**${{ env.failed }} FINDING(S)** - Sanitizer detections captured (ASAN/UBSAN/validation)" >> $GITHUB_STEP_SUMMARY
+            echo "**$(sanitize_line "${{ env.failed }}") FINDING(S)** - Sanitizer detections captured (ASAN/UBSAN/validation)" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Check test success

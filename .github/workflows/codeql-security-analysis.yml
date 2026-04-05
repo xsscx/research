@@ -271,11 +271,11 @@ jobs:
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          echo "## CodeQL Analysis: ${MATRIX_TARGET}" >> $GITHUB_STEP_SUMMARY
+          echo "## CodeQL Analysis: $(sanitize_line "${MATRIX_TARGET}")" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** [OK] Complete" >> $GITHUB_STEP_SUMMARY
-          echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "**Artifact:** codeql-analysis-${MATRIX_TARGET}-${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(sanitize_line "$(date -u)")" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact:** codeql-analysis-$(sanitize_line "${MATRIX_TARGET}")-$(sanitize_line "${{ github.run_id }}")" >> $GITHUB_STEP_SUMMARY
 
   codeql-python:
     name: CodeQL Security Analysis - mcp-server (Python)
@@ -371,9 +371,9 @@ jobs:
           FAIL=0
           for script in $SCRIPTS; do
             if shellcheck -s bash "$script" 2>&1; then
-              echo "- [OK] $script" >> $GITHUB_STEP_SUMMARY
+              echo "- [OK] $(sanitize_line "$script")" >> $GITHUB_STEP_SUMMARY
             else
-              echo "- [FAIL] $script" >> $GITHUB_STEP_SUMMARY
+              echo "- [FAIL] $(sanitize_line "$script")" >> $GITHUB_STEP_SUMMARY
               FAIL=1
             fi
           done
@@ -394,9 +394,9 @@ jobs:
           FAIL=0
           for script in $SCRIPTS; do
             if shellcheck -s bash --severity=warning "$script" 2>&1; then
-              echo "- [OK] $(basename "$script")" >> $GITHUB_STEP_SUMMARY
+              echo "- [OK] $(sanitize_line "$(basename "$script")")" >> $GITHUB_STEP_SUMMARY
             else
-              echo "- [FAIL] $(basename "$script")" >> $GITHUB_STEP_SUMMARY
+              echo "- [FAIL] $(sanitize_line "$(basename "$script")")" >> $GITHUB_STEP_SUMMARY
               FAIL=1
             fi
           done
@@ -442,8 +442,8 @@ jobs:
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           echo "# CodeQL Security Analysis Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID:** $(sanitize_line "${{ github.run_id }}")" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(sanitize_line "$(date -u)")" >> $GITHUB_STEP_SUMMARY
           echo "**Targets:** iccanalyzer-lite, colorbleed_tools, cfl, mcp-server, devcontainer" >> $GITHUB_STEP_SUMMARY
           echo "**Total Queries:** 51 C++ (17 per target) + 6 custom Python + security-and-quality" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

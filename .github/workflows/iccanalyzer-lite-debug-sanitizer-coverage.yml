@@ -1180,9 +1180,9 @@ jobs:
           GRAND_FINDINGS="${GRAND_FINDINGS:-0}"
 
           if [ "$SANITIZER_HITS" -gt 0 ]; then
-            echo "[WARN] **${SANITIZER_HITS} SANITIZER HIT(S)** detected — review sanitizer-logs/ in the artifact" >> $GITHUB_STEP_SUMMARY
+            echo "[WARN] **$(sanitize_line "${SANITIZER_HITS}") SANITIZER HIT(S)** detected — review sanitizer-logs/ in the artifact" >> $GITHUB_STEP_SUMMARY
           elif [ "$GRAND_FINDINGS" -gt 0 ]; then
-            echo "**${GRAND_FINDINGS} FINDING(S)** — non-sanitizer detections (validation errors, exit codes)" >> $GITHUB_STEP_SUMMARY
+            echo "**$(sanitize_line "${GRAND_FINDINGS}") FINDING(S)** — non-sanitizer detections (validation errors, exit codes)" >> $GITHUB_STEP_SUMMARY
           else
             echo "[OK] **ALL CLEAN** — No sanitizer findings across all modes" >> $GITHUB_STEP_SUMMARY
           fi

@@ -128,8 +128,8 @@ jobs:
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          echo "### Linux Build Summary (${MATRIX_COMPILER})" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Compiler: ${MATRIX_COMPILER}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Linux Build Summary ($(sanitize_line "${MATRIX_COMPILER}")" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Compiler: $(sanitize_line "${MATRIX_COMPILER}")" >> "$GITHUB_STEP_SUMMARY"
           if [ -f colorbleed_tools/iccToXml_unsafe ] && [ -f colorbleed_tools/iccFromXml_unsafe ]; then
             echo "- Status: [OK] Success" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
