@@ -63,9 +63,7 @@ jobs:
           path: |
             iccDEV/Build/IccProfLib
             iccDEV/Build/IccXML
-            iccDEV/Build/CMakeCache.txt
-            iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-scan-${{ hashFiles('.github/workflows/scan-build.yml') }}
+          key: ${{ runner.os }}-iccdev-build-scan-v2-${{ hashFiles('.github/workflows/scan-build.yml') }}
 
       - name: Clone and build iccDEV libraries
         run: |
@@ -83,6 +81,7 @@ jobs:
           if [ "${{ steps.cache-iccdev-build.outputs.cache-hit }}" != 'true' ]; then
             echo "Building unpatched iccDEV for scan-build dependency analysis..."
             cd iccDEV/Build
+            rm -f CMakeCache.txt && rm -rf CMakeFiles
             sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
             cmake Cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLS=OFF
             make -j$(nproc) IccProfLib2 IccXML2

@@ -126,11 +126,7 @@ jobs:
           path: |
             iccanalyzer-lite/iccDEV/Build/IccProfLib
             iccanalyzer-lite/iccDEV/Build/IccXML
-            iccanalyzer-lite/iccDEV/Build/CMakeCache.txt
-            iccanalyzer-lite/iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-lite-debug-upstream-${{ hashFiles('.github/workflows/iccanalyzer-lite.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-iccdev-build-lite-debug-
+          key: ${{ runner.os }}-iccdev-build-lite-debug-upstream-v2-${{ hashFiles('.github/workflows/iccanalyzer-lite.yml') }}
 
       - name: Normalize upstream iccDEV source
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
@@ -148,8 +144,8 @@ jobs:
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
-          CC: clang
-          CXX: clang++
+          CC: clang-18
+          CXX: clang++-18
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
@@ -158,6 +154,10 @@ jobs:
           unset GITHUB_TOKEN || true
 
           cd iccanalyzer-lite/iccDEV/Build
+
+          # Prevent stale cmake cache from contaminating build
+          rm -f CMakeCache.txt
+          rm -rf CMakeFiles
 
           echo "Configuring CMake with instrumentation..."
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
