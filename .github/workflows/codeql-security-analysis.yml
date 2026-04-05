@@ -42,6 +42,8 @@ defaults:
 env:
   BASH_ENV: /dev/null
   ICCDEV_REF: ${{ github.event.inputs.ref || 'master' }}
+
+jobs:
   codeql-analysis:
     name: CodeQL Security Analysis - ${{ matrix.target }}
     runs-on: ubuntu-latest
