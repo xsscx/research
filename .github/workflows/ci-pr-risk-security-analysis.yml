@@ -947,4 +947,708 @@ jobs:
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
 
-          echo "[OK] PR Risk & Security Analysis complete"
+          echo "[OK] PR Risk & Security Analysis complete (Linux)"
+
+  ###########################################################################
+  # Job 2: Windows PowerShell Workflow Security Audit
+  ###########################################################################
+  windows-security-audit:
+    name: "Windows Security Audit (PowerShell)"
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      ANALYSIS_TARGET: ${{ inputs.analysis_target }}
+      PR_NUMBER: ${{ inputs.pr_number }}
+      GIT_REF: ${{ inputs.git_ref }}
+      SEVERITY_THRESHOLD: ${{ inputs.severity_threshold }}
+      POWERSHELL_TELEMETRY_OPTOUT: 1
+      POWERSHELL_UPDATECHECK: Off
+
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          ref: ${{ inputs.analysis_target == 'Specific git ref' && inputs.git_ref || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: "Checkout PR head (if PR mode)"
+        if: inputs.analysis_target == 'Specific PR number' && inputs.pr_number != ''
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          ref: refs/pull/${{ inputs.pr_number }}/head
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: "Load sanitizer & validate"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) {
+            Write-Host "[OK] PowerShell sanitizer found at $sanitizerPath"
+            . $sanitizerPath
+            Write-Host "[OK] Sanitizer version: $(Sanitizer-Version)"
+          } else {
+            Write-Host "[WARN] sanitize.ps1 not found, will use inline fallback"
+          }
+
+      - name: "1. Action SHA Pinning Audit (Windows)"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $totalActions = 0
+          $pinnedActions = 0
+          $tagOnlyActions = 0
+          $unpinnedActions = 0
+          $tagOnlyList = @()
+          $unpinnedList = @()
+
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
+          foreach ($wf in $workflows) {
+            $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+            foreach ($ln in $lines) {
+              if ($ln -match '^\s*#') { continue }
+              if ($ln -notmatch 'uses:') { continue }
+              if ($ln -match 'docker://') { continue }
+              $totalActions++
+              $actionRef = ($ln -replace '.*uses:\s*', '').Trim().Trim('"').Trim("'")
+              if ($actionRef -match '@[0-9a-f]{40}') {
+                $pinnedActions++
+              } elseif ($actionRef -match '@v\d') {
+                $tagOnlyActions++
+                $tagOnlyList += "$($wf.Name): $actionRef"
+              } else {
+                $unpinnedActions++
+                $unpinnedList += "$($wf.Name): $actionRef"
+              }
+            }
+          }
+
+          $report = @()
+          $report += "## 1. Action SHA Pinning Audit (Windows Validation)"
+          $report += ""
+          if ($totalActions -eq 0) {
+            $report += "[SKIP] No actions found"
+          } else {
+            $pct = [math]::Round(($pinnedActions / $totalActions) * 100, 1)
+            $report += "| Metric | Count |"
+            $report += "|--------|-------|"
+            $report += "| Total actions | $totalActions |"
+            $report += "| SHA-pinned | $pinnedActions ($pct%) |"
+            $report += "| Tag-only | $tagOnlyActions |"
+            $report += "| Unpinned | $unpinnedActions |"
+            $report += ""
+            if ($tagOnlyList.Count -gt 0) {
+              $report += "**Tag-only actions:**"
+              foreach ($t in $tagOnlyList) { $report += "- ``$(Sanitize-Line $t)``" }
+              $report += ""
+            }
+            if ($unpinnedList.Count -gt 0) {
+              $report += "**Unpinned actions (CRITICAL):**"
+              foreach ($u in $unpinnedList) { $report += "- ``$(Sanitize-Line $u)``" }
+              $report += ""
+            }
+          }
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] SHA pinning audit complete (Windows): $pinnedActions/$totalActions pinned"
+
+      - name: "2. Dangerous Trigger Detection (Windows)"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $dangerousTriggers = @('pull_request_target', 'issue_comment', 'issues')
+          $findings = @()
+
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
+          foreach ($wf in $workflows) {
+            $content = Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
+            foreach ($trigger in $dangerousTriggers) {
+              if ($content -match $trigger) {
+                $findings += "$($wf.Name): $trigger"
+              }
+            }
+          }
+
+          $report = @()
+          $report += "## 2. Dangerous Trigger Detection (Windows Validation)"
+          $report += ""
+          if ($findings.Count -eq 0) {
+            $report += "[OK] No dangerous triggers found"
+          } else {
+            $report += "| Workflow | Trigger |"
+            $report += "|----------|---------|"
+            foreach ($f in $findings) {
+              $parts = $f -split ": ", 2
+              $report += "| ``$(Sanitize-Line $parts[0])`` | ``$(Sanitize-Line $parts[1])`` |"
+            }
+          }
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] Dangerous trigger detection complete (Windows): $($findings.Count) findings"
+
+      - name: "3. Credential Hygiene Audit (Windows)"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $totalWf = 0
+          $bashEnvCount = 0
+          $credCleanupCount = 0
+          $tokenUnsetCount = 0
+          $issues = @()
+
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
+          foreach ($wf in $workflows) {
+            $totalWf++
+            $content = Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
+            if ($content -match 'BASH_ENV') { $bashEnvCount++ }
+            if ($content -match 'credential\.helper') { $credCleanupCount++ }
+            if ($content -match 'unset GITHUB_TOKEN\b|Remove-Item env:GITHUB_TOKEN') { $tokenUnsetCount++ }
+            $hasBashRun = $content -match 'shell:\s*bash|run:\s*\|'
+            $hasPwshRun = $content -match 'shell:\s*pwsh'
+            if ($hasBashRun -and ($content -notmatch 'BASH_ENV')) {
+              $issues += "$($wf.Name): missing BASH_ENV=/dev/null"
+            }
+            if ($hasBashRun -and ($content -notmatch 'credential\.helper')) {
+              $issues += "$($wf.Name): missing credential.helper cleanup"
+            }
+          }
+
+          $report = @()
+          $report += "## 3. Credential Hygiene Audit (Windows Validation)"
+          $report += ""
+          $report += "| Check | Workflows |"
+          $report += "|-------|-----------|"
+          $report += "| Total workflows scanned | $totalWf |"
+          $report += "| BASH_ENV=/dev/null present | $bashEnvCount |"
+          $report += "| credential.helper cleanup | $credCleanupCount |"
+          $report += "| Token unset/removal | $tokenUnsetCount |"
+          $report += ""
+          if ($issues.Count -gt 0) {
+            $report += "**Issues found:**"
+            foreach ($i in $issues) { $report += "- ``$(Sanitize-Line $i)``" }
+          } else {
+            $report += "[OK] All workflows have proper credential hygiene"
+          }
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] Credential hygiene audit complete (Windows)"
+
+      - name: "4. Shell Hardening Audit (Windows)"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $totalBlocks = 0
+          $hardenedBlocks = 0
+          $pwshHardenedBlocks = 0
+          $issues = @()
+
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
+          foreach ($wf in $workflows) {
+            $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+            $inRunBlock = $false
+            $currentBlock = @()
+            foreach ($ln in $lines) {
+              if ($ln -match '^\s+run:\s*\|') {
+                $inRunBlock = $true
+                $currentBlock = @()
+                $totalBlocks++
+                continue
+              }
+              if ($inRunBlock) {
+                if ($ln -match '^\s+\S' -and $ln -notmatch '^\s{4,}') {
+                  # End of run block -- check hardening
+                  $blockText = $currentBlock -join "`n"
+                  if ($blockText -match 'set -euo pipefail|set -euxo pipefail') {
+                    $hardenedBlocks++
+                  }
+                  if ($blockText -match 'ErrorActionPreference') {
+                    $pwshHardenedBlocks++
+                  }
+                  $inRunBlock = $false
+                  $currentBlock = @()
+                } else {
+                  $currentBlock += $ln
+                }
+              }
+            }
+            # Handle last block in file
+            if ($inRunBlock -and $currentBlock.Count -gt 0) {
+              $blockText = $currentBlock -join "`n"
+              if ($blockText -match 'set -euo pipefail|set -euxo pipefail') {
+                $hardenedBlocks++
+              }
+              if ($blockText -match 'ErrorActionPreference') {
+                $pwshHardenedBlocks++
+              }
+            }
+          }
+
+          $report = @()
+          $report += "## 4. Shell Hardening Audit (Windows Validation)"
+          $report += ""
+          $report += "| Metric | Count |"
+          $report += "|--------|-------|"
+          $report += "| Total run: blocks | $totalBlocks |"
+          $report += "| Bash: set -euo pipefail | $hardenedBlocks |"
+          $report += "| PowerShell: ErrorActionPreference | $pwshHardenedBlocks |"
+          if ($totalBlocks -gt 0) {
+            $bashPct = [math]::Round(($hardenedBlocks / $totalBlocks) * 100, 1)
+            $report += "| Bash hardening rate | $bashPct% |"
+          }
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] Shell hardening audit complete (Windows): $hardenedBlocks/$totalBlocks hardened"
+
+      - name: "5. Expression Injection Scan (Windows)"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $unsafePatterns = @(
+            'matrix\.',
+            'github\.event\.(issue|pull_request)\.(title|body)',
+            'github\.head_ref',
+            'inputs\.'
+          )
+          $findings = @()
+
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
+          foreach ($wf in $workflows) {
+            $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+            $inRunBlock = $false
+            $lineNum = 0
+            foreach ($ln in $lines) {
+              $lineNum++
+              if ($ln -match '^\s+run:\s*\|') {
+                $inRunBlock = $true
+                continue
+              }
+              if ($inRunBlock) {
+                if ($ln -match '^\s+\S' -and $ln -notmatch '^\s{4,}') {
+                  $inRunBlock = $false
+                }
+              }
+              if ($inRunBlock) {
+                foreach ($pat in $unsafePatterns) {
+                  $exprPattern = '\$\{\{[^}]*' + $pat
+                  if ($ln -match $exprPattern) {
+                    $findings += "$($wf.Name):$lineNum -- $(Sanitize-Line $ln.Trim())"
+                  }
+                }
+              }
+            }
+          }
+
+          $report = @()
+          $report += "## 5. Expression Injection Scan (Windows Validation)"
+          $report += ""
+          if ($findings.Count -eq 0) {
+            $report += "[OK] No expression injection patterns found in run: blocks"
+          } else {
+            $report += "**Findings ($($findings.Count)):**"
+            $report += ""
+            foreach ($f in $findings) { $report += "- ``$(Sanitize-Line $f)``" }
+          }
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] Expression injection scan complete (Windows): $($findings.Count) findings"
+
+      - name: "6. Output Sanitization Audit (Windows)"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $totalSummaryWrites = 0
+          $sanitizedWrites = 0
+          $unsanitizedList = @()
+          $bashSanitizers = @('sanitize_line', 'sanitize_print', 'escape_html')
+          $pwshSanitizers = @('Sanitize-Line', 'Sanitize-Print', 'Safe-EchoForSummary', 'Escape-Html')
+
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
+          foreach ($wf in $workflows) {
+            $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+            $lineNum = 0
+            foreach ($ln in $lines) {
+              $lineNum++
+              if ($ln -match 'GITHUB_STEP_SUMMARY') {
+                $totalSummaryWrites++
+                $isSanitized = $false
+                foreach ($s in ($bashSanitizers + $pwshSanitizers)) {
+                  if ($ln -match [regex]::Escape($s)) {
+                    $isSanitized = $true
+                    break
+                  }
+                }
+                if ($isSanitized) {
+                  $sanitizedWrites++
+                } else {
+                  # Static strings (no variable interpolation) are safe
+                  if ($ln -match '^\s*(echo\s+"[^$]*"|echo\s+''[^$]*'')\s*>>' -or
+                      $ln -match 'echo\s+"(#|---|\||```)' -or
+                      $ln -match '^\s*\}\s*>>' -or
+                      $ln -match 'Out-File.*GITHUB_STEP_SUMMARY' -and $ln -notmatch '\$[^e]') {
+                    $sanitizedWrites++
+                  } else {
+                    $unsanitizedList += "$($wf.Name):$lineNum"
+                  }
+                }
+              }
+            }
+          }
+
+          $report = @()
+          $report += "## 6. Output Sanitization Audit (Windows Validation)"
+          $report += ""
+          $report += "| Metric | Count |"
+          $report += "|--------|-------|"
+          $report += "| GITHUB_STEP_SUMMARY writes | $totalSummaryWrites |"
+          $report += "| Sanitized writes | $sanitizedWrites |"
+          $report += "| Potentially unsanitized | $($unsanitizedList.Count) |"
+          $report += ""
+          if ($unsanitizedList.Count -gt 0 -and $unsanitizedList.Count -le 20) {
+            $report += "**Potentially unsanitized writes:**"
+            foreach ($u in $unsanitizedList) { $report += "- ``$(Sanitize-Line $u)``" }
+          }
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] Output sanitization audit complete (Windows): $sanitizedWrites/$totalSummaryWrites sanitized"
+
+      - name: "7. Permissions Audit (Windows)"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $withPerms = 0
+          $withoutPerms = 0
+          $missingList = @()
+
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
+          foreach ($wf in $workflows) {
+            $content = Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
+            if ($content -match '(?m)^permissions:') {
+              $withPerms++
+            } else {
+              $withoutPerms++
+              $missingList += $wf.Name
+            }
+          }
+
+          $report = @()
+          $report += "## 7. Permissions Minimization (Windows Validation)"
+          $report += ""
+          $report += "| Metric | Count |"
+          $report += "|--------|-------|"
+          $report += "| With permissions: block | $withPerms |"
+          $report += "| Without permissions: block | $withoutPerms |"
+          $report += ""
+          if ($missingList.Count -gt 0) {
+            $report += "**Missing permissions: block:**"
+            foreach ($m in $missingList) { $report += "- ``$(Sanitize-Line $m)``" }
+          } else {
+            $report += "[OK] All workflows have explicit permissions"
+          }
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] Permissions audit complete (Windows): $withPerms with, $withoutPerms without"
+
+      - name: "8. Supply-Chain Risk Score (Windows)"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $score = 100
+          $deductions = @()
+
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
+          $allContent = ""
+          foreach ($wf in $workflows) {
+            $allContent += Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
+          }
+
+          # Check SHA pinning
+          $totalUses = ([regex]::Matches($allContent, 'uses:')).Count
+          $pinnedUses = ([regex]::Matches($allContent, 'uses:.*@[0-9a-f]{40}')).Count
+          if ($totalUses -gt 0) {
+            $pinRate = [math]::Round(($pinnedUses / $totalUses) * 100, 1)
+            if ($pinRate -lt 100) {
+              $deduct = [math]::Min(30, [math]::Round((100 - $pinRate) * 0.3))
+              $score -= $deduct
+              $deductions += "SHA pinning: $pinRate% (-$deduct)"
+            }
+          }
+
+          # Check pull_request_target
+          if ($allContent -match 'pull_request_target') {
+            $score -= 20
+            $deductions += "pull_request_target trigger (-20)"
+          }
+
+          # Check persist-credentials
+          $checkouts = ([regex]::Matches($allContent, 'actions/checkout')).Count
+          $persistFalse = ([regex]::Matches($allContent, 'persist-credentials:\s*false')).Count
+          if ($checkouts -gt 0 -and $persistFalse -lt $checkouts) {
+            $deduct = [math]::Min(15, ($checkouts - $persistFalse) * 5)
+            $score -= $deduct
+            $deductions += "persist-credentials not false: $($checkouts - $persistFalse) checkouts (-$deduct)"
+          }
+
+          # Check permissions blocks
+          $permsCount = ([regex]::Matches($allContent, '(?m)^permissions:')).Count
+          $wfCount = $workflows.Count
+          if ($permsCount -lt $wfCount) {
+            $deduct = [math]::Min(10, ($wfCount - $permsCount) * 2)
+            $score -= $deduct
+            $deductions += "Missing permissions blocks: $($wfCount - $permsCount) workflows (-$deduct)"
+          }
+
+          $score = [math]::Max(0, $score)
+          if ($score -ge 90) { $grade = "A" }
+          elseif ($score -ge 80) { $grade = "B" }
+          elseif ($score -ge 70) { $grade = "C" }
+          elseif ($score -ge 60) { $grade = "D" }
+          else { $grade = "F" }
+
+          $report = @()
+          $report += "## 8. Supply-Chain Risk Score (Windows Validation)"
+          $report += ""
+          $report += "**Score: $score/100 (Grade: $grade)**"
+          $report += ""
+          if ($deductions.Count -gt 0) {
+            $report += "| Deduction | Detail |"
+            $report += "|-----------|--------|"
+            foreach ($d in $deductions) {
+              $report += "| $(Sanitize-Line $d) |  |"
+            }
+          } else {
+            $report += "[OK] Perfect supply-chain security score"
+          }
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] Supply-chain risk score (Windows): $score/100 ($grade)"
+
+      - name: "9. Trivy-Specific Indicator Check (Windows)"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $indicators = @(
+            @{Name='aquasecurity/trivy-action'; Pattern='aquasecurity/trivy'; Severity='CRITICAL'},
+            @{Name='Tag-only action refs (not SHA-pinned)'; Pattern='uses:.*@v\d'; Severity='HIGH'},
+            @{Name='curl|bash pipe (remote script exec)'; Pattern='curl.*\|\s*(ba)?sh'; Severity='CRITICAL'},
+            @{Name='wget|bash pipe (remote script exec)'; Pattern='wget.*\|\s*(ba)?sh'; Severity='CRITICAL'},
+            @{Name='Invoke-WebRequest|IEX (remote exec)'; Pattern='Invoke-WebRequest.*Invoke-Expression|iwr.*iex'; Severity='CRITICAL'},
+            @{Name='pull_request_target with checkout'; Pattern='pull_request_target'; Severity='HIGH'},
+            @{Name='github.event.pull_request.head.sha in run'; Pattern='github\.event\.pull_request\.head\.sha'; Severity='MEDIUM'}
+          )
+
+          $findings = @()
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue
+          foreach ($wf in $workflows) {
+            $content = Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
+            foreach ($ind in $indicators) {
+              if ($content -match $ind.Pattern) {
+                $findings += @{Workflow=$wf.Name; Indicator=$ind.Name; Severity=$ind.Severity}
+              }
+            }
+          }
+
+          $report = @()
+          $report += "## 9. Trivy-Specific Indicator Check (Windows Validation)"
+          $report += ""
+          if ($findings.Count -eq 0) {
+            $report += "[OK] No Trivy-style supply-chain indicators detected"
+          } else {
+            $report += "| Workflow | Indicator | Severity |"
+            $report += "|----------|-----------|----------|"
+            foreach ($f in $findings) {
+              $report += "| ``$(Sanitize-Line $f.Workflow)`` | $(Sanitize-Line $f.Indicator) | $($f.Severity) |"
+            }
+          }
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] Trivy indicator check complete (Windows): $($findings.Count) indicators"
+
+      - name: "10. Inventory & Cross-Platform Summary"
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        env:
+          POWERSHELL_TELEMETRY_OPTOUT: 1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+
+          $sanitizerPath = Join-Path $env:GITHUB_WORKSPACE ".github/scripts/sanitize.ps1"
+          if (Test-Path $sanitizerPath) { . $sanitizerPath }
+          else {
+            function Sanitize-Line { param([string]$InputString = "") return $InputString.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;") }
+          }
+
+          $report = @()
+          $report += "## 10. Workflow Inventory (Windows Validation)"
+          $report += ""
+          $report += "| Workflow | Triggers | Permissions | Pinning |"
+          $report += "|----------|----------|-------------|---------|"
+
+          $workflows = Get-ChildItem -Path ".github/workflows" -Filter "*.yml" -ErrorAction SilentlyContinue | Sort-Object Name
+          foreach ($wf in $workflows) {
+            $content = Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
+            $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+
+            # Extract triggers
+            $triggerList = @()
+            $inOn = $false
+            foreach ($ln in $lines) {
+              if ($ln -match '^on:') { $inOn = $true; continue }
+              if ($inOn) {
+                if ($ln -match '^\S') { break }
+                if ($ln -match '^\s+(\w+):') { $triggerList += $matches[1] }
+              }
+            }
+            $triggers = if ($triggerList.Count -gt 0) { $triggerList -join ", " } else { "unknown" }
+
+            # Check permissions
+            $hasPerms = if ($content -match '(?m)^permissions:') { "Yes" } else { "No" }
+
+            # Check pinning
+            $totalActs = ([regex]::Matches($content, 'uses:')).Count
+            $pinnedActs = ([regex]::Matches($content, 'uses:.*@[0-9a-f]{40}')).Count
+            $pinStatus = if ($totalActs -eq 0) { "N/A" } else { "$pinnedActs/$totalActs" }
+
+            $report += "| ``$(Sanitize-Line $wf.Name)`` | $(Sanitize-Line $triggers) | $hasPerms | $pinStatus |"
+          }
+
+          $report += ""
+          $report += "---"
+          $report += ""
+          $report += "## Cross-Platform Analysis Metadata"
+          $report += ""
+          $report += "| Field | Value |"
+          $report += "|-------|-------|"
+          $report += "| Platform | Windows (PowerShell) |"
+          $report += "| Sanitizer | sanitize.ps1 ($(Sanitizer-Version 2>$null)) |"
+          $report += "| Analysis target | $env:ANALYSIS_TARGET |"
+          if ($env:ANALYSIS_TARGET -eq 'Specific PR number' -and $env:PR_NUMBER) {
+            $report += "| PR number | #$env:PR_NUMBER |"
+          }
+          if ($env:ANALYSIS_TARGET -eq 'Specific git ref' -and $env:GIT_REF) {
+            $report += "| Git ref | $env:GIT_REF |"
+          }
+          $report += "| Severity threshold | $env:SEVERITY_THRESHOLD |"
+          $report += "| Repository | $(Sanitize-Line $env:GITHUB_REPOSITORY) |"
+          $report += "| Run ID | $env:GITHUB_RUN_ID |"
+          $report += "| Commit | $(git rev-parse --short HEAD 2>$null) |"
+          $report += "| Timestamp | $(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ' -AsUTC) |"
+          $report += ""
+          $report += "---"
+          $report += ""
+          $report += "### Governance References"
+          $report += ""
+          $report += "- [Trivy Supply-Chain Compromise (March 2026)](https://snyk.io/articles/trivy-github-actions-supply-chain-compromise/)"
+          $report += "- [xsscx/governance/actions](https://github.com/xsscx/governance/tree/main/actions)"
+          $report += "- ``.github/instructions/workflow-governance``"
+          $report += "- ``.github/scripts/sanitize.ps1`` (PowerShell sanitizer)"
+          $report += ""
+          $report -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "[OK] PR Risk & Security Analysis complete (Windows)"
