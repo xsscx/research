@@ -143,7 +143,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          brew install cmake llvm-18 libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo
+          brew install cmake llvm@18 libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo
           ccache --zero-stats || true
 
       - name: Clone iccDEV
