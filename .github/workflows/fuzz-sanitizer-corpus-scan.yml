@@ -112,7 +112,7 @@ jobs:
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
           CC: clang-18
-          CXX: clang++
+          CXX: clang++-18
         run: |
           set -euo pipefail
           cd iccanalyzer-lite/iccDEV/Build
@@ -142,7 +142,7 @@ jobs:
       - name: Build colorbleed_tools
         env:
           CC: clang-18
-          CXX: clang++
+          CXX: clang++-18
         run: |
           set -euo pipefail
           cd colorbleed_tools
