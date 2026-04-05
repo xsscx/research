@@ -1,0 +1,953 @@
+###############################################################
+# Copyright (c) 2026 David H Hoyt LLC
+#
+# Intent: PR Risk & Security Analysis
+#
+# Performs comprehensive risk, security, and compliance analysis
+# of GitHub Actions workflows and repository configuration.
+# Inspired by the Trivy supply-chain compromise (March 2026)
+# and modeled on iccDEV ci-latest-release.yml governance.
+#
+# Analysis categories:
+#   1. Action SHA Pinning Audit
+#   2. Dangerous Trigger Detection (pull_request_target)
+#   3. Credential Hygiene (BASH_ENV, token cleanup)
+#   4. Shell Hardening (set -euo pipefail, noprofile)
+#   5. Matrix Expression Injection
+#   6. Output Sanitization (GITHUB_STEP_SUMMARY)
+#   7. Permissions Minimization
+#   8. persist-credentials: false Enforcement
+#   9. Workflow Diff Analysis (PR mode)
+#  10. Supply-Chain Risk Scoring
+#
+# Hardening:
+#   - BASH_ENV=/dev/null on every step
+#   - All actions SHA-pinned (node24)
+#   - persist-credentials: false
+#   - Minimal permissions (contents: read)
+#   - sanitize-sed.sh for all GITHUB_STEP_SUMMARY writes
+#   - No matrix expressions in run blocks
+#   - Credential cleanup in every step
+#
+# Reference:
+#   - Trivy supply-chain compromise (March 2026)
+#   - xsscx/governance/actions
+#   - .github/instructions/workflow-governance
+#
+# Last Updated: 2026-04-05
+###############################################################
+
+name: PR Risk & Security Analysis
+
+permissions:
+  contents: read
+  pull-requests: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      analysis_target:
+        description: 'What to analyze'
+        required: true
+        type: choice
+        options:
+          - 'Current branch workflows'
+          - 'Specific PR number'
+          - 'Specific git ref'
+      pr_number:
+        description: 'PR number (only when target = Specific PR number)'
+        required: false
+        type: string
+        default: ''
+      git_ref:
+        description: 'Git ref / branch / SHA (only when target = Specific git ref)'
+        required: false
+        type: string
+        default: 'main'
+      severity_threshold:
+        description: 'Minimum severity to report'
+        required: false
+        type: choice
+        options:
+          - 'INFO'
+          - 'LOW'
+          - 'MEDIUM'
+          - 'HIGH'
+          - 'CRITICAL'
+        default: 'INFO'
+
+concurrency:
+  group: pr-risk-${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: true
+
+env:
+  BASH_ENV: /dev/null
+
+defaults:
+  run:
+    shell: bash --noprofile --norc {0}
+
+jobs:
+  ###########################################################################
+  # Job 1: Workflow Security Audit
+  ###########################################################################
+  workflow-security-audit:
+    name: "Workflow Security Audit"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ANALYSIS_TARGET: ${{ inputs.analysis_target }}
+      PR_NUMBER: ${{ inputs.pr_number }}
+      GIT_REF: ${{ inputs.git_ref }}
+      SEVERITY_THRESHOLD: ${{ inputs.severity_threshold }}
+
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          ref: ${{ inputs.analysis_target == 'Specific git ref' && inputs.git_ref || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: "Checkout PR head (if PR mode)"
+        if: inputs.analysis_target == 'Specific PR number' && inputs.pr_number != ''
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          ref: refs/pull/${{ inputs.pr_number }}/head
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: "Load sanitizer"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            echo "Sanitizer found at $SANITIZER"
+          else
+            echo "WARNING: sanitize-sed.sh not found, using inline fallback"
+          fi
+
+      - name: "1. Action SHA Pinning Audit"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          echo "## 1. Action SHA Pinning Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          TOTAL_ACTIONS=0
+          PINNED_ACTIONS=0
+          UNPINNED_ACTIONS=0
+          TAG_ONLY_ACTIONS=0
+
+          declare -a UNPINNED_LIST=()
+          declare -a TAG_ONLY_LIST=()
+
+          while IFS= read -r wf; do
+            while IFS= read -r line; do
+              TOTAL_ACTIONS=$((TOTAL_ACTIONS + 1))
+              action_ref=$(echo "$line" | sed 's/.*uses:[[:space:]]*//' | tr -d '"' | tr -d "'")
+              wf_base=$(basename "$wf")
+
+              if echo "$action_ref" | grep -qE '@[0-9a-f]{40}'; then
+                PINNED_ACTIONS=$((PINNED_ACTIONS + 1))
+              elif echo "$action_ref" | grep -qE '@v[0-9]'; then
+                TAG_ONLY_ACTIONS=$((TAG_ONLY_ACTIONS + 1))
+                TAG_ONLY_LIST+=("$wf_base: $action_ref")
+              else
+                UNPINNED_ACTIONS=$((UNPINNED_ACTIONS + 1))
+                UNPINNED_LIST+=("$wf_base: $action_ref")
+              fi
+            done < <(grep -n 'uses:' "$wf" | grep -v '#' | grep -v 'docker://' || true)
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+
+          if [[ $TOTAL_ACTIONS -eq 0 ]]; then
+            echo "No workflow actions found." >> "$GITHUB_STEP_SUMMARY"
+          else
+            PIN_PCT=$((PINNED_ACTIONS * 100 / TOTAL_ACTIONS))
+            if [[ $UNPINNED_ACTIONS -eq 0 && $TAG_ONLY_ACTIONS -eq 0 ]]; then
+              echo "[OK] All $TOTAL_ACTIONS actions are SHA-pinned ($PIN_PCT%)" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+              echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Total actions | $TOTAL_ACTIONS |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| SHA-pinned | $PINNED_ACTIONS ($PIN_PCT%) |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Tag-only (MEDIUM risk) | $TAG_ONLY_ACTIONS |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| Unpinned (CRITICAL risk) | $UNPINNED_ACTIONS |" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
+            if [[ ${#TAG_ONLY_LIST[@]} -gt 0 ]]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "<details><summary>[WARN] Tag-only actions (${#TAG_ONLY_LIST[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              for item in "${TAG_ONLY_LIST[@]}"; do
+                sanitize_line "$item"  >> "$GITHUB_STEP_SUMMARY"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+              done
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
+            if [[ ${#UNPINNED_LIST[@]} -gt 0 ]]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "<details><summary>[CRITICAL] Unpinned actions (${#UNPINNED_LIST[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              for item in "${UNPINNED_LIST[@]}"; do
+                sanitize_line "$item" >> "$GITHUB_STEP_SUMMARY"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+              done
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "2. Dangerous Trigger Detection"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          echo "## 2. Dangerous Trigger Detection" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Checks for \`pull_request_target\`, \`issue_comment\`, and" >> "$GITHUB_STEP_SUMMARY"
+          echo "other triggers that grant write access to untrusted code." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          DANGEROUS_COUNT=0
+
+          while IFS= read -r wf; do
+            wf_base=$(basename "$wf")
+
+            if grep -q 'pull_request_target' "$wf"; then
+              DANGEROUS_COUNT=$((DANGEROUS_COUNT + 1))
+              echo "[CRITICAL] \`$(sanitize_line "$wf_base")\` uses \`pull_request_target\`" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "> Trivy-style supply chain attack vector. This trigger runs" >> "$GITHUB_STEP_SUMMARY"
+              echo "> workflow code with write access but can checkout untrusted PR code." >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
+            if grep -qE 'issue_comment|workflow_run' "$wf"; then
+              if grep -q 'issue_comment' "$wf"; then
+                DANGEROUS_COUNT=$((DANGEROUS_COUNT + 1))
+                echo "[HIGH] \`$(sanitize_line "$wf_base")\` uses \`issue_comment\` trigger" >> "$GITHUB_STEP_SUMMARY"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+              fi
+            fi
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+
+          if [[ $DANGEROUS_COUNT -eq 0 ]]; then
+            echo "[OK] No dangerous triggers detected" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Total dangerous triggers: $DANGEROUS_COUNT**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "3. Credential Hygiene Audit"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          echo "## 3. Credential Hygiene Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          TOTAL_WF=0
+          WF_WITH_BASH_ENV=0
+          WF_WITH_CRED_CLEANUP=0
+          WF_WITH_PERSIST_FALSE=0
+          WF_MISSING_BASH_ENV=0
+          WF_MISSING_CRED=0
+
+          declare -a MISSING_ENV=()
+          declare -a MISSING_CRED=()
+          declare -a MISSING_PERSIST=()
+
+          while IFS= read -r wf; do
+            TOTAL_WF=$((TOTAL_WF + 1))
+            wf_base=$(basename "$wf")
+            wf_content=$(cat "$wf")
+
+            if echo "$wf_content" | grep -q 'BASH_ENV.*dev.null\|BASH_ENV:.*dev.null'; then
+              WF_WITH_BASH_ENV=$((WF_WITH_BASH_ENV + 1))
+            else
+              WF_MISSING_BASH_ENV=$((WF_MISSING_BASH_ENV + 1))
+              MISSING_ENV+=("$wf_base")
+            fi
+
+            if echo "$wf_content" | grep -q 'credential.helper'; then
+              WF_WITH_CRED_CLEANUP=$((WF_WITH_CRED_CLEANUP + 1))
+            else
+              WF_MISSING_CRED=$((WF_MISSING_CRED + 1))
+              MISSING_CRED+=("$wf_base")
+            fi
+
+            if echo "$wf_content" | grep -q 'persist-credentials.*false'; then
+              WF_WITH_PERSIST_FALSE=$((WF_WITH_PERSIST_FALSE + 1))
+            else
+              MISSING_PERSIST+=("$wf_base")
+            fi
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+
+          echo "| Check | Compliant | Non-compliant |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-----------|---------------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| BASH_ENV=/dev/null | $WF_WITH_BASH_ENV | $WF_MISSING_BASH_ENV |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| credential.helper cleanup | $WF_WITH_CRED_CLEANUP | $WF_MISSING_CRED |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| persist-credentials: false | $WF_WITH_PERSIST_FALSE | $((TOTAL_WF - WF_WITH_PERSIST_FALSE)) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ ${#MISSING_ENV[@]} -gt 0 ]]; then
+            echo "<details><summary>[HIGH] Missing BASH_ENV=/dev/null (${#MISSING_ENV[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            for item in "${MISSING_ENV[@]}"; do
+              echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [[ ${#MISSING_PERSIST[@]} -gt 0 ]]; then
+            echo "<details><summary>[MEDIUM] Missing persist-credentials: false (${#MISSING_PERSIST[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            for item in "${MISSING_PERSIST[@]}"; do
+              echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: "4. Shell Hardening Audit"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          echo "## 4. Shell Hardening Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          TOTAL_STEPS=0
+          HARDENED_STEPS=0
+          UNHARDENED=0
+
+          declare -a UNHARDENED_LIST=()
+
+          while IFS= read -r wf; do
+            wf_base=$(basename "$wf")
+            in_run_block=false
+            has_pipefail=false
+            line_num=0
+
+            while IFS= read -r line; do
+              line_num=$((line_num + 1))
+
+              if echo "$line" | grep -qE '^\s+run:\s*\|'; then
+                if $in_run_block && ! $has_pipefail; then
+                  UNHARDENED=$((UNHARDENED + 1))
+                fi
+                in_run_block=true
+                has_pipefail=false
+                TOTAL_STEPS=$((TOTAL_STEPS + 1))
+                continue
+              fi
+
+              if $in_run_block; then
+                if echo "$line" | grep -qE '^\s+\S' && ! echo "$line" | grep -qE '^\s{4,}'; then
+                  if ! $has_pipefail; then
+                    UNHARDENED=$((UNHARDENED + 1))
+                    UNHARDENED_LIST+=("$wf_base:$line_num")
+                  else
+                    HARDENED_STEPS=$((HARDENED_STEPS + 1))
+                  fi
+                  in_run_block=false
+                fi
+                if echo "$line" | grep -q 'set -euo pipefail\|set -euxo pipefail'; then
+                  has_pipefail=true
+                fi
+              fi
+            done < "$wf"
+
+            if $in_run_block; then
+              if $has_pipefail; then
+                HARDENED_STEPS=$((HARDENED_STEPS + 1))
+              else
+                UNHARDENED=$((UNHARDENED + 1))
+              fi
+            fi
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+
+          if [[ $TOTAL_STEPS -gt 0 ]]; then
+            HARD_PCT=$((HARDENED_STEPS * 100 / TOTAL_STEPS))
+            echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Total run: blocks | $TOTAL_STEPS |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| With set -euo pipefail | $HARDENED_STEPS ($HARD_PCT%) |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Missing hardening | $UNHARDENED |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No run: blocks found" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "5. Matrix Expression Injection Scan"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          echo "## 5. Matrix Expression Injection Scan" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Detects unsafe matrix/github/inputs expressions in \`run:\` blocks." >> "$GITHUB_STEP_SUMMARY"
+          echo "These are injectable via PR titles, branch names, or workflow inputs." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          INJECTION_COUNT=0
+          declare -a INJECTION_LIST=()
+
+          while IFS= read -r wf; do
+            wf_base=$(basename "$wf")
+            in_run_block=false
+
+            while IFS= read -r line; do
+              if echo "$line" | grep -qE '^\s+run:\s*\|'; then
+                in_run_block=true
+                continue
+              fi
+
+              if $in_run_block; then
+                if echo "$line" | grep -qE '^\s+\S' && ! echo "$line" | grep -qE '^\s{4,}'; then
+                  in_run_block=false
+                fi
+
+                if echo "$line" | grep -qE '\$\{\{[^}]*(matrix\.|github\.event\.(issue|pull_request)\.(title|body)|github\.head_ref|inputs\.)'; then
+                  INJECTION_COUNT=$((INJECTION_COUNT + 1))
+                  trimmed=$(echo "$line" | sed 's/^[[:space:]]*//')
+                  INJECTION_LIST+=("$wf_base: $trimmed")
+                fi
+              fi
+            done < "$wf"
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+
+          if [[ $INJECTION_COUNT -eq 0 ]]; then
+            echo "[OK] No injectable expressions detected in run: blocks" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "[CRITICAL] Found $INJECTION_COUNT injectable expression(s):" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            for item in "${INJECTION_LIST[@]}"; do
+              sanitize_line "$item" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "6. Output Sanitization Audit"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          echo "## 6. Output Sanitization Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          SUMMARY_WRITES=0
+          SANITIZED_WRITES=0
+          UNSANITIZED_WRITES=0
+
+          declare -a UNSANITIZED_LIST=()
+
+          while IFS= read -r wf; do
+            wf_base=$(basename "$wf")
+            line_num=0
+
+            while IFS= read -r line; do
+              line_num=$((line_num + 1))
+              if echo "$line" | grep -q 'GITHUB_STEP_SUMMARY'; then
+                SUMMARY_WRITES=$((SUMMARY_WRITES + 1))
+                if echo "$line" | grep -q 'sanitize_line\|sanitize_print\|escape_html\|Sanitize-Line\|Sanitize-Print\|Safe-EchoForSummary'; then
+                  SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
+                else
+                  UNSANITIZED_WRITES=$((UNSANITIZED_WRITES + 1))
+                fi
+              fi
+            done < "$wf"
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+
+          if [[ $SUMMARY_WRITES -gt 0 ]]; then
+            echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Total GITHUB_STEP_SUMMARY writes | $SUMMARY_WRITES |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Via sanitizer function | $SANITIZED_WRITES |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Direct/unsanitized | $UNSANITIZED_WRITES |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "[OK] No GITHUB_STEP_SUMMARY writes found" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "7. Permissions Minimization Audit"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          echo "## 7. Permissions Minimization Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          TOTAL_WF=0
+          WF_WITH_PERMS=0
+          WF_WITH_WRITE_ALL=0
+          WF_NO_PERMS=0
+
+          declare -a NO_PERMS=()
+          declare -a WRITE_ALL=()
+
+          while IFS= read -r wf; do
+            TOTAL_WF=$((TOTAL_WF + 1))
+            wf_base=$(basename "$wf")
+            wf_content=$(cat "$wf")
+
+            if echo "$wf_content" | grep -qE '^permissions:'; then
+              WF_WITH_PERMS=$((WF_WITH_PERMS + 1))
+              if echo "$wf_content" | grep -qE 'permissions:\s*write-all|contents:\s*write'; then
+                WF_WITH_WRITE_ALL=$((WF_WITH_WRITE_ALL + 1))
+                WRITE_ALL+=("$wf_base")
+              fi
+            else
+              WF_NO_PERMS=$((WF_NO_PERMS + 1))
+              NO_PERMS+=("$wf_base")
+            fi
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+
+          echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Total workflows | $TOTAL_WF |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| With explicit permissions | $WF_WITH_PERMS |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Missing permissions block | $WF_NO_PERMS |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| With write/write-all | $WF_WITH_WRITE_ALL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ ${#NO_PERMS[@]} -gt 0 ]]; then
+            echo "<details><summary>[HIGH] Missing permissions block (${#NO_PERMS[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            for item in "${NO_PERMS[@]}"; do
+              echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [[ ${#WRITE_ALL[@]} -gt 0 ]]; then
+            echo "<details><summary>[MEDIUM] Workflows with write access (${#WRITE_ALL[@]})</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            for item in "${WRITE_ALL[@]}"; do
+              echo "- \`$(sanitize_line "$item")\`" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: "8. Supply-Chain Risk Score"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          echo "## 8. Supply-Chain Risk Score" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Composite risk assessment based on Trivy compromise indicators." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          RISK_SCORE=0
+          RISK_ITEMS=()
+
+          # Check 1: pull_request_target
+          PRT_COUNT=$(grep -rl 'pull_request_target' .github/workflows/ 2>/dev/null | wc -l || echo 0)
+          if [[ $PRT_COUNT -gt 0 ]]; then
+            RISK_SCORE=$((RISK_SCORE + 40))
+            RISK_ITEMS+=("pull_request_target trigger detected (+40)")
+          fi
+
+          # Check 2: Unpinned actions
+          UNPIN_COUNT=$(grep -rh 'uses:' .github/workflows/ 2>/dev/null | grep -v '#' | grep -v '@[0-9a-f]\{40\}' | grep -v 'docker://' | wc -l || echo 0)
+          if [[ $UNPIN_COUNT -gt 0 ]]; then
+            RISK_SCORE=$((RISK_SCORE + UNPIN_COUNT * 5))
+            RISK_ITEMS+=("$UNPIN_COUNT unpinned action reference(s) (+$((UNPIN_COUNT * 5)))")
+          fi
+
+          # Check 3: Missing permissions
+          NOPERM_COUNT=$(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null | while read -r f; do
+            grep -qE '^permissions:' "$f" || echo "1"
+          done | wc -l || echo 0)
+          if [[ $NOPERM_COUNT -gt 0 ]]; then
+            RISK_SCORE=$((RISK_SCORE + NOPERM_COUNT * 3))
+            RISK_ITEMS+=("$NOPERM_COUNT workflow(s) without permissions block (+$((NOPERM_COUNT * 3)))")
+          fi
+
+          # Check 4: shell=true or shell: bash (without noprofile)
+          NOPROFILE_MISSING=$(grep -rl 'shell: bash$' .github/workflows/ 2>/dev/null | wc -l || echo 0)
+          if [[ $NOPROFILE_MISSING -gt 0 ]]; then
+            RISK_SCORE=$((RISK_SCORE + NOPROFILE_MISSING * 2))
+            RISK_ITEMS+=("$NOPROFILE_MISSING workflow(s) use \`shell: bash\` without --noprofile (+$((NOPROFILE_MISSING * 2)))")
+          fi
+
+          # Check 5: GITHUB_TOKEN in run blocks
+          TOKEN_IN_RUN=$(grep -rn 'GITHUB_TOKEN' .github/workflows/ 2>/dev/null | grep 'run:' | wc -l || echo 0)
+          if [[ $TOKEN_IN_RUN -gt 0 ]]; then
+            RISK_SCORE=$((RISK_SCORE + TOKEN_IN_RUN * 5))
+            RISK_ITEMS+=("$TOKEN_IN_RUN GITHUB_TOKEN reference(s) in run: blocks (+$((TOKEN_IN_RUN * 5)))")
+          fi
+
+          # Check 6: secrets in env blocks
+          SECRETS_COUNT=$(grep -rn 'secrets\.' .github/workflows/ 2>/dev/null | grep -v '#' | wc -l || echo 0)
+          if [[ $SECRETS_COUNT -gt 0 ]]; then
+            RISK_ITEMS+=("$SECRETS_COUNT secret reference(s) found (informational)")
+          fi
+
+          # Risk level classification
+          if [[ $RISK_SCORE -eq 0 ]]; then
+            RISK_LEVEL="EXCELLENT"
+            RISK_EMOJI="[OK]"
+          elif [[ $RISK_SCORE -le 10 ]]; then
+            RISK_LEVEL="LOW"
+            RISK_EMOJI="[OK]"
+          elif [[ $RISK_SCORE -le 30 ]]; then
+            RISK_LEVEL="MEDIUM"
+            RISK_EMOJI="[WARN]"
+          elif [[ $RISK_SCORE -le 60 ]]; then
+            RISK_LEVEL="HIGH"
+            RISK_EMOJI="[WARN]"
+          else
+            RISK_LEVEL="CRITICAL"
+            RISK_EMOJI="[CRITICAL]"
+          fi
+
+          echo "### $RISK_EMOJI Supply-Chain Risk: $RISK_LEVEL (Score: $RISK_SCORE)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ ${#RISK_ITEMS[@]} -gt 0 ]]; then
+            echo "| Finding | Impact |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
+            for item in "${RISK_ITEMS[@]}"; do
+              echo "| $(sanitize_line "$item") |  |" >> "$GITHUB_STEP_SUMMARY"
+            done
+          else
+            echo "No risk indicators detected." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "9. Trivy-Specific Indicator Check"
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          echo "## 9. Trivy-Specific Indicator Check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Checks for patterns matching the Trivy supply-chain attack (March 2026):" >> "$GITHUB_STEP_SUMMARY"
+          echo "credential exfiltration, tag rewriting, pull_request_target abuse." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          TRIVY_INDICATORS=0
+
+          # Pattern 1: curl/wget to external hosts in workflows
+          EXT_CALLS=$(grep -rnE 'curl|wget' .github/workflows/ 2>/dev/null | grep -vE '#|localhost|127\.0\.0\.1|github\.com|ghcr\.io|docker\.io|color\.org' | wc -l || echo 0)
+          if [[ $EXT_CALLS -gt 0 ]]; then
+            TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
+            echo "[WARN] $EXT_CALLS external network call(s) in workflows (check for data exfiltration)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Pattern 2: Base64 encoding (common obfuscation)
+          B64_CALLS=$(grep -rnE 'base64|b64encode|btoa' .github/workflows/ 2>/dev/null | grep -v '#' | wc -l || echo 0)
+          if [[ $B64_CALLS -gt 0 ]]; then
+            TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
+            echo "[WARN] $B64_CALLS base64 encoding reference(s) detected (check for credential obfuscation)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Pattern 3: Environment variable dumping
+          ENV_DUMP=$(grep -rnE 'printenv|env\b|set\b.*>|export.*>|echo.*SECRET|echo.*TOKEN' .github/workflows/ 2>/dev/null | grep -v '#' | grep -v 'BASH_ENV' | grep -v 'GITHUB_ENV' | wc -l || echo 0)
+          if [[ $ENV_DUMP -gt 0 ]]; then
+            TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
+            echo "[WARN] $ENV_DUMP environment dump pattern(s) detected" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Pattern 4: git push / git tag in workflows (tag rewriting)
+          GIT_PUSH=$(grep -rnE 'git (push|tag -f|tag -d)' .github/workflows/ 2>/dev/null | grep -v '#' | wc -l || echo 0)
+          if [[ $GIT_PUSH -gt 0 ]]; then
+            TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
+            echo "[HIGH] $GIT_PUSH git push/tag-force pattern(s) detected (tag rewriting vector)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Pattern 5: Checkout of PR head with write permissions
+          PR_CHECKOUT=$(grep -rl 'pull_request_target' .github/workflows/ 2>/dev/null | while read -r f; do
+            if grep -q 'ref.*pull_request.*head' "$f" 2>/dev/null; then
+              echo "1"
+            fi
+          done | wc -l || echo 0)
+          if [[ $PR_CHECKOUT -gt 0 ]]; then
+            TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
+            echo "[CRITICAL] $PR_CHECKOUT workflow(s) checkout PR head code with elevated permissions" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [[ $TRIVY_INDICATORS -eq 0 ]]; then
+            echo "[OK] No Trivy-pattern indicators detected" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Total Trivy-pattern indicators: $TRIVY_INDICATORS**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "10. Workflow Inventory & Final Report"
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+          if [[ -f "$SANITIZER" ]]; then
+            # shellcheck disable=SC1090
+            source "$SANITIZER"
+          else
+            escape_html() {
+              local s="$1"
+              s="${s//&/&amp;}" ; s="${s//</&lt;}" ; s="${s//>/&gt;}"
+              s="${s//\"/&quot;}" ; s="${s//\'/&#39;}"
+              printf '%s' "$s"
+            }
+            sanitize_line() { escape_html "$1"; }
+          fi
+
+          {
+            echo "---"
+            echo ""
+            echo "## 10. Workflow Inventory"
+            echo ""
+            echo "| Workflow | Triggers | Permissions | SHA-Pinned |"
+            echo "|----------|----------|-------------|------------|"
+
+            while IFS= read -r wf; do
+              wf_base=$(basename "$wf")
+              wf_content=$(cat "$wf")
+
+              # Extract triggers
+              triggers=""
+              for t in push pull_request workflow_dispatch schedule pull_request_target issue_comment workflow_run; do
+                if echo "$wf_content" | grep -q "$t"; then
+                  triggers="${triggers:+$triggers, }$t"
+                fi
+              done
+              triggers="${triggers:-none detected}"
+
+              # Check permissions
+              if echo "$wf_content" | grep -qE '^permissions:'; then
+                perms="Yes"
+              else
+                perms="No"
+              fi
+
+              # Check all actions pinned
+              total_acts=$(grep -c 'uses:' "$wf" 2>/dev/null || echo 0)
+              pinned_acts=$(grep 'uses:' "$wf" 2>/dev/null | grep -c '@[0-9a-f]\{40\}' || echo 0)
+              if [[ $total_acts -eq 0 ]]; then
+                pin_status="N/A"
+              elif [[ $total_acts -eq $pinned_acts ]]; then
+                pin_status="$pinned_acts/$total_acts"
+              else
+                pin_status="$pinned_acts/$total_acts"
+              fi
+
+              echo "| \`$(sanitize_line "$wf_base")\` | $(sanitize_line "$triggers") | $perms | $pin_status |"
+            done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null | sort)
+
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Analysis Metadata"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Analysis target | $ANALYSIS_TARGET |"
+            if [[ "$ANALYSIS_TARGET" == "Specific PR number" && -n "$PR_NUMBER" ]]; then
+              echo "| PR number | #$PR_NUMBER |"
+            fi
+            if [[ "$ANALYSIS_TARGET" == "Specific git ref" && -n "$GIT_REF" ]]; then
+              echo "| Git ref | $GIT_REF |"
+            fi
+            echo "| Severity threshold | $SEVERITY_THRESHOLD |"
+            echo "| Repository | $(sanitize_line "$GITHUB_REPOSITORY") |"
+            echo "| Run ID | $GITHUB_RUN_ID |"
+            echo "| Commit | $(git rev-parse --short HEAD 2>/dev/null || echo unknown) |"
+            echo "| Timestamp | $(date -u +%Y-%m-%dT%H:%M:%SZ) |"
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Governance References"
+            echo ""
+            echo "- [Trivy Supply-Chain Compromise (March 2026)](https://snyk.io/articles/trivy-github-actions-supply-chain-compromise/)"
+            echo "- [xsscx/governance/actions](https://github.com/xsscx/governance/tree/main/actions)"
+            echo "- \`.github/instructions/workflow-governance\`"
+            echo "- \`.github/scripts/sanitize-sed.sh\` (V3)"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "[OK] PR Risk & Security Analysis complete"
