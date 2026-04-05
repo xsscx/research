@@ -41,8 +41,7 @@ defaults:
 
 env:
   BASH_ENV: /dev/null
-
-jobs:
+  ICCDEV_REF: ${{ github.event.inputs.ref || 'master' }}
   codeql-analysis:
     name: CodeQL Security Analysis - ${{ matrix.target }}
     runs-on: ubuntu-latest
@@ -106,7 +105,7 @@ jobs:
         if: steps.cache-iccdev.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          REF="${{ github.event.inputs.ref || 'master' }}"
+          REF="$ICCDEV_REF"
           if [ ! -d "iccDEV" ]; then
             git clone --depth 1 --branch "$REF" https://github.com/InternationalColorConsortium/iccDEV.git iccDEV
           fi
