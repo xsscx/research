@@ -211,6 +211,20 @@ jobs:
           # Fuzzers that need TiffImg.o and libtiff
           TIFF_FUZZERS="icc_applyprofiles_fuzzer icc_tiffdump_fuzzer icc_specsep_fuzzer"
 
+          # Build IccCmmConfig.o + IccJsonUtil.o for icc_cfg_fuzzer
+          CFG_COMMON="$ICCDEV/Tools/CmdLine/IccCommon"
+          CFG_OBJ_DIR="$CFL/cfg-obj"
+          mkdir -p "$CFG_OBJ_DIR"
+          if [ -f "$CFG_COMMON/IccCmmConfig.cpp" ] && [ -f "$CFG_COMMON/IccJsonUtil.cpp" ]; then
+            clang++ $CXXFLAGS $INCLUDES \
+              -c "$CFG_COMMON/IccCmmConfig.cpp" -o "$CFG_OBJ_DIR/IccCmmConfig.o" 2>&1
+            clang++ $CXXFLAGS $INCLUDES \
+              -c "$CFG_COMMON/IccJsonUtil.cpp" -o "$CFG_OBJ_DIR/IccJsonUtil.o" 2>&1
+            echo "OK: IccCmmConfig.o + IccJsonUtil.o"
+          else
+            echo "WARN: IccCmmConfig.cpp not found, icc_cfg_fuzzer will skip"
+          fi
+
           BUILT=0
           for src in "$CFL"/*_fuzzer.cpp; do
             FNAME=$(basename "$src" .cpp)
@@ -221,6 +235,11 @@ jobs:
               if [ -f "$CFL/TiffImg.o" ]; then
                 EXTRA_OBJ="$CFL/TiffImg.o"
                 EXTRA_LIBS="-ltiff"
+              fi
+            fi
+            if [ "$FNAME" = "icc_cfg_fuzzer" ]; then
+              if [ -f "$CFG_OBJ_DIR/IccCmmConfig.o" ]; then
+                EXTRA_OBJ="$CFG_OBJ_DIR/IccCmmConfig.o $CFG_OBJ_DIR/IccJsonUtil.o"
               fi
             fi
             set +e
@@ -268,6 +287,8 @@ jobs:
         fuzzer:
           - icc_applynamedcmm_fuzzer
           - icc_applyprofiles_fuzzer
+          - icc_applysearch_fuzzer
+          - icc_cfg_fuzzer
           - icc_dump_fuzzer
           - icc_fromcube_fuzzer
           - icc_fromxml_fuzzer
