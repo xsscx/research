@@ -341,8 +341,8 @@ jobs:
             if grep -qE 'shell:\s*bash' "$wf" 2>/dev/null; then
               HAS_BASH_STEPS="true"
             elif grep -qE '^\s+run:' "$wf" 2>/dev/null; then
-              run_count=$(grep -cE '^\s+run:' "$wf" 2>/dev/null || echo 0)
-              pwsh_count=$(grep -cE 'shell:\s*pwsh' "$wf" 2>/dev/null || echo 0)
+              run_count=$(grep -cE '^\s+run:' "$wf" 2>/dev/null) || run_count=0
+              pwsh_count=$(grep -cE 'shell:\s*pwsh' "$wf" 2>/dev/null) || pwsh_count=0
               if [[ "$pwsh_count" -ge "$run_count" ]] && [[ "$pwsh_count" -gt 0 ]]; then
                 HAS_BASH_STEPS="false"
               else
@@ -799,28 +799,29 @@ jobs:
           # Check 3: Missing permissions
           NOPERM_COUNT=$(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null | while read -r f; do
             grep -qE '^permissions:' "$f" || echo "1"
-          done | wc -l || echo 0)
+          done | wc -l)
+          NOPERM_COUNT=${NOPERM_COUNT:-0}
           if [[ $NOPERM_COUNT -gt 0 ]]; then
             RISK_SCORE=$((RISK_SCORE + NOPERM_COUNT * 3))
             RISK_ITEMS+=("$NOPERM_COUNT workflow(s) without permissions block (+$((NOPERM_COUNT * 3)))")
           fi
 
           # Check 4: shell=true or shell: bash (without noprofile)
-          NOPROFILE_MISSING=$(grep -rl 'shell: bash$' .github/workflows/ 2>/dev/null | wc -l || echo 0)
+          NOPROFILE_MISSING=$({ grep -rl 'shell: bash$' .github/workflows/ 2>/dev/null || true; } | wc -l)
           if [[ $NOPROFILE_MISSING -gt 0 ]]; then
             RISK_SCORE=$((RISK_SCORE + NOPROFILE_MISSING * 2))
             RISK_ITEMS+=("$NOPROFILE_MISSING workflow(s) use \`shell: bash\` without --noprofile (+$((NOPROFILE_MISSING * 2)))")
           fi
 
           # Check 5: GITHUB_TOKEN in run blocks
-          TOKEN_IN_RUN=$(grep -rn 'GITHUB_TOKEN' .github/workflows/ 2>/dev/null | grep 'run:' | wc -l || echo 0)
+          TOKEN_IN_RUN=$({ grep -rn 'GITHUB_TOKEN' .github/workflows/ 2>/dev/null || true; } | { grep 'run:' || true; } | wc -l)
           if [[ $TOKEN_IN_RUN -gt 0 ]]; then
             RISK_SCORE=$((RISK_SCORE + TOKEN_IN_RUN * 5))
             RISK_ITEMS+=("$TOKEN_IN_RUN GITHUB_TOKEN reference(s) in run: blocks (+$((TOKEN_IN_RUN * 5)))")
           fi
 
           # Check 6: secrets in env blocks
-          SECRETS_COUNT=$(grep -rn 'secrets\.' .github/workflows/ 2>/dev/null | grep -v '#' | wc -l || echo 0)
+          SECRETS_COUNT=$({ grep -rn 'secrets\.' .github/workflows/ 2>/dev/null || true; } | { grep -v '#' || true; } | wc -l)
           if [[ $SECRETS_COUNT -gt 0 ]]; then
             RISK_ITEMS+=("$SECRETS_COUNT secret reference(s) found (informational)")
           fi
@@ -889,7 +890,7 @@ jobs:
           SELF_WF="ci-pr-risk-security-analysis.yml"
 
           # Pattern 1: curl/wget piped to shell in workflows (exclude self)
-          EXT_CALLS=$(grep -rnE 'curl.*\|\s*(ba)?sh|wget.*\|\s*(ba)?sh' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | wc -l || echo 0)
+          EXT_CALLS=$({ grep -rnE 'curl.*\|\s*(ba)?sh|wget.*\|\s*(ba)?sh' .github/workflows/ 2>/dev/null || true; } | { grep -v "$SELF_WF" || true; } | { grep -v '#' || true; } | wc -l)
           if [[ $EXT_CALLS -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
             echo "[CRITICAL] $(sanitize_line "$EXT_CALLS") curl/wget|bash pipe(s) in workflows (remote code execution vector)" >> "$GITHUB_STEP_SUMMARY"
@@ -897,7 +898,7 @@ jobs:
           fi
 
           # Pattern 2: Base64 encoding (common obfuscation, exclude self)
-          B64_CALLS=$(grep -rnE 'base64|b64encode|btoa' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | wc -l || echo 0)
+          B64_CALLS=$({ grep -rnE 'base64|b64encode|btoa' .github/workflows/ 2>/dev/null || true; } | { grep -v "$SELF_WF" || true; } | { grep -v '#' || true; } | wc -l)
           if [[ $B64_CALLS -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
             echo "[WARN] $(sanitize_line "$B64_CALLS") base64 encoding reference(s) detected (check for credential obfuscation)" >> "$GITHUB_STEP_SUMMARY"
@@ -905,7 +906,7 @@ jobs:
           fi
 
           # Pattern 3: Environment variable dumping (exclude self)
-          ENV_DUMP=$(grep -rnE 'printenv|echo.*SECRET|echo.*TOKEN' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | grep -v 'BASH_ENV' | grep -v 'GITHUB_ENV' | wc -l || echo 0)
+          ENV_DUMP=$({ grep -rnE 'printenv|echo.*SECRET|echo.*TOKEN' .github/workflows/ 2>/dev/null || true; } | { grep -v "$SELF_WF" || true; } | { grep -v '#' || true; } | { grep -v 'BASH_ENV' || true; } | { grep -v 'GITHUB_ENV' || true; } | wc -l)
           if [[ $ENV_DUMP -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
             echo "[WARN] $(sanitize_line "$ENV_DUMP") environment dump pattern(s) detected" >> "$GITHUB_STEP_SUMMARY"
@@ -913,7 +914,7 @@ jobs:
           fi
 
           # Pattern 4: git push / git tag force in workflows (exclude self)
-          GIT_PUSH=$(grep -rnE 'git (push|tag -f|tag -d)' .github/workflows/ 2>/dev/null | grep -v "$SELF_WF" | grep -v '#' | wc -l || echo 0)
+          GIT_PUSH=$({ grep -rnE 'git (push|tag -f|tag -d)' .github/workflows/ 2>/dev/null || true; } | { grep -v "$SELF_WF" || true; } | { grep -v '#' || true; } | wc -l)
           if [[ $GIT_PUSH -gt 0 ]]; then
             TRIVY_INDICATORS=$((TRIVY_INDICATORS + 1))
             echo "[HIGH] $(sanitize_line "$GIT_PUSH") git push/tag-force pattern(s) detected (tag rewriting vector)" >> "$GITHUB_STEP_SUMMARY"
