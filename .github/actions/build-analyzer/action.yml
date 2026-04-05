@@ -1,0 +1,85 @@
+name: 'Build iccanalyzer-lite'
+description: 'Build the iccanalyzer-lite security analyzer binary'
+inputs:
+  method:
+    description: 'Build method: build-sh (use build.sh) or manual (inline compile)'
+    required: false
+    default: 'build-sh'
+  extra-cflags:
+    description: 'Additional compiler flags'
+    required: false
+    default: ''
+
+outputs:
+  binary-path:
+    description: 'Path to the built binary'
+    value: ${{ steps.build.outputs.binary-path }}
+  binary-size:
+    description: 'Size of the built binary in bytes'
+    value: ${{ steps.build.outputs.binary-size }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build iccanalyzer-lite
+      id: build
+      shell: bash
+      env:
+        BASH_ENV: /dev/null
+        BUILD_METHOD: ${{ inputs.method }}
+        EXTRA_CFLAGS: ${{ inputs.extra-cflags }}
+      run: |
+        set -euo pipefail
+        git config --global credential.helper ""
+        unset GITHUB_TOKEN || true
+
+        cd iccanalyzer-lite
+
+        if [ "${BUILD_METHOD}" = "build-sh" ]; then
+          ./build.sh
+        else
+          SOURCES=$(grep '^SOURCES=' build.sh | head -1 | sed 's/^SOURCES="//' | sed 's/"$//')
+          LIBS=$(grep '^LIBS=' build.sh | head -1 | sed 's/^LIBS="//' | sed 's/"$//')
+          INCLUDES=$(grep '^INCLUDES=' build.sh | head -1 | sed 's/^INCLUDES="//' | sed 's/"$//')
+
+          clang++ -std=c++17 -O0 -g3 \
+            -fsanitize=address,undefined,float-divide-by-zero,float-cast-overflow,integer \
+            -fprofile-instr-generate -fcoverage-mapping \
+            -fno-omit-frame-pointer -fno-optimize-sibling-calls \
+            ${EXTRA_CFLAGS} \
+            ${INCLUDES} \
+            ${SOURCES} \
+            -o iccanalyzer-lite \
+            ${LIBS}
+        fi
+
+        BINARY="iccanalyzer-lite/iccanalyzer-lite"
+        cd ..
+        if [ ! -f "${BINARY}" ]; then
+          echo "[FAIL] Binary not found at ${BINARY}"
+          exit 1
+        fi
+
+        SIZE=$(stat -c%s "${BINARY}")
+        echo "binary-path=${BINARY}" >> "$GITHUB_OUTPUT"
+        echo "binary-size=${SIZE}" >> "$GITHUB_OUTPUT"
+        echo "[OK] Built ${BINARY} (${SIZE} bytes)"
+
+    - name: Verify binary
+      shell: bash
+      env:
+        BASH_ENV: /dev/null
+      run: |
+        set -euo pipefail
+        git config --global credential.helper ""
+        unset GITHUB_TOKEN || true
+
+        BINARY="iccanalyzer-lite/iccanalyzer-lite"
+        file "${BINARY}"
+
+        ASAN_COUNT=$(nm "${BINARY}" 2>/dev/null | grep -c '__asan' || echo "0")
+        if [ "${ASAN_COUNT}" -lt 1 ]; then
+          echo "[WARN] No ASAN symbols found in binary"
+        else
+          echo "[OK] ASAN instrumentation verified (${ASAN_COUNT} symbols)"
+        fi
