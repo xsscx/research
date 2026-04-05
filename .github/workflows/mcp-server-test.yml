@@ -91,9 +91,7 @@ jobs:
           path: |
             iccDEV/Build/IccProfLib
             iccDEV/Build/IccXML
-            iccDEV/Build/CMakeCache.txt
-            iccDEV/Build/CMakeFiles
-          key: ${{ runner.os }}-iccdev-build-mcp-upstream-${{ hashFiles('.github/workflows/mcp-server-test.yml') }}
+          key: ${{ runner.os }}-iccdev-build-mcp-upstream-v2-${{ hashFiles('.github/workflows/mcp-server-test.yml') }}
 
       - name: Cache native tools
         id: cache-native-tools
@@ -141,7 +139,7 @@ jobs:
               echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
             fi
             sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' iccDEV/Build/Cmake/CMakeLists.txt
-            cd iccDEV/Build && cmake Cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF && make -j$(nproc)
+            cd iccDEV/Build && rm -f CMakeCache.txt && rm -rf CMakeFiles && cmake Cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF && make -j$(nproc)
             cd ../..
           fi
 
