@@ -887,19 +887,18 @@ jobs:
 
             while IFS= read -r wf; do
               wf_base=$(basename "$wf")
-              wf_content=$(cat "$wf")
 
-              # Extract triggers
+              # Extract triggers (grep file directly to avoid SIGPIPE from echo|grep -q)
               triggers=""
               for t in push pull_request workflow_dispatch schedule pull_request_target issue_comment workflow_run; do
-                if echo "$wf_content" | grep -q "$t"; then
+                if grep -q "$t" "$wf" 2>/dev/null; then
                   triggers="${triggers:+$triggers, }$t"
                 fi
               done
               triggers="${triggers:-none detected}"
 
               # Check permissions
-              if echo "$wf_content" | grep -qE '^permissions:'; then
+              if grep -qE '^permissions:' "$wf" 2>/dev/null; then
                 perms="Yes"
               else
                 perms="No"
