@@ -71,30 +71,10 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Cache APT packages
-        id: cache-apt
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env
         with:
-          path: |
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
-
-      - name: Install dependencies
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          set -euo pipefail
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
-            sudo apt-get update
-          else
-            echo "Using cached APT packages"
-          fi
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake clang git ca-certificates \
-            libxml2-dev libtiff-dev libjpeg-dev libpng-dev zlib1g-dev libssl-dev nlohmann-json3-dev
+          preset: 'codeql'
 
       - name: Cache iccDEV repository
         id: cache-iccdev
@@ -126,7 +106,7 @@ jobs:
           # -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF alone suffices.
           sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/# LTO disabled by downstream CI\n    # set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Cmake/CMakeLists.txt 2>/dev/null || true
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
-          cmake Cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DENABLE_TOOLS=OFF -DENABLE_STATIC_LIBS=ON
+          cmake Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DENABLE_TOOLS=OFF -DENABLE_STATIC_LIBS=ON
           make -j$(nproc) IccProfLib2 IccXML2 IccProfLib2-static IccXML2-static
 
       - name: Initialize CodeQL
@@ -160,7 +140,7 @@ jobs:
           cd iccanalyzer-lite/icctest
           # Use cmake for icctest — CodeQL traces the build automatically
           cmake -B build-codeql \
-            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_SANITIZERS=OFF \
             -DENABLE_COVERAGE=OFF \
@@ -298,11 +278,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
-        run: |
-          set -euo pipefail
-          cd mcp-server
-          pip install -r requirements.txt
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env
+        with:
+          preset: 'codeql'
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4

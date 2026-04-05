@@ -61,44 +61,10 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Cache APT packages
-        id: cache-apt
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env
         with:
-          path: |
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
-
-      - name: Install dependencies
-        env:
-          BASH_ENV: /dev/null
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          set -euo pipefail
-          git config --add safe.directory "$PWD"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-
-          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
-            sudo apt-get update -qq
-          else
-            echo "Using cached APT packages"
-          fi
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            clang \
-            lld \
-            libxml2-dev \
-            libtiff-dev \
-            libjpeg-dev \
-            libpng-dev \
-            zlib1g-dev \
-            liblzma-dev \
-            nlohmann-json3-dev \
-            libssl-dev \
-            lcov
+          extra-packages: 'lld lcov'
 
       - name: Cache iccDEV repository
         id: cache-iccdev

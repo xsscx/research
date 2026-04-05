@@ -68,12 +68,12 @@ jobs:
             echo "Using cached APT packages"
           fi
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake clang clang-tools \
+            build-essential cmake clang-18 clang-tools-18 \
             libxml2-dev libtiff-dev libpng-dev zlib1g-dev \
-            nlohmann-json3-dev libssl-dev llvm
+            nlohmann-json3-dev libssl-dev llvm-18
 
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
+          echo "CC=clang-18" >> $GITHUB_ENV
+          echo "CXX=clang++-18" >> $GITHUB_ENV
 
       - name: Cache iccDEV repository
         id: cache-iccdev
@@ -149,8 +149,8 @@ jobs:
           cd Build
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake/ \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_FLAGS="-fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
@@ -168,7 +168,7 @@ jobs:
         run: |
           set -euo pipefail
           ICCDEV="$PWD/cfl/iccDEV"
-          clang++ -fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -g -O1 -frtti \
+          clang++-18 -fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -g -O1 -frtti \
             -I${ICCDEV}/IccProfLib \
             -I${ICCDEV}/Tools/CmdLine/IccCommon \
             -I${ICCDEV}/Tools/CmdLine/IccApplyProfiles \
@@ -216,7 +216,7 @@ jobs:
               EXTRA_LDFLAGS="-Wl,--allow-multiple-definition"
             fi
             set +e
-            clang++ $CXXFLAGS $INCLUDES "$src" \
+            clang++-18 $CXXFLAGS $INCLUDES "$src" \
               $EXTRA_OBJ -Wl,--whole-archive $LIBS_BASE -Wl,--no-whole-archive $LIBS_XML $LIBS_SYS $EXTRA_LIBS $EXTRA_LDFLAGS \
               -o "$OUTDIR/$FNAME" 2>&1
             RC=$?

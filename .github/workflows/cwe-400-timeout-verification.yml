@@ -107,7 +107,7 @@ jobs:
             sudo apt-get update -qq
           fi
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake clang \
+            build-essential cmake clang-18 \
             libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
             zlib1g-dev nlohmann-json3-dev
 
@@ -165,7 +165,7 @@ jobs:
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
-          CC: clang
+          CC: clang-18
           CXX: clang++
           MATRIX_BRANCH: ${{ matrix.branch }}
         run: |

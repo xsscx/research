@@ -62,20 +62,10 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Install dependencies
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake clang git ca-certificates \
-            libxml2-dev libtiff-dev libjpeg-dev libpng-dev zlib1g-dev \
-            libssl-dev nlohmann-json3-dev
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env
+        with:
+          preset: 'codeql'
 
       - name: Cache iccDEV source (${{ matrix.branch }})
         id: cache-iccdev-src
@@ -152,8 +142,8 @@ jobs:
           cd upstream-iccDEV/Build
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_FLAGS="-g -O0" \
             -DCMAKE_CXX_FLAGS="-g -O0"
