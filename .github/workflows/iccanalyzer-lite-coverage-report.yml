@@ -52,39 +52,10 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-      - name: Cache APT packages
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        id: cache-apt
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env
         with:
-          path: |
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-coverage-v1
-
-      - name: Install dependencies
-        env:
-          BASH_ENV: /dev/null
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          set -euo pipefail
-          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
-            sudo apt-get update -qq
-          else
-            echo "Using cached APT packages"
-          fi
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            clang \
-            libxml2-dev \
-            libtiff-dev \
-            libjpeg-dev \
-            libpng-dev \
-            zlib1g-dev \
-            liblzma-dev \
-            nlohmann-json3-dev \
-            libssl-dev \
-            lcov
+          extra-packages: 'lcov'
 
       - name: Cache iccDEV repository
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)

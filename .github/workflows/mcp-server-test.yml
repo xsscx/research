@@ -66,22 +66,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Cache APT packages
-        id: cache-apt
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env
         with:
-          path: |
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-mcp-v1
-
-      - name: Install dependencies
-        run: |
-          set -euo pipefail
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-          cd mcp-server
-          pip install -r requirements.txt
+          preset: 'codeql'
 
       - name: Cache iccDEV repository
         id: cache-iccdev

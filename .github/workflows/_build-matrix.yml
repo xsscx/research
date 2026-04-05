@@ -128,7 +128,7 @@ jobs:
           unset GITHUB_TOKEN || true
           sudo apt-get update -qq
           sudo apt-get install -y \
-            build-essential cmake gcc g++ clang ccache \
+            build-essential cmake gcc g++ clang-18 ccache \
             libpng-dev libxml2-dev libtiff-dev \
             nlohmann-json3-dev
           ccache --zero-stats || true
@@ -143,7 +143,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          brew install cmake llvm libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo
+          brew install cmake llvm-18 libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo
           ccache --zero-stats || true
 
       - name: Clone iccDEV
@@ -194,8 +194,8 @@ jobs:
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
           else
-            echo "CC=clang" >> "$GITHUB_ENV"
-            echo "CXX=clang++" >> "$GITHUB_ENV"
+            echo "CC=clang-18" >> "$GITHUB_ENV"
+            echo "CXX=clang++-18" >> "$GITHUB_ENV"
           fi
 
       - name: Configure CMake
@@ -234,8 +234,8 @@ jobs:
               export CC="ccache gcc"
               export CXX="ccache g++"
             else
-              export CC="ccache clang"
-              export CXX="ccache clang++"
+              export CC="ccache clang-18"
+              export CXX="ccache clang++-18"
             fi
           fi
 
@@ -360,7 +360,7 @@ jobs:
           unset GITHUB_TOKEN || true
           sudo apt-get update -qq
           sudo apt-get install -y \
-            build-essential cmake clang llvm ccache \
+            build-essential cmake clang-18 llvm-18 ccache \
             libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev \
             libclang-rt-dev || sudo apt-get install -y libclang-rt-18-dev 2>/dev/null || true
           ccache --zero-stats || true
@@ -520,7 +520,7 @@ jobs:
           unset GITHUB_TOKEN || true
           sudo apt-get update -qq
           sudo apt-get install -y \
-            build-essential cmake clang llvm \
+            build-essential cmake clang-18 llvm-18 \
             libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
 
       - name: Clone iccDEV
@@ -578,7 +578,7 @@ jobs:
               ;;
           esac
 
-          CC=clang CXX=clang++ cmake ../Cmake \
+          CC=clang-18 CXX=clang++-18 cmake ../Cmake \
                 -DCMAKE_BUILD_TYPE="$MATRIX_BUILD_TYPE" \
                 $OPTS
 
@@ -681,7 +681,7 @@ jobs:
           unset GITHUB_TOKEN || true
           sudo apt-get update -qq
           sudo apt-get install -y \
-            build-essential cmake clang \
+            build-essential cmake clang-18 \
             libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
 
       - name: Clone iccDEV
