@@ -200,8 +200,8 @@ jobs:
           # Enable ccache if available
           if command -v ccache >/dev/null 2>&1; then
             export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-            export CC="ccache ${{ matrix.compiler == 'gcc' && 'gcc' || 'clang' }}"
-            export CXX="ccache ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}"
+            export CC="ccache $CC"
+            export CXX="ccache $CXX"
           fi
 
           cd Build
