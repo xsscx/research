@@ -54,37 +54,10 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - name: Cache APT packages
-        id: cache-apt
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env
         with:
-          path: |
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
-
-      - name: Install dependencies
-        env:
-          BASH_ENV: /dev/null
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          set -euo pipefail
-          git config --add safe.directory "$PWD"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-
-          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
-            sudo apt-get update -qq
-          else
-            echo "Using cached APT packages"
-          fi
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake clang clang-tools \
-            libxml2-dev libtiff-dev libpng-dev zlib1g-dev \
-            nlohmann-json3-dev libssl-dev llvm
-
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
+          preset: 'cfl'
 
       - name: Cache iccDEV repository
         id: cache-iccdev
@@ -159,8 +132,8 @@ jobs:
           cd Build
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake/ \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_FLAGS="-fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
@@ -178,7 +151,7 @@ jobs:
         run: |
           set -euo pipefail
           ICCDEV="$PWD/cfl/iccDEV"
-          clang++ -fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -g -O1 -frtti \
+          clang++-18 -fsanitize=address,undefined,fuzzer-no-link -fno-omit-frame-pointer -g -O1 -frtti \
             -I${ICCDEV}/IccProfLib \
             -I${ICCDEV}/Tools/CmdLine/IccCommon \
             -I${ICCDEV}/Tools/CmdLine/IccApplyProfiles \
@@ -216,9 +189,9 @@ jobs:
           CFG_OBJ_DIR="$CFL/cfg-obj"
           mkdir -p "$CFG_OBJ_DIR"
           if [ -f "$CFG_COMMON/IccCmmConfig.cpp" ] && [ -f "$CFG_COMMON/IccJsonUtil.cpp" ]; then
-            clang++ $CXXFLAGS $INCLUDES \
+            clang++-18 $CXXFLAGS $INCLUDES \
               -c "$CFG_COMMON/IccCmmConfig.cpp" -o "$CFG_OBJ_DIR/IccCmmConfig.o" 2>&1
-            clang++ $CXXFLAGS $INCLUDES \
+            clang++-18 $CXXFLAGS $INCLUDES \
               -c "$CFG_COMMON/IccJsonUtil.cpp" -o "$CFG_OBJ_DIR/IccJsonUtil.o" 2>&1
             echo "OK: IccCmmConfig.o + IccJsonUtil.o"
           else
@@ -243,7 +216,7 @@ jobs:
               fi
             fi
             set +e
-            clang++ $CXXFLAGS $INCLUDES "$src" \
+            clang++-18 $CXXFLAGS $INCLUDES "$src" \
               $EXTRA_OBJ -Wl,--whole-archive $LIBS_BASE -Wl,--no-whole-archive $LIBS_XML $LIBS_SYS $EXTRA_LIBS $EXTRA_LDFLAGS \
               -o "$OUTDIR/$FNAME" 2>&1
             RC=$?

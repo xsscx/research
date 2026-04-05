@@ -98,11 +98,11 @@ jobs:
             echo "Using cached APT packages"
           fi
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake clang clang-tools \
+            build-essential cmake clang-18 clang-tools-18 \
             libxml2-dev libtiff-dev libpng-dev zlib1g-dev \
-            nlohmann-json3-dev libssl-dev llvm
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
+            nlohmann-json3-dev libssl-dev llvm-18
+          echo "CC=clang-18" >> $GITHUB_ENV
+          echo "CXX=clang++-18" >> $GITHUB_ENV
 
       - name: Cache iccDEV repository
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
@@ -165,8 +165,8 @@ jobs:
           cd Build
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake/ \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_FLAGS="${LIB_SAN_FLAGS} -fprofile-instr-generate -fcoverage-mapping" \
             -DCMAKE_CXX_FLAGS="${LIB_SAN_FLAGS} -fprofile-instr-generate -fcoverage-mapping" \
@@ -185,7 +185,7 @@ jobs:
           set -euo pipefail
           ICCDEV="$PWD/cfl/iccDEV"
           SAN_FLAGS="-fsanitize=$SANITIZER -fno-omit-frame-pointer -fsanitize=fuzzer-no-link"
-          clang++ ${SAN_FLAGS} -g -O1 -frtti \
+          clang++-18 ${SAN_FLAGS} -g -O1 -frtti \
             -I${ICCDEV}/IccProfLib \
             -I${ICCDEV}/Tools/CmdLine/IccCommon \
             -I${ICCDEV}/Tools/CmdLine/IccApplyProfiles \
@@ -230,7 +230,7 @@ jobs:
             fi
 
             set +e
-            clang++ $CXXFLAGS $INCLUDES "$src" \
+            clang++-18 $CXXFLAGS $INCLUDES "$src" \
               $EXTRA_OBJ -Wl,--whole-archive $LIBS_BASE -Wl,--no-whole-archive $LIBS_XML $LIBS_SYS $EXTRA_LIBS $EXTRA_LDFLAGS \
               -o "$OUTDIR/$FNAME" 2>&1
             RC=$?

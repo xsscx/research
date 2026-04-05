@@ -72,10 +72,10 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake clang \
+            build-essential cmake clang-18 \
             libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
             zlib1g-dev liblzma-dev nlohmann-json3-dev libssl-dev \
-            python3 llvm
+            python3 llvm-18
 
       - name: Cache iccDEV repository
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
@@ -111,15 +111,15 @@ jobs:
       - name: Build iccDEV libraries
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
-          CC: clang
+          CC: clang-18
           CXX: clang++
         run: |
           set -euo pipefail
           cd iccanalyzer-lite/iccDEV/Build
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3" \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -std=c++17" \
@@ -141,7 +141,7 @@ jobs:
 
       - name: Build colorbleed_tools
         env:
-          CC: clang
+          CC: clang-18
           CXX: clang++
         run: |
           set -euo pipefail
@@ -152,7 +152,7 @@ jobs:
           for tool in IccToXml IccFromXml; do
             src_dir="${ICCDEV_DIR}/IccXML/CmdLine/${tool}"
             echo "Building ${tool}_unsafe..."
-            clang++ -g -O1 -fno-omit-frame-pointer \
+            clang++-18 -g -O1 -fno-omit-frame-pointer \
               -fsanitize=address,undefined \
               -fprofile-instr-generate -fcoverage-mapping \
               -I "${ICCDEV_DIR}/IccProfLib" \
@@ -203,7 +203,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            libxml2 libtiff6 libjpeg-turbo8 libpng16-16 zlib1g llvm
+            libxml2 libtiff6 libjpeg-turbo8 libpng16-16 zlib1g llvm-18
 
       - name: Download tools
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)

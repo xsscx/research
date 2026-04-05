@@ -83,31 +83,10 @@ jobs:
           echo "selected_profile=$INPUT_PATH" >> $GITHUB_ENV
           echo "[OK] Profile: $PROFILE ($(stat -c%s "$PROFILE") bytes)"
 
-      - name: Cache APT packages
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        id: cache-apt
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env
         with:
-          path: |
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-coverage-single
-          restore-keys: |
-            ${{ runner.os }}-apt-
-
-      - name: Install dependencies
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          set -euo pipefail
-          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
-            sudo apt-get update -qq
-          fi
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake \
-            clang-18 llvm-18 \
-            libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
-            zlib1g-dev nlohmann-json3-dev \
-            lcov
+          preset: 'coverage'
 
       - name: Cache iccDEV repository
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)

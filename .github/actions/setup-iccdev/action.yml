@@ -209,8 +209,8 @@ runs:
             ;;
         esac
 
-        COMPILER_C="clang"
-        COMPILER_CXX="clang++"
+        COMPILER_C="clang-18"
+        COMPILER_CXX="clang++-18"
 
         cmake Cmake \
           -DCMAKE_C_COMPILER="${COMPILER_C}" \

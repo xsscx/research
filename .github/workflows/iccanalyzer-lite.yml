@@ -56,44 +56,8 @@ jobs:
           echo "Commit:      ${WORKFLOW_SHA}"
           echo "Runner OS:   ${RUNNER_OS_NAME}"
 
-      - name: Cache APT packages
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        id: cache-apt
-        with:
-          path: |
-            /var/cache/apt/archives
-            /var/lib/apt/lists
-          key: ${{ runner.os }}-apt-${{ hashFiles(format('.github/workflows/{0}', github.workflow_ref)) }}
-          restore-keys: |
-            ${{ runner.os }}-apt-
-
       - name: Install build dependencies
-        env:
-          BASH_ENV: /dev/null
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          set -euo pipefail
-          git config --add safe.directory "$PWD"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-
-          if [ "${{ steps.cache-apt.outputs.cache-hit }}" != 'true' ]; then
-            sudo apt-get update -qq
-          else
-            echo "Using cached APT packages"
-          fi
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            clang \
-            libxml2-dev \
-            libtiff-dev \
-            libjpeg-dev \
-            libpng-dev \
-            zlib1g-dev \
-            liblzma-dev \
-            nlohmann-json3-dev \
-            libssl-dev
+        uses: ./.github/actions/setup-build-env
 
       - name: Print compiler version
         env:
@@ -106,12 +70,12 @@ jobs:
           unset GITHUB_TOKEN || true
 
           echo "Compiler: clang++"
-          clang++ --version | sed -n '1,1p'
+          clang++-18 --version | sed -n '1,1p'
 
           {
             echo "### Build Configuration"
             echo ""
-            echo "**Compiler:**   clang++ ($(clang++ --version | sed -n '1,1p'))"
+            echo "**Compiler:**   clang++-18 ($(clang++-18 --version | sed -n '1,1p'))"
             echo "**Build Type:** Debug"
             echo "**Flags:**      ASAN + UBSAN + Coverage"
             echo "**Tool:**       iccanalyzer-lite"
@@ -198,8 +162,8 @@ jobs:
           echo "Configuring CMake with instrumentation..."
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3" \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -std=c++17" \
