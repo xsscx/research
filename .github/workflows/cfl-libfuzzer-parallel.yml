@@ -333,7 +333,7 @@ jobs:
           if [ ! -f "$FUZZER" ]; then
             echo "Fuzzer ${FUZZER_NAME} was not built (compile skip)"
             echo "status=skip" >> $GITHUB_OUTPUT
-            echo "**${FUZZER_NAME}:** [SKIP] SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
+            echo "**$(sanitize_line "${FUZZER_NAME}"):** [SKIP] SKIP (not compiled)" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
@@ -445,7 +445,7 @@ jobs:
             if [ -f "dict-updates/${MATRIX_FUZZER}.dict" ]; then
               COUNT=$(grep -c '^"' "dict-updates/${MATRIX_FUZZER}.dict" 2>/dev/null || echo 0)
               echo "[INFO] Extracted ${COUNT} recommended dict entries for ${MATRIX_FUZZER}"
-              echo "**Dict entries:** ${COUNT} recommended" >> $GITHUB_STEP_SUMMARY
+              echo "**Dict entries:** $(sanitize_line "${COUNT}") recommended" >> $GITHUB_STEP_SUMMARY
             fi
           fi
 

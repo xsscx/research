@@ -248,9 +248,9 @@ jobs:
             cancelled) STATUS_LINE="[CANCELLED] Job cancelled" ;;
             *) STATUS_LINE="[FAIL] Build or tests failed" ;;
           esac
-          echo "### Linux Build Summary ($MATRIX_COMPILER)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Compiler: $MATRIX_COMPILER" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: $STATUS_LINE" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Linux Build Summary ($(sanitize_line "$MATRIX_COMPILER"))" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Compiler: $(sanitize_line "$MATRIX_COMPILER")" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: $(sanitize_line "$STATUS_LINE")" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "#### Artifacts" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
