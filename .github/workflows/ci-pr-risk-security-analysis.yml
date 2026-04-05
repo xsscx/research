@@ -443,32 +443,48 @@ jobs:
             wf_base=$(basename "$wf")
             in_run_block=false
             has_pipefail=false
+            run_indent_len=0
+            block_start_line=0
             line_num=0
 
             while IFS= read -r line; do
               line_num=$((line_num + 1))
 
               if grep -qE '^\s+run:\s*\|' <<< "$line"; then
-                if $in_run_block && ! $has_pipefail; then
-                  UNHARDENED=$((UNHARDENED + 1))
+                # Finalize previous block if still open
+                if $in_run_block; then
+                  if $has_pipefail; then
+                    HARDENED_STEPS=$((HARDENED_STEPS + 1))
+                  else
+                    UNHARDENED=$((UNHARDENED + 1))
+                    UNHARDENED_LIST+=("$wf_base:$block_start_line")
+                  fi
                 fi
                 in_run_block=true
                 has_pipefail=false
                 TOTAL_STEPS=$((TOTAL_STEPS + 1))
+                block_start_line=$line_num
+                run_indent="${line%%[![:space:]]*}"
+                run_indent_len=${#run_indent}
                 continue
               fi
 
               if $in_run_block; then
-                if grep -qE '^\s+\S' <<< "$line" && ! grep -qE '^\s{4,}' <<< "$line"; then
-                  if ! $has_pipefail; then
-                    UNHARDENED=$((UNHARDENED + 1))
-                    UNHARDENED_LIST+=("$wf_base:$line_num")
-                  else
-                    HARDENED_STEPS=$((HARDENED_STEPS + 1))
+                # Non-blank line with indent <= run: level ends the block
+                if [[ "$line" =~ [^[:space:]] ]]; then
+                  cur_indent="${line%%[![:space:]]*}"
+                  cur_indent_len=${#cur_indent}
+                  if [[ $cur_indent_len -le $run_indent_len ]]; then
+                    if $has_pipefail; then
+                      HARDENED_STEPS=$((HARDENED_STEPS + 1))
+                    else
+                      UNHARDENED=$((UNHARDENED + 1))
+                      UNHARDENED_LIST+=("$wf_base:$block_start_line")
+                    fi
+                    in_run_block=false
                   fi
-                  in_run_block=false
                 fi
-                if grep -q 'set -euo pipefail\|set -euxo pipefail' <<< "$line"; then
+                if $in_run_block && grep -q 'set -euo pipefail\|set -euxo pipefail' <<< "$line"; then
                   has_pipefail=true
                 fi
               fi
@@ -1341,16 +1357,11 @@ jobs:
             $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
             $inRunBlock = $false
             $currentBlock = @()
+            $runIndentLen = 0
             foreach ($ln in $lines) {
               if ($ln -match '^\s+run:\s*\|') {
-                $inRunBlock = $true
-                $currentBlock = @()
-                $totalBlocks++
-                continue
-              }
-              if ($inRunBlock) {
-                if ($ln -match '^\s+\S' -and $ln -notmatch '^\s{4,}') {
-                  # End of run block -- check hardening
+                # Finalize previous block if still open
+                if ($inRunBlock -and $currentBlock.Count -gt 0) {
                   $blockText = $currentBlock -join "`n"
                   if ($blockText -match 'set -euo pipefail|set -euxo pipefail') {
                     $hardenedBlocks++
@@ -1358,8 +1369,30 @@ jobs:
                   if ($blockText -match 'ErrorActionPreference') {
                     $pwshHardenedBlocks++
                   }
-                  $inRunBlock = $false
-                  $currentBlock = @()
+                }
+                $inRunBlock = $true
+                $currentBlock = @()
+                $totalBlocks++
+                $runIndentLen = ($ln -replace '\S.*', '').Length
+                continue
+              }
+              if ($inRunBlock) {
+                # Non-blank line with indent <= run: level ends the block
+                if ($ln -match '\S') {
+                  $curIndentLen = ($ln -replace '\S.*', '').Length
+                  if ($curIndentLen -le $runIndentLen) {
+                    $blockText = $currentBlock -join "`n"
+                    if ($blockText -match 'set -euo pipefail|set -euxo pipefail') {
+                      $hardenedBlocks++
+                    }
+                    if ($blockText -match 'ErrorActionPreference') {
+                      $pwshHardenedBlocks++
+                    }
+                    $inRunBlock = $false
+                    $currentBlock = @()
+                  } else {
+                    $currentBlock += $ln
+                  }
                 } else {
                   $currentBlock += $ln
                 }
