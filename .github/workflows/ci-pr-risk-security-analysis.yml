@@ -335,11 +335,35 @@ jobs:
             TOTAL_WF=$((TOTAL_WF + 1))
             wf_base=$(basename "$wf")
 
-            if grep -q 'BASH_ENV.*dev.null\|BASH_ENV:.*dev.null' "$wf"; then
-              WF_WITH_BASH_ENV=$((WF_WITH_BASH_ENV + 1))
+            # Determine if workflow uses bash (has run: blocks without explicit pwsh shell)
+            HAS_BASH_STEPS="false"
+            if grep -qE 'shell:\s*bash' "$wf" 2>/dev/null; then
+              HAS_BASH_STEPS="true"
+            elif grep -qE '^\s+run:\s*\|' "$wf" 2>/dev/null; then
+              # Has run: blocks -- check if ALL are under pwsh shell
+              if ! grep -qE 'shell:\s*pwsh' "$wf" 2>/dev/null; then
+                HAS_BASH_STEPS="true"
+              else
+                # Mixed: has both pwsh and run blocks -- check defaults
+                if ! grep -qE 'shell:\s*bash' "$wf" 2>/dev/null && \
+                   grep -qB5 '^\s\+run:' "$wf" 2>/dev/null | grep -q 'shell.*pwsh'; then
+                  HAS_BASH_STEPS="false"
+                else
+                  HAS_BASH_STEPS="true"
+                fi
+              fi
+            fi
+
+            if [[ "$HAS_BASH_STEPS" == "true" ]]; then
+              if grep -q 'BASH_ENV.*dev.null\|BASH_ENV:.*dev.null' "$wf"; then
+                WF_WITH_BASH_ENV=$((WF_WITH_BASH_ENV + 1))
+              else
+                WF_MISSING_BASH_ENV=$((WF_MISSING_BASH_ENV + 1))
+                MISSING_ENV+=("$wf_base")
+              fi
             else
-              WF_MISSING_BASH_ENV=$((WF_MISSING_BASH_ENV + 1))
-              MISSING_ENV+=("$wf_base")
+              # PowerShell-only workflow -- BASH_ENV not applicable
+              WF_WITH_BASH_ENV=$((WF_WITH_BASH_ENV + 1))
             fi
 
             if grep -q 'credential.helper' "$wf"; then
@@ -711,15 +735,30 @@ jobs:
           RISK_SCORE=0
           RISK_ITEMS=()
 
-          # Check 1: pull_request_target
-          PRT_COUNT=$(grep -rl 'pull_request_target' .github/workflows/ 2>/dev/null | wc -l || echo 0)
+          # Check 1: pull_request_target (on: section only)
+          PRT_COUNT=0
+          while IFS= read -r f; do
+            on_section=$(awk '/^on:/{fl=1;print;next} /^[a-zA-Z]/{fl=0} fl{print}' "$f")
+            if grep -q 'pull_request_target' <<< "$on_section"; then
+              PRT_COUNT=$((PRT_COUNT + 1))
+            fi
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
           if [[ $PRT_COUNT -gt 0 ]]; then
             RISK_SCORE=$((RISK_SCORE + 40))
             RISK_ITEMS+=("pull_request_target trigger detected (+40)")
           fi
 
-          # Check 2: Unpinned actions
-          UNPIN_COUNT=$(grep -rh 'uses:' .github/workflows/ 2>/dev/null | grep -v '#' | grep -v '@[0-9a-f]\{40\}' | grep -v 'docker://' | wc -l || echo 0)
+          # Check 2: Unpinned actions (skip run: block content)
+          UNPIN_COUNT=0
+          while IFS= read -r f; do
+            cnt=$(awk '
+              /^[[:space:]]*run:[[:space:]]*\|/ { in_run=1; match($0,/^[[:space:]]*/); ri=RLENGTH; next }
+              in_run { match($0,/^[[:space:]]*/); if ($0 !~ /^[[:space:]]*$/ && RLENGTH <= ri) in_run=0 }
+              !in_run && /uses:/ && !/^[[:space:]]*#/ && !/@[0-9a-f]{40}/ && !/docker:\/\// { c++ }
+              END { print c+0 }
+            ' "$f")
+            UNPIN_COUNT=$((UNPIN_COUNT + cnt))
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
           if [[ $UNPIN_COUNT -gt 0 ]]; then
             RISK_SCORE=$((RISK_SCORE + UNPIN_COUNT * 5))
             RISK_ITEMS+=("$UNPIN_COUNT unpinned action reference(s) (+$((UNPIN_COUNT * 5)))")
@@ -909,10 +948,11 @@ jobs:
             while IFS= read -r wf; do
               wf_base=$(basename "$wf")
 
-              # Extract triggers (grep file directly to avoid SIGPIPE from echo|grep -q)
+              # Extract triggers from on: section only
               triggers=""
+              on_section=$(awk '/^on:/{fl=1;print;next} /^[a-zA-Z]/{fl=0} fl{print}' "$wf")
               for t in push pull_request workflow_dispatch schedule pull_request_target issue_comment workflow_run; do
-                if grep -q "$t" "$wf" 2>/dev/null; then
+                if grep -q "$t" <<< "$on_section" 2>/dev/null; then
                   triggers="${triggers:+$triggers, }$t"
                 fi
               done
@@ -925,13 +965,21 @@ jobs:
                 perms="No"
               fi
 
-              # Check all actions pinned
-              total_acts=$(grep -c 'uses:' "$wf" 2>/dev/null || echo 0)
-              pinned_acts=$(grep 'uses:' "$wf" 2>/dev/null | grep -c '@[0-9a-f]\{40\}' || echo 0)
+              # Check actions pinned (skip run: block content)
+              total_acts=$(awk '
+                /^[[:space:]]*run:[[:space:]]*\|/ { in_run=1; match($0,/^[[:space:]]*/); ri=RLENGTH; next }
+                in_run { match($0,/^[[:space:]]*/); if ($0 !~ /^[[:space:]]*$/ && RLENGTH <= ri) in_run=0 }
+                !in_run && /uses:/ { c++ }
+                END { print c+0 }
+              ' "$wf")
+              pinned_acts=$(awk '
+                /^[[:space:]]*run:[[:space:]]*\|/ { in_run=1; match($0,/^[[:space:]]*/); ri=RLENGTH; next }
+                in_run { match($0,/^[[:space:]]*/); if ($0 !~ /^[[:space:]]*$/ && RLENGTH <= ri) in_run=0 }
+                !in_run && /uses:.*@[0-9a-f]{40}/ { c++ }
+                END { print c+0 }
+              ' "$wf")
               if [[ $total_acts -eq 0 ]]; then
                 pin_status="N/A"
-              elif [[ $total_acts -eq $pinned_acts ]]; then
-                pin_status="$pinned_acts/$total_acts"
               else
                 pin_status="$pinned_acts/$total_acts"
               fi
@@ -1181,17 +1229,39 @@ jobs:
           foreach ($wf in $workflows) {
             $totalWf++
             $content = Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
-            if ($content -match 'BASH_ENV') { $bashEnvCount++ }
+
+            # Determine if workflow has bash run: blocks (not just pwsh)
+            $hasBashSteps = $false
+            if ($content -match 'shell:\s*bash') {
+              $hasBashSteps = $true
+            } elseif ($content -match '(?m)^\s+run:\s*\|') {
+              # Has run: blocks -- only flag if NOT all under pwsh shell
+              if ($content -notmatch 'shell:\s*pwsh') {
+                $hasBashSteps = $true
+              } else {
+                # Mixed workflow -- check if defaults specify pwsh
+                $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+                $defaultsPwsh = $false
+                foreach ($ln in $lines) {
+                  if ($ln -match '^\s+shell:\s*pwsh') { $defaultsPwsh = $true }
+                }
+                # If all run blocks are preceded by shell: pwsh, skip BASH_ENV check
+                if (-not $defaultsPwsh) { $hasBashSteps = $true }
+              }
+            }
+
+            if ($hasBashSteps) {
+              if ($content -match 'BASH_ENV') { $bashEnvCount++ }
+              else { $issues += "$($wf.Name): missing BASH_ENV=/dev/null" }
+            } else {
+              # PowerShell-only -- BASH_ENV not applicable
+              $bashEnvCount++
+            }
+
             if ($content -match 'credential\.helper') { $credCleanupCount++ }
+            else { $issues += "$($wf.Name): missing credential.helper cleanup" }
+
             if ($content -match 'unset GITHUB_TOKEN\b|Remove-Item env:GITHUB_TOKEN') { $tokenUnsetCount++ }
-            $hasBashRun = $content -match 'shell:\s*bash|run:\s*\|'
-            $hasPwshRun = $content -match 'shell:\s*pwsh'
-            if ($hasBashRun -and ($content -notmatch 'BASH_ENV')) {
-              $issues += "$($wf.Name): missing BASH_ENV=/dev/null"
-            }
-            if ($hasBashRun -and ($content -notmatch 'credential\.helper')) {
-              $issues += "$($wf.Name): missing credential.helper cleanup"
-            }
           }
 
           $report = @()
@@ -1497,9 +1567,30 @@ jobs:
             $allContent += Get-Content $wf.FullName -Raw -ErrorAction SilentlyContinue
           }
 
-          # Check SHA pinning
-          $totalUses = ([regex]::Matches($allContent, 'uses:')).Count
-          $pinnedUses = ([regex]::Matches($allContent, 'uses:.*@[0-9a-f]{40}')).Count
+          # Check SHA pinning (skip run: block content)
+          $totalUses = 0
+          $pinnedUses = 0
+          foreach ($wf in $workflows) {
+            $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+            $inRunBlock = $false
+            $runIndent = 0
+            foreach ($ln in $lines) {
+              if ($ln -match '^(\s*)run:\s*\|') {
+                $inRunBlock = $true
+                $runIndent = $matches[1].Length
+                continue
+              }
+              if ($inRunBlock) {
+                if ($ln -match '^\S' -or ($ln -match '^(\s*)\S' -and $matches[1].Length -le $runIndent)) {
+                  $inRunBlock = $false
+                }
+              }
+              if (-not $inRunBlock -and $ln -match 'uses:') {
+                $totalUses++
+                if ($ln -match '@[0-9a-f]{40}') { $pinnedUses++ }
+              }
+            }
+          }
           if ($totalUses -gt 0) {
             $pinRate = [math]::Round(($pinnedUses / $totalUses) * 100, 1)
             if ($pinRate -lt 100) {
@@ -1509,8 +1600,19 @@ jobs:
             }
           }
 
-          # Check pull_request_target
-          if ($allContent -match 'pull_request_target') {
+          # Check pull_request_target (on: section only)
+          $hasPRT = $false
+          foreach ($wf in $workflows) {
+            $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
+            $inOnSection = $false
+            foreach ($ln in $lines) {
+              if ($ln -match '^on:') { $inOnSection = $true; continue }
+              if ($inOnSection -and $ln -match '^[a-zA-Z]') { $inOnSection = $false }
+              if ($inOnSection -and $ln -match 'pull_request_target') { $hasPRT = $true; break }
+            }
+            if ($hasPRT) { break }
+          }
+          if ($hasPRT) {
             $score -= 20
             $deductions += "pull_request_target trigger (-20)"
           }
@@ -1671,9 +1773,27 @@ jobs:
             # Check permissions
             $hasPerms = if ($content -match '(?m)^permissions:') { "Yes" } else { "No" }
 
-            # Check pinning
-            $totalActs = ([regex]::Matches($content, 'uses:')).Count
-            $pinnedActs = ([regex]::Matches($content, 'uses:.*@[0-9a-f]{40}')).Count
+            # Check pinning (skip run: block content)
+            $totalActs = 0
+            $pinnedActs = 0
+            $inRunBlock = $false
+            $runIndent = 0
+            foreach ($ln in $lines) {
+              if ($ln -match '^(\s*)run:\s*\|') {
+                $inRunBlock = $true
+                $runIndent = $matches[1].Length
+                continue
+              }
+              if ($inRunBlock) {
+                if ($ln -match '^\S' -or ($ln -match '^(\s*)\S' -and $matches[1].Length -le $runIndent)) {
+                  $inRunBlock = $false
+                }
+              }
+              if (-not $inRunBlock -and $ln -match 'uses:') {
+                $totalActs++
+                if ($ln -match '@[0-9a-f]{40}') { $pinnedActs++ }
+              }
+            }
             $pinStatus = if ($totalActs -eq 0) { "N/A" } else { "$pinnedActs/$totalActs" }
 
             $report += "| ``$(Sanitize-Line $wf.Name)`` | $(Sanitize-Line $triggers) | $hasPerms | $pinStatus |"
