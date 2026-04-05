@@ -1,0 +1,22 @@
+name: 'Shell Hardening'
+description: 'Initialize shell hardening: sanitize-sed.sh, credential cleanup, safe.directory'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Initialize shell hardening
+      shell: bash
+      env:
+        BASH_ENV: /dev/null
+      run: |
+        set -euo pipefail
+        git config --global credential.helper ""
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        unset GITHUB_TOKEN || true
+
+        SANITIZER="$GITHUB_WORKSPACE/.github/scripts/sanitize-sed.sh"
+        if [ -f "$SANITIZER" ]; then
+          echo "[OK] sanitize-sed.sh available at ${SANITIZER}"
+        else
+          echo "[WARN] sanitize-sed.sh not found -- workflows must use inline fallback"
+        fi
