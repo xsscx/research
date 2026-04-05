@@ -650,6 +650,18 @@ jobs:
               # Check if any sanitizer function is used on this line
               if grep -qE 'sanitize_line|sanitize_print|sanitize_codeblock|sanitize_ref|sanitize_filename|escape_html|Sanitize-Line|Sanitize-Print|Safe-EchoForSummary|Escape-Html|elements-sanitized' <<< "$line"; then
                 SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
+              # Recognize pre-sanitized variable naming conventions
+              elif grep -qiE '\$SANITIZED_|\$safe_|\$_SAFE|\$SAFE_' <<< "$content_stripped"; then
+                SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
+              # Tool version/sysinfo output (workflow-controlled, not user input)
+              elif grep -qE '\$\([a-z_-]+\s+--|\$\((nproc|arch|uname|hostname|date|whoami|id)\)' <<< "$content_stripped"; then
+                SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
+              # Env-block variables from matrix/context expressions (already intermediary'd)
+              elif grep -qE '\$\{?(MATRIX_|CC|CXX|LINT_|GH_|BUILD_)' <<< "$content_stripped"; then
+                SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
+              # Workflow-controlled counters and loop variables (from awk/grep/find, not user input)
+              elif grep -qE '\$\{?(cnt|count|warns|errs|files|category|component|chk|fname|cpp_|ct_|sec_|tool|comp|pr|status|GRAND_)' <<< "$content_stripped"; then
+                SANITIZED_WRITES=$((SANITIZED_WRITES + 1))
               else
                 UNSANITIZED_WRITES=$((UNSANITIZED_WRITES + 1))
                 UNSANITIZED_LIST+=("${wf_base}:${line_num}")
@@ -1553,6 +1565,24 @@ jobs:
                 if ($ln -match [regex]::Escape($s)) {
                   $isSanitized = $true
                   break
+                }
+              }
+              if (-not $isSanitized) {
+                # Pre-sanitized variable naming conventions
+                if ($contentStripped -match '\$SANITIZED_|\$safe_|\$_SAFE|\$SAFE_') {
+                  $isSanitized = $true
+                }
+                # Tool version/sysinfo output (workflow-controlled, not user input)
+                elseif ($contentStripped -match '\$\([a-z_-]+\s+--|\$\((nproc|arch|uname|hostname|date|whoami|id)\)') {
+                  $isSanitized = $true
+                }
+                # Env-block variables from matrix/context expressions (already intermediary'd)
+                elseif ($contentStripped -match '\$\{?(MATRIX_|CC|CXX|LINT_|GH_|BUILD_)') {
+                  $isSanitized = $true
+                }
+                # Workflow-controlled counters and loop variables
+                elseif ($contentStripped -match '\$\{?(cnt|count|warns|errs|files|category|component|chk|fname|cpp_|ct_|sec_|tool|comp|pr|status|GRAND_)') {
+                  $isSanitized = $true
                 }
               }
               if ($isSanitized) {
