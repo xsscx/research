@@ -336,21 +336,17 @@ jobs:
             wf_base=$(basename "$wf")
 
             # Determine if workflow uses bash (has run: blocks without explicit pwsh shell)
+            # A workflow is pwsh-only if: shell: pwsh count >= run: block count AND no shell: bash
             HAS_BASH_STEPS="false"
             if grep -qE 'shell:\s*bash' "$wf" 2>/dev/null; then
               HAS_BASH_STEPS="true"
-            elif grep -qE '^\s+run:\s*\|' "$wf" 2>/dev/null; then
-              # Has run: blocks -- check if ALL are under pwsh shell
-              if ! grep -qE 'shell:\s*pwsh' "$wf" 2>/dev/null; then
-                HAS_BASH_STEPS="true"
+            elif grep -qE '^\s+run:' "$wf" 2>/dev/null; then
+              run_count=$(grep -cE '^\s+run:' "$wf" 2>/dev/null || echo 0)
+              pwsh_count=$(grep -cE 'shell:\s*pwsh' "$wf" 2>/dev/null || echo 0)
+              if [[ "$pwsh_count" -ge "$run_count" ]] && [[ "$pwsh_count" -gt 0 ]]; then
+                HAS_BASH_STEPS="false"
               else
-                # Mixed: has both pwsh and run blocks -- check defaults
-                if ! grep -qE 'shell:\s*bash' "$wf" 2>/dev/null && \
-                   grep -qB5 '^\s\+run:' "$wf" 2>/dev/null | grep -q 'shell.*pwsh'; then
-                  HAS_BASH_STEPS="false"
-                else
-                  HAS_BASH_STEPS="true"
-                fi
+                HAS_BASH_STEPS="true"
               fi
             fi
 
@@ -366,11 +362,16 @@ jobs:
               WF_WITH_BASH_ENV=$((WF_WITH_BASH_ENV + 1))
             fi
 
-            if grep -q 'credential.helper' "$wf"; then
-              WF_WITH_CRED_CLEANUP=$((WF_WITH_CRED_CLEANUP + 1))
+            if [[ "$HAS_BASH_STEPS" == "true" ]]; then
+              if grep -q 'credential.helper' "$wf"; then
+                WF_WITH_CRED_CLEANUP=$((WF_WITH_CRED_CLEANUP + 1))
+              else
+                WF_MISSING_CRED=$((WF_MISSING_CRED + 1))
+                MISSING_CRED+=("$wf_base")
+              fi
             else
-              WF_MISSING_CRED=$((WF_MISSING_CRED + 1))
-              MISSING_CRED+=("$wf_base")
+              # PowerShell-only -- credential.helper is bash-specific
+              WF_WITH_CRED_CLEANUP=$((WF_WITH_CRED_CLEANUP + 1))
             fi
 
             if grep -q 'persist-credentials.*false' "$wf"; then
@@ -543,7 +544,9 @@ jobs:
                 if ($0 !~ /^[[:space:]]*$/ && cur <= run_indent) { in_run = 0 }
               }
               in_run && /\$\{\{/ {
-                if (/matrix\./ || /github\.event\.(issue|pull_request)\.(title|body)/ || /github\.head_ref/ || /inputs\./) {
+                if (/\$\{\{[^}]* matrix\./ || /\$\{\{ *matrix\./ || /github\.event\.(issue|pull_request)\.(title|body)/ || /github\.head_ref/ || /inputs\./) {
+                  # Exclude safe contexts: needs.*.result contains "matrix." as substring
+                  if (/needs\.[a-zA-Z0-9_-]*\.result/) next
                   gsub(/^[[:space:]]+/, "")
                   print
                 }
@@ -603,8 +606,10 @@ jobs:
             while IFS= read -r line; do
               line_num=$((line_num + 1))
               if grep -q 'GITHUB_STEP_SUMMARY' <<< "$line"; then
-                # Skip static-only writes (no variables or command substitution)
-                if ! grep -qE '\$[a-zA-Z_{(]|`' <<< "$line"; then
+                # Extract the content being written (strip the >> $GITHUB_STEP_SUMMARY target)
+                content_part=$(sed 's/>>.*GITHUB_STEP_SUMMARY.*//; s/Out-File.*GITHUB_STEP_SUMMARY.*//' <<< "$line")
+                # Skip static-only writes (no variables or command substitution in content)
+                if ! grep -qE '\$[a-zA-Z_{(]|\$\(|`' <<< "$content_part"; then
                   continue
                 fi
                 SUMMARY_WRITES=$((SUMMARY_WRITES + 1))
@@ -1234,19 +1239,13 @@ jobs:
             $hasBashSteps = $false
             if ($content -match 'shell:\s*bash') {
               $hasBashSteps = $true
-            } elseif ($content -match '(?m)^\s+run:\s*\|') {
-              # Has run: blocks -- only flag if NOT all under pwsh shell
-              if ($content -notmatch 'shell:\s*pwsh') {
-                $hasBashSteps = $true
+            } elseif ($content -match '(?m)^\s+run:') {
+              $runCount = ([regex]::Matches($content, '(?m)^\s+run:')).Count
+              $pwshCount = ([regex]::Matches($content, 'shell:\s*pwsh')).Count
+              if ($pwshCount -ge $runCount -and $pwshCount -gt 0) {
+                $hasBashSteps = $false
               } else {
-                # Mixed workflow -- check if defaults specify pwsh
-                $lines = Get-Content $wf.FullName -ErrorAction SilentlyContinue
-                $defaultsPwsh = $false
-                foreach ($ln in $lines) {
-                  if ($ln -match '^\s+shell:\s*pwsh') { $defaultsPwsh = $true }
-                }
-                # If all run blocks are preceded by shell: pwsh, skip BASH_ENV check
-                if (-not $defaultsPwsh) { $hasBashSteps = $true }
+                $hasBashSteps = $true
               }
             }
 
@@ -1258,8 +1257,13 @@ jobs:
               $bashEnvCount++
             }
 
-            if ($content -match 'credential\.helper') { $credCleanupCount++ }
-            else { $issues += "$($wf.Name): missing credential.helper cleanup" }
+            if ($hasBashSteps) {
+              if ($content -match 'credential\.helper') { $credCleanupCount++ }
+              else { $issues += "$($wf.Name): missing credential.helper cleanup" }
+            } else {
+              # PowerShell-only -- credential.helper is bash-specific
+              $credCleanupCount++
+            }
 
             if ($content -match 'unset GITHUB_TOKEN\b|Remove-Item env:GITHUB_TOKEN') { $tokenUnsetCount++ }
           }
@@ -1408,6 +1412,8 @@ jobs:
                 foreach ($pat in $unsafePatterns) {
                   $exprPattern = '\$\{\{[^}]*' + $pat
                   if ($ln -match $exprPattern) {
+                    # Exclude safe contexts: needs.*.result contains "matrix." as substring
+                    if ($ln -match 'needs\.[a-zA-Z0-9_-]+\.result') { continue }
                     $findings += "$($wf.Name):$lineNum -- $(Sanitize-Line $ln.Trim())"
                   }
                 }
@@ -1457,8 +1463,10 @@ jobs:
             foreach ($ln in $lines) {
               $lineNum++
               if ($ln -match 'GITHUB_STEP_SUMMARY') {
-                # Skip static-only writes (no variable interpolation)
-                if ($ln -notmatch '\$[a-zA-Z_{(]' -and $ln -notmatch '`') {
+                # Strip the output target reference before checking for variable interpolation
+                $contentPart = $ln -replace '>>.*GITHUB_STEP_SUMMARY.*', '' -replace 'Out-File.*GITHUB_STEP_SUMMARY.*', '' -replace '\$env:GITHUB_STEP_SUMMARY', ''
+                # Skip static-only writes (no variables or command substitution in content)
+                if ($contentPart -notmatch '\$[a-zA-Z_{(]' -and $contentPart -notmatch '\$\(' -and $contentPart -notmatch '`') {
                   continue
                 }
                 $totalSummaryWrites++
