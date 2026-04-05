@@ -43,6 +43,7 @@ jobs:
 
     env:
       BASH_ENV: /dev/null
+      ICCDEV_REF: ${{ github.event.inputs.ref || 'master' }}
 
     steps:
       - name: Checkout repository
@@ -72,7 +73,7 @@ jobs:
           CXX: clang++-18
         run: |
           set -euo pipefail
-          REF="${{ github.event.inputs.ref || 'master' }}"
+          REF="$ICCDEV_REF"
 
           # Clone iccDEV
           if [ ! -d "/tmp/iccdev" ]; then
@@ -682,7 +683,7 @@ jobs:
           {
             echo "## iccDEV Code Coverage Report"
             echo ""
-            echo "**Branch**: \`${{ github.event.inputs.ref || 'master' }}\`"
+            echo "**Branch**: \`$ICCDEV_REF\`"
             echo ""
             echo "### Test Execution"
             echo "| Metric | Value |"

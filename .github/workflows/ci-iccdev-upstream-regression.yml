@@ -46,6 +46,7 @@ env:
   CC: clang-18
   CXX: clang++-18
   BASH_ENV: /dev/null
+  ICCDEV_REF: ${{ github.event.inputs.ref || 'master' }}
 
 jobs:
   regression-gate:
@@ -68,7 +69,7 @@ jobs:
         with:
           persist-credentials: false
           repository: InternationalColorConsortium/iccDEV
-          ref: ${{ github.event.inputs.ref || 'master' }}
+          ref: ${{ env.ICCDEV_REF }}
           path: iccDEV
 
       - name: "Build iccDEV (Debug + ASAN + UBSAN)"
@@ -180,7 +181,7 @@ jobs:
 
           echo "============================================="
           echo " iccDEV Upstream Functional Regression Tests"
-          echo " ref: ${{ github.event.inputs.ref || 'master' }}"
+          echo " ref: $ICCDEV_REF"
           echo "============================================="
           echo ""
 
@@ -447,7 +448,7 @@ jobs:
             sanitize_line() { escape_html "$1"; }
           fi
 
-          REF="${{ github.event.inputs.ref || 'master' }}"
+          REF="$ICCDEV_REF"
           {
             echo "## iccDEV Upstream Regression Gate"
             echo ""
