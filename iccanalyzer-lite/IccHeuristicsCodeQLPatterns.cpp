@@ -1082,6 +1082,51 @@ static void ScanH174TagHalfFloats(RawProfileContext &ctx,
                       tagSig, field.name, raw);
         RecordH174Hit(result, msg);
       }
+    } else if (!parseTimeOnly && typeSig == 0x6D706574) { // 'mpet'
+      // Scan inside multiProcessElementType for embedded sngf/samf elements
+      // that use float16 storage. These call ReadFloat16Float() at load time.
+      static const size_t kMpetScanMax = 65536;
+      size_t mpetScan = static_cast<size_t>(tag.size);
+      if (mpetScan > kMpetScanMax) mpetScan = kMpetScanMax;
+      if (static_cast<uint64_t>(tag.offset) + mpetScan > ctx.fileSize())
+        mpetScan = ctx.fileSize() - tag.offset;
+
+      std::vector<uint8_t> mpetBuf(mpetScan);
+      if (!ctx.ReadAt(tag.offset, mpetBuf.data(), mpetScan)) continue;
+
+      // Search for sngf (0x736E6766) and samf (0x73616D66) sub-element signatures
+      static const uint32_t kF16Elems[] = {0x736E6766, 0x73616D66};
+      static const char *kF16Names[] = {"sngf", "samf"};
+
+      for (size_t pos = 16; pos + 28 < mpetScan; pos += 4) {
+        uint32_t subSig = ReadU32BE(&mpetBuf[pos]);
+        for (int ei = 0; ei < 2; ++ei) {
+          if (subSig != kF16Elems[ei]) continue;
+          // storageType at element+12 (2 bytes)
+          if (pos + 14 > mpetScan) break;
+          uint16_t storageType = ReadU16BE(&mpetBuf[pos + 12]);
+          if (storageType != 0) break; // 0 = icValueTypeFloat16
+
+          // Scan data values starting at element+28
+          size_t dataStart = pos + 28;
+          size_t maxVals = 32;
+          for (size_t vi = 0; vi < maxVals && dataStart + vi * 2 + 2 <= mpetScan; ++vi) {
+            uint16_t raw = ReadU16BE(&mpetBuf[dataStart + vi * 2]);
+            if (!HalfFloatTriggersIccUtilUB(raw)) continue;
+
+            char msg[256];
+            char tagS[5];
+            SigToChars(tag.sig, tagS);
+            std::snprintf(msg, sizeof(msg),
+                          "tag '%s' embedded %s element (float16 storage) "
+                          "value raw=0x%04X at mpet+0x%zX",
+                          tagS, kF16Names[ei], raw, dataStart + vi * 2);
+            RecordH174Hit(result, msg);
+            break; // one example per element suffices
+          }
+          break;
+        }
+      }
     }
   }
 }
