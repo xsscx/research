@@ -564,7 +564,7 @@ static CheckResult check_cf114_mcs_colour_space_consistency(const ProfileView& p
 static CheckResult check_cf115_calculator_element_complexity(const ProfileView& pv) {
     if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
     if (!pv.libraryLoaded()) {
-        if (pv.requiresLibraryQuarantine()) {
+        if (pv.librarySkippedDueToUB()) {
             return CheckResult::ok("NOT RUN: Library quarantined");
         }
         return CheckResult::skip("NOT RUN: Profile failed to load");
