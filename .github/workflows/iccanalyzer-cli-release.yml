@@ -118,7 +118,8 @@ jobs:
         env:
           BASH_ENV: /dev/null
           DEBIAN_FRONTEND: noninteractive
-          CXX: clang++
+          CC: clang-18
+          CXX: clang++-18
         run: |
           set -euo pipefail
           git config --add safe.directory "$PWD"
@@ -406,9 +407,9 @@ jobs:
           echo "</div>" >> $INDEX_FILE
 
           echo "<div class='stats'>" >> $INDEX_FILE
-          echo "<div class='stat-box'><div class='stat-value'>$grand_total</div><div class='stat-label'>Total Tests</div></div>" >> $INDEX_FILE
-          echo "<div class='stat-box'><div class='stat-value' style='color: green;'>$grand_success</div><div class='stat-label'>Clean</div></div>" >> $INDEX_FILE
-          echo "<div class='stat-box'><div class='stat-value' style='color: #cc6600;'>$grand_failed</div><div class='stat-label'>Findings</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value'>${grand_total:-0}</div><div class='stat-label'>Total Tests</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value' style='color: green;'>${grand_success:-0}</div><div class='stat-label'>Clean</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value' style='color: #cc6600;'>${grand_failed:-0}</div><div class='stat-label'>Findings</div></div>" >> $INDEX_FILE
           echo "</div>" >> $INDEX_FILE
 
           html_esc() { printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g'; }
@@ -611,12 +612,12 @@ jobs:
           echo "**Tag:** \`$(sanitize_line "${RELEASE_TAG}")\`" >> $GITHUB_STEP_SUMMARY
           echo "**URL:** ${{ github.server_url }}/${{ github.repository }}/releases/tag/$(sanitize_line "${RELEASE_TAG}")" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ env.grand_failed }}" -eq 0 ]; then
+          if [ "${grand_failed:-0}" -eq 0 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### [OK] ALL CLEAN — No sanitizer findings detected across all modes" >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### [WARN] $(sanitize_line "${{ env.grand_failed }}") FINDING(S) — Sanitizer detections captured" >> $GITHUB_STEP_SUMMARY
+            echo "### [WARN] $(sanitize_line "${grand_failed:-0}") FINDING(S) — Sanitizer detections captured" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Final status
@@ -626,15 +627,15 @@ jobs:
           echo "  CLI Test Suite → Release COMPLETE"
           echo "============================================"
           echo "Tag:      ${{ steps.package.outputs.release_tag }}"
-          echo "Total:    ${{ env.grand_total }} tests"
-          echo "Clean:    ${{ env.grand_success }}"
-          echo "Findings: ${{ env.grand_failed }}"
-          echo "Rate:     ${{ env.clean_rate }}%"
+          echo "Total:    ${grand_total:-0} tests"
+          echo "Clean:    ${grand_success:-0}"
+          echo "Findings: ${grand_failed:-0}"
+          echo "Rate:     ${clean_rate:-0}%"
           echo "============================================"
 
-          if [ "${{ env.grand_failed }}" -eq 0 ]; then
+          if [ "${grand_failed:-0}" -eq 0 ]; then
             echo "STATUS: ALL CLEAN"
           else
-            echo "STATUS: ${{ env.grand_failed }} finding(s) — sanitizer detections, not infrastructure failures"
+            echo "STATUS: ${grand_failed:-0} finding(s) — sanitizer detections, not infrastructure failures"
           fi
           exit 0
