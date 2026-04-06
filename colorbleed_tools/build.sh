@@ -248,12 +248,14 @@ build_config() {
   fi
 
   # -- Link tools --
-  # Compile OOM guard (icRealloc override) as separate object.
-  # Linked BEFORE static libs so our definition takes precedence.
+  # Compile override objects as separate .o files.
+  # Linked BEFORE static libs so our definitions take precedence.
   local alloc_obj="$build_dir/ColorBleedAlloc.o"
   local compat_obj="$build_dir/ColorBleedCompat.o"
+  local f16_obj="$build_dir/ColorBleedSafeF16.o"
   $CXX $tool_flags -c "$REPO_ROOT/ColorBleedAlloc.cpp" -o "$alloc_obj"
   $CXX $tool_flags $INCLUDE_FLAGS -c "$REPO_ROOT/ColorBleedCompat.cpp" -o "$compat_obj"
+  $CXX $tool_flags $INCLUDE_FLAGS -c "$REPO_ROOT/ColorBleedSafeF16.cpp" -o "$f16_obj"
 
   mkdir -p "$out_dir"
   cd "$REPO_ROOT"
@@ -271,6 +273,7 @@ build_config() {
     $CXX $tool_flags $INCLUDE_FLAGS "$src" \
       "$alloc_obj" \
       "$compat_obj" \
+      "$f16_obj" \
       "$lib_prof" "$lib_xml" \
       $LINK_LIBS \
       -o "$out_dir/$bin"

@@ -771,6 +771,43 @@ static void scan_h174_tag_half_floats(const ProfileView& pv,
                                 sfmt("tag '%s' %s raw=0x%04X",
                                      tagName.c_str(), field.name, raw));
             }
+        } else if (typeSig == 0x6D706574) { // 'mpet'
+            // Scan inside multiProcessElementType for embedded sngf/samf elements
+            // that use float16 storage (ReadFloat16Float path)
+            static const size_t kMpetScanMax = 65536;
+            size_t mpetScan = tag.size;
+            if (mpetScan > kMpetScanMax) mpetScan = kMpetScanMax;
+            if (static_cast<uint64_t>(tag.offset) + mpetScan > len)
+                mpetScan = len - tag.offset;
+
+            static const uint32_t kF16Elems[] = {0x736E6766, 0x73616D66}; // sngf, samf
+            static const char* kF16Names[] = {"sngf", "samf"};
+
+            for (size_t pos = 16; pos + 28 < mpetScan; pos += 4) {
+                uint32_t subSig = readU32BE(d + tag.offset + pos);
+                for (int ei = 0; ei < 2; ++ei) {
+                    if (subSig != kF16Elems[ei]) continue;
+                    if (tag.offset + pos + 14 > len) break;
+                    uint16_t storageType = readU16BE(d + tag.offset + pos + 12);
+                    if (storageType != 0) break; // 0 = icValueTypeFloat16
+
+                    size_t dataStart = pos + 28;
+                    size_t maxVals = 32;
+                    for (size_t vi = 0; vi < maxVals &&
+                         tag.offset + dataStart + vi * 2 + 2 <= len &&
+                         dataStart + vi * 2 + 2 <= mpetScan; ++vi) {
+                        uint16_t raw = readU16BE(d + tag.offset + dataStart + vi * 2);
+                        if (!halfFloatTriggersIccUtilUB(raw)) continue;
+                        record_h174_hit(result,
+                                        sfmt("tag '%s' embedded %s element (float16 storage) "
+                                             "value raw=0x%04X at mpet+0x%zX",
+                                             tagName.c_str(), kF16Names[ei], raw,
+                                             dataStart + vi * 2));
+                        break; // one example per element
+                    }
+                    break;
+                }
+            }
         }
     }
 }
