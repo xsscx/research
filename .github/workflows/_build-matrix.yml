@@ -194,6 +194,10 @@ jobs:
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
           else
+            # On macOS, clang-18 is in Homebrew's llvm@18 prefix
+            if [ -d "/opt/homebrew/opt/llvm@18/bin" ]; then
+              echo "/opt/homebrew/opt/llvm@18/bin" >> "$GITHUB_PATH"
+            fi
             echo "CC=clang-18" >> "$GITHUB_ENV"
             echo "CXX=clang++-18" >> "$GITHUB_ENV"
           fi
@@ -229,7 +233,7 @@ jobs:
 
           # Enable ccache if available
           if command -v ccache >/dev/null 2>&1; then
-            export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+            export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:/opt/homebrew/opt/ccache/libexec:$PATH"
             if [ "$MATRIX_COMPILER" = "gcc" ]; then
               export CC="ccache gcc"
               export CXX="ccache g++"

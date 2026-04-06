@@ -166,6 +166,10 @@ jobs:
             echo "CC=gcc" >> $GITHUB_ENV
             echo "CXX=g++" >> $GITHUB_ENV
           else
+            # On macOS, clang-18 is in Homebrew's llvm@18 prefix
+            if [ -d "/opt/homebrew/opt/llvm@18/bin" ]; then
+              echo "/opt/homebrew/opt/llvm@18/bin" >> "$GITHUB_PATH"
+            fi
             echo "CC=clang-18" >> $GITHUB_ENV
             echo "CXX=clang++-18" >> $GITHUB_ENV
           fi
