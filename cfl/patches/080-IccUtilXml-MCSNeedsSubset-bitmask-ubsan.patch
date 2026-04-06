@@ -1,0 +1,13 @@
+diff --git a/IccXML/IccLibXML/IccUtilXml.cpp b/IccXML/IccLibXML/IccUtilXml.cpp
+index 3ae39e8..3ef4dd5 100644
+--- a/IccXML/IccLibXML/IccUtilXml.cpp
++++ b/IccXML/IccLibXML/IccUtilXml.cpp
+@@ -1573,7 +1573,7 @@ const std::string icGetHeaderFlagsName(icUInt32Number flags, bool bUsesMCS)
+       snprintf(line, lineSize, " MCSNeedsSubset=\"false\"");
+     xml += line;
+ 
+-    otherFlags &= ~icMCSNeedsSubsetTrue;
++    otherFlags &= ~(icUInt32Number)icMCSNeedsSubsetTrue;
+   }
+ 
+   if (flags & otherFlags) {

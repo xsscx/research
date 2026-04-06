@@ -77,7 +77,6 @@ Security patches applied to iccDEV before building. Retired patches are in `patc
 | 056 | Spectral Describe null pointer guards | CWE-476 | IccMpeSpectral.cpp |
 | 057 | SearchApply uninitialized members | CWE-908 | IccCmmConfig.cpp |
 | 059 | TagCurve Begin nMaxIndex UBSAN | CWE-681 | IccTagLut.h |
-| 061 | icF16toF unsigned underflow | CWE-191 | IccUtil.cpp |
 | 062 | icGetSig implicit char conversion | CWE-681 | IccUtil.cpp |
 | 063 | Bounds check unsigned overflow | CWE-190 | IccProfile.cpp, IccTagMPE.cpp, IccMpeCalc.cpp |
 | 064 | Segmented curve subtraction underflow | CWE-191 | IccMpeBasic.cpp |
@@ -90,6 +89,7 @@ Security patches applied to iccDEV before building. Retired patches are in `patc
 | 075 | IccCmmConfig uninit + format fixes | CWE-908 | IccCmmConfig.cpp |
 | 077 | CAM CalcCoefficients div-by-zero guard | CWE-369 | IccCAM.cpp |
 | 078 | AddXform cenc UAF guard | CWE-416 | IccCmm.cpp |
+| 080 | IccUtilXml MCSNeedsSubset bitmask UBSAN | CWE-681 | IccUtilXml.cpp |
 
 ### Upstream Status
 
@@ -113,6 +113,7 @@ Patches accepted upstream in iccDEV v2.3.1.5/v2.3.1.6, or superseded by LibFuzze
 | 020, 024, 026-027 | Accepted upstream | PRs #683, #694, #692 |
 | 034, 037, 039 | Accepted upstream | commit c2ea9da |
 | 036 | Accepted upstream v2.3.1.6 | linkGridSize toJson |
+| 061 | Accepted upstream | PR #768 (icF16toF unsigned underflow) |
 | 065 | Accepted upstream v2.3.1.6 | IccTagLut nEnd underflow |
 | 076 | Accepted upstream v2.3.1.6 | GBD signed channel type confusion |
 | 074-083 (old series) | Superseded by LibFuzzer runtime limits | CWE-400 timeout/OOM patterns |
