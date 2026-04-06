@@ -143,11 +143,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          brew install cmake llvm@18 libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo
-          # Homebrew llvm@18 ships clang-18 but not clang++-18 (Debian naming)
-          if [ -d "/opt/homebrew/opt/llvm@18/bin" ] && [ ! -f "/opt/homebrew/opt/llvm@18/bin/clang++-18" ]; then
-            ln -s clang++ /opt/homebrew/opt/llvm@18/bin/clang++-18
-          fi
+          brew install cmake libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo
           ccache --zero-stats || true
 
       - name: Clone iccDEV
@@ -197,11 +193,11 @@ jobs:
           if [ "$MATRIX_COMPILER" = "gcc" ]; then
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
+          elif [ "$(uname -s)" = "Darwin" ]; then
+            # macOS: use Apple clang (avoids Homebrew libc++ header conflicts)
+            echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
           else
-            # On macOS, clang-18 is in Homebrew's llvm@18 prefix
-            if [ -d "/opt/homebrew/opt/llvm@18/bin" ]; then
-              echo "/opt/homebrew/opt/llvm@18/bin" >> "$GITHUB_PATH"
-            fi
             echo "CC=clang-18" >> "$GITHUB_ENV"
             echo "CXX=clang++-18" >> "$GITHUB_ENV"
           fi
