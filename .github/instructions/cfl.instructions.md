@@ -2,7 +2,7 @@
 applyTo: "cfl/**"
 ---
 
-# CFL (ClusterFuzzLite) — Path-Specific Instructions
+# CFL (ClusterFuzzLite) -- Path-Specific Instructions
 
 ## What This Is
 
@@ -15,26 +15,26 @@ Each fuzzer has a custom-built dictionary, seed corpus, and ASAN+UBSAN instrumen
 cd cfl && ./build.sh   # clones iccDEV if missing, applies patches, builds 13 fuzzers
 ```
 
-- **First run**: clones `github.com/InternationalColorConsortium/iccDEV.git` into `cfl/iccDEV/`
-- **Subsequent runs**: reuses existing `cfl/iccDEV/` checkout — does NOT auto-update
-- Applies targeted patches from `cfl/patches/` (new findings only — see Patch System below)
+- **First run**: clones iccDEV into `cfl/iccDEV/`
+- **Subsequent runs**: reuses existing checkout (does NOT auto-update)
+- Applies targeted patches from `cfl/patches/`
 - Compiler: clang++ 18 with `-fsanitize=address,undefined,fuzzer`
 - Binaries: `cfl/bin/icc_*_fuzzer` (13 total)
 
 ## Upstream Sync
 
-When upstream iccDEV changes:
 ```bash
 cd cfl/iccDEV && git fetch origin && git reset --hard origin/master && git clean -fd
 cd .. && ./build.sh   # re-applies patches and rebuilds
 ```
 
-Current upstream: commit **e62525a** / v2.3.1.5 (2026-03-19)
+**CRITICAL**: After sync, delete `Build/` to avoid stale cmake cache retaining
+wrong sanitizer flags. Verify ASAN: `nm cfl/bin/icc_dump_fuzzer | grep -c __asan` (must be > 0).
 
 ## The 13 Fuzzers
 
-| # | Fuzzer Binary | Primary Target |
-|---|--------------|----------------|
+| # | Binary | Primary Target |
+|---|--------|----------------|
 | 1 | icc_applynamedcmm_fuzzer | Named color CMM |
 | 2 | icc_applyprofiles_fuzzer | Multi-profile transforms |
 | 3 | icc_dump_fuzzer | CIccProfile::Describe() |
@@ -45,573 +45,154 @@ Current upstream: commit **e62525a** / v2.3.1.5 (2026-03-19)
 | 8 | icc_specsep_fuzzer | Spectral separation |
 | 9 | icc_tiffdump_fuzzer | TIFF tag reading |
 | 10 | icc_toxml_fuzzer | CIccProfile::SaveXml() |
-| 11 | icc_v5dspobs_fuzzer | v5 DspObs→v4 conversion |
+| 11 | icc_v5dspobs_fuzzer | v5 DspObs->v4 conversion |
 | 12 | icc_applysearch_fuzzer | CIccCmmSearch optimization |
-| 13 | icc_cfg_fuzzer | JSON config parsing (IccCmmConfig) |
+| 13 | icc_cfg_fuzzer | JSON config parsing |
 
-## Patch System (Post-Retirement Architecture)
+## Patch System
 
-### History
-62 legacy CFL patches (CFL-001 through CFL-083, with gaps) were retired in March 2026
-after repeated multi-hour rework cycles caused by context conflicts, false success
-claims, and upstream sync overhead. Retired patches are preserved in `cfl/patches-retired/`
-for historical reference.
+62 legacy patches retired March 2026 (preserved in `cfl/patches-retired/`).
+Current approach: minimal targeted patches for verified upstream bugs only.
+Timeouts/OOMs handled by LibFuzzer `-timeout=30 -rss_limit_mb=4096`.
 
-### Current Approach
-- **Minimal targeted patches** in `cfl/patches/` — only for verified upstream bugs
-- Timeouts and OOMs handled by LibFuzzer's built-in `-timeout=30 -rss_limit_mb=4096`
-- Real crashes become upstream bug reports
-- build.sh applies patches with 3-state detection: applied, already-applied, FAIL
+### Active Patches (41 files, CFL-001 through CFL-080)
 
-### Active Patches
+| Patch | Bug Summary | CWE | Primary File |
+|-------|------------|-----|-------------|
+| 001 | icAnsiToUtf8 null termination HBO | CWE-125/170 | IccTagBasic.cpp, IccUtilXml.cpp |
+| 002 | GamutBoundary triangles overflow | CWE-190 | IccTagLut.cpp |
+| 004 | ToneMapFunc Read parameter count HBO | CWE-122 | IccMpeBasic.cpp |
+| 005 | CalculatorFunc Read enum UBSAN | CWE-681 | IccMpeCalc.cpp |
+| 006 | SpectralMatrix Describe bounds HBO | CWE-122 | IccMpeSpectral.cpp |
+| 007 | TagArray Read overflow guard | CWE-190 | IccTagComposite.cpp |
+| 008 | TagCurve Apply NaN-to-unsigned | CWE-681 | IccTagLut.cpp |
+| 009 | EnvVar Exec enum UBSAN | CWE-681 | IccMpeCalc.cpp |
+| 014 | SequenceNeedTempReset recursion | CWE-674 | IccMpeCalc.cpp |
+| 017 | GetEnvSig parse enum UBSAN | CWE-681 | IccMpeCalc.cpp |
+| 019 | PCC getReflectanceObserver null | CWE-476 | IccPcc.cpp |
+| 021 | SingleSampledCurve OOM size | CWE-400 | IccMpeBasic.cpp |
+| 022 | Calc Trunc/Floor/Ceil int overflow | CWE-681 | IccMpeCalc.cpp |
+| 023 | Sampled curve NaN-to-unsigned | CWE-681 | IccMpeBasic.cpp |
+| 025 | CLUT InterpNd null Apply guard | CWE-476 | IccTagLut.cpp |
+| 028 | MatrixMath SetRange NaN guard | CWE-681 | IccMatrixMath.cpp |
+| 029 | TagArray operator= loop var | CWE-824 | IccTagComposite.cpp |
+| 030 | FixedNum GetValues SBO | CWE-121 | IccTagBasic.cpp |
+| 031 | loadJsonFrom ftell overflow | CWE-190/252 | IccJsonUtil.cpp |
+| 032 | icXformInterp enum range | CWE-20/681 | IccCmmConfig.cpp |
+| 033 | PccWeight fromJson field swap | CWE-843 | IccCmmConfig.cpp |
+| 034 | SearchApply interpolation key | CWE-345 | IccCmmConfig.cpp |
+| 035 | ApplyCmmSearch m_nApply OOB | CWE-122 | IccCmmSearch.cpp |
+| 036-039 | CreateLink/Profile/Search toJson | CWE-345/561 | IccCmmConfig.cpp |
+| 040-042 | fromIt8 CMYK/LAB/parse bugs | CWE-787/125/20 | IccCmmConfig.cpp |
+| 043 | Tool toJson is_object vs is_array | CWE-697 | iccApplyNamedCmm.cpp |
+| 044-048 | NDLut/AddXform/PCS/DumpLut guards | CWE-476/762/122 | IccCmm.cpp, IccTagLut.cpp |
+| 049-055 | MBB/FormulaCurve/ParametricCurve | CWE-125/134 | IccTagLut.cpp, IccMpeBasic.cpp |
+| 056-059 | Spectral null/uninitialized/UBSAN | CWE-476/908/681 | IccMpeSpectral.cpp, IccIO.cpp |
+| 060-062 | icGetSigStr/icF16toF/icGetSig | CWE-190/191/681 | IccUtil.cpp |
+| 063-067 | Bounds check/segmented curve/bitmask | CWE-190/191/681 | Multiple files |
+| 076 | GBD signed channel type confusion | CWE-681 | IccTagLut.h |
+| 077 | CAM CalcCoefficients div-by-zero | CWE-369 | IccCAM.cpp |
+| 078 | AddXform cenc UAF guard | CWE-416 | IccCmm.cpp |
+| 080 | IccUtilXml MCSNeedsSubset UBSAN | CWE-681 | IccUtilXml.cpp |
 
-| # | Patch | Bug | CWE | Files Modified |
-|---|-------|-----|-----|----------------|
-| 001 | icAnsiToUtf8 null termination | HBO via strlen on unterminated 32-byte name | CWE-125/CWE-170 | IccTagBasic.cpp, IccUtilXml.cpp |
-| 002 | GamutBoundary triangles overflow | Signed int overflow: m_NumberOfTriangles*3 | CWE-190 | IccTagLut.cpp |
-| 004 | ToneMapFunc Read parameter count | HBO via Describe() accessing m_params[0..2] with only 1 allocated | CWE-122 | IccMpeBasic.cpp |
-| 005 | CalculatorFunc Read enum UBSAN | Enum out-of-range in calculator op read | CWE-681 | IccMpeCalc.cpp |
-| 006 | SpectralMatrix Describe iteration bounds | HBO via Describe() iterating m_nOutputChannels rows | CWE-122 | IccMpeSpectral.cpp |
-| 007 | TagArray Read overflow guard | Integer overflow in TagArray element count | CWE-190 | IccTagComposite.cpp |
-| 008 | TagCurve Apply NaN-to-unsigned | NaN bypasses [0,1] clamp, cast to unsigned is UB | CWE-681 | IccTagLut.cpp |
-| 009 | EnvVar Exec enum UBSAN | Enum out-of-range in CIccOpDefEnvVar::Exec() | CWE-681 | IccMpeCalc.cpp |
-| 014 | SequenceNeedTempReset recursion depth | Unbounded recursion in SequenceNeedTempReset Apply path | CWE-674 | IccMpeCalc.cpp |
-| 017 | GetEnvSig parse enum UBSAN | Enum out-of-range in GetEnvSig() XML parse path (sibling of CFL-009) | CWE-681 | IccMpeCalc.cpp, IccMpeCalc.h |
-| 019 | PCC getReflectanceObserver null guard | getPccViewingConditions() returns NULL — null deref in getReflectanceObserver() | CWE-476 | IccPcc.cpp |
-| 021 | SingleSampledCurve OOM size validation | Oversized m_nCount allocation | CWE-400 | IccMpeBasic.cpp |
-| 022 | Calc Trunc/Floor/Ceil/Round/Mod int overflow | Large float-to-int cast in 5 calculator ops | CWE-681 | IccMpeCalc.cpp |
-| 023 | Sampled curve NaN-to-unsigned cast | 3 Apply() NaN-to-unsigned casts in IccMpeBasic.cpp | CWE-681 | IccMpeBasic.cpp |
-| 025 | CLUT InterpNd null Apply guard | NULL CIccApplyCLUT deref in InterpNd path | CWE-476 | IccTagLut.cpp |
-| 028 | MatrixMath SetRange NaN guard | NaN-to-unsigned-short in SetRange() | CWE-681 | IccMatrixMath.cpp |
-| 029 | TagArray operator= loop var | Loop variable modified inside body | CWE-824 | IccTagComposite.cpp |
-| 030 | FixedNum GetValues SBO | GetValues loop uses m_nSize instead of nVectorSize | CWE-121 | IccTagBasic.cpp |
-| 031 | loadJsonFrom ftell overflow | ftell() unchecked return on non-seekable fd → pointer overflow | CWE-190/CWE-252 | IccJsonUtil.cpp |
-| 032 | icXformInterp enum range | Unchecked atoi() → enum out-of-range UBSAN | CWE-20/CWE-681 | IccCmmConfig.cpp, iccApplyToLink.cpp |
-| 033 | PccWeight fromJson field swap | pccFile↔weight members swapped in fromJson | CWE-843 | IccCmmConfig.cpp |
-| 034 | SearchApply fromJsonInit interpolation key | Reads j["transform"] instead of j["interpolation"] | CWE-345 | IccCmmConfig.cpp |
-| 035 | ApplyCmmSearch m_nApply OOB clamp | HBO via unclamped m_nApply index into m_dst_to_mid | CWE-122 | IccCmmSearch.cpp |
-| 036 | CreateLink toJson missing linkGridSize | toJson never writes m_linkGridSize — data loss | CWE-345 | IccCmmConfig.cpp |
-| 037 | Profile toJson missing transform | toJson never writes m_transform + interpolation guard fix | CWE-345 | IccCmmConfig.cpp |
-| 038 | SearchApply toJsonInit missing transform | toJsonInit never writes m_transformInitial + interp guard fix | CWE-345 | IccCmmConfig.cpp |
-| 039 | SearchApply toJson dead guards | jsonExistsField on fresh empty json → nothing written | CWE-561 | IccCmmConfig.cpp |
-| 040 | fromIt8 CMYK missing push_back | CMYK branch missing samples.push_back(val) | CWE-787/CWE-125 | IccCmmConfig.cpp |
-| 041 | fromIt8 LAB/XYZ val(4) OOB | val(4) should be val(3) for 3-channel LAB/XYZ | CWE-125 | IccCmmConfig.cpp |
-| 042 | ParseNumbers 'n' vs '\n' typo | Skip-number loop uses 'n' instead of newline | CWE-20 | IccCmmConfig.cpp |
-| 043 | Tool toJson is_object vs is_array | seq.is_object() fails on array from ProfileSequence::toJson | CWE-697 | iccApplyNamedCmm.cpp, iccApplySearch.cpp |
-| 044 | NDLut Apply missing interp dispatch | Missing interpolation method dispatch in NDLut Apply path | CWE-476 | IccCmm.cpp |
-| 045 | AddXform null PCS guard | NULL PCS pointer dereference in AddXform | CWE-476 | IccCmm.cpp |
-| 046 | PCS step src matrix delete[] | delete vs delete[] mismatch on matrix array | CWE-762 | IccCmm.cpp |
-| 047 | pushXYZNormalize null PCC guard | NULL PCC pointer dereference in pushXYZNormalize | CWE-476 | IccCmm.cpp |
-| 048 | DumpLut iterate missing bufsize | Missing buffer size in DumpLut iteration | CWE-122 | IccTagLut.cpp |
-| 049 | MBB Describe BToA missing bUseLegacy | Missing bUseLegacy check in MBB Describe BToA path | CWE-125 | IccTagLut.cpp |
-| 050 | FormulaCurve Describe param bounds | OOB read in FormulaCurve Describe parameter access | CWE-125 | IccMpeBasic.cpp |
-| 051 | ParametricCurve Describe param bounds | OOB read in ParametricCurve Describe parameter access | CWE-125 | IccTagLut.cpp |
-| 052 | fromIt8 wrong index variable | Wrong loop index variable in fromIt8 | CWE-125 | IccCmmConfig.cpp |
-| 053 | FormulaCurve Describe format specifiers | Wrong printf format specifiers in FormulaCurve Describe | CWE-134 | IccMpeBasic.cpp |
-| 054 | ParametricCurve Describe format specifiers | Wrong printf format specifiers in ParametricCurve Describe | CWE-134 | IccTagLut.cpp |
-| 055 | fromIt8 signed-unsigned mismatch | Signed/unsigned comparison in fromIt8 loop | CWE-681 | IccCmmConfig.cpp |
-| 056 | Spectral Describe null pointer guards | NULL pointer dereference in spectral Describe methods | CWE-476 | IccMpeSpectral.cpp |
-| 057 | SearchApply uninitialized members | Uninitialized member variables in SearchApply constructor | CWE-908 | IccCmmConfig.cpp |
-| 058 | CIccEmbedIO m_nSize=-1 UBSAN | Implicit -1→size_t conversion in CIccEmbedIO constructor | CWE-681 | IccIO.cpp |
-| 059 | TagCurve Begin nMaxIndex UBSAN | Implicit -1→icUInt16Number conversion in CIccTagCurve::Begin() | CWE-681 | IccTagLut.h |
-| 060 | icGetSigStr left-shift overflow | Left shift of large values by 8 overflows icUInt32Number | CWE-190 | IccUtil.cpp |
-| 061 | icF16toF unsigned underflow | Unsigned subtraction underflow in half-float decoder | CWE-191 | IccUtil.cpp |
-| 062 | icGetSig implicit char conversion | Implicit int→icChar conversion in signature formatting | CWE-681 | IccUtil.cpp |
-| 063 | Bounds check unsigned overflow | offset+size overflow in Read/CheckLut guards | CWE-190 | IccProfile.cpp, IccTagMPE.cpp, IccMpeCalc.cpp |
-| 064 | Segmented curve subtraction underflow | pos-startPos underflow in CIccSegmentedCurve::Read | CWE-191 | IccMpeBasic.cpp |
-| 065 | IccTagLut nEnd subtraction underflow | nEnd-Tell() underflow at 12 Read/Init sites | CWE-191 | IccTagLut.cpp |
-| 066 | IccUtilXml bitmask signed conversion | ~(enum\|enum) produces signed negative→unsigned UBSAN | CWE-681 | IccUtilXml.cpp |
-| 067 | icIsS15Fixed16NumberNear float overflow | Float-to-unsigned cast overflow in D50 illuminant check | CWE-681 | IccUtil.cpp |
-| 076 | GBD signed channel type confusion | icInt16Number→icUInt16Number for m_nPCSChannels/m_nDeviceChannels | CWE-681 | IccTagLut.h |
-| 077 | CAM CalcCoefficients div-by-zero guard | Guard 3 division chains when m_La=0 or m_WhitePoint[1]=0 | CWE-369 | IccCAM.cpp |
-| 078 | AddXform cenc UAF guard | Save deviceClass before AddXform; skip delete for cenc profiles (ownership transferred to icConvertEncodingProfile) | CWE-416 | IccCmm.cpp |
-| 080 | IccUtilXml MCSNeedsSubset bitmask UBSAN | `~icMCSNeedsSubsetTrue` produces signed -5→unsigned 4294967291 in `otherFlags &=` | CWE-681 | IccUtilXml.cpp |
+For per-patch PoC details, ASAN traces, and reproduction commands,
+see `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`.
 
 ### Retired Patches (accepted upstream)
 
-| # | Patch | Upstream PR |
-|---|-------|-------------|
-| 003 | TagArray alloc-dealloc mismatch | #680, #693 |
-| 010 | CheckUnderflowOverflow recursion | #684 |
-| 011 | SpecSepToTiff unique_ptr array | pre-v2.3.1.5 |
-| 012 | NDLut InterpND null ApplyCLUT | pre-v2.3.1.5 |
-| 013 | TagArray Cleanup uninit guard | pre-v2.3.1.5 |
-| 015 | SpecSepToTiff strip geometry HBO | pre-v2.3.1.5 |
-| 016 | NaN guard unsigned cast UBSAN | pre-v2.3.1.5 |
-| 018 | TagUnknown Describe HBO underflow | #689 |
-| 019-old | PCC null spectral viewing (both sites) | #691 (partial — reworked to 019) |
-| 020 | SampledCalculatorCurve Begin channel | #694 |
-| 024 | TagArray Cleanup UAF guard | #683 |
-| 026 | TagArray copy/assign UAF guard | #680, #693 |
-| 027 | JSON toJson() key typos | #692 |
-| 034 | SearchApply fromJsonInit interpolation key | upstream c2ea9da |
-| 037 | Profile toJson missing transform | upstream c2ea9da |
-| 039 | SearchApply toJson dead guards | upstream c2ea9da |
-| 061 | icF16toF unsigned underflow | #768 |
-
-- File: `cfl/patches/NNN-descriptive-name.patch`
-- Numbering: zero-padded 3-digit, sequential (current active files run through **080**)
-- 41 active patch files are currently present in `cfl/patches/`
-- Format: unified diff (`git diff`) against `cfl/iccDEV/`
-- **iccanalyzer-lite does NOT use CFL patches** — it links unpatched upstream iccDEV
-  and handles all user-controllable inputs via its own defensive programming
-- For analyzer-facing coverage status, use
-  `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
-  and `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`
+003, 010-013, 015-016, 018, 019-old, 020, 024, 026-027, 034, 037, 039, 061.
 
 ### Adding a New Patch
 
-1. Reproduce the bug with upstream `iccDEV/Build/Tools/` (ASAN-instrumented)
-2. Identify root cause — read ASAN stack frames #2-#3
-3. Apply fix in `cfl/iccDEV/`, generate with `cd cfl/iccDEV && git diff > ../patches/NNN-name.patch`
+1. Reproduce with upstream `iccDEV/Build/Tools/` (ASAN-instrumented)
+2. Identify root cause from ASAN stack frames #2-#3
+3. Fix in `cfl/iccDEV/`, generate: `cd cfl/iccDEV && git diff > ../patches/NNN-name.patch`
 4. Reset: `cd cfl/iccDEV && git checkout -- .`
-5. Rebuild: `cd cfl && ./build.sh` — verify "Applied: NNN-name.patch"
-6. Test PoC with patched fuzzer — verify exit 0, 0 ASAN
-7. File upstream issue per gold standard template
-   ([iccDEV#753](https://github.com/InternationalColorConsortium/iccDEV/issues/753),
-   [iccDEV#769](https://github.com/InternationalColorConsortium/iccDEV/issues/769))
-8. Report upstream at `github.com/InternationalColorConsortium/iccDEV/issues`
+5. Rebuild: `cd cfl && ./build.sh` -- verify "Applied: NNN-name.patch"
+6. Test PoC with patched fuzzer -- verify exit 0, 0 ASAN
+7. File upstream issue per gold standard template (#753, #769)
 
-**Upstream issue format** (gold standard -- [#753](https://github.com/InternationalColorConsortium/iccDEV/issues/753), [#769](https://github.com/InternationalColorConsortium/iccDEV/issues/769)):
-Zero prose, zero opinions, zero analysis. Pure reproduction recipe.
-Include structured `## Metadata` block (CWE, file:line, sanitizer type).
-Cut shadow byte legend unless UAF/double-free. One bug per issue.
-
-```markdown
-## Maintainer Repro
-<UTC timestamp>
-
-## Metadata
-- CWE: CWE-{N}
-- File: {file}:{line}
-- Function: {class}::{method}()
-- Sanitizer: {ASAN|UBSAN|IntSan} ({error type})
-- Bisect: {SHA} ({date})
-
-## Bisect
-Date: <date>
-Commit: <sha>
-
-## Build Unpatched
-<exact clone/checkout/build/run commands in code block>
-<MUST include -fsanitize=integer for UIO bugs>
-
-## Unpatched Output
-<SUMMARY line + frames #0-#4 ONLY>
-
-## Clean
-<git checkout/reset commands>
-
-## Patch
-git apply patch
-<inline diff in code block>
-
-## Patched Output
-<clean result>
-```
-
-See also: [#752](https://github.com/InternationalColorConsortium/iccDEV/issues/752),
-[#744](https://github.com/InternationalColorConsortium/iccDEV/issues/744),
-[#700](https://github.com/InternationalColorConsortium/iccDEV/issues/700)
+**Upstream issue format**: Zero prose. Pure reproduction recipe.
+Include structured Metadata block (CWE, file:line, sanitizer type).
+One bug per issue. Cut shadow byte legend unless UAF/double-free.
 
 ### Build Troubleshooting
 
-**Patch conflicts on re-build**: `build.sh` runs `git checkout -- .` in `cfl/iccDEV/`
-before applying patches. If you get "FAIL" for patches that previously worked, verify
-the checkout step succeeded. Patches targeting the same file (e.g., `IccMpeCalc.cpp`
-is patched by CFL-005, CFL-009, CFL-014, CFL-017, CFL-022, CFL-063; `IccUtil.cpp`
-by CFL-060, CFL-062, CFL-067; `IccTagLut.h` by CFL-076; `IccTagLut.cpp`
-by CFL-002, CFL-008, CFL-025, CFL-048, CFL-049, CFL-051, CFL-054, CFL-065)
-MUST be applied in order — each depends on context from previous patches.
+**Patch conflicts**: `build.sh` runs `git checkout -- .` before applying.
+Patches targeting the same file MUST apply in order (context dependency).
+Key multi-patch files: `IccMpeCalc.cpp` (6 patches), `IccTagLut.cpp` (8 patches).
 
-**Stale CMakeCache**: After changing iccDEV source or patches, the `Build/CMakeCache.txt`
-may retain old cmake settings (e.g., `ENABLE_SANITIZERS=OFF`). If `nm` shows 0 ASAN
-symbols after rebuild, delete `Build/` and let cmake reconfigure from scratch:
-```bash
-cd cfl/iccDEV && rm -rf Build && mkdir Build && cd Build
-cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
-  -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
-make -j$(nproc)
-```
+**Stale cmake cache**: After upstream sync, `rm -rf cfl/iccDEV/Build` before rebuild.
 
-**Missing ASAN instrumentation check**: After building, verify ASAN is linked:
-```bash
-nm cfl/bin/icc_dump_fuzzer | grep -c __asan   # should be > 0
-```
+## SafeDescribe Pattern
 
-### CFL-001: icAnsiToUtf8 / Describe Heap-Buffer-Overflow (CWE-125/CWE-170)
+6 fuzzers that call `Describe()` use `SafeDescribe()` from `CflSafeDescribe.h`.
+Runs `Validate()` first -- if tag has `icValidateCriticalError`, skips `Describe()`
+to avoid crashes from partially-loaded state.
 
-- **PoC 1**: `hbo-icAnsiToUtf8-clrt-multitag-IccUtilXml_cpp-Line394.icc`
-- **PoC 2**: `test-profiles/hbo-CIccTagColorantTable-Describe-IccTagBasic_cpp-Line8953.icc`
-  — 308 bytes, prtr/RGB/XYZ v4.4, 4 colorant entries × 38B = 152B (8-byte aligned), all 0x41 fill, no null terminators
-- **ASAN trace (Describe path)**: `strlen` → `CIccTagColorantTable::Describe()` (IccTagBasic.cpp:8953) — HBO READ of size 153, 0 bytes after 152-byte region
-- **ASAN trace (ToXml path)**: `strlen` → `icAnsiToUtf8()` (IccUtilXml.cpp:394) → `CIccTagXmlColorantTable::ToXml()` (IccTagXml.cpp:1883)
-- **Root cause**: `icColorantTableEntry.name` is a fixed 32-byte `icInt8Number` array.
-  `CIccTagColorantTable::Read()` reads exactly 32 bytes but does NOT enforce null
-  termination. Both `Describe()` and `ToXml()→icAnsiToUtf8()` call `strlen()` on
-  the unterminated name, reading past the allocation boundary.
-- **Alignment insight**: `sizeof(icColorantTableEntry) = 38`. `calloc()` zero-pads
-  to the next 8-byte boundary. For `nCount * 38 % 8 != 0`, accidental zero bytes
-  after the allocation act as null terminators. Use nCount where `nCount * 38 % 8 == 0`
-  (e.g., 4, 8, 12) to defeat calloc padding and trigger the HBO.
-- **Fix 1**: Force `name[31] = '\0'` after `Read8()` in `IccTagBasic.cpp`
-- **Fix 2**: Defense-in-depth `strnlen(szSrc, 256)` in `icAnsiToUtf8()`/`icUtf8ToAnsi()`
-- **Affected tools**: iccDumpProfile, iccToXml, icc_toxml_fuzzer, icc_dump_fuzzer, icc_deep_dump_fuzzer, colorbleed_tools/iccDumpAll
-- **Verified reproducer**:
-  ```bash
-  LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
-  ASAN_OPTIONS=halt_on_error=1,detect_leaks=0 \
-    iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile \
-    test-profiles/hbo-CIccTagColorantTable-Describe-IccTagBasic_cpp-Line8953.icc ALL
-  ```
-- **iccanalyzer-lite counterpart**: H29 (CRITICAL, CWE-125/CWE-170), H144 (XML String Termination Precheck)
+Affected: dump, deep_dump, profile, calculator, spectral, tiffdump fuzzers.
 
-### CFL-003: CIccTagArray alloc-dealloc-mismatch (CWE-762)
-
-- **PoC 1**: `crash-5d55e28af84613a7a72c0688193085664e7d0a36` (1463 bytes, multi-profile)
-- **PoC 2**: `test-profiles/cfl-003-roundtrip-segv-tary.icc` (5851 bytes, mntr/RGB, PCS='XCLR')
-  — Triggers SEGV at 0xbebebebebebebebe via BPC path; 3/3 reproducible with upstream iccRoundTrip
-- **ASAN trace**: `alloc-dealloc-mismatch (operator new[] vs free)` at IccTagComposite.cpp:1523,
-  or SEGV at 0xbebebebebebebebe (ASAN freed memory marker) at IccTagComposite.cpp:1511
-- **Root cause**: `CIccTagArray` copy constructor (line 1037) and `operator=` (line 1074)
-  allocate `m_TagVals` with `new IccTagPtr[]`, but `Cleanup()` (line 1523) frees with
-  `free()`. The `SetSize()` path uses `calloc()`/`icRealloc()`, which matches `free()`.
-  Mixed allocation strategies cause undefined behavior on copy/assign paths.
-- **Fix**: Replace `new IccTagPtr[n]` with `calloc(n, sizeof(IccTagPtr))` in both
-  copy constructor and `operator=` to match the `free()` in `Cleanup()`.
-- **Affected tools**: Any tool calling `AddXform(CIccProfile&)` by reference with a
-  profile containing CIccTagArray tags. The reference overload at `IccCmm.cpp:8517`
-  triggers `new CIccProfile(Profile)` → copy constructor → `CIccTagArray::NewCopy()`.
-  `EvaluateProfile()` at `IccEval.cpp:104,115,120` uses this path (3× per profile).
-  Also triggered via BPC: `CIccApplyBPC::pixelXfm()` → `CIccProfile copy` → same mismatch.
-- **Upstream reproduction (PoC 1 — alloc-dealloc-mismatch)**:
-  ```bash
-  ASAN_OPTIONS=halt_on_error=1,detect_leaks=0,alloc_dealloc_mismatch=1 \
-  LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
-    iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip test-profiles/17ChanPart1.icc
-  ```
-- **Upstream reproduction (PoC 2 — SEGV)**:
-  ```bash
-  ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-  LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
-    iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip test-profiles/cfl-003-roundtrip-segv-tary.icc
-  ```
-  Profile requirement: class `scnr`/`mntr`/`prtr`/`spac` AND contains `tary` tag.
-  `17ChanPart1.icc` (scnr, 17-channel) triggers via EvaluateProfile→AddXform.
-  `cfl-003-roundtrip-segv-tary.icc` (mntr/RGB, invalid PCS) triggers via BPC→pixelXfm→copy.
-- **Call chain (PoC 1)**: `iccRoundTrip::main()` → `EvaluateProfile(path)` →
-  `EvaluateProfile(CIccProfile*)` → `CIccCmm::AddXform(CIccProfile&)` →
-  `new CIccProfile(Profile)` → `CIccTagArray::CIccTagArray(const&)` (new[]) →
-  AddXform fails → `delete pProfile` → `CIccProfile::Cleanup()` →
-  `CIccTagArray::Cleanup()` → `free(m_TagVals)` (mismatch)
-- **Call chain (PoC 2)**: `iccRoundTrip::main()` → `EvaluateProfile` →
-  `CIccCmm::AddXform` → `CIccXformMatrixTRC::Begin()` → `CIccXform::Begin()` →
-  `CIccApplyBPC::CalcFactors()` → `calcSrcBlackPoint()` → `pixelXfm()` →
-  `CIccProfile::CIccProfile(const&)` → `CIccTagArray::NewCopy()` → copy ctor SEGV
-
-### CFL-004: CIccToneMapFunc Heap-Buffer-Overflow (CWE-122)
-
-- **PoC**: `crash-6ec5f76cd5d6c934c111eb59bc81ea44362ca3ee` (2368 bytes, BT.2100 HLG Narrow)
-- **ASAN trace**: `CIccToneMapFunc::Describe()` at IccMpeBasic.cpp:3984 — accesses
-  `m_params[0]`, `m_params[1]`, `m_params[2]` but only 1 float allocated
-- **Root cause**: `CIccToneMapFunc::Read()` computes `m_nParameters = (size - headerSize) / sizeof(icFloatNumber)`
-  from file-controlled size without validating against `NumArgs()`. When the file provides
-  only 1 parameter but the function type expects 3, `Describe()` reads past the allocation.
-- **Fix**: After computing `m_nParameters`, validate `m_nParameters >= NumArgs()`. If
-  insufficient, set `m_params = NULL; m_nParameters = 0; return false;`
-- **Upstream reproduction**: `iccDumpProfile <file> ALL` triggers DumpTagCore → Describe
-- **Fuzzer alignment fix**: All 6 Describe-calling fuzzers now use `SafeDescribe()`
-  from `CflSafeDescribe.h` which validates tag state before calling `Describe()`
-
-### CFL-008: CIccTagCurve::Apply NaN→unsigned UBSAN (CWE-681)
-
-- **UBSAN trace**: `IccTagLut.cpp:584:43: runtime error: -nan is outside the range of
-  representable values of type 'unsigned int'`
-- **Root cause**: `CIccTagCurve::Apply()` clamps input `v` with `if(v<0.0)` / `else if(v>1.0)`.
-  IEEE 754 NaN fails BOTH comparisons (NaN is not less than, greater than, or equal to
-  anything). Line 584 then casts `NaN * m_nMaxIndex` to `icUInt32Number` — undefined behavior.
-- **Fix**: `if(v<0.0 || std::isnan(v)) v = 0.0;` — `<cmath>` already included at line 78
-- **Sister function**: `ClutUnitClip()` at IccTagLut.cpp:1623 ALREADY has
-  `if (std::isnan(v)) return 0;` — proving NaN occurrence was known in this code area.
-  CFL-008 applies the identical pattern to the unprotected `Apply()` function.
-- **Upstream reproduction**: NOT reproducible through upstream CLI tools. The upstream
-  tool's input validation (data file parsing, profile validation) prevents the conditions
-  that produce NaN. 500+ corpus files tested through `iccApplyNamedCmm` and `iccRoundTrip`
-  with UBSAN enabled — zero triggers. The NaN originates from fuzzer mutation paths
-  that bypass tool-level input validation.
-- **Classification**: Defensive hardening — the code has a genuine bug (NaN bypass of
-  clamp checks), but upstream tools never exercise the vulnerable path. Any third-party
-  consumer of `CIccTagCurve::Apply()` with attacker-controlled profile data could hit this.
-- **Related**: `RGBClip()` at IccCmm.cpp:5380-5388 has the SAME NaN bypass bug
-  (potential future patch)
-
-### CFL-076: GamutBoundaryDesc Signed Channel Type Confusion (CWE-681)
-
-- **PoC 1**: `/home/h02332/po/artifacts/applycrash-400da49a3c09cda91483119a4a9755d5f23ce039`
-  (1462 bytes, v5.00, svcn tag with nested tary→gbd structure)
-- **PoC 2**: `ub-runtime-error-signed-integer-overflowIccTagLut_cpp-Line5638.icc`
-  (1300 bytes, spac/RGB/XYZ v5.00 — also triggers CFL-002)
-- **ASAN trace (PoC 1)**: `requested allocation size 0xffffffffffffffff` at
-  `CIccTagGamutBoundaryDesc::Read()` (IccTagLut.cpp:5715)
-- **Root cause**: `m_nPCSChannels` and `m_nDeviceChannels` in `IccTagLut.h:656-657`
-  declared as `icInt16Number` (signed short). `Read16(&m_nPCSChannels)` reads
-  0xFFFF from file → stored as -1. Validation `if (m_nPCSChannels > 3)` evaluates
-  `-1 > 3` → FALSE → **bypassed**. Subsequent allocation
-  `new icFloatNumber[m_nPCSChannels * m_NumberOfVertices]` promotes signed -1 to
-  SIZE_MAX (0xFFFFFFFFFFFFFFFF) via signed-to-unsigned conversion.
-- **Fix**: Change `icInt16Number` → `icUInt16Number` for both member declarations
-  (lines 656-657) and their getter return types (lines 643, 648). Channel counts
-  are unsigned by ICC spec — negative values are meaningless.
-- **Upstream reproduction**:
-  ```bash
-  LD_LIBRARY_PATH=source-of-truth/Build/IccProfLib:source-of-truth/Build/IccXML \
-  ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-    source-of-truth/Build/Tools/IccDumpProfile/iccDumpProfile \
-    /home/h02332/po/artifacts/applycrash-400da49a3c09cda91483119a4a9755d5f23ce039 ALL
-  ```
-- **Verified patched**: Both PoCs exit cleanly, 0 ASAN/UBSAN with patched CFL fuzzers
-- **Affected tools**: Any tool loading profiles with `gbd` tags (iccDumpProfile,
-  iccToXml, iccRoundTrip, iccApplySearch, iccApplyNamedCmm)
-- **Related**: CFL-002 patches a DIFFERENT bug in the same function (triangles
-  overflow at line 5733, CWE-190). PoC 2 triggers both CFL-002 and CFL-076.
-
-### CFL-011: iccSpecSepToTiff unique_ptr Array Mismatch (CWE-762)
-
-- **PoC input**: `test-profiles/spectral/spec_001.tif` through `spec_003.tif` (288 bytes each,
-  single-channel grayscale TIFF)
-- **ASAN trace**: `alloc-dealloc-mismatch (operator new [] vs operator delete)` at
-  iccSpecSepToTiff.cpp:281 (scope exit). Allocated at line 217 with `new[]`.
-- **Root cause**: Three `std::unique_ptr<T>` declarations at lines 216, 217, 237 use
-  `new T[]` for array allocation. `std::default_delete<T>` calls `operator delete`
-  instead of `operator delete[]` — undefined behavior per C++17 §23.11.1.2.2.
-  ```cpp
-  // BUG: unique_ptr<T> with new T[] → delete instead of delete[]
-  std::unique_ptr<icUInt8Number> inbufffer(new icUInt8Number[bytePerLine*nSamples]);
-  std::unique_ptr<icUInt8Number> outbuffer(new icUInt8Number[f->GetWidth()*bytesPerSample*nSamples]);
-  std::unique_ptr<unsigned char> destProfile;  // later: .reset(new unsigned char[sz])
-  ```
-- **Fix**: `unique_ptr<T>` → `unique_ptr<T[]>` at all 3 locations
-- **Upstream reproduction**:
-  ```bash
-  ASAN_OPTIONS=halt_on_error=1,detect_leaks=0,alloc_dealloc_mismatch=1 \
-  LD_LIBRARY_PATH=iccDEV/Build/IccProfLib \
-    iccDEV/Build/Tools/IccSpecSepToTiff/iccSpecSepToTiff \
-    /tmp/specsep-output.tif 0 0 "test-profiles/spectral/spec_%03d.tif" 1 3 1
-  ```
-  → `ERROR: AddressSanitizer: alloc-dealloc-mismatch` (3/3 reproducible)
-- **Verification (patched)**: → "Image successfully written!" exit 0, 0 ASAN/UBSAN
-- **Affected tools**: iccSpecSepToTiff only (tool-level code, not library)
-- **CFL fuzzer**: `icc_specsep_fuzzer` already uses `unique_ptr<T[]>` (V2 architecture)
-
-## Fuzzer Alignment — SafeDescribe Pattern
-
-All fuzzers that call `CIccTag::Describe()` use `SafeDescribe()` from `CflSafeDescribe.h`.
-This wrapper runs `Validate()` first — if the tag has `icValidateCriticalError`, it
-skips `Describe()` to avoid crashes from partially-loaded internal state.
-
-**Affected fuzzers** (6 of 18):
-- `icc_dump_fuzzer.cpp` — tag iteration Describe
-- `icc_deep_dump_fuzzer.cpp` — tags, curves, MPE elements, structs, dicts
-- `icc_profile_fuzzer.cpp` — tag iteration + FindTag Describe
-- `icc_calculator_fuzzer.cpp` — LUT/MPE Describe
-- `icc_spectral_fuzzer.cpp` — spectral tags, MPE, all tags
-- `icc_tiffdump_fuzzer.cpp` — embedded ICC tag Describe
-
-**Why this matters**: Fuzzers call `Describe()` unconditionally on every loaded tag.
-Upstream tools only call `Describe()` in specific modes (e.g., `iccDumpProfile ALL`).
-When `Read()` partially populates internal state, `Describe()` reads out of bounds.
-`SafeDescribe()` catches this by running `Validate()` first.
-
-## Fuzzing — Ramdisk Workflow
+## Fuzzing
 
 ```bash
-# Mount ramdisk, seed corpus, run all 13 fuzzers
-cd cfl && ./ramdisk-fuzz.sh
-
-# Or use external SSD
-cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd
-
-# After fuzzing: merge, sync, coverage
-.github/scripts/ramdisk-merge.sh
-.github/scripts/ramdisk-sync-to-disk.sh
-.github/scripts/merge-profdata.sh
-.github/scripts/generate-coverage-report.sh
+cd cfl && ./ramdisk-fuzz.sh                  # mount + seed + run all 13
+cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd # external SSD
+.github/scripts/ramdisk-merge.sh             # merge corpus
+.github/scripts/merge-profdata.sh            # coverage
 ```
 
-## Special Fuzzer Notes
+### Key Runtime Settings
 
-- **icc_link_fuzzer**: Needs `ASAN_OPTIONS=detect_leaks=0,quarantine_size_mb=256`
-  (2 profiles per input = 2× ASAN memory)
-- **Ownership caveat**: `CIccCmm::AddXform(CIccProfile*)` transfers ownership.
-  On `icCmmStatBadXform`, profile is already freed — do NOT delete.
-  On other errors, caller must delete (not consumed).
-- **Coverage**: `LLVM_PROFILE_FILE=$RAMDISK/profraw/${fuzzer_name}_%m_%p.profraw`
-  (include fuzzer name; `%m` alone produces numeric hashes)
-- **Suppress profraw during fuzzing**: `LLVM_PROFILE_FILE=/dev/null`
-- **Begin() return check**: `CIccTagMultiProcessElement::Begin()` and
-  `CIccMpeCurveSet::Begin()` can return false when sub-curves have invalid state
-  (e.g., `m_nCount < 2`). Callers MUST check the return value — `Apply()` will
-  NULL-deref `m_pSamples` otherwise (CWE-476).
-- **Timeout triage**: ALWAYS test timeout artifacts with **unpatched** upstream
-  tools at `iccDEV/Build/Tools/` first. If upstream also hangs → report upstream.
-  If upstream handles it → fuzzer alignment issue.
-- **Timeout/OOM handling**: LibFuzzer's `-timeout=30 -rss_limit_mb=4096` handles
-  CWE-400 patterns at the process level. No library patches needed.
+- `ASAN_OPTIONS=detect_leaks=0` (always)
+- `icc_link_fuzzer`: add `quarantine_size_mb=256` (2x ASAN memory)
+- `LLVM_PROFILE_FILE=/dev/null` during fuzzing (suppress profraw)
+- `Begin()` return check: `CIccMpeCurveSet::Begin()` can return false -- callers MUST check
 
-## Multi-Profile Fuzzer Input Formats
+### Multi-Profile Input Formats
 
-| Fuzzer | Input Format | Tool |
-|--------|-------------|------|
-| icc_v5dspobs_fuzzer | `[4B BE size][display.icc][observer.icc]` | IccV5DspObsToV4Dsp |
-| icc_link_fuzzer | `[50% profile1][50% profile2][4B trailing control]` | IccApplyToLink |
-| icc_applyprofiles_fuzzer | `[75% profile][25% control (intent, interp, W×H, pixels)]` | IccApplyProfiles |
-| icc_applynamedcmm_fuzzer | `[4B control header][ICC profile data]` | IccApplyNamedCmm |
-| icc_specsep_fuzzer | `[1B nFiles][14B TIFF meta][TIFF+ICC data]` | IccSpecSepToTiff |
+| Fuzzer | Format |
+|--------|--------|
+| v5dspobs | `[4B BE size][display.icc][observer.icc]` |
+| link | `[50% profile1][50% profile2][4B control]` |
+| applyprofiles | `[75% profile][25% control (intent, interp, W*H, pixels)]` |
+| applynamedcmm | `[4B control header][ICC data]` |
+| specsep | `[1B nFiles][14B TIFF meta][TIFF+ICC data]` |
 
-To unbundle crash files from multi-profile fuzzers:
-```bash
-.github/scripts/unbundle-fuzzer-input.sh <fuzzer> <crash_file> [tool_root]
-# e.g.: .github/scripts/unbundle-fuzzer-input.sh v5dspobs crash-8f8b...
-```
+Unbundle: `.github/scripts/unbundle-fuzzer-input.sh <fuzzer> <crash_file>`
 
 ## Corpus Management
 
-- Seed corpus: `cfl/corpus-<fuzzer_name>/` (committed to repo)
-- Runtime corpus: `$RAMDISK/corpus-<fuzzer_name>/` (in-memory during fuzzing)
-- Merge minimizes runtime corpus back to seed: `ramdisk-merge.sh`
-- Sync copies minimized corpus to disk: `ramdisk-sync-to-disk.sh`
-- Storage: local cfl/ directory + /tmp/fuzz-ramdisk (tmpfs). No external SSD.
+- Seed corpus: `cfl/corpus-<fuzzer_name>/` (committed)
+- Runtime corpus: `$RAMDISK/corpus-<fuzzer_name>/` (in-memory)
+- Only 11 corpus dirs have matching binaries for minimization
+- `corpus-xml` is a named XML seed staging area for `icc_fromxml_fuzzer`
 
-### Binary-to-Corpus Mapping
+### Tournament Bracket Merge
 
-Only 11 corpus dirs have matching binaries for minimization:
-`applynamedcmm`, `applyprofiles`, `dump`, `fromcube`, `fromxml`, `link`,
-`roundtrip`, `specsep`, `tiffdump`, `toxml`, `v5dspobs`
+For corpora >500 files, split into 32 chunks, merge each on its own core,
+then tournament-pair outputs 16->8->4->2->1. Result: 9103->481 in ~2 min.
 
-8 orphaned corpus dirs are legacy/staging (no binary) — DELETED:
-`icc_apply`, `icc_calculator`, `icc_deep_dump`, `icc_io`, `icc_multitag`,
-`icc_profile`, `icc_spectral`, `icc_spectral_b`
+## Coverage
 
-`corpus-xml` is a **named XML seed staging area** for `icc_fromxml_fuzzer`.
-It contains 48 descriptive-named XML files (CVE PoCs, crash reproductions,
-spec-valid profiles) that are also copied into `corpus-icc_fromxml_fuzzer/`.
-Keep both: `corpus-xml` for human-readable seeds, `corpus-icc_fromxml_fuzzer`
-for the full fuzzer corpus (hash-named + named files).
-
-### Corpus Baseline (March 12 2026, post-minimization)
-
-| Fuzzer | Files | Notes |
-|--------|-------|-------|
-| icc_toxml_fuzzer | 513 | Minimized from 9,104 (95%) |
-| icc_dump_fuzzer | 501 | Minimized from 9,112 (95%) |
-| icc_roundtrip_fuzzer | 481 | Minimized from 9,103 (95%) |
-| icc_fromcube_fuzzer | 160 | Minimized from 278 (43%) |
-| icc_tiffdump_fuzzer | 55 | Minimized from 365 (85%) |
-| icc_fromxml_fuzzer | 101 | 53 minimized + 48 from corpus-xml |
-| icc_specsep_fuzzer | 45 | Minimized from 357 (88%) |
-| icc_applynamedcmm_fuzzer | 17 | Minimized from 46 (64%) |
-| icc_applyprofiles_fuzzer | 14 | Minimized from 16 (13%) |
-| icc_v5dspobs_fuzzer | 11 | Minimized from 15 (27%) |
-| icc_link_fuzzer | 5 | Minimized from 9 (45%) |
-| **Total** | **1,855** | From 27,458 (93% reduction) |
-
-### Tournament Bracket Merge (for large corpora)
-
-LibFuzzer `-merge=1` is single-threaded per process. For corpora >500 files,
-use tournament bracket merge to saturate all 32 cores:
-
-1. Split corpus into 32 chunks (round-robin hard links)
-2. Merge each chunk on its own core (32 parallel `taskset` processes)
-3. Tournament: pair outputs 16→8→4→2→1 (parallel at each level)
-
-Result: 9103→481 files in ~2 min (vs ~30 min single-threaded).
-
-## Coverage Baseline
-
-| Metric | Value |
-|--------|-------|
+| Metric | Baseline |
+|--------|----------|
 | Functions | 63.23% |
 | Lines | 61.15% |
 | Branches | 58.47% |
-| Instantiations | 62.99% |
 
-## Fuzzer-to-Tool Fidelity (March 2026)
-
-Measured using ASAN-instrumented upstream tools at `iccDEV/Build-ASAN/Tools/`:
-
-```bash
-# Build ASAN upstream tools (one-time)
-cd iccDEV && mkdir -p Build-ASAN && cd Build-ASAN
-cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
-  -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
-make -j32
-```
-
-| Fuzzer | iccDEV Tool | Fidelity | Method |
-|--------|-------------|----------|--------|
-| icc_fromcube_fuzzer | IccFromCube | **100%** | LCOV function diff (only `main` differs) |
-| icc_dump_fuzzer | IccDumpProfile | **>100%** | Fuzzer 27.65% lines vs tool 1.88% (custom icRealloc) |
-| icc_deep_dump_fuzzer | IccDumpProfile | >100% | Full tag enumeration exceeds tool |
-| icc_roundtrip_fuzzer | IccRoundTrip | ~95% | |
-| icc_specsep_fuzzer | IccSpecSepToTiff | ~85% | |
-| icc_applynamedcmm_fuzzer | IccApplyNamedCmm | ~75% | |
-| icc_link_fuzzer | IccApplyToLink | ~65% | |
-
-For per-fuzzer optimization details (input formats, coverage gaps, seed strategies,
-dead code), see `.github/prompts/fuzzer-optimization.prompt.md`.
-
-## Upstream Fix Coverage (54 PRs Audited, March 2026)
-
-92.6% of 54 upstream security fix PRs are covered by CFL fuzzers. Targeted seed
-profiles were added for the 4 weak areas:
-
-| PR | Bug | Seed Profiles | Target Fuzzers |
-|----|-----|---------------|----------------|
-| #632 | SBO CIccPcsXform::pushXYZConvert | `seed-pcsxform-lab-*.icc` | apply, link, profile |
-| #630 | SO CreateStruct recursion | `seed-nested-struct-deep.xml` | fromxml |
-| #616 | HUAF CIccCmm::AddXform | `seed-ownership-*.icc` | link |
-| #657 | UB CIccProfileSharedPtr | `seed-pcsxform-display-lab.icc` | apply, link, v5dspobs |
-
-Seed profiles are in `cfl/corpus-<fuzzer>/seed-*.icc` and `seed-*.xml`.
-These exercise: Lab/XYZ PCS conversion, deviceLink class, abstract profiles,
-CMYK→RGB channel mismatch, nested tag structures, and ownership edge cases.
+92.6% of 54 upstream security fix PRs covered by CFL fuzzers.
 
 ## Dictionary Files
 
-Each fuzzer has a `.dict` file in `cfl/`. Key conventions:
-- One dict per fuzzer: `cfl/icc_<name>_fuzzer.dict` (or `cfl/icc_<name>.dict`)
-- TIFF fuzzer uses consolidated `cfl/icc_tiffdump_fuzzer.dict` (4215 entries)
-  combining hand-curated TIFF 6.0 tags + ICC sigs + auto-extracted corpus tokens
-- All entries must use `\xHH` hex escapes (NOT raw binary bytes)
-- LibFuzzer rejects dicts with raw control characters in quoted strings
-
-## Fuzzer Coverage Optimization Patterns
-
-When a fuzzer plateaus on coverage, apply these techniques in order:
-
-1. **2-phase architecture** — Phase 1: lightweight in-memory parse (cheap, broad).
-   Phase 2: deep file-based analysis (expensive, targeted). Skip Phase 2 on
-   malformed input to increase throughput.
-
-2. **OOM guards** — Add size/offset validation before tag iteration:
-   - Skip profiles where `profileSize < 1024`
-   - Skip tags where `tSize > 256KB` or `tSize > profileSize`
-   - MPE amplification guard: `tSize * 1024 > profileSize` catches small tags
-     that expand exponentially (CWE-789)
-   - Offset bounds: `tOffset > profileSize || tOffset + tSize > profileSize`
-
-3. **Dictionary consolidation** — Merge hand-curated format-specific tokens with
-   auto-extracted corpus tokens. Deduplicate. Fix hex escapes.
-
-4. **Seed corpus diversity** — Add profiles exercising under-covered code paths:
-   high-dimensional (6+ channels), MPE calculator elements, spectral PCS,
-   named colors with large palettes, deeply nested tag structures.
+One dict per fuzzer: `cfl/icc_<name>_fuzzer.dict` (or `cfl/icc_<name>.dict`).
+All entries use `\xHH` hex escapes (NOT raw binary). LibFuzzer rejects raw control chars.
+TIFF dict: 4215 entries combining TIFF 6.0 tags + ICC sigs + corpus tokens.
 
 ## Adding a New Fuzzer
 
-1. Create `cfl/icc_newfuzzer_fuzzer.cpp` — must include `extern "C" int LLVMFuzzerTestOneInput(...)`
+1. Create `cfl/icc_newfuzzer_fuzzer.cpp` with `LLVMFuzzerTestOneInput()`
 2. Create dictionary: `cfl/icc_newfuzzer.dict`
 3. Create seed corpus: `cfl/corpus-icc_newfuzzer_fuzzer/`
 4. Add to `cfl/CMakeLists.txt`
-5. Update fuzzer count (19→20) across documentation
+5. Update fuzzer count across documentation
 6. Rebuild: `cd cfl && ./build.sh`

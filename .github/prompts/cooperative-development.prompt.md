@@ -1,4 +1,4 @@
-# Cooperative Multi-Agent Development — Prompt
+# Cooperative Multi-Agent Development -- Prompt
 
 ## Overview
 
@@ -18,22 +18,22 @@ This prompt defines roles, handoff protocols, and efficiency strategies.
 
 | Capability | WSL-2 | macOS | Cloud CI |
 |-----------|-------|-------|----------|
-| Build iccanalyzer-lite | ✅ | ❌ (Linux-only ASAN) | ✅ |
-| Run CFL fuzzers | ✅ | ❌ (clang-18 + fuzzer) | ✅ (limited time) |
-| Build xnuimagefuzzer (native) | ❌ | ✅ | ❌ |
-| Run iOS Simulator | ❌ | ✅ | ✅ (macOS runners) |
-| Generate call graphs | ✅ | ❌ | ✅ |
-| Analyze ICC profiles (local) | ✅ | Partial (no binary) | ✅ |
-| Analyze ICC profiles (remote) | N/A | ✅ (via MCP Docker API) | ✅ (via MCP Docker API) |
-| Collect LLVM coverage | ✅ | ✅ (native builds) | ✅ |
-| Extract ICC from images | ✅ (libtiff) | ✅ (libtiff + ImageIO) | ✅ |
-| Run MCP server (local) | ✅ | ✅ | ✅ |
-| Run MCP Docker API | ✅ (host) | ✅ (client) | ✅ (client) |
-| Create TIFF test images | ❌ | ✅ (ImageIO/CoreGraphics) | ❌ |
+| Build iccanalyzer-lite | Yes | No (Linux-only ASAN) | Yes |
+| Run CFL fuzzers | Yes | No (clang-18 + fuzzer) | Yes (limited time) |
+| Build xnuimagefuzzer (native) | No | Yes | No |
+| Run iOS Simulator | No | Yes | Yes (macOS runners) |
+| Generate call graphs | Yes | No | Yes |
+| Analyze ICC profiles (local) | Yes | Partial (no binary) | Yes |
+| Analyze ICC profiles (remote) | N/A | Yes (via MCP Docker API) | Yes (via MCP Docker API) |
+| Collect LLVM coverage | Yes | Yes (native builds) | Yes |
+| Extract ICC from images | Yes (libtiff) | Yes (libtiff + ImageIO) | Yes |
+| Run MCP server (local) | Yes | Yes | Yes |
+| Run MCP Docker API | Yes (host) | Yes (client) | Yes (client) |
+| Create TIFF test images | No | Yes (ImageIO/CoreGraphics) | No |
 
 ## Handoff Protocols
 
-### macOS → WSL-2: New Seeds
+### macOS -> WSL-2: New Seeds
 When macOS agent generates new images or extracts ICC profiles:
 1. Place ICC profiles in `fuzz/graphics/icc/` (staging)
 2. Place TIFF images in `fuzz/graphics/tif/` (staging)
@@ -44,7 +44,7 @@ When macOS agent generates new images or extracts ICC profiles:
    cp fuzz/graphics/tif/*.tif cfl/corpus-icc_tiffdump_fuzzer/
    ```
 
-### WSL-2 → macOS: Crash Artifacts
+### WSL-2 -> macOS: Crash Artifacts
 When WSL-2 fuzzer finds a crash:
 1. Minimize: `cfl/bin/<fuzzer> -minimize_crash=1 <crash_file>`
 2. Triage with upstream: `iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <crash>`
@@ -53,7 +53,7 @@ When WSL-2 fuzzer finds a crash:
 5. Commit report to `analysis-reports/`
 6. macOS agent can test crash against ColorSync/ImageIO
 
-### WSL-2 → Repository: Analysis Reports
+### WSL-2 -> Repository: Analysis Reports
 When analyzing test profiles:
 1. Run: `.github/scripts/analyze-profile.sh test-profiles/<name>.icc`
 2. Commit report to `analysis-reports/<name>-analysis.md`
@@ -66,7 +66,7 @@ Both agents collect LLVM coverage:
 - Do NOT commit `.profraw` / `.profdata` files (gitignored)
 - Commit coverage summaries to `analysis-reports/coverage-summary.md`
 
-### Any Agent → MCP Docker API: Remote Analysis (No Git Required)
+### Any Agent -> MCP Docker API: Remote Analysis (No Git Required)
 
 When an agent needs ICC profile analysis but lacks the binary (macOS) or wants
 to avoid commit overhead:
@@ -83,7 +83,7 @@ to avoid commit overhead:
    ```bash
    curl -s "http://<host>:8080/api/security-json?path=<uploaded_path>"  # JSON
    curl -s "http://<host>:8080/api/full?path=<uploaded_path>"           # combined
-   curl -s "http://<host>:8080/api/xml?path=<uploaded_path>"            # ICC→XML
+   curl -s "http://<host>:8080/api/xml?path=<uploaded_path>"            # ICC->XML
    ```
 4. If the result warrants preservation, commit the report via git.
 
@@ -105,12 +105,12 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
 | `xnuimagetools/` | macOS | WSL-2 read-only |
 | `.github/prompts/` | Both | Coordinate via PR if conflicts |
 | `.github/instructions/` | Both | Coordinate via PR if conflicts |
-| `.github/copilot-instructions.md` | Both | High conflict risk — merge carefully |
+| `.github/copilot-instructions.md` | Both | High conflict risk -- merge carefully |
 | `test-profiles/` | Both | WSL-2 adds crash PoCs, macOS adds extracted profiles |
 
 ## Efficiency Strategies
 
-### WSL-2 Agent — Prioritized Task List
+### WSL-2 Agent -- Prioritized Task List
 
 #### High Priority (Coverage & Analysis Gaps)
 1. **Batch-analyze ~280 unanalyzed test profiles** (currently 49/329 = 14.9%):
@@ -123,10 +123,10 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
    ```
    Commit in batches of 50 to avoid giant commits.
 
-2. **Expand `icc_fromcube_fuzzer.dict`** — currently **282 lines** (critically small vs
+2. **Expand `icc_fromcube_fuzzer.dict`** -- currently **282 lines** (critically small vs
    1500-6000+ for other dicts). Auto-extract from corpus + add .cube edge cases.
 
-3. ~~**Create CFL-011 patch**~~ — ✅ Done. `iccSpecSepToTiff.cpp:207-208,232`
+3. ~~**Create CFL-011 patch**~~ -- Yes Done. `iccSpecSepToTiff.cpp:207-208,232`
    alloc-dealloc-mismatch fixed (CFL-011 in active patches).
 
 4. **Seed spectral TIFFs into CFL corpora**:
@@ -136,9 +136,9 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
    ```
 
 5. **Run targeted fuzzing on weak coverage areas** (from coverage-summary.md):
-   - `IccCmmSearch`: 0% coverage → needs `icc_applynamedcmm_fuzzer` seeds
-   - `IccEnvVar`: 23-50% → exercise environment variable paths
-   - `IccApplyBPC`: 33% → needs BPC-enabled profiles
+   - `IccCmmSearch`: 0% coverage -> needs `icc_applynamedcmm_fuzzer` seeds
+   - `IccEnvVar`: 23-50% -> exercise environment variable paths
+   - `IccApplyBPC`: 33% -> needs BPC-enabled profiles
    - Target: 65%+ line coverage (current: 59.01%)
 
 6. **Fix remaining iccDEV CI test failures** (~7 of 89):
@@ -148,7 +148,7 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
    - search-04: Debug 3-profile chain initialization
 
 #### Medium Priority (Infrastructure)
-5. **Upstream sync check** — Verify CFL patches against latest iccDEV:
+5. **Upstream sync check** -- Verify CFL patches against latest iccDEV:
    ```bash
    cd cfl/iccDEV && git fetch origin
    git --no-pager log --oneline HEAD..origin/master | head -10
@@ -165,15 +165,15 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
    - `fuzz/graphics/icc/ios-gen-Display-P3.icc`
    - `fuzz/graphics/icc/ios-gen-Adobe-RGB-1998.icc`
 
-8. ~~**Generate TIFF-with-ICC test images**~~ — ✅ Done. H139-H141 + H149-H150 tests
+8. ~~**Generate TIFF-with-ICC test images**~~ -- Yes Done. H139-H141 + H149-H150 tests
    added (9 tests), including corrupt TIFF edge cases (239/239 total).
 
-### macOS Agent — Prioritized Task List
+### macOS Agent -- Prioritized Task List
 
 #### High Priority
 1. **Use MCP Docker API for ICC analysis** (avoids git commit overhead):
    ```bash
-   # Upload and analyze profiles remotely — see remote-analysis.prompt.md
+   # Upload and analyze profiles remotely -- see remote-analysis.prompt.md
    curl -s -F "file=@profile.icc" http://<host>:8080/api/upload
    curl -s "http://<host>:8080/api/security-json?path=<path>"
    ```
@@ -248,88 +248,6 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 fi
 ```
 
-## Recent Session Accomplishments (2026-03-09)
-
-### XML Reporting & WebUI Session
-- H142-H145 XML safety heuristics fully integrated into all output modes
-- XML export (`-xml`) uses ComprehensiveAnalyze with multi-line detail capture
-- XSLT dark-themed stylesheet: 4 summary cards, specRef column, CVE cross-refs
-- All stale heuristic counts synced to 173 across 10+ files
-- All stale advisory counts synced to 93 across 6+ files
-
-### MCP Server / WebUI Fixes
-- `/api/security-json` stderr contamination fixed — `_run()` has `include_stderr` param
-- CVE PoC crash recovery returns structured `crashRecovery` JSON (not empty/broken)
-- Docker image uses `-O0 -g3` + coverage (not `-O1 -g` + `NO_COVERAGE=1`)
-- `LLVM_PROFILE_FILE=/dev/null` prevents profraw permission errors
-- Published image validated: all 11 endpoints return correct output
-
-### CodeQL Alert Resolution
-- 7 CodeQL alerts fixed: `cpp/new-free-mismatch` (std::nothrow in fork),
-  `cpp/comparison-always-true` (loop→if), `cpp/use-after-expired-lifetime`
-  (cached iterators→range-based for)
-- Local CodeQL analysis workflow documented in `iccanalyzer-lite.instructions.md`
-- Remaining alerts are custom query informational findings (not bugs)
-
-### Upstream Sync & Rebuild Session (2026-03-14)
-- Upstream synced: iccDEV cfl branch → 85163a0 (H151 calculator enum, H152 OOM)
-- CFL patches 012/013/015/016 retired (fixed upstream), 18 active patches
-- AFL corpus minimized: 5 targets, 51-76% reduction (afl-cmin.bash, not Python version)
-- TIFF TIFFOpen failure path fixed: reports CRITICAL CWE-20 for corrupt TIFFs
-- H153 added: Sampled Curve NaN-to-Unsigned Cast Detection (CWE-681, CRITICAL)
-- CFL-022 added: Calculator Trunc/Floor/Ceil/Round int overflow (CWE-681)
-- build.sh fixed: added `git checkout -- .` before patch application
-- 9 TIFF tests added: H149/H150 valid TIFF + 7 corrupt TIFF tests (230→239)
-- 5 CodeQL code scanning alerts fixed
-- Compiler warnings removed from colorbleed_tools (3 unused variables)
-- All tests pass: 239/239 analyzer, 1851/1851 MCP, 256/256 WebUI
-
-## Coverage Target Roadmap
-
-| Milestone | Functions | Lines | Branches | How |
-|-----------|-----------|-------|----------|-----|
-| Current | 59.81% | 59.01% | 56.76% | — |
-| +5% | 65% | 64% | 62% | Seed starved corpora, 4h fuzzing runs |
-| +10% | 70% | 69% | 67% | Targeted seeds for 0% modules, new dict entries |
-| +15% | 75% | 74% | 72% | New harness for uncovered tool paths |
-
-## Commit Discipline — Lessons from 50-Commit Analysis (March 2026)
-
-Analysis of 50 consecutive commits showed only 26% was core mission work (CFL patches,
-findings, analyzer improvements). The rest was infrastructure churn: CI fixes (28%),
-housekeeping (20%), documentation (14%), test framework (12%).
-
-### Rules
-
-1. **≥50% of commits MUST be core mission** — CFL patches, crash findings, analyzer
-   heuristics, fuzzer coverage improvements. If a session produces 10 commits, at
-   least 5 must advance security research.
-
-2. **Batch all housekeeping into 1 commit** — Artifact sorting (crash/oom/timeout
-   file moves), gitignore updates, cleanup operations. Use scripts, not manual
-   multi-commit work. Script: sort artifacts → stage → 1 commit.
-
-3. **Batch all CI/workflow fixes into 1 commit** — Validate locally BEFORE pushing:
-   `shellcheck --severity=warning *.sh`, `yamllint *.yml`. The push→fail→fix→push
-   cycle wastes commits. Target: ≤2 CI commits per session.
-
-4. **Bundle docs with code** — Documentation changes (patch tables, README updates,
-   instruction files) go in the same commit as the code they describe. Exception:
-   standalone docs (new prompt files, analysis plans).
-
-5. **Develop/test in ./research first** — Prove changes locally with full test suite,
-   THEN onboard to iccDEV cfl branch. Never commit to iccDEV without local validation.
-
-### Anti-Pattern: Artifact Sorting Sprawl
-
-5 commits (10%) were manual file moves between directories. Fix:
-```bash
-# ONE script, ONE commit
-.github/scripts/sort-artifacts.sh   # crash→fuzz/graphics/icc/
-                                     # timeout/slow-unit→test-profiles/cwe-400/
-                                     # empty/stale→delete
-```
-
 ## Communication Protocol
 
 1. **Before modifying shared files** (instructions, prompts, copilot-instructions.md):
@@ -343,6 +261,6 @@ housekeeping (20%), documentation (14%), test framework (12%).
    it resolves by preserving both agents' additions (append, don't replace)
 
 ## See Also
-- [upstream-sync.prompt.md](upstream-sync.prompt.md) — Patch reconciliation workflow
-- [corpus-management.prompt.md](corpus-management.prompt.md) — Corpus storage operations
-- [cve-enrichment.prompt.md](cve-enrichment.prompt.md) — CVE-to-heuristic mapping
+- [upstream-sync.prompt.md](upstream-sync.prompt.md) -- Patch reconciliation workflow
+- [corpus-management.prompt.md](corpus-management.prompt.md) -- Corpus storage operations
+- [cve-enrichment.prompt.md](cve-enrichment.prompt.md) -- CVE-to-heuristic mapping
