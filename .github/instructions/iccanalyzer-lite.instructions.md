@@ -2,27 +2,16 @@
 applyTo: "iccanalyzer-lite/**"
 ---
 
-# iccanalyzer-lite — Path-Specific Instructions
+# iccanalyzer-lite -- Path-Specific Instructions
 
 ## What This Is
 
-A 180-heuristic ICC profile security analyzer (22,000+ LOC across 30 C++ modules, C++17)
-built with full ASAN+UBSAN+Coverage instrumentation. It validates ICC color profiles
-against ICC.1-2022-05 and ICC.2-2023 specifications, detecting CVE patterns, CWE
-violations, malformed structures, and potential exploitation vectors. Heuristics cover
-44+ CWE categories and pair with 329 canonical conformance checks across the V1/V2
-parity harness.
+A security analyzer (22,000+ LOC, 30 C++ modules, C++17) with full ASAN+UBSAN+Coverage
+instrumentation. Validates ICC profiles against ICC.1-2022-05 and ICC.2-2023 specs.
+Use `--registry` for authoritative heuristic/CVE/GHSA counts.
 
-Roadmap note: do **not** treat the current `173` heuristic entries or `329`
-canonical conformance entries as a ceiling. V1 and V2 are expected to grow the
-`H-*` and `CF-*` namespaces toward `1000` checks each over time. Use the
-registries as the source of truth for current counts, and preserve V1/V2 parity
-when extending coverage.
-
-**v3.4.0**: Added TIFF image analysis — auto-detects TIFF files in `-a` mode, extracts
-embedded ICC profiles (TIFFTAG_ICCPROFILE tag 34675), reports TIFF metadata and security
-checks, scans pixel data for xnuimagefuzzer injection signatures, then runs full
-173-heuristic analysis (H1-H138 ICC + H139-H141, H149-H150 TIFF + H142-H145 XML + H146-H153 data validation/advanced + H154-H173 CodeQL/exploit-gap) on extracted ICC profiles. New explicit `-img` mode available.
+Heuristic and conformance namespaces are expected to grow toward 1000 checks each.
+Use the registries as the source of truth, and preserve V1/V2 parity when extending.
 
 ## Build
 
@@ -31,70 +20,24 @@ cd iccanalyzer-lite && ./build.sh    # ASAN+UBSAN+coverage, uses 32 cores
 ```
 
 - Compiler: clang++ 18+ with `-fsanitize=address,undefined`
-- Developer-facing V1/V2 binaries and GitHub Release assets should come from
-  this same instrumented Debug path. Do not create a separate Release-only
-  packaging path for CLI validation.
 - Requires: libxml2-dev, libtiff-dev, libpng-dev, libjpeg-dev, libssl-dev, libclang-rt-18-dev
-- The build links against the **unpatched** upstream iccDEV library at `iccDEV/Build/`
-- iccanalyzer-lite does NOT use CFL patches — it handles all user-controllable
-  inputs through its own defensive programming (bounds checks, size validation,
-  ASAN+UBSAN instrumentation, signal recovery, heuristic guards)
-- If a new upstream UB path is reachable from user-controlled input, harden V1
-  and V2 with analyzer-owned guards, safe helpers, or symbol overrides before
-  considering upstream/library edits. Keep `cfl/patches` CFL-only.
-- Do not “fix” analyzer/runtime UB by silently removing the finding. Preserve
-  the triggering `H-*` / `CF-*` reporting while making the runtime path safe.
-- Output: `iccanalyzer-lite/iccanalyzer-lite` (32MB with debug info)
-- When shipping V2 command-line artifacts, include:
-  `icctest`, `icctest-parity`, `README.md`, `heuristic-remap.tsv`, and
+- Links **unpatched** upstream iccDEV at `iccDEV/Build/` (NOT CFL patches)
+- Output: `iccanalyzer-lite/iccanalyzer-lite` (~32MB with debug info)
+- V2 artifacts: `icctest`, `icctest-parity`, `README.md`, `heuristic-remap.tsv`,
   `verify-parity-summary.json`
 
-## Build System Sync — Manual Source Lists + Packaging Workflows
+### Build System Sync (7 locations)
 
-When adding new `.cpp` modules, keep the manual source-list locations in sync.
-The GitHub Release workflow now packages the existing instrumented V1/V2
-outputs; it no longer owns a separate Release/LTO compile path.
-
-| # | File | Variable | Notes |
-|---|------|----------|-------|
-| 1 | `iccanalyzer-lite/build.sh` | `SOURCES=` | Primary local build |
-| 2 | `iccanalyzer-lite/CMakeLists.txt` | `add_executable()` | CI/IDE builds |
-| 3 | `.github/workflows/codeql-security-analysis.yml` | `SRCS=` | + linker flags |
-| 4 | `.github/workflows/iccanalyzer-lite-coverage-report.yml` | `SOURCES=` | + linker flags |
-| 5 | `.github/workflows/iccanalyzer-lite-debug-sanitizer-coverage.yml` | `SOURCES=` | + linker flags |
-| 6 | `.github/workflows/mcp-server-test.yml` | `SRCS=` | + linker flags |
+| # | File | Variable |
+|---|------|----------|
+| 1 | `iccanalyzer-lite/build.sh` | `SOURCES=` |
+| 2 | `iccanalyzer-lite/CMakeLists.txt` | `add_executable()` |
+| 3 | `codeql-security-analysis.yml` | `SRCS=` + linker flags |
+| 4 | `iccanalyzer-lite-coverage-report.yml` | `SOURCES=` + linker flags |
+| 5 | `iccanalyzer-lite-debug-sanitizer-coverage.yml` | `SOURCES=` + linker flags |
+| 6 | `mcp-server-test.yml` | `SRCS=` + linker flags |
 
 For `IccImageAnalyzer.cpp`, also add `-ltiff` to linker flags in all CI workflows.
-
-## Upstream UB Hardening Rule
-
-When the vendored upstream `iccDEV` library exposes a user-controlled UB path
-that affects analyzer runtime:
-
-1. fingerprint the trigger pattern into the appropriate heuristic/conformance
-   lane first
-2. prefer analyzer-owned safe wrappers or symbol overrides for widely shared
-   upstream helpers
-3. keep V1 and V2 aligned on the same hardening model
-4. do not move these runtime fixes into `cfl/patches`
-
-For the current patch-by-patch analyzer review state, use:
-
-- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
-- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`
-
-Current reference implementation:
-
-- `iccanalyzer-lite/IccDevSafeOverrides.cpp`
-
-This file hardens known shared-helper UB sites from upstream `IccUtil.cpp`
-without patching the vendored library and is the preferred extension point for
-future analyzer-owned overrides.
-
-**CRITICAL — Linker flag sync**: When adding new library dependencies (e.g.,
-`-lssl -lcrypto` for OpenSSL), update every manual compile/link location.
-The release workflow now packages the instrumented binaries produced by the
-normal build/test path, so parity and developer-facing artifacts stay aligned.
 
 ## Test
 
@@ -102,723 +45,204 @@ normal build/test path, so parity and developer-facing artifacts stay aligned.
 python3 iccanalyzer-lite/tests/run_tests.py
 ```
 
-- Tests use synthesized ICC profiles in `iccanalyzer-lite/tests/corpus/`
 - Profile synthesis: `python3 iccanalyzer-lite/tests/synthesize_profiles.py`
-- When adding heuristics, update the test for `summary.173_heuristics` pattern
-- Under harnessed V2 unit/parity execution, prefer:
-  `ASAN_OPTIONS=detect_leaks=0 LLVM_PROFILE_FILE=/dev/null`
-  because LSAN can abort under the runner environment even when the suite passes
+- Under V2 unit/parity: `ASAN_OPTIONS=detect_leaks=0 LLVM_PROFILE_FILE=/dev/null`
+- Quarantine known resource-bomb families listed in `tests/profile-resource-quarantine.txt`
 
-## Architecture — HeuristicCollector + 10 Heuristic Modules
+## Architecture
 
-All 180 heuristics use the `HeuristicCollector` API for structured output. Each
-heuristic is a `RunHeuristic_H##_Name()` function that calls `hc.begin()` /
-`hc.warn()` / `hc.critical()` / `hc.info()` / `hc.cweNote()` / `hc.end()` /
-`hc.skip()`. No raw `printf("[H##]...")` remains in the codebase.
+All heuristics use the `HeuristicCollector` API for structured output.
+No raw `printf("[H##]...")` in the codebase.
 
-### HeuristicCollector API (`IccHeuristicResult.h`)
+### HeuristicCollector API
 
 ```cpp
 HeuristicCollector &hc = HeuristicCollector::instance();
-hc.begin("H174", "My Heuristic Title");           // Start — prints [H174] header
-hc.info("Checked %u items", count);                // Informational detail
-hc.warn("HEURISTIC: Bad value — ICC.1 §7.2.5");   // Finding (increments count)
-hc.critical("Buffer overflow in tag '%s'", sig);   // Critical finding
-hc.cweNote("CWE-122: Heap-based buffer overflow"); // CWE classification
-hc.end("Tag structure valid");                     // Success summary — [OK]
-hc.skip("No relevant tag present");                // Skip — [SKIP]
-// All methods are printf-style variadic (vsnprintf internally)
+hc.begin("H174", "Title");        // Start -- prints header
+hc.info("Checked %u items", n);   // Informational
+hc.warn("HEURISTIC: ...");        // Finding (increments count)
+hc.critical("Buffer overflow");   // Critical finding
+hc.cweNote("CWE-122: ...");       // CWE classification
+hc.end("Tag structure valid");    // Success -- [OK]
+hc.skip("No relevant tag");      // Skip -- [SKIP]
 ```
 
 ### Heuristic Modules (10)
 
-| Module | Heuristics | API Level |
-|--------|-----------|-----------|
-| `IccHeuristicsHeader.cpp` | H1-H8, H15-H17 | Raw header bytes (11 functions) |
-| `IccHeuristicsTagValidation.cpp` | H9-H32 | Tag table structure via CIccProfile API |
-| `IccHeuristicsRawPost.cpp` | H33-H55, H57-H69, H152-H153 | Raw file I/O fallback |
-| `IccHeuristicsDataValidation.cpp` | H56-H102, H146-H148, H151 | Data integrity via CIccProfile API |
-| `IccHeuristicsProfileCompliance.cpp` | H103-H120 | ICC spec compliance |
-| `IccHeuristicsIntegrity.cpp` | H121-H138 | Profile integrity + CWE-400 |
-| `IccImageAnalyzer.cpp` | H139-H141, H149-H150 | TIFF/PNG/JPEG image security + ICC extraction |
-| `IccHeuristicsXmlSafety.cpp` | H142-H145 | XML serialization safety (H142 uses fork isolation) |
-| `IccHeuristicsCodeQLPatterns.cpp` | H154-H161 | CodeQL-derived library vulnerability patterns |
-| `IccHeuristicsExploitGap.cpp` | H162-H171 | Exploit gap analysis (overlap, exec sigs, LUT) |
+| Module | Heuristics | Focus |
+|--------|-----------|-------|
+| IccHeuristicsHeader.cpp | H1-H8, H15-H17 | Raw header bytes |
+| IccHeuristicsTagValidation.cpp | H9-H32 | Tag table structure |
+| IccHeuristicsRawPost.cpp | H33-H55, H57-H69, H152-H153 | Raw file I/O |
+| IccHeuristicsDataValidation.cpp | H56-H102, H146-H148, H151 | Data integrity |
+| IccHeuristicsProfileCompliance.cpp | H103-H120 | ICC spec compliance |
+| IccHeuristicsIntegrity.cpp | H121-H138 | Profile integrity + CWE-400 |
+| IccImageAnalyzer.cpp | H139-H141, H149-H150 | TIFF/PNG/JPEG image security |
+| IccHeuristicsXmlSafety.cpp | H142-H145 | XML serialization safety |
+| IccHeuristicsCodeQLPatterns.cpp | H154-H161 | CodeQL-derived patterns |
+| IccHeuristicsExploitGap.cpp | H162-H171 | Exploit gap analysis |
 
 ### Support Modules
 
 | Module | Purpose |
 |--------|---------|
-| `IccHeuristicResult.h/.cpp` | HeuristicCollector singleton — structured output API for all 180 heuristics |
-| `IccHeuristicPrinter.h` | Legacy printer compatibility layer |
-| `IccAnalyzerSecurity.cpp` | Orchestrator — `RunSecurityHeuristics()` dispatcher |
-| `IccHeuristicsLibrary.cpp` | Thin dispatcher for H9-H138 (99 lines) |
-| `IccHeuristicsLibrary.h` | Collector header including 4 sub-headers |
-| `IccHeuristicsRegistry.h` | 173-entry metadata registry (id, name, specRef, CWE, CVE refs, phase, severity) |
-| `IccHeuristicsHelpers.h` | `FindAndCast<T>()` template, `SigToChars()`, `ReadU32BE()`, `RawFileHandle` RAII |
-| `IccAnalyzerJson.cpp/.h` | `--json` structured output mode (reads HeuristicCollector directly) |
-| `IccAnalyzerReport.cpp/.h` | `--report` severity-sorted professional report |
-| `IccAnalyzerXMLExport.cpp/.h` | `-xml` per-heuristic XML with dark-themed XSLT |
-| `IccAnalyzerCapture.h/.cpp` | Shared structured capture — runs analysis in quiet mode, reads HeuristicCollector results |
-| `IccAnalyzerPAWG.cpp/.h` | `--pawg` ICC PAWG assessment report (31 checklist items) |
-| `IccConformanceRegistry.h` | 329-entry canonical conformance metadata registry |
-| `IccConformanceHeader.cpp` | Header conformance dispatcher (dateTime, size, intent, embedding) |
-| `IccConformanceTagTypes.cpp` | Tag type conformance dispatcher (viewing, named colors, curves) |
-| `IccConformanceRequired.cpp` | Required tag conformance dispatcher (per-class tag presence) |
-| `IccConformanceLUT.cpp` | LUT/matrix conformance dispatcher (CLUT, channels, grid) |
-| `IccConformanceV5.cpp` | v5/ICS conformance dispatcher (spectral, extended range, PCC) |
+| IccHeuristicResult.h/.cpp | HeuristicCollector singleton |
+| IccAnalyzerSecurity.cpp | Orchestrator dispatcher |
+| IccHeuristicsRegistry.h | Metadata registry (id, name, specRef, CWE, CVE, severity) |
+| IccHeuristicsHelpers.h | FindAndCast<T>(), SigToChars(), ReadU32BE(), RawFileHandle |
+| IccAnalyzerJson.cpp | `--json` structured output |
+| IccAnalyzerReport.cpp | `--report` severity-sorted report |
+| IccAnalyzerXMLExport.cpp | `-xml` per-heuristic XML with XSLT |
+| IccAnalyzerPAWG.cpp | `--pawg` ICC PAWG assessment |
+| IccAnalyzerCapture.cpp | Shared capture: quiet mode + read results |
+| IccConformanceRegistry.h | 329-entry conformance metadata |
+| IccConformance*.cpp (5) | 7 conformance dispatchers |
+| IccDevSafeOverrides.cpp | Upstream UB safe overrides (preferred extension point) |
 
-- Entry point: `RunSecurityHeuristics()` in `IccAnalyzerSecurity.cpp`
-- When the library fails to load a malformed profile, raw fallback runs H10/H13/H25/H28/H32
-- Gate: if `heuristicCount >= kCriticalHeuristicThreshold`, library phase is skipped
+### Structured Output
 
-## Routine Resource-Bomb Policy
+All modes (`--json`, `--report`, `-xml`, `--pawg`) use the same pattern:
+reset collector -> quiet mode -> suppress stdout -> ComprehensiveAnalyze() ->
+restore stdout -> read `HeuristicCollector::results()` -> format output.
 
-- Routine local and CI profile sampling must exclude the known resource-bomb
-  families listed in
-  `iccanalyzer-lite/tests/profile-resource-quarantine.txt`.
-- Dedicated timeout/OOM/CWE-400 workflows still own those files explicitly.
-- If a profile-loop workflow runs one file at a time, write a breadcrumb such as
-  `current-profile.txt` before each invocation so host-level OOM still leaves an
-  identifiable last profile.
-- Do not rely on `ulimit -v` for routine ASan runs; ASan reserves large virtual
-  address ranges and can false-fail under tight RLIMIT_AS caps. Prefer the
-  quarantine list for routine runs and cgroup wrappers for targeted resource
-  investigations.
+### Output Modes
 
-### Structured Output Architecture (Phase 5)
-
-All structured output modes (`--json`, `--report`, `-xml`, `--pawg`) use the same pattern:
-1. `HeuristicCollector::reset()` — clears stale results from prior runs
-2. `HeuristicCollector::setQuiet(true)` — suppresses heuristic printf output
-3. `dup2(devNull, stdout)` — suppresses ComprehensiveAnalyze phase banner printf
-4. `ComprehensiveAnalyze()` runs — heuristics collect structured data silently
-5. Restore stdout, `setQuiet(false)`
-6. Read `HeuristicCollector::instance().results()` → convert to output format
-
-`CaptureAndParseAnalysis()` in `IccAnalyzerCapture.cpp` implements steps 1-6 and returns
-`CapturedAnalysis` with enriched `CapturedFinding` entries (severity, CWE, specRef from
-`kHeuristicRegistry[]`). JSON, Report, and XML modes consume this shared function.
-PAWG mode has its own implementation with the same pattern but different output struct.
+| Flag | Description |
+|------|-------------|
+| `-a` | Comprehensive analysis (auto-detects ICC/TIFF/PNG/JPEG) |
+| `-img` | Explicit image analysis mode |
+| `--json` | Structured JSON with per-heuristic results |
+| `--report` | Professional severity-sorted report |
+| `-xml out.xml` | Per-heuristic XML with dark-themed XSLT |
+| `--pawg` | ICC PAWG assessment (31 checklist items) |
+| `--registry` | Full heuristic registry JSON (no profile needed) |
+| `-xt` | LUT text export (curves, CLUTs, matrices) |
+| `-it` | LUT text import |
+| `-cube` | 3D CLUT as .cube format (3->3 channel only) |
+| `-from-cube` | Create ICC from .cube file |
+| `-r` | Round-trip mode |
+| `-nf` | Ninja-full structural dump |
 
 ## Adding a New Heuristic
 
-1. Choose the next ID: **H174** (current max is H173)
-2. Add `RunHeuristic_H174_Name()` function to the appropriate category file:
-   - Tag structure → `IccHeuristicsTagValidation.cpp`
-   - Data integrity → `IccHeuristicsDataValidation.cpp`
-   - Spec compliance → `IccHeuristicsProfileCompliance.cpp`
-   - Profile integrity → `IccHeuristicsIntegrity.cpp`
-   - Image analysis → `IccImageAnalyzer.cpp`
-   - CodeQL-derived → `IccHeuristicsCodeQLPatterns.cpp`
-   - Exploit gap → `IccHeuristicsExploitGap.cpp`
-3. **Use HeuristicCollector API** (MANDATORY — no raw printf):
-   ```cpp
-   int RunHeuristic_H174_MyCheck(CIccProfile *pIcc) {
-     HeuristicCollector &hc = HeuristicCollector::instance();
-     hc.begin("H174", "My Check Title (ICC.1-2022-05 §X.Y)");
-
-     CIccTag *pTag = pIcc->FindTag(icSigSomeTag);
-     if (!pTag) return hc.skip("No relevant tag present");
-
-     // ... validation logic ...
-     if (badCondition) {
-       hc.warn("HEURISTIC: Description — ICC.1-2022-05 §X.Y.Z");
-       hc.cweNote("CWE-NNN: Description");
-     }
-     return hc.end("Check passed");
-   }
-   ```
-4. Add function declaration to the corresponding `.h` file
-5. Wire dispatch call in `IccHeuristicsLibrary.cpp` (or `IccAnalyzerSecurity.cpp` for image)
-6. Add entry to `IccHeuristicsRegistry.h` (id, name, specRef, CWE, cveRefs, phase, severity)
-7. Update heuristic count (173→174) in these files:
-   - `iccanalyzer-lite/tests/run_tests.py` — `summary.173_heuristics`
-   - `.github/copilot-instructions.md` — multiple locations
-   - `README.md` — two locations
-   - `.github/prompts/analyze-icc-profile.prompt.yml`
-   - `mcp-server/icc_profile_mcp.py`
-   - `.github/workflows/iccanalyzer-lite-unit-tests.yml`
-
-### `mluc` / `pseq` parity note
-
-- A zero-record multiLocalizedUnicodeType (`mluc`) placeholder is treated as a
-  12-byte recommended encoding per the ICC TN PSD guidance.
-- Legacy 16-byte zero-record encodings are readable in some SampleICC paths but
-  should still be reported as non-minimal rather than silently normalized away.
-- `CF-221` coverage for embedded `mluc` inside `profileSequenceDescTag` remains
-  shallower than standalone tag-table `mluc` validation because SampleICC still
-  reads standalone `mluc` with the legacy 16-byte header shape.
-
-### PAWG quality coverage note
-
-- `Q1` bounded round-trip uses matrix/TRC plus classic LUT pair selection across
-  `A2B0/B2A0`, `A2B1/B2A1`, and `A2B2/B2A2`, including 4-channel classic LUTs.
-- `Q2` curve invertibility covers TRCs plus classic/MBB curves from alternate
-  intents and `D2B/B2D` tags when present.
-- `Q3` smoothness uses diagonal and per-axis bounded sweeps for matrix/TRC and
-  classic LUT paths; do not regress this back to diagonal-only sampling.
-- `Q4` characterization-data evaluation currently supports RGB, Gray, and CMYK
-  device columns from `charTargetTag`.
-- Regression anchors for PAWG quality work are:
-  `tests/corpus/lut8_atob2_btoa2.icc`,
-  `tests/corpus/targ_quality_profile.icc`, and
-  `tests/corpus/targ_cmyk_quality_profile.icc`.
-
-**Migration pitfall warning**: When writing `hc.info()`, `hc.warn()`, `hc.critical()`
-calls, ensure format string placeholders (`%s`, `%u`, `%d`) match the arguments.
-Missing `%s` causes args to be silently dropped (caught only by `-Wformat-extra-args`
-or CodeQL `cpp/too-many-format-arguments`). Always build with warnings enabled.
-
-### Implemented TIFF Heuristics (H139-H141, H149-H150)
-
-**H139: TIFF Strip Geometry Validation** — Validates TIFF strip buffer geometry:
-`StripByteCounts >= RowsPerStrip × Width × SamplesPerPixel × (BitsPerSample/8)`,
-`RowsPerStrip <= Height`, integer overflow checks in strip size calculations.
-CWE-122/CWE-190. Detects the exact bug pattern fixed by CFL-082.
-
-**H140: TIFF Dimension and Sample Validation** — Validates TIFF dimensions
-(Width, Height ≤ 65535), BitsPerSample (1/8/16/32), SamplesPerPixel (≤ 6),
-and cross-checks dimension × sample products for integer overflow.
-CWE-400/CWE-131.
-
-**H141: TIFF IFD Offset Bounds** — Validates all TIFF IFD tag data offsets
-point within the file. Detects file truncation attacks where TIFF headers reference
-data beyond EOF. CWE-125.
-
-**H149: TIFF IFD Chain Cycle Detection** — Walks raw IFD next-pointers to detect
-circular references that would cause infinite loops. Tracks visited offsets in a set;
-flags cycles and excessive chain depth (>1024). CWE-835.
-
-**H150: TIFF Tile Geometry Validation** — For tiled TIFFs, validates TileWidth
-and TileLength are multiples of 16 (TIFF 6.0 §15), tile count matches expected
-grid layout, tile byte counts checked for integer overflow and EOF overrun.
-CWE-122/CWE-131.
-
-### Implemented Sampled Curve Validation (H151-H153)
-
-**H151: Calculator Element Enum Validation** — Validates calculator operator
-enum values are within the defined icSigCalcOp range. Detects the enum
-out-of-range UBSAN pattern (sibling of CFL-005/CFL-009/CFL-017). CWE-681.
-Added upstream in iccDEV cfl branch.
-
-**H152: Curve Element OOM Size Validation** — Raw preflight scanner for
-`sngf`/`samf`/`clcf` oversized sample counts and `curf` segmented-curve
-minimum-size underflow. Used both for reporting and for analyzer-owned library
-quarantine before unpatched `iccDEV` reaches the unsafe curve allocation paths.
-CWE-770 / CWE-191. Derived from CFL-021 and CFL-064.
-
-**H153: Sampled Curve NaN-to-Unsigned Cast Detection** — Scans raw profile
-bytes for MPE curve type signatures (sngf=0x736E6766, clcf=0x636C6366,
-samf=0x73616D66). At each match, reads firstEntry (offset+12) and lastEntry
-(offset+16) as big-endian float32. Validates: not NaN (IEEE 754 self-inequality),
-not ±Inf, not equal (range=0 → division by zero in Apply()). Max 8 findings.
-CWE-681. Phase: RAW_POST. Severity: CRITICAL.
-**UBSAN trigger**: `IccMpeBasic.cpp:2446 — -nan is outside the range of
-representable values of type 'unsigned int'`.
-
-### Implemented CodeQL-Driven Heuristics (H154-H173)
-
-These heuristics were derived from CodeQL static analysis patterns and detect
-library-level vulnerability patterns in the raw profile binary data:
-
-**H154: Uncontrolled Tag Allocation Size** — Detects file-controlled tag sizes
-that would be passed to `new[]`/`malloc()` without bounds checking. CWE-789.
-
-**H155: Integer Overflow in Tag Dimensions** — Detects dimension multiplication
-overflows in LUT, Named Color, and CLUT tags (e.g., `m_NumberOfTriangles * 3`). CWE-190.
-
-**H156: Allocation Failure Path Profiles** — Detects patterns where allocation
-failure (null return) would not be checked before use. CWE-252.
-
-**H157: Alloc-Dealloc Mismatch Tag Patterns** — Detects `new[]` vs `free()`
-mismatches in tag copy/assignment paths (CIccTagArray, CIccFormulaCurve). CWE-762.
-
-**H158: Enum Range Violation Detection** — Extended enum out-of-range detection
-beyond H151's calculator-specific scope. CWE-681.
-
-**H159: UAF Tag Ownership Chain Detection** — Detects use-after-free in tag
-ownership transfer chains (AddXform consuming then freeing profiles). CWE-416.
-
-**H160: Format String Injection in Text Tags** — Detects `%n`, `%s`, `%x`
-format specifiers in text tag content that could exploit printf-family calls. CWE-134.
-
-**H161: Stack Address Escape Deep Apply Chains** — Detects deep MPE chains
-where ToneMapFunc `Describe()` accesses beyond allocated `m_params`. CWE-121.
-
-**H162: Partial Tag Data Overlap Detection** — Detects overlapping tag data
-regions where two tags share data but with mismatched sizes. CWE-119.
-
-**H163: Executable Signature Scan in Tag Data** — Scans tag data for ELF/PE/MachO
-headers that indicate embedded executable content. CWE-506.
-
-**H164: Raw LUT Channel vs ColorSpace/PCS Cross-Check** — Cross-validates
-LUT input/output channel counts against declared color space channels. CWE-131.
-
-**H165: LUT Data Sufficiency Validation** — Validates LUT data size is sufficient
-for declared grid dimensions and channel counts. CWE-125.
-
-**H166: Division-by-Zero in CAM/Array/MPE** — Detects zero divisors in
-calculator operations, matrix columns, and array element sizes. CWE-369.
-
-**H167: Null MPE CLUT/Curve Application Guard** — Detects null `CIccApplyCLUT`
-after `GetNewApply()` failure in CLUT/curve application paths. CWE-476.
-
-**H168: Unchecked Allocation Size Overflow** — Detects multiplication overflows
-in allocation size computations before `new[]`/`malloc()`. CWE-789.
-
-**H169: Dictionary Tag Element Bounds** — Validates dictionary tag element
-counts and access indices against available data. CWE-789.
-
-**H170: Copy Constructor UB via Null PCS** — Detects copy constructor undefined
-behavior when PCS is null, causing type confusion in profile cloning. CWE-843.
-
-**H171: Curve Param Count vs FuncType Validation** — Validates curve parameter
-counts match expected counts for each function type, preventing out-of-bounds
-reads in ToneMapFunc and ParametricCurve Describe/Apply paths. CWE-125.
-
-### Candidate Heuristics (Not Yet Implemented)
-
-**H172: TIFF Compression Bomb Detection** — Detect decompression bombs where
-compressed tile/strip size is tiny but uncompressed size is enormous. CWE-400.
-
-**H173: Matrix Determinant Range Check** — Detect singular or near-singular
-matrices in chromatic adaptation and matrix/TRC tags. CWE-682.
-
-### Implemented XML Safety Heuristics (H142-H145)
-
-**H142: XML Serialization Safety** — Fork-isolates `CIccProfileXml::ToXml()` to
-detect crashes/hangs in the IccLibXML serialization path. Registers XML factories,
-pre-allocates 4MB output buffer, sets 10s alarm. Child crash (WIFSIGNALED) or
-timeout = CRITICAL finding. Covers ALL 25 XML-related iccDEV advisories (HBO,
-SBO, NPD, type confusion, stack overflow in XML serialization).
-CWE-787/CWE-125. References 24 GHSA/CVE identifiers.
-
-**H143: XML Array Bounds Precheck** — Before ToXml: validates array tag element
-counts vs available data size. Pattern: `CIccXmlArrayType<T>::DumpArray` uses
-`m_nSize` without bounds check — if `m_nSize * elementSize > tagDataSize`, the
-serializer reads out-of-bounds. CWE-131.
-
-**H144: XML String Termination Precheck** — Validates null-termination of fixed
-32-byte string fields in ColorantTable entries and NamedColor2 prefix. Unterminated
-strings cause `strlen()` overflow during XML text generation. CWE-170.
-
-**H145: XML Curve Type Consistency** — Validates MPE CurveSet element type
-signatures match `icSigCurveSetElemType`. Type confusion causes invalid casts in
-`ToXmlCurve()` leading to memory corruption. CWE-843.
-
-### Implemented Advanced Data Validation (H146-H148)
-
-**H146: Stack Buffer Overflow GetValues** — Detects numeric array tags (XYZ,
-S15Fixed16, U16Fixed16) where `GetSize()` exceeds 16 elements (kMaxSafeChannels),
-indicating potential stack buffer overflow when `GetValues()` writes into fixed-size
-caller buffers. Also checks LUT output channels vs declared color space. CWE-121.
-PoCs: #551, #618, #649, #625, #624, #537.
-
-**H147: Null Pointer After Tag Read** — Checks post-Read() state of tags that
-leave internal pointers null on malformed data: Utf16Text `GetText()` null,
-TextDescription null text, MPE null sub-elements, tag table null pTag pointers.
-CWE-476. PoCs: #553, #560, #484, #485, #507, #633.
-
-**H148: Memory Copy Bounds Overlap** — Analyzes MPE element chains for channel
-count oscillation that causes memcpy src/dst overlap in Apply() ping-pong buffers.
-Also validates NamedColor2 deviceCoords ≤ 15 (ICC spec max). CWE-119.
-PoC: #577.
-
-## Heuristic Categories
-
-| Range | Module | Focus |
-|-------|--------|-------|
-| H1-H8, H15-H17 | IccHeuristicsHeader.cpp | Raw header (size, magic, version, dates, spectral) |
-| H9-H32 | IccHeuristicsTagValidation.cpp | Tag structure (counts, offsets, types, sizes) |
-| H33-H55, H57-H69, H152-H153 | IccHeuristicsRawPost.cpp | Raw file I/O (overlaps, embedded images, duplicates, curve OOM/underflow, curve NaN) |
-| H56-H102, H146-H148, H151 | IccHeuristicsDataValidation.cpp | Data integrity (calculator, LUT, matrices, curves, embedded profiles) |
-| H103-H120 | IccHeuristicsProfileCompliance.cpp | ICC spec compliance (required tags, encoding) |
-| H121-H138 | IccHeuristicsIntegrity.cpp | Profile integrity + CWE-400 (MD5, alignment, complexity) |
-| H139-H141, H149-H150 | IccImageAnalyzer.cpp | TIFF image security (strip/tile geometry, dimensions, IFD, cycles) |
-| H142-H145 | IccHeuristicsXmlSafety.cpp | XML serialization safety (ToXml crash, arrays, strings, curves) |
-| H154-H161 | IccHeuristicsCodeQLPatterns.cpp | CodeQL-derived library patterns (alloc, overflow, enum, UAF, format string) |
-| H162-H171 | IccHeuristicsExploitGap.cpp | Exploit gap (overlap, exec sigs, LUT, div-zero, null, curve params) |
+1. Choose next ID (current max from `--registry`)
+2. Add `RunHeuristic_HNNN_Name()` to appropriate category file
+3. **Use HeuristicCollector API** (MANDATORY -- no raw printf)
+4. Add declaration to corresponding `.h` file
+5. Wire dispatch in `IccHeuristicsLibrary.cpp` or `IccAnalyzerSecurity.cpp`
+6. Add entry to `IccHeuristicsRegistry.h`
+7. Update test expectations in `run_tests.py`
+8. Build, test, ASAN spot-check
 
 ## Conformance Checks (CF-001..CF-329)
 
-329 canonical ICC specification conformance checks across 7 dispatcher modules.
-The implementation currently carries 331 wrapper entries because `CF-091..094`
-are emitted by both Quality and Security dispatchers. These validate
-profile compliance with ICC.1-2022-05, ICC.2-2019/2023, ICC.2:2019 errata, ICS
-interoperability conformance specifications, and ICC technical notes — separate from
-the 173 security heuristics (H1-H173) which focus on vulnerability patterns.
+329 canonical ICC conformance checks across 7 dispatchers. CF functions use
+`printf` (NOT HeuristicCollector) and return `int` (issue count). The `CF_WRAP`
+macro handles collector integration. ID numbering: CF ID = 1000 + CF number.
 
-### Conformance Modules (7 dispatchers)
-
-| Module | CF_WRAPs | CF Ranges | Focus |
-|--------|----------|-----------|-------|
-| `IccConformanceHeader.cpp` | 44 | CF-001..CF-019, CF-107, CF-121-122, CF-184-187, CF-199-201, CF-203, CF-206, CF-210, CF-214-219, CF-243-246 | Header structure, dateTime, size, intent, embedding |
-| `IccConformanceTagTypes.cpp` | 73 | CF-020..CF-039, CF-112, CF-123-132, CF-169-174, CF-188-190, CF-208-213, CF-220-234, CF-247-254, CF-263-265, CF-273-281 | Tag types, viewing conditions, named colors, chromaticity, curves, ADGC |
-| `IccConformanceRequired.cpp` | 50 | CF-039..CF-059, CF-095-098, CF-103-104, CF-111, CF-117-120, CF-202, CF-204-205, CF-207, CF-211, CF-258-260, CF-266-272, CF-282-283 | Required tags per class, tag presence, text content |
-| `IccConformanceLUT.cpp` | 38 | CF-060..CF-079, CF-105-110, CF-116, CF-163-168, CF-255-256, CF-261-262 | LUT/matrix structure, CLUT grid, channel consistency |
-| `IccConformanceV5.cpp` | 114 | CF-080..CF-090, CF-113-115, CF-137-162, CF-175-198, CF-235-242, CF-257, CF-284-329 | v5/iccMAX, ICS interop, spectral, extended range, partial adaptation, errata, ICS sub-classes, K.2 ICS workflow (HDR-SDR, solv, env, PCC) |
-| `IccConformanceQuality.cpp` | 6 | CF-091..CF-094 | Profile quality metrics |
-| `IccConformanceSecurity.cpp` | 6 | CF-091..CF-094 | Security-specific conformance |
-
-### CF Coding Convention
-
-CF functions use `printf` for output and return `int` (issue count). They do **NOT**
-call `hc.begin()`/`hc.end()`/`hc.skip()` — the `CF_WRAP` macro in each dispatcher
-handles the HeuristicCollector integration:
-
-```cpp
-// In dispatcher:
-CF_WRAP(1243, "CF-243: dateTimeNumber Field Range", RunCF243_DateTimeRange(pIcc));
-
-// CF function pattern:
-static int RunCF243_DateTimeRange(CIccProfile *pIcc) {
-  printf("%s[CF-243]%s dateTimeNumber Field Range (%sICC.1-2022-05 §4.2%s)\n",
-         ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
-  int issues = 0;
-  // ... validation logic using printf for output ...
-  if (issues == 0)
-    printf("         %s[OK]%s Fields valid\n", ColorSuccess(), ColorReset());
-  return issues;
-}
-```
-
-ID numbering: CF ID = 1000 + CF number (e.g., CF-243 → id 1243).
-Registry entries: `IccConformanceRegistry.h` (id, title, description, specRef, severity, category).
 Next available: **CF-330**.
 
-### Adding a New Conformance Check
+Adding: create `RunCF330_Name()`, add `CF_WRAP(1330, ...)` to dispatcher,
+add entry to `IccConformanceRegistry.h`, update test assertions.
 
-1. Choose the next ID: **CF-330** (current max is CF-329)
-2. Add `RunCF317_Name()` function to the appropriate category file
-3. Use `printf` pattern (NOT HeuristicCollector API)
-4. Add `CF_WRAP(1330, "CF-330: Title", RunCF330_Name(pIcc));` to the dispatcher
-5. Add entry to `IccConformanceRegistry.h` (before closing `};`)
-6. Add test assertion in `run_tests.py` `test_conformance_checks()`
-7. Build, test (813+ tests), ASAN spot-check
+## Image Analysis
 
-## CVE Coverage (113 iccDEV Advisories)
+`-a` mode auto-detects via magic bytes: TIFF (`II\x2a`/`MM\x00\x2a`),
+PNG (`\x89PNG`), JPEG (`\xff\xd8\xff`), ICC (`acsp` at offset 36).
 
-57 heuristics detect patterns from 87 CVEs + 95 GHSAs (182 unique) across the 113 iccDEV
-security advisories. Use `./iccanalyzer-lite --registry | jq` for authoritative counts.
-All 25 XML parser/serializer advisories are now in-scope via H142-H145.
-All 113 advisories are in scope (iccFromCube mapped to H34).
+Pipeline: metadata -> security checks -> injection scan (xnuimagefuzzer patterns)
+-> ICC extraction -> full heuristic analysis on extracted profile.
+
+JPEG supports multi-segment APP2 ICC_PROFILE reassembly (profiles >64KB).
+`.cube` requires exactly 3->3 channels. Test profile: `test-profiles/fuzzed-prtr-Lab-414k.icc`.
+
+## Upstream UB Hardening
+
+When upstream iccDEV exposes user-controlled UB affecting analyzer runtime:
+1. Fingerprint the trigger into appropriate heuristic/conformance lane
+2. Prefer analyzer-owned safe wrappers or symbol overrides
+3. Keep V1 and V2 aligned
+4. Do NOT move these into `cfl/patches`
+
+Extension point: `IccDevSafeOverrides.cpp` (hardens shared-helper UB sites).
+
+## CVE Coverage
+
+Use `--registry | jq` for authoritative counts. All 113 iccDEV advisories in scope.
 Source of truth: `docs/cve/iccDEV-CVE-Report.md`.
 
-CVE cross-references are stored in `IccHeuristicsRegistry.h` per heuristic entry.
-Use `--json` mode for programmatic access to per-heuristic CVE mappings, or
-`--registry` mode for the full database without requiring a profile argument.
-
-### Enrichment Workflow (when new advisories appear)
+### Enrichment Workflow
 
 ```bash
-# 1. Fetch current advisory count
-gh api --paginate "repos/InternationalColorConsortium/iccDEV/security-advisories" --jq '.[].ghsa_id' | wc -l
-
-# 2. Find unmapped GHSAs
-gh api --paginate "repos/InternationalColorConsortium/iccDEV/security-advisories" --jq '.[] | select(.cve_id == null) | .ghsa_id' | sort > /tmp/all_ghsa.txt
-grep -oP 'GHSA-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+' iccanalyzer-lite/IccHeuristicsRegistry.h | sort -u > /tmp/registered.txt
-comm -23 /tmp/all_ghsa.txt /tmp/registered.txt
-
-# 3. Classify each as in-scope (binary ICC) or out-of-scope (XML/tool)
-# 4. Add GHSA IDs to cveRefs field in IccHeuristicsRegistry.h
-# 5. Update counts in ALL 6 sync locations (see plan.md)
-# 6. Build, then read uniqueCVEs from --json output (do NOT guess)
-# 7. Update test expectations with actual values
-# 8. Verify: 813/813 tests pass
+gh api --paginate "repos/InternationalColorConsortium/iccDEV/security-advisories" \
+  --jq '.[] | select(.cve_id == null) | .ghsa_id' | sort > /tmp/all_ghsa.txt
+grep -oP 'GHSA-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+' IccHeuristicsRegistry.h | sort -u > /tmp/registered.txt
+comm -23 /tmp/all_ghsa.txt /tmp/registered.txt   # unmapped GHSAs
 ```
 
-## JSON Output Mode (v3.6.0+)
+## Severity Classification
 
-```bash
-./iccanalyzer-lite --json profile.icc
-```
-
-Emits structured JSON with per-heuristic results, registry metadata (specRef, CWE,
-CVE refs, severity), and summary counts. Reads `HeuristicCollector::instance().results()`
-directly via `CaptureAndParseAnalysis()`. Suitable for MCP server, CI pipelines,
-and automated analysis.
-
-## Report Output Mode (v3.6.0+)
-
-```bash
-./iccanalyzer-lite --report profile.icc
-```
-
-Emits a professional severity-sorted report with banner header, SHA-256 hash, build info,
-findings grouped by CRITICAL/HIGH/MEDIUM/LOW/INFO, CWE summary table, and CVE
-cross-reference section. Reads HeuristicCollector results via shared `CaptureAndParseAnalysis()`.
-
-## XML Output Mode (v3.6.0+)
-
-```bash
-./iccanalyzer-lite -xml profile.icc output.xml
-```
-
-Generates per-heuristic XML with embedded dark-themed XSLT stylesheet. Each `<check>`
-element includes id, severity, CWE, CVE refs, spec reference, and detail text.
-XSLT renders as a professional dark-themed HTML report with severity color coding,
-executive summary cards, and findings table.
-
-## Registry Output Mode (v3.6.2+)
-
-```bash
-./iccanalyzer-lite --registry          # Full JSON database
-./iccanalyzer-lite --registry | jq .totalHeuristics
-```
-
-Emits the complete heuristic registry as JSON — no profile argument needed. Includes
-`totalHeuristics`, `heuristicsWithCVE`, `uniqueCVEs`, `uniqueGHSAs`, severity
-distribution, and per-heuristic metadata (id, name, specRef, CWE, CVE refs, phase,
-severity). This is the **source of truth** for all counts — adding a new entry to
-`kHeuristicRegistry[]` in `IccHeuristicsRegistry.h` automatically updates all values.
-
-## Severity Classification (v3.6.0+)
-
-All 180 heuristics are classified by CWE impact:
-- **CRITICAL** (62): Memory corruption/RCE — CWE-119, CWE-121, CWE-122, CWE-476, CWE-787, CWE-416, CWE-190, CWE-506, CWE-789, CWE-762
-- **HIGH** (41): DoS/crash — CWE-674, CWE-400, CWE-843, CWE-476, CWE-252, CWE-681, CWE-369
-- **MEDIUM** (~28): Data integrity — CWE-682, CWE-345
-- **LOW** (~37): Spec compliance — CWE-20
-- **INFO** (3): Metadata — H16, H35, H108
-
-Severity field is included in `--json`, `--report`, and `-xml` output modes.
-`HeuristicSeverity` enum and `severity` field are defined in `IccHeuristicsRegistry.h`.
-
-## LUT Text I/O and .cube Support (v3.7.0+)
-
-```bash
-# Text export — extracts curves, CLUTs, matrices as tab-delimited text
-./iccanalyzer-lite -xt profile.icc /tmp/output_prefix_
-
-# Text import — reads edited text files back into ICC profile
-./iccanalyzer-lite -it /tmp/output_prefix_ profile.icc modified.icc
-
-# Cube export — 3D CLUT as .cube format (requires 3D→3 channel CLUT)
-./iccanalyzer-lite -cube profile.icc AToB0Tag output.cube
-
-# Cube import — create ICC profile from .cube file
-./iccanalyzer-lite -from-cube input.cube output.icc
-```
-
-Implementation: `IccAnalyzerLUTTextIO.cpp` (1634 LOC), linked against patched
-`cfl/iccDEV` for hostile input safety. Declarations in `IccAnalyzerLUT.h`.
-
-**Key API note**: `CIccCLUT::GridPoint(i)` returns grid node count per axis.
-`CIccCLUT::GetDimSize(i)` returns total entries per dimension — NOT the grid size.
-Always use `GridPoint()` for grid dimensions in text I/O.
-
-**Cube format constraints**: `.cube` requires exactly 3 input → 3 output channels.
-Profiles with matrix-only LUTs or 2D CLUTs cannot export to `.cube` (exit code 2).
-Known 3D CLUT test profile: `test-profiles/fuzzed-prtr-Lab-414k.icc` (AToB0Tag, 17³ grid).
-
-**CI exercises**: `analyze-profile.sh` runs `-xt` and `-cube` with ASAN checks.
-`iccanalyzer-lite-debug-sanitizer-coverage.yml` has a 200-line LUT I/O exercise step.
-
-## Image Analysis (v3.4.0+)
-
-The `-a` mode auto-detects image files via magic bytes and routes to `IccImageAnalyzer.cpp`.
-The explicit `-img` mode also available. Supports TIFF (libtiff), PNG (libpng iCCP
-chunk extraction), and JPEG (libjpeg APP2 ICC_PROFILE multi-segment reassembly).
-Table-driven format dispatch via `kFormatHandlers[]` — adding a new format requires
-only a handler function + 1 table entry.
-
-### TIFF Analysis Pipeline
-1. **Metadata**: dimensions, BPS, SPP, compression, photometric, planar config,
-   sample format, orientation, strip/tile layout, software, datetime
-2. **Security checks**: extreme dimensions (>65535), zero dimensions, unusual BPS
-   (not 1/8/16/32), excessive SPP (>6), strip offset bounds, multi-IFD page counting
-3. **Injection scan**: 10 xnuimagefuzzer INJECT_STRING patterns (buffer overflow,
-   XSS, SQLi, format string, path traversal, XXE), ICC mutation strategy markers,
-   BigTIFF-in-TIFF type confusion
-4. **ICC extraction**: TIFFTAG_ICCPROFILE (tag 34675) → temp file → full
-   ComprehensiveAnalyze() with all 180 heuristics
-
-### Format Detection (magic bytes)
-- TIFF LE: `II\x2a\x00` (0x49492a00)
-- TIFF BE: `MM\x00\x2a` (0x4d4d002a)
-- BigTIFF LE: `II\x2b\x00` (0x49492b00)
-- BigTIFF BE: `MM\x00\x2b` (0x4d4d002b)
-- PNG: `\x89PNG` (0x89504e47)
-- JPEG: `\xff\xd8\xff` (0xffd8ff)
-- ICC: `acsp` at offset 36 (0x61637370)
-
-### PNG Analysis Pipeline
-1. **Metadata**: dimensions, bit depth, color type, interlace method, compression
-2. **ICC extraction**: iCCP chunk via `png_get_iCCP()` → decompress → temp file →
-   full ComprehensiveAnalyze() with all 180 heuristics
-3. **Security checks**: dimensions, color type validation
-
-### JPEG Analysis Pipeline
-1. **Metadata**: dimensions, color space, component count, data precision
-2. **ICC extraction**: APP2 `ICC_PROFILE` markers with multi-segment reassembly
-   (supports profiles >64KB split across multiple APP2 segments). Validates
-   sequence numbers and total count, reassembles in order.
-3. **ICC extraction**: reassembled data → temp file → full ComprehensiveAnalyze()
-
-### Usage
-```bash
-# Auto-detect (TIFF/PNG/JPEG → image analyzer, ICC → profile analyzer)
-./iccanalyzer-lite -a image.tif
-./iccanalyzer-lite -a photo.png
-./iccanalyzer-lite -a photo.jpg
-
-# Explicit image analysis mode
-./iccanalyzer-lite -img image.tif
-```
-
-## Heuristic Output Format
-
-Every heuristic MUST follow this pattern:
-```
-[H<N>] <Title> (<spec reference>)
-      <detail lines>
-      [OK] <success message>    OR
-      [WARN]  HEURISTIC: <finding> — ICC.1-2022-05 §X.Y
-       CWE-<N>: <description>
-```
-
-## ICC Specification References — Sources of Truth
-
-- **ICC.1-2022-05**: v2/v4 profile structure, header fields §7.2, tag table §7.3, tag types §10
-- **ICC.2-2023**: v5 profiles, spectral PCS, calculator elements, MPE
-- **ADGC spec** (April 2025): Adaptive Gain Curve tag, RGB+Input/Display only
-- Header field map: §7.2.2 size, §7.2.4 version, §7.2.5 class, §7.2.6 colorSpace,
-  §7.2.7 PCS, §7.2.9 magic, §7.2.10 platform, §7.2.11 flags, §7.2.15 intent,
-  §7.2.16 illuminant, §7.2.18 profileID, §7.2.19 reserved bytes 100-127
+- **CRITICAL**: Memory corruption/RCE (CWE-119, 121, 122, 476, 787, 416, 190, 506, 789, 762)
+- **HIGH**: DoS/crash (CWE-674, 400, 843, 681, 369, 252)
+- **MEDIUM**: Data integrity (CWE-682, 345)
+- **LOW**: Spec compliance (CWE-20)
+- **INFO**: Metadata (H16, H35, H108)
 
 ## Pre-Push Validation (MANDATORY)
 
-1. `cd iccanalyzer-lite && ./build.sh` — must succeed
-2. `python3 iccanalyzer-lite/tests/run_tests.py` — all tests pass
-3. ASAN spot-check on 5+ diverse profiles — 0 failures
-4. `gh api /repos/xsscx/research/code-scanning/alerts` — 0 open alerts
-5. **Verify linker flags match across ALL 7 build locations** (see Build System Sync table).
-   Specifically check that `iccanalyzer-cli-release.yml` static link command has the
-   same `-l` flags as `build.sh` LIBS variable. A local build.sh success is NOT
-   sufficient — the release workflow has independent linker flags that can diverge.
+1. `cd iccanalyzer-lite && ./build.sh`
+2. `python3 tests/run_tests.py` -- all tests pass
+3. ASAN spot-check on 5+ diverse profiles
+4. `gh api /repos/xsscx/research/code-scanning/alerts` -- 0 open alerts
+5. Verify linker flags match across ALL 7 build locations
 6. Only then: `git push`
 
 ## Common Pitfalls
 
-- `std::string(wstr.begin(), wstr.end())` triggers UBSAN when wchar_t > 127 —
+- `std::string(wstr.begin(), wstr.end())` triggers UBSAN when wchar_t > 127 --
   use `static_cast<char>(static_cast<unsigned char>(wc & 0xFF))`
-- When extracting ICC signatures into `char[5]`, always cast through `unsigned char`:
-  `sigCC[0] = static_cast<char>(static_cast<unsigned char>((sig >> 24) & 0xFF));`
-  Direct assignment `sigCC[0] = (sig >> 24) & 0xFF` or C-cast `(char)(...)` triggers
-  UBSAN implicit-conversion when byte value > 127
-- `icGetSpaceSamples()` returns declared channel count, but malformed LUTs can
-  have `m_nOutput > declared` — always use `tmpPixel[16]` sized buffers
+- ICC signature extraction: always cast through `unsigned char` to avoid UBSAN
+- `icGetSpaceSamples()` may report fewer channels than malformed LUTs have --
+  always use `tmpPixel[16]` sized buffers
 - H111 reserved bytes are 100-127 (NOT 84-127; 84-99 is Profile ID)
-- H112 D50 values are ICC s15Fixed16 (0.9642/1.0/0.8249), NOT CIE (0.9505/1.0/1.089)
-- Don't modify for-loop counter inside loop body (CodeQL cpp/loop-variable-changed)
-- When iterating iccDEV container types (e.g., `CIccTagProfileSequenceId`), use
-  range-based `for (const auto& entry : *pTag)` instead of cached `begin()`/`end()`
-  iterators — CodeQL's `cpp/use-after-expired-lifetime` flags cached iterators as
-  potentially referencing expired objects even when the container is clearly in scope
-- `new` in fork child processes must use `std::nothrow` — CodeQL flags
-  `cpp/new-free-mismatch` ("unsafe use of `new[]`") for allocations in signal-unsafe
-  contexts. Include `<new>` header.
-- Avoid constant comparisons in loops — a `for(int c=0; c<N; c++) { ... break; }`
-  where the loop always exits on first iteration triggers CodeQL
-  `cpp/comparison-always-true`. Replace with a simple `if` block.
-- **libtiff string lifetime** — `TIFFGetField(tif, TIFFTAG_SOFTWARE, &ptr)` returns
-  an interior pointer owned by the TIFF directory. `TIFFReadDirectory()` and
-  `TIFFSetDirectory()` call `TIFFFreeDirectory()` which frees those strings.
-  ALWAYS copy to `std::string` before any directory-walking operations (H141, H149).
-  Bug reference: commit bfafaba — HUAF at `IccImageAnalyzer.cpp:962` from `strstr()`
-  on freed `software` pointer after H141's `TIFFSetDirectory(tif, 0)`.
+- H112 D50 values are ICC s15Fixed16 (0.9642/1.0/0.8249), NOT CIE values
+- Don't modify for-loop counter inside loop body (CodeQL)
+- Use range-based `for` for iccDEV containers (CodeQL lifetime warnings)
+- `new` in fork children: use `std::nothrow` (signal-unsafe context)
+- **libtiff string lifetime**: `TIFFGetField(tif, TIFFTAG_SOFTWARE, &ptr)` returns
+  interior pointer freed by `TIFFReadDirectory()`. Copy to `std::string` first.
+- **Format string args**: ensure `%s`/`%u`/`%d` match arguments in hc.info/warn/critical
 
-## Local CodeQL Analysis
+## Local CodeQL
 
-**All prerequisites are pre-installed. Do NOT re-install `gh-codeql`, re-download
-query packs, or recreate the build script.** The committed build script at
-`.github/scripts/codeql-build.sh` has the correct flags.
-
-### Quick analysis (< 2 minutes)
+Prerequisites pre-installed. Do NOT re-install `gh-codeql` or re-download packs.
 
 ```bash
-# If code changed since last analysis — rebuild database
-gh codeql database create /tmp/codeql-db-analyzer \
-  --language=cpp --overwrite \
+# Build database (if code changed)
+gh codeql database create /tmp/codeql-db-analyzer --language=cpp --overwrite \
   --command=".github/scripts/codeql-build.sh" \
   --source-root="$(git rev-parse --show-toplevel)"
 
-# Run analysis (reuse existing DB if no code changes)
+# Analyze
 gh codeql database analyze /tmp/codeql-db-analyzer \
   --format=sarif-latest --output=/tmp/codeql-results.sarif --threads=0 \
   codeql/cpp-queries:codeql-suites/cpp-security-and-quality.qls \
   iccanalyzer-lite/codeql-queries/
-
-# Filter results to analyzer code only (exclude upstream iccDEV)
-python3 -c "
-import json
-with open('/tmp/codeql-results.sarif') as f:
-    sarif = json.load(f)
-for r in sarif['runs'][0]['results']:
-    uri = r['locations'][0]['physicalLocation']['artifactLocation']['uri']
-    if 'iccanalyzer-lite' in uri:
-        line = r['locations'][0]['physicalLocation']['region']['startLine']
-        print(f'{r[\"ruleId\"]} @ {uri}:{line}')
-"
 ```
 
-### What NOT to do (anti-patterns that waste 30+ minutes)
-- ❌ `gh extensions install github/gh-codeql` — already installed
-- ❌ `cd codeql-queries && gh codeql pack install` — already done, lock file committed
-- ❌ Creating `/tmp/codeql-build.sh` ad-hoc — use `.github/scripts/codeql-build.sh`
-- ❌ Iterating on build flags (`-DICCANALYZER_LITE`, `-I/usr/include/libxml2`) — all in the committed script
-- ❌ Always creating a fresh database when code hasn't changed — reuse `/tmp/codeql-db-analyzer`
+Known informational alerts (NOT bugs): `icc/xml-all-attacks`, `icc/xml-external-entity-attacks`,
+`icc/wrong-variable-index` (58 FPs -- outer var selects structure, not inner data),
+`cpp/path-injection` (CLI inherently takes user paths), `cpp/equality-on-floats`
+(intentional s15Fixed16 comparisons).
 
-### Pre-installed assets
-| Asset | Location | Status |
-|-------|----------|--------|
-| `gh codeql` CLI | `gh extensions` | v2.24.1+ installed |
-| Query packs | `iccanalyzer-lite/codeql-queries/codeql-pack.lock.yml` | Lock file committed |
-| Build script | `.github/scripts/codeql-build.sh` | Committed, executable |
-| Database | `/tmp/codeql-db-analyzer` | Persists across sessions |
+## Coverage
 
-### Expected informational alerts (not bugs)
-- `icc/xml-all-attacks`, `icc/xml-external-entity-attacks` — custom queries flagging
-  intentional XML export patterns
-- `cpp/iccanalyzer-security` — custom informational query
-- `cpp/icc-buffer-overflow` @ `IccTagParsers.h:172` — false positive (guarded by
-  `if (idx < size)` bounds check on line 171)
-- `icc/injection-attacks` @ `IccAnalyzerLUT.cpp:110` — `SafeSnprintf` is internal-only
-  with `__attribute__((format))` validation; format strings are always literals
-- `cpp/poorly-documented-function` — style alert for large functions
-- `icc/wrong-variable-index` (58 instances) — ALL false positives. The codebase uses
-  a consistent pattern where outer loops iterate over ICC tag signatures (e.g.,
-  `kAllLUTNames[i]`, `trcTags[t]`) and inner loops iterate within those tags (channels,
-  dimensions). The outer variable is correctly used in printf to identify which tag
-  is being examined. CodeQL cannot distinguish "outer var selects structure" from
-  "outer var wrongly indexes inner data."
-- `cpp/path-injection` (6 instances) — CLI tool inherently takes user-provided paths
-  via argv; not fixable without breaking functionality
-- `cpp/toctou-race-condition` (3 instances) — file existence checks in LUT I/O are
-  inherent to file operations
-- `cpp/equality-on-floats` (4 instances) — intentional exact-match comparisons of
-  ICC s15Fixed16 fixed-point values (not arbitrary floating point)
+Uses clang source-based coverage (`-fprofile-instr-generate -fcoverage-mapping`), NOT gcov.
 
-## Coverage Instrumentation
+```bash
+LLVM_PROFILE_FILE=output_%m_%p.profraw ./iccanalyzer-lite -a profile.icc
+llvm-profdata-18 merge -sparse *.profraw -o merged.profdata
+llvm-cov-18 report ./iccanalyzer-lite -instr-profile=merged.profdata
+```
 
-- Uses clang source-based coverage: `-fprofile-instr-generate -fcoverage-mapping`
-- NOT gcov (`--coverage` / `-fprofile-arcs -ftest-coverage`)
-- Collect: `LLVM_PROFILE_FILE=output_%m_%p.profraw ./iccanalyzer-lite -a profile.icc`
-- Merge: `llvm-profdata-18 merge -sparse *.profraw -o merged.profdata`
-- Report: `llvm-cov-18 report ./iccanalyzer-lite -instr-profile=merged.profdata`
-- `%m` = binary hash (same for all runs of same binary — use sequential filenames for batch)
-- Baseline: Lines 70.54%, Functions 63.54%, Branches 61.21%
-
-## UBSAN Status
-
-- 0 analyzer-code UBSAN errors
-- Remaining upstream iccDEV UBSAN (NOT in analyzer code):
-  - `IccCAM.cpp:262,266,283` — div-by-zero (m_WhitePoint[1]=0 or m_La=0 causes m_Fl=0, m_x0=0; CFL-077 fixes)
-  - `IccProfile.cpp:3153,3155` — div-by-zero (m_illuminantXYZ.Y can be 0)
-  - `IccTagLut.cpp:5009` — signed integer overflow (int sum += m_XYZMatrix)
-  - `IccMatrixMath.cpp:386` — NaN→unsigned short in SetRange
-  - `IccMpeBasic.cpp:1821` — NaN→unsigned int in CIccSingleSampledCurve::Apply()
-- Fixed upstream (no longer triggered):
-  - `IccSignatureUtils.h` uint→char (PR #648)
-  - `iccApplyProfiles.cpp` UnitClip NaN (PR #654)
+Baseline: Lines 70.54%, Functions 63.54%, Branches 61.21%.
