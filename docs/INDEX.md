@@ -17,6 +17,7 @@ the right part of `docs/`.
 - Vulnerability taxonomy: `iccDEV/vulnerability-taxonomy.md`
 - CVE inventory: `cve/iccDEV-CVE-Report.md`
 - PoC notes and reproductions: `pocs/`
+- Upstream bug hunting findings catalog: `pocs/iccdev-upstream-bug-hunting.md`
 - Issue 763 visual poster: `pocs/iccdev-issue-763-poster.html`
 - Static-analysis workflow: `iccDEV/codeql/README.md`
 - Runtime analyzer findings: `analysis/`
@@ -38,6 +39,13 @@ the right part of `docs/`.
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v6.png`
 - No-logo `bmp5`-style PNG v7 for the same specimen:
   `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v7.png`
+
+### File Upstream Issues
+
+- Golfed issue format: `.github/prompts/upstream-issue-filing.prompt.md`
+- Code-review bug hunting: `.github/prompts/upstream-code-review-hunting.prompt.md`
+- Bisect reproduction: `.github/prompts/iccdev-bisect-reproduction.prompt.md`
+- UIO overflow hunting: `.github/prompts/upstream-uio-hunting.prompt.md`
 
 ### Run or Review Tests
 
