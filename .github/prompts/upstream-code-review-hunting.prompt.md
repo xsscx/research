@@ -106,7 +106,8 @@ VERIFY -> CITE -> CLAIM. Never reverse this order.
 
 ### 5. File Per Gold Standard
 
-See `.github/prompts/upstream-issue-filing.prompt.md` for the golfed format.
+See `.github/prompts/upstream-issue-filing.prompt.md` for the format.
+Gold standard: #795 (enriched golfed with Bug section + Spec ref).
 
 ## Quality Checklist
 
@@ -132,7 +133,7 @@ Before filing any finding:
 
 ## References
 
-- `.github/prompts/upstream-issue-filing.prompt.md` -- Golfed issue format
+- `.github/prompts/upstream-issue-filing.prompt.md` -- Issue format (#795 gold standard)
 - `.github/prompts/iccdev-bisect-reproduction.prompt.md` -- Bisect workflow
 - `.github/prompts/upstream-uio-hunting.prompt.md` -- UIO-specific hunting
 - `docs/pocs/iccdev-poc-techniques.md` -- PoC synthesis techniques
