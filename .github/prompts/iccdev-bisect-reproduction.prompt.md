@@ -21,8 +21,15 @@ reproduction commands wasted 4 hours.
 
     cd iccDEV/Build && git checkout BRANCH_NAME
     rm -rf CMakeCache.txt CMakeFiles
-    CC=clang CXX=clang++ CXXFLAGS="-fsanitize=address,undefined,integer,bounds,null,float-divide-by-zero,alignment,vla-bound -fno-omit-frame-pointer -g -O1 -fprofile-instr-generate -fcoverage-mapping" LDFLAGS="-fsanitize=address,undefined,integer,bounds,null,float-divide-by-zero,alignment,vla-bound" cmake Cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DENABLE_UBSAN=ON -DENABLE_COVERAGE=ON -DENABLE_TOOLS=ON
-    make -j32
+    CC=clang CXX=clang++ cmake Cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_TOOLS=ON && make -j32
+
+### Sanitizer Coverage Gap
+
+`ENABLE_SANITIZERS=ON` gives `address,undefined,integer` but does NOT include
+`float-divide-by-zero` (IEEE 754 defined behavior, not in the `undefined` group).
+To catch float div-by-zero (e.g. issue #794), add explicit flags:
+
+    CC=clang CXX=clang++ CXXFLAGS="-fsanitize=address,undefined,integer,float-divide-by-zero,float-cast-overflow -fno-omit-frame-pointer -g" LDFLAGS="-fsanitize=address,undefined,integer,float-divide-by-zero,float-cast-overflow" cmake Cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLS=ON && make -j32
 
 ## Generate Test Profiles (if needed)
 
@@ -68,8 +75,27 @@ If empty, generate:
 
     cd Testing && for d in ../Build/Tools/*; do [ -d "$d" ] && export PATH="$(realpath "$d"):$PATH"; done
 
+## Issue Filing Format
+
+Use the golfed format from `.github/prompts/upstream-issue-filing.prompt.md`.
+Title: `Bisect: <sha> <type>`. Sections: Bisect, Build, Bad, Patch, Good, References.
+Zero prose. Single code block for Build. Bad = sanitizer output only.
+
+## PoC Requirements for iccRoundTrip
+
+Minimal v2 RGB/XYZ-mntr profile needs 9 tags:
+desc, cprt, rTRC, gTRC, bTRC, rXYZ, gXYZ, bXYZ, wtpt.
+Without matrix tags (rXYZ/gXYZ/bXYZ), iccRoundTrip rejects with
+"Unable to perform round trip". Use profile version 2.0.4. Min 576 bytes.
+
+PoCs go in `xsscx/fuzz/graphics/icc/` with naming convention:
+`{type}-{Class}-{Method}-{File}_cpp-Line{N}.icc`
+
 ## References
 
 - ~/bisect-details-002.md -- Verified printf format bisect document
 - .github/instructions/cfl.instructions.md -- CFL patch workflow
 - .github/prompts/upstream-uio-hunting.prompt.md -- UIO bug hunting
+- .github/prompts/upstream-issue-filing.prompt.md -- Golfed issue format
+- .github/prompts/upstream-code-review-hunting.prompt.md -- Code review hunting
+- docs/pocs/iccdev-upstream-bug-hunting.md -- Findings catalog
