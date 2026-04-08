@@ -231,9 +231,118 @@ safe_echo_for_summary() {
   printf '\n'
 }
 
+# ---------------------------------------------------------------------------
+# detect_hidden_chars  -- DETECTION system, NOT a filter
+# ---------------------------------------------------------------------------
+# Returns 0 if hidden chars FOUND (dangerous), 1 if clean.
+# Emits [CRITICAL] diagnostics to stderr (not stdout -- safe for pipe chains).
+# Achieves parity with GitHub UI warning:
+#   "The head ref may contain hidden characters"
+#
+# Usage:
+#   if detect_hidden_chars "$GITHUB_HEAD_REF" "HEAD_REF"; then
+#     echo "[CRITICAL] Hidden chars detected" >&2
+#   fi
+# ---------------------------------------------------------------------------
+detect_hidden_chars() {
+  local input="${1:-}"
+  local label="${2:-input}"
+
+  # Empty string is clean
+  [ -z "$input" ] && return 1
+
+  local found=0
+  local details=""
+
+  # 1. BOM / Zero-Width No-Break Space (U+FEFF) -- the PR #786 trigger
+  if LC_ALL=C grep -qP '\xef\xbb\xbf' <<< "$input" 2>/dev/null; then
+    details="${details}  - U+FEFF (BOM / Zero-Width No-Break Space)\n"
+    found=1
+  fi
+
+  # 2. Bidi overrides (U+202A-202E) -- Trojan Source attacks
+  if LC_ALL=C grep -qP '[\xe2\x80\xaa-\xe2\x80\xae]' <<< "$input" 2>/dev/null; then
+    details="${details}  - U+202A-202E (Bidi Override/Embedding)\n"
+    found=1
+  fi
+
+  # 3. Bidi isolates (U+2066-2069)
+  if LC_ALL=C grep -qP '[\xe2\x81\xa6-\xe2\x81\xa9]' <<< "$input" 2>/dev/null; then
+    details="${details}  - U+2066-2069 (Bidi Isolate)\n"
+    found=1
+  fi
+
+  # 4. Zero-width chars (U+200B-200F)
+  if LC_ALL=C grep -qP '[\xe2\x80\x8b-\xe2\x80\x8f]' <<< "$input" 2>/dev/null; then
+    details="${details}  - U+200B-200F (Zero-Width Space/Joiner/Mark)\n"
+    found=1
+  fi
+
+  # 5. Word joiner (U+2060)
+  if LC_ALL=C grep -qP '\xe2\x81\xa0' <<< "$input" 2>/dev/null; then
+    details="${details}  - U+2060 (Word Joiner)\n"
+    found=1
+  fi
+
+  # 6. Line/Paragraph separators (U+2028-2029)
+  if LC_ALL=C grep -qP '[\xe2\x80\xa8-\xe2\x80\xa9]' <<< "$input" 2>/dev/null; then
+    details="${details}  - U+2028-2029 (Line/Paragraph Separator)\n"
+    found=1
+  fi
+
+  # 7. Interlinear annotation (U+FFF9-FFFB)
+  if LC_ALL=C grep -qP '[\xef\xbf\xb9-\xef\xbf\xbb]' <<< "$input" 2>/dev/null; then
+    details="${details}  - U+FFF9-FFFB (Interlinear Annotation)\n"
+    found=1
+  fi
+
+  # 8. Broad: any non-printable byte (control chars 0x00-0x1F, DEL 0x7F, non-ASCII 0x80+)
+  if [ "$found" -eq 0 ]; then
+    if LC_ALL=C grep -qP '[^\x20-\x7E]' <<< "$input" 2>/dev/null; then
+      details="${details}  - Non-ASCII byte(s) detected (unknown category)\n"
+      found=1
+    fi
+  fi
+
+  if [ "$found" -eq 1 ]; then
+    local hex_bytes
+    hex_bytes="$(printf '%s' "$input" | xxd -p | tr -d '\n' | head -c 120)"
+    local sanitized
+    sanitized="$(sanitize_ref "$input")"
+
+    {
+      printf '[CRITICAL] Hidden Unicode characters detected in %s\n' "$label"
+      printf '%b' "$details"
+      printf '  Raw bytes: %s\n\n' "$hex_bytes"
+      printf '  Sanitized: %s\n' "$sanitized"
+      printf '  GitHub UI parity: this finding matches GitHub warning\n'
+      printf '    "The head ref may contain hidden characters"\n'
+    } >&2
+
+    return 0  # found = dangerous
+  fi
+
+  return 1  # clean
+}
+
+# ---------------------------------------------------------------------------
+# validate_ref  -- detect + sanitize wrapper
+# ---------------------------------------------------------------------------
+# Emits detection diagnostics to stderr, returns sanitized ref on stdout.
+# Usage:
+#   CLEAN_REF="$(validate_ref "$GITHUB_HEAD_REF" "HEAD_REF")"
+# ---------------------------------------------------------------------------
+validate_ref() {
+  local input="${1:-}"
+  local label="${2:-ref}"
+
+  detect_hidden_chars "$input" "$label" || true
+  sanitize_ref "$input"
+}
+
 # Provide a minimal no-op marker so callers can check we're present
 sanitizer_version() {
-  printf 'research-sanitizer-v3\n'
+  printf 'research-sanitizer-v4\n'
 }
 
 # End of sanitize-sed.sh

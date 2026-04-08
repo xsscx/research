@@ -146,7 +146,13 @@ char title[128];
 snprintf(title, sizeof(title), "PCS ColorSpace: 0x%08X (%s)", pcs, pcsFourCC);
 hc.begin(4, title);
 
-if (pcs == icSigLabData || pcs == icSigXYZData) {
+if (header.deviceClass == icSigColorEncodingClass) {
+  if (pcs == icSigNoColorData) {
+    return hc.end("ColorEncoding uses null PCS as required");
+  }
+  hc.warn("HEURISTIC: ColorEncoding profiles must use null PCS (0x00000000)");
+  hc.info("Risk: Invalid ICC.2 ColorEncoding header");
+} else if (pcs == icSigLabData || pcs == icSigXYZData) {
   CIccInfo info;
   char okMsg[128];
   snprintf(okMsg, sizeof(okMsg), "Valid PCS: %s", info.GetColorSpaceSigName((icColorSpaceSignature)pcs));
@@ -374,6 +380,14 @@ ICC_TRACE_NAN(Z, "illuminant.Z");
 char title[128];
 snprintf(title, sizeof(title), "Illuminant XYZ: (%.6f, %.6f, %.6f)", X, Y, Z);
 hc.begin(8, title);
+
+if (header.deviceClass == icSigColorEncodingClass) {
+  if (fabs(X) > 0.0001 || fabs(Y) > 0.0001 || fabs(Z) > 0.0001) {
+    hc.warn("HEURISTIC: ColorEncoding profiles must zero header illuminant fields");
+    hc.info("Risk: Invalid ICC.2 ColorEncoding header");
+  }
+  return hc.end("ColorEncoding header illuminant is zero as required");
+}
 
 // ICC spec D50 reference values (s15Fixed16Number encoding)
 const double d50X = 0.9642, d50Y = 1.0000, d50Z = 0.8249;

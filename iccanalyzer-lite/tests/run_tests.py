@@ -2831,6 +2831,14 @@ def test_heuristic_detection(suite):
         r"mediaWhitePointTag required|"
         r"V4\+ requires chad when adopted white"
     )
+    suite.assert_output_not_contains(
+        "conformance.cenc_no_header_false_positives",
+        ["-a", "--legacy", srgb_encoding],
+        r"\[H4\][\s\S]*Invalid PCS signature|"
+        r"\[H8\][\s\S]*PCS illuminant is NOT D50|"
+        r"CF-014[\s\S]*Non-DeviceLink PCS must be PCSXYZ or PCSLab|"
+        r"CF-263[\s\S]*Perceptual intent requires D50 PCS illuminant"
+    )
 
     # --- H52 integer underflow in tag size / CFL-065 regression ---
 

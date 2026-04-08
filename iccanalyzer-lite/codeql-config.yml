@@ -30,6 +30,7 @@ paths-ignore:
   - iccDEV/**
   - upstream-iccDEV/**
   - cfl/iccDEV/**
+  - iccanalyzer-lite/icctest/lib/tests/**
   - "**/*.md"
   - "**/CMakeFiles/**"
 

@@ -238,8 +238,8 @@ jobs:
               export CC="ccache gcc"
               export CXX="ccache g++"
             else
-              export CC="ccache clang-18"
-              export CXX="ccache clang++-18"
+              export CC="ccache $CC"
+              export CXX="ccache $CXX"
             fi
           fi
 
