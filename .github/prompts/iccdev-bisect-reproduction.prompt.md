@@ -77,9 +77,10 @@ If empty, generate:
 
 ## Issue Filing Format
 
-Use the golfed format from `.github/prompts/upstream-issue-filing.prompt.md`.
-Title: `Bisect: <sha> <type>`. Sections: Bisect, Build, Bad, Patch, Good, References.
-Zero prose. Single code block for Build. Bad = sanitizer output only.
+Use the format from `.github/prompts/upstream-issue-filing.prompt.md`.
+Title: `Bisect: <sha> <type>`. Gold standard: #795.
+Sections: Copilot Summary, Bisect, Vuln, Bug (optional), Build, Repro, Bad, Good, Patch, Patch Status, References.
+Zero prose. Build and Repro are separate blocks. Bad = sanitizer output only.
 
 ## PoC Requirements for iccRoundTrip
 
@@ -96,6 +97,6 @@ PoCs go in `xsscx/fuzz/graphics/icc/` with naming convention:
 - ~/bisect-details-002.md -- Verified printf format bisect document
 - .github/instructions/cfl.instructions.md -- CFL patch workflow
 - .github/prompts/upstream-uio-hunting.prompt.md -- UIO bug hunting
-- .github/prompts/upstream-issue-filing.prompt.md -- Golfed issue format
+- .github/prompts/upstream-issue-filing.prompt.md -- Issue format (#795 gold standard)
 - .github/prompts/upstream-code-review-hunting.prompt.md -- Code review hunting
 - docs/pocs/iccdev-upstream-bug-hunting.md -- Findings catalog

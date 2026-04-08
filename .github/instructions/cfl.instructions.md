@@ -110,10 +110,9 @@ see `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`.
 4. Reset: `cd cfl/iccDEV && git checkout -- .`
 5. Rebuild: `cd cfl && ./build.sh` -- verify "Applied: NNN-name.patch"
 6. Test PoC with patched fuzzer -- verify exit 0, 0 ASAN
-7. File upstream issue per gold standard template (#753, #769)
+7. File upstream issue per `.github/prompts/upstream-issue-filing.prompt.md` (#795 format)
 
-**Upstream issue format**: Zero prose. Pure reproduction recipe.
-Include structured Metadata block (CWE, file:line, sanitizer type).
+**Upstream issue format**: Zero prose. Vuln block (6 lines), Build, Repro, Bad, Patch.
 One bug per issue. Cut shadow byte legend unless UAF/double-free.
 
 ### Build Troubleshooting
