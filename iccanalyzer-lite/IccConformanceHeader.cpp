@@ -843,6 +843,7 @@ int RunCF014_PCSForNonDeviceLink(CIccProfile *pIcc) {
   int issues = 0;
   icUInt32Number pcs = static_cast<icUInt32Number>(pIcc->m_Header.pcs);
   bool isDeviceLink = (pIcc->m_Header.deviceClass == icSigLinkClass);
+  bool isColorEncoding = (pIcc->m_Header.deviceClass == icSigColorEncodingClass);
 
   printf("%s[CF-014]%s PCS Field for Non-DeviceLink (%sICC.1-2022-05 §7.2.7%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
@@ -856,6 +857,18 @@ int RunCF014_PCSForNonDeviceLink(CIccProfile *pIcc) {
     printf("         %s[OK]%s DeviceLink PCS unconstrained\n",
            ColorSuccess(), ColorReset());
     return 0;
+  }
+
+  if (isColorEncoding) {
+    printf("         ColorEncoding profile — PCS='%s' (0x%08X)\n", pcsCC, pcs);
+    if (pcs == static_cast<icUInt32Number>(icSigNoColorData)) {
+      printf("         %s[OK]%s ColorEncoding PCS is null as required\n",
+             ColorSuccess(), ColorReset());
+      return 0;
+    }
+    printf("         %s[FAIL]%s ColorEncoding PCS must be null (0x00000000)\n",
+           ColorError(), ColorReset());
+    return 1;
   }
 
   // Non-DeviceLink: PCS must be XYZ or Lab (or spectral for v5)

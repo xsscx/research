@@ -17,6 +17,11 @@ archived dirs (`demo-rit/`, `issue-711/`) are read-only.
 
 ## Build and Test
 See `.github/copilot-instructions.md` for build/test commands per component.
+Additional repo workflows in active use:
+- `ICCDEV_TOOLS_DIR=$PWD/iccDEV/Build/Tools ICCDEV_TESTING_DIR=$PWD/iccDEV/Testing .github/scripts/iccdev-tool-coverage-baseline.sh --asan`
+  -- full iccDEV CLI coverage baseline; CI runs this script from `.github/workflows/iccdev-tool-tests.yml`.
+- `.github/scripts/batch-test-external.sh /path/to/profiles [--timeout N] [--max N] [--csv]`
+  -- sweep an external ICC corpus with `iccDumpProfile`, `iccToXml`, and `iccRoundTrip` without committing results.
 
 ## Coding Style
 4-space indent in C++ and Python. Tabs only in Makefiles. `snake_case` for

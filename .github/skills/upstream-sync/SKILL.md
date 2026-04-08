@@ -64,8 +64,16 @@ cd .. && ./build.sh
 nm cfl/bin/icc_dump_fuzzer | grep -c __asan  # must be > 0
 ```
 
-MANDATORY: Delete `Build/` dir before rebuild to avoid stale CMakeCache
-retaining wrong sanitizer flags.
+MANDATORY: Delete CMakeCache.txt and CMakeFiles/ before rebuild to avoid
+stale cmake cache retaining wrong sanitizer flags or paths from prior branch.
+
+```bash
+cd cfl/iccDEV/Build && rm -rf CMakeCache.txt CMakeFiles
+```
+
+Root cause: cmake caches absolute paths, compiler flags, and configure_file
+outputs. Switching branches without clearing cache causes IccProfLibVer.h.in
+not found, wrong sanitizer flags, and silent miscompilation.
 
 ### 7. Rebuild Upstream ASAN Tools
 
