@@ -85,6 +85,19 @@ For multi-profile fuzzers, unbundle first:
 4. Verify: Re-run crash file -- must exit 0 with no ASAN/UBSAN
 5. Document: Update patch table, commit reproducer
 
+### 7. Reproduction Discipline
+
+MANDATORY rules for all reproduction steps (derived from 9-turn session failure):
+
+- VERIFY then CITE then CLAIM. Never write a reproduction doc before running it.
+- Fresh clone for every reproduction. Never reuse existing checkouts.
+- All commands must be 1-liner copy-paste ready. No backslash continuations.
+- Delete CMakeCache.txt and CMakeFiles/ before every branch switch.
+- Test profiles may be GENERATED (not in git). Check with git ls-files first.
+- Run the EXACT command end-to-end before including it in any document.
+
+See `.github/prompts/iccdev-bisect-reproduction.prompt.md` for full workflow.
+
 ## Naming Conventions
 
 - `segv-<Function>-<File>-Line<N>.icc` -- SEGV crashes

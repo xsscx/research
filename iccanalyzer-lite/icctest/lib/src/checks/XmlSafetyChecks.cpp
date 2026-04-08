@@ -11,6 +11,7 @@
 #include "icctest/CheckRegistry.h"
 #include "util/CheckHelpers.h"
 
+#include "../../../../IccXmlRoundTripGuards.h"
 #include "IccProfileXml.h"
 #include "IccTagXmlFactory.h"
 #include "IccMpeXmlFactory.h"
@@ -337,6 +338,12 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
             _exit(1);
         }
 
+        std::string xmlValidationError;
+        if (!iccxml::ValidateRoundTripXmlOutput(xmlOutput, &xmlValidationError)) {
+            close(pipeFd[1]);
+            _exit(2);
+        }
+
         // Step 3: Write XML to temp file
         char tmpPath[] = "/tmp/icctest-h180-XXXXXX";
         int fd = mkstemp(tmpPath);
@@ -344,11 +351,17 @@ static CheckResult check_h180_xml_round_trip_fidelity(const ProfileView& pv) {
             close(pipeFd[1]);
             _exit(0);
         }
-        (void)write(fd, xmlOutput.data(), xmlOutput.size());
+        bool wroteAll = iccxml::WriteAllBytes(fd, xmlOutput.data(), xmlOutput.size());
         close(fd);
+        if (!wroteAll) {
+            unlink(tmpPath);
+            close(pipeFd[1]);
+            _exit(0);
+        }
 
-        // Step 4: LoadXml — disable XXE before parsing locally-generated XML
+        // Step 4: LoadXml - keep parser isolated to local entities only
         xmlSubstituteEntitiesDefault(0);
+        xmlSetExternalEntityLoader(xmlNoNetExternalEntityLoader);
         CIccProfileXml rtProfile;
         std::string parseErr;
         if (!rtProfile.LoadXml(tmpPath, nullptr, &parseErr)) {

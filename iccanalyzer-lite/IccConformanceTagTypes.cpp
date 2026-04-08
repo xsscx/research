@@ -4373,6 +4373,13 @@ static int RunCF263_PerceptualPCSWhitePointD50(CIccProfile *pIcc) {
     return 0;
   }
 
+  if (pIcc->m_Header.deviceClass == icSigColorEncodingClass) {
+    printf("         ColorEncoding profile — perceptual D50 header rule not applicable\n");
+    printf("         %s[OK]%s ColorEncoding uses zero header illuminant instead of D50\n",
+           ColorSuccess(), ColorReset());
+    return 0;
+  }
+
   // Validate the header illuminant matches D50
   double hdrX = icFtoD(pIcc->m_Header.illuminant.X);
   double hdrY = icFtoD(pIcc->m_Header.illuminant.Y);

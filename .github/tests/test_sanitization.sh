@@ -366,9 +366,9 @@ run_test "ANSI OSC sequences stripped" \
   "real output"
 
 # Sanitizer version
-run_test "Sanitizer version is v3" \
+run_test "Sanitizer version is v4" \
   "$(sanitizer_version)" \
-  "research-sanitizer-v3"
+  "research-sanitizer-v4"
 
 # =============================================================================
 # Shell Metacharacter Injection Tests (sanitize_ref)
