@@ -541,6 +541,7 @@ jobs:
         if: always()
         env:
           BASH_ENV: /dev/null
+          GRAND_FAILED: ${{ env.grand_failed }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
@@ -584,23 +585,26 @@ jobs:
             echo "- Includes per-mode output files, HTML index"
             echo ""
             echo "### Status"
-            if [ "${{ env.grand_failed }}" -eq 0 ]; then
+            if [ "${GRAND_FAILED:-0}" -eq 0 ]; then
               echo "**ALL CLEAN** - No sanitizer findings detected across all modes"
             else
-              echo "**$(sanitize_line "${{ env.grand_failed }}") FINDING(S)** - Sanitizer detections captured (ASAN/UBSAN/validation errors)"
+              echo "**$(sanitize_line "${GRAND_FAILED}") FINDING(S)** - Sanitizer detections captured (ASAN/UBSAN/validation errors)"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check test success
         env:
           BASH_ENV: /dev/null
+          GRAND_FAILED: ${{ env.grand_failed }}
+          GRAND_SUCCESS: ${{ env.grand_success }}
+          GRAND_TOTAL: ${{ env.grand_total }}
         run: |
           set -euo pipefail
-          if [ "${{ env.grand_failed }}" -eq 0 ]; then
-            echo "ALL CLEAN: ${{ env.grand_total }} tests across 5 CLI modes, no findings"
+          if [ "${GRAND_FAILED:-0}" -eq 0 ]; then
+            echo "ALL CLEAN: ${GRAND_TOTAL:-0} tests across 5 CLI modes, no findings"
             exit 0
           else
-            echo "COMPLETE: ${{ env.grand_success }}/${{ env.grand_total }} clean, ${{ env.grand_failed }} findings"
+            echo "COMPLETE: ${GRAND_SUCCESS:-0}/${GRAND_TOTAL:-0} clean, ${GRAND_FAILED} findings"
             echo "Findings are successful sanitizer detections, not infrastructure failures"
             exit 0
           fi
