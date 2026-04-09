@@ -273,7 +273,7 @@ jobs:
           PROFILE_COUNT=$((PROFILE_COUNT > 50 ? 50 : PROFILE_COUNT))
 
           find test-profiles/ -type f -name "*.icc" | sort > /tmp/cli-test-suite-all.txt
-          icc_profile_filter_quarantine /tmp/cli-test-suite-all.txt /tmp/cli-test-suite-cached-routine.txt
+          icc_profile_filter_quarantine /tmp/cli-test-suite-all.txt /tmp/cli-test-suite-routine.txt
           shuf -n ${PROFILE_COUNT} /tmp/cli-test-suite-routine.txt > cli-test-results/selected-profiles.txt
 
           AVAILABLE=$(wc -l < cli-test-results/selected-profiles.txt | tr -d ' \n\r')
@@ -471,9 +471,9 @@ jobs:
           echo "</div>" >> $INDEX_FILE
 
           echo "<div class='stats'>" >> $INDEX_FILE
-          echo "<div class='stat-box'><div class='stat-value'>$grand_total</div><div class='stat-label'>Total Tests</div></div>" >> $INDEX_FILE
-          echo "<div class='stat-box'><div class='stat-value' style='color: green;'>$grand_success</div><div class='stat-label'>Clean</div></div>" >> $INDEX_FILE
-          echo "<div class='stat-box'><div class='stat-value' style='color: #cc6600;'>$grand_failed</div><div class='stat-label'>Findings</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value'>${grand_total:-0}</div><div class='stat-label'>Total Tests</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value' style='color: green;'>${grand_success:-0}</div><div class='stat-label'>Clean</div></div>" >> $INDEX_FILE
+          echo "<div class='stat-box'><div class='stat-value' style='color: #cc6600;'>${grand_failed:-0}</div><div class='stat-label'>Findings</div></div>" >> $INDEX_FILE
           echo "</div>" >> $INDEX_FILE
 
           html_esc() { printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g'; }
