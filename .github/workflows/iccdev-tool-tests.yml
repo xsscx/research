@@ -59,6 +59,7 @@ on:
         type: choice
         options:
           - master
+          - fix-bisect-b90ac39
   schedule:
     - cron: '30 6 * * 3'  # Weekly Wednesday 06:30 UTC
 
