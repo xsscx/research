@@ -4,6 +4,12 @@ description: >
   Triage ASAN/UBSAN fuzzer crash findings against ICC profile tools.
   Classifies by exit code, attributes by stack trace file path, maps CWE,
   and determines upstream vs analyzer ownership.
+allowed-tools:
+  - bash
+  - read
+  - grep
+  - glob
+  - iccTest
 ---
 
 # ICC Fuzzer Crash Triage

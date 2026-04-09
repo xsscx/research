@@ -5,6 +5,10 @@ description: >
   Runs structural inspection, registry-backed security scan, round-trip
   validation, and generates findings report. Supports ICC profiles, TIFF,
   PNG, and JPEG with embedded ICC extraction.
+allowed-tools:
+  - bash
+  - read
+  - iccTest
 ---
 
 # ICC Profile Security Analysis

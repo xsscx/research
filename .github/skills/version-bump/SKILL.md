@@ -4,6 +4,13 @@ description: >
   Synchronize version numbers after iccDEV upstream version bump.
   Updates 6 locations across 5 files in upstream, plus 2 locations in
   the research repo.
+allowed-tools:
+  - bash
+  - read
+  - write
+  - grep
+  - glob
+  - shell(git:*)
 ---
 
 # Version Bump Workflow

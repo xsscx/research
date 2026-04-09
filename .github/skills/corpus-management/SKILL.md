@@ -3,6 +3,12 @@ name: corpus-management
 description: >
   Manage fuzzing corpus lifecycle: ramdisk/SSD setup, fuzzer execution,
   coverage collection, corpus merge and dedup, and artifact preservation.
+allowed-tools:
+  - bash
+  - read
+  - write
+  - glob
+  - grep
 ---
 
 # Corpus Management
