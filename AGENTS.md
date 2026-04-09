@@ -22,6 +22,10 @@ Additional repo workflows in active use:
   -- full iccDEV CLI coverage baseline; CI runs this script from `.github/workflows/iccdev-tool-tests.yml`.
 - `.github/scripts/batch-test-external.sh /path/to/profiles [--timeout N] [--max N] [--csv]`
   -- sweep an external ICC corpus with `iccDumpProfile`, `iccToXml`, and `iccRoundTrip` without committing results.
+- `bash .github/scripts/test-iccdev-all.sh [--quick] [--asan] [--tool=NAME]`
+  -- run the checked-in per-tool iccDEV shell test suite locally, with `--quick` for shorter envelope passes or `--tool=` to isolate one tool.
+- `.github/scripts/pre-push-gate.sh`
+  -- run the unified pre-push validation gate; it dispatches component-specific checks and calls `.github/scripts/pre-push-validate.sh` for iccanalyzer-lite build-sync verification.
 
 ## Coding Style
 4-space indent in C++ and Python. Tabs only in Makefiles. `snake_case` for

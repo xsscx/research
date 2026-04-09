@@ -34,6 +34,27 @@
         "coverage_report",
         "scan_logs"
       ]
+    },
+    "playwright": {
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--headless"
+      ]
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--headless",
+        "--isolated",
+        "--chromeArg", "--no-sandbox",
+        "--chromeArg", "--disable-gpu"
+      ]
     }
   }
 }
