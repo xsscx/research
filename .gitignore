@@ -76,6 +76,7 @@ output*.xml
 
 # Fuzzer artifacts (crash/oom reproductions stay on disk, not in git)
 crash-*
+!.github/agents/crash-triage.agent.md
 leak-*
 oom-*
 timeout-*

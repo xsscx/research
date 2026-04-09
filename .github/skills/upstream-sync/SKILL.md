@@ -4,6 +4,13 @@ description: >
   Sync CFL iccDEV checkout to upstream HEAD and reconcile all security
   patches. Handles patch dry-run, categorization, regeneration, rebuild,
   and verification.
+allowed-tools:
+  - bash
+  - read
+  - write
+  - grep
+  - glob
+  - shell(git:*)
 ---
 
 # Upstream Sync -- CFL Patch Reconciliation

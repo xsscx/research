@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": [
+    {
+      "event": "preToolUse",
+      "type": "command",
+      "command": "bash -c 'TOOL=\"$HOOK_TOOL_NAME\"; ARGS=\"$HOOK_TOOL_INPUT\"; if [ \"$TOOL\" = \"write\" ] || [ \"$TOOL\" = \"create\" ] || [ \"$TOOL\" = \"edit\" ]; then if echo \"$ARGS\" | grep -qE \"iccDEV/\" 2>/dev/null; then if ! echo \"$ARGS\" | grep -qE \"cfl/iccDEV/\" 2>/dev/null; then echo \"{\\\"permissionDecision\\\": \\\"deny\\\", \\\"reason\\\": \\\"iccDEV/ is upstream read-only. Use cfl/iccDEV/ for patched builds.\\\"}\"; exit 0; fi; fi; fi; echo \"{\\\"permissionDecision\\\": \\\"allow\\\"}\"'"
+    }
+  ]
+}
