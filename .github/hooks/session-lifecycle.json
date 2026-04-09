@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": [
+    {
+      "event": "sessionStart",
+      "type": "prompt",
+      "command": "echo 'Session initialized. OTel traces: ~/.copilot/otel/. Use /security-scan, /crash-triage, or /upstream-issue skills. Agents: @security-scan, @crash-triage, @upstream-issue.'"
+    },
+    {
+      "event": "notification",
+      "type": "command",
+      "matcher": "shell_command_completed",
+      "command": "bash -c 'echo \"[otel] shell completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)\" >> ~/.copilot/otel/events.log 2>/dev/null || true'"
+    }
+  ]
+}

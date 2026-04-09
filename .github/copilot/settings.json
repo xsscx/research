@@ -1,0 +1,6 @@
+{
+  "$schema": "https://docs.github.com/en/copilot",
+  "companyAnnouncements": [
+    "This is a security research repo. All file output must be ASCII (verify with 'file FILENAME'). No emojis in code/CI/reports. Exit codes 1-127 are NOT crashes -- only 128+ signals are."
+  ]
+}

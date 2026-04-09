@@ -3,6 +3,10 @@ name: mcp-health-check
 description: >
   Quick verification that the ICC Profile MCP server is operational,
   binaries are available, and test profiles are accessible.
+allowed-tools:
+  - bash
+  - read
+  - iccTest
 ---
 
 # MCP Server Health Check
