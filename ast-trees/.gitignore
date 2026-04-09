@@ -1,2 +1,23 @@
-# Raw Clang AST dumps (150-850MB each — too large for git)
+# All generated artifacts (regenerate with extract-ast.py / enrich-callgraph.py)
+# Keep only: extract-ast.py, enrich-callgraph.py, READMEs, docs/
+#
+# Regenerate:
+#   python3 extract-ast.py <raw-ast.json> <source.cpp>
+#   python3 enrich-callgraph.py
+
+# Raw Clang AST dumps (150-850MB each)
 *-ast-raw.json
+**/*-ast-raw.json
+
+# Extracted AST analysis
+**/*-ast.json
+**/*-ast-summary.txt
+
+# Call graphs generated from AST
+**/*-callgraph.dot
+**/*-callgraph.svg
+**/*-callgraph-enriched.dot
+**/*-callgraph-enriched.svg
+
+# Archived demo branch
+demo-rit/
