@@ -334,6 +334,7 @@ jobs:
         env:
           BASH_ENV: /dev/null
           REPORT_TITLE: ${{ inputs.report-title }}
+          INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
         run: |
           set -euo pipefail
           git config --global credential.helper ""
@@ -355,7 +356,7 @@ jobs:
             echo "| Findings | ${{ env.failed }} |"
             echo ""
             echo "### Artifacts"
-            echo "- Test results uploaded as \`$(sanitize_line "${{ inputs.artifact-name }}")\`"
+            echo "- Test results uploaded as \`$(sanitize_line "${INPUT_ARTIFACT_NAME}")\`"
             echo ""
             echo "### Status"
           } >> "$GITHUB_STEP_SUMMARY"
