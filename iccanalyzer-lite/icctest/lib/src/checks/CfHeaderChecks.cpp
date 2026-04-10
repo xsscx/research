@@ -26,6 +26,23 @@
 
 using namespace icctest;
 
+// Compatibility: iccDEV renamed Material* -> Multiplex* (April 2025)
+#ifndef icSigMultiplexVisualizationClass
+  #ifdef icSigMaterialVisualizationClass
+    #define icSigMultiplexVisualizationClass icSigMaterialVisualizationClass
+  #endif
+#endif
+#ifndef icSigMultiplexIdentificationClass
+  #ifdef icSigMaterialIdentificationClass
+    #define icSigMultiplexIdentificationClass icSigMaterialIdentificationClass
+  #endif
+#endif
+#ifndef icSigMultiplexLinkClass
+  #ifdef icSigMaterialLinkClass
+    #define icSigMultiplexLinkClass icSigMaterialLinkClass
+  #endif
+#endif
+
 // ── Helper tables ───────────────────────────────────────────────────────────
 
 static const int kDaysInMonth[13] = {
