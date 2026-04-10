@@ -734,7 +734,7 @@ async def full_analysis(path: str, engine: str = DEFAULT_ANALYSIS_ENGINE) -> str
     """
     analyzer = _get_analyzer(engine)
     profile = _resolve_profile(path)
-    flags = _map_flags(["-a"], engine)
+    flags = _map_flags(["-a", "--legacy"], engine)
     return _decorate_v2_banner(await _run([str(analyzer)] + flags + [str(profile)], timeout=120))
 
 
@@ -970,7 +970,7 @@ async def upload_and_analyze(
             "security": ["-h"],
             "inspect": ["-nf"],
             "roundtrip": ["-r"],
-            "full": ["-a"],
+            "full": ["-a", "--legacy"],
         }
 
         def selected_engine(mode_name: str) -> str:
