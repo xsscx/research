@@ -1,7 +1,11 @@
-# icctest Parity + MCP Release Validation - Prompt
+---
+mode: agent
+description: Validate V1/V2 parity and MCP container readiness for release
+---
 
-Use this prompt when the task is to confirm `iccanalyzer-lite`, `icctest`, and
-the MCP container are ready for comparison, release, or workflow promotion.
+# icctest Parity + MCP Release Validation
+
+Confirm iccanalyzer-lite, icctest, and MCP container are ready for release.
 
 ## Read First
 

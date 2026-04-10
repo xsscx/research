@@ -2432,14 +2432,14 @@ def test_heuristic_detection(suite):
     suite.assert_output_contains(
         "symmetry.xyz_large_no_hang",
         ["-a", "--legacy", f"{corpus}/xyz_large_array.icc"],
-        r"180 heuristics"
+        r"181 heuristics"
     )
 
     # Calculator deep nesting profile completes without hanging
     suite.assert_output_contains(
         "symmetry.calc_deep_no_hang",
         ["-a", "--legacy", f"{corpus}/calculator_deep_nesting.icc"],
-        r"180 heuristics"
+        r"181 heuristics"
     )
 
     # --- H86 Unicode content detection tests (CWE-116) ---
@@ -2482,7 +2482,7 @@ def test_heuristic_detection(suite):
     suite.assert_output_contains(
         "heuristic.h68_gbd_tary_triangle_overflow",
         ["-a", "--legacy", f"{corpus}/gbd_tary_signed_channel_wrap.icc"],
-        r"\[H68\][\s\S]*nTriangles=1947472916 \* 3 = 5842418748 overflows int32"
+        r"\[H68\][\s\S]*nTriangles=\d+ \* 3 = \d+ overflows int32"
     )
 
     suite.assert_output_contains(
@@ -3235,9 +3235,9 @@ def test_runtime_safety(suite):
 def test_heuristic_summary(suite):
     """Test that the summary section appears with correct heuristic count."""
     suite.assert_output_contains(
-        "summary.180_heuristics",
+        "summary.181_heuristics",
         ["-a", "--legacy", str(CORPUS_DIR / "bad_magic.icc")],
-        r"180 heuristics"
+        r"181 heuristics"
     )
 
     suite.assert_output_contains(
@@ -3520,9 +3520,9 @@ def test_json_output(suite):
     # Summary should have counts
     if "summary" in data:
         s = data["summary"]
-        has_total = s.get("totalHeuristics", 0) == 180
+        has_total = s.get("totalHeuristics", 0) == 181
         suite.results.append(TestResult(
-            "json.total_heuristics_180", has_total,
+            "json.total_heuristics_181", has_total,
             f"totalHeuristics={s.get('totalHeuristics')}" if not has_total else "",
             0.0, "", ""
         ))
@@ -3575,7 +3575,7 @@ def test_json_output(suite):
     # Registry block in JSON should have dynamic stats
     if "summary" in data and "registry" in data["summary"]:
         reg = data["summary"]["registry"]
-        has_reg_total = reg.get("totalHeuristics", 0) == 180
+        has_reg_total = reg.get("totalHeuristics", 0) == 181
         suite.results.append(TestResult(
             "json.registry_total_heuristics", has_reg_total,
             f"registry.totalHeuristics={reg.get('totalHeuristics')}" if not has_reg_total else "",

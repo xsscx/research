@@ -33,15 +33,15 @@
 // Compatibility: iccDEV renamed Material* → Multiplex* in commit 53dca81 (2026-02-27).
 // CI cache may have older headers with Material names. Support both.
 #ifndef icSigMultiplexDefaultValuesTag
-  #ifdef icSigMaterialDefaultValuesTag
-    #define icSigMultiplexDefaultValuesTag icSigMaterialDefaultValuesTag
+  #ifdef icSigMultiplexDefaultValuesTag
+    #define icSigMultiplexDefaultValuesTag icSigMultiplexDefaultValuesTag
   #else
     #define icSigMultiplexDefaultValuesTag static_cast<icTagSignature>(0x6D647620)
   #endif
 #endif
 #ifndef icSigMultiplexTypeArrayTag
-  #ifdef icSigMaterialTypeArrayTag
-    #define icSigMultiplexTypeArrayTag icSigMaterialTypeArrayTag
+  #ifdef icSigMultiplexTypeArrayTag
+    #define icSigMultiplexTypeArrayTag icSigMultiplexTypeArrayTag
   #else
     #define icSigMultiplexTypeArrayTag static_cast<icTagSignature>(0x6d637461)
   #endif
@@ -359,7 +359,7 @@ int RunCF083_MCSSignature(CIccProfile *pIcc) {
   if (!IsV5(pIcc)) return 0;
 
   int issues = 0;
-  icMaterialColorSignature mcs = pIcc->m_Header.mcs;
+  icMultiplexColorSignature mcs = pIcc->m_Header.mcs;
 
   printf("%s[CF-083]%s MCS Signature Encoding (%sICC.2-2023 §7.2.25%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
@@ -986,14 +986,14 @@ static int RunCF114_MCSColourSpaceConsistency(CIccProfile *pIcc) {
   printf("  %s[CF-114]%s MCS Colour Space Consistency (%sICC.2-2023 §7.2.19%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
-  icMaterialColorSignature mcs = pIcc->m_Header.mcs;
+  icMultiplexColorSignature mcs = pIcc->m_Header.mcs;
   if (mcs == icSigNoMCSData) {
     printf("         No MCS data — check not applicable\n");
     return 0;
   }
 
   // MCS must have valid channel count
-  int nMCS = (int)icGetMaterialColorSpaceSamples(mcs);
+  int nMCS = (int)icGetMultiplexColorSpaceSamples(mcs);
   if (nMCS == 0) {
     char s[5] = {};
     SigToChars((icUInt32Number)mcs, s);
@@ -1134,7 +1134,7 @@ static int RunCF137_MultiplexDefaultValuesType(CIccProfile *pIcc) {
   printf("  %s[CF-137]%s MultiplexDefaultValues Tag Type (%sICC.2-2019 §9.2.84 Errata%s)\n",
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
-  // 'mdv ' = 0x6D647620 (icSigMaterialDefaultValuesTag in iccDEV)
+  // 'mdv ' = 0x6D647620 (icSigMultiplexDefaultValuesTag in iccDEV)
   CIccTag *pTag = pIcc->FindTag((icTagSignature)0x6D647620);
   if (!pTag) {
     printf("         No multiplexDefaultValuesTag ('mdv ') — check not applicable\n");
@@ -3641,8 +3641,8 @@ static int RunCF238_XrngHeaderFieldRestrictions(CIccProfile *pIcc) {
   }
 
   // MCS must be 0
-  icMaterialColorSignature mcs = pIcc->m_Header.mcs;
-  if (mcs != (icMaterialColorSignature)0) {
+  icMultiplexColorSignature mcs = pIcc->m_Header.mcs;
+  if (mcs != (icMultiplexColorSignature)0) {
     printf("         %s[WARN]%s MCS=0x%08X -- Part 1 requires 0\n",
            ColorWarning(), ColorReset(), (unsigned)mcs);
     issues++;
@@ -4320,13 +4320,13 @@ static int RunCF290_MaterialDefaultValuesPresence(CIccProfile *pIcc) {
   icProfileClassSignature cls = pIcc->m_Header.deviceClass;
 
   // Material identification and visualization classes should have materialDefaultValuesTag
-  if (cls != icSigMaterialIdentificationClass &&
-      cls != icSigMaterialVisualizationClass) {
+  if (cls != icSigMultiplexIdentificationClass &&
+      cls != icSigMultiplexVisualizationClass) {
     printf("         Profile class is not material — not applicable\n");
     return 0;
   }
 
-  const char *clsName = (cls == icSigMaterialIdentificationClass) ?
+  const char *clsName = (cls == icSigMultiplexIdentificationClass) ?
                          "Material Identification" : "Material Visualization";
 
   CIccTag *mdv = pIcc->FindTag(icSigMultiplexDefaultValuesTag);

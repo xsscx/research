@@ -7,6 +7,7 @@ allowed-tools:
   - bash
   - read
   - write
+  - grep
   - glob
   - grep
 ---
