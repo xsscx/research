@@ -306,7 +306,7 @@ jobs:
           fetch-depth: 1
 
       - name: Download fuzzer binaries
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (node24)
         with:
           name: fuzzer-binaries-${{ env.SANITIZER }}
 
@@ -845,14 +845,14 @@ jobs:
 
     steps:
       - name: Download all crash artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (node24)
         with:
           pattern: crash-*
           path: all-crashes/
           merge-multiple: false
 
       - name: Download all dict updates
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (node24)
         with:
           pattern: dict-*
           path: all-dicts/
@@ -950,7 +950,7 @@ jobs:
           token: ${{ github.token }}
 
       - name: Download all dict artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (node24)
         with:
           pattern: dict-*
           path: dict-artifacts/

@@ -298,7 +298,7 @@ jobs:
             libxml2 libtiff6 libjpeg-turbo8 libpng16-16
 
       - name: Download tools
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (node24)
         with:
           name: iccdev-tools-${{ matrix.branch }}
           path: tools
@@ -534,7 +534,7 @@ jobs:
             libxml2 libtiff6 libjpeg-turbo8 libpng16-16 python3
 
       - name: Download tools
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (node24)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (node24)
         with:
           name: iccdev-tools-${{ matrix.branch }}
           path: tools
