@@ -128,8 +128,8 @@ jobs:
           done
           OBJS=$(echo "$SRCS" | sed 's/\.cpp/.o/g')
           $CXX $OBJS \
-            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML -L../iccDEV/Build/IccJSON \
-            -lIccProfLib2 -lIccXML2 -lIccJSON2 -lxml2 -lssl -lcrypto -lz -llzma -lm -ltiff -lpng -ljpeg \
+            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
+            -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -llzma -lm -ltiff -lpng -ljpeg \
             -Wl,--allow-multiple-definition \
             -o iccanalyzer-lite
 
@@ -157,11 +157,11 @@ jobs:
           $CXX $CXXFLAGS $INCLUDES IccFromXml_unsafe.cpp -c -o IccFromXml_unsafe.o
           $CXX $CXXFLAGS $INCLUDES IccToXml_unsafe.cpp -c -o IccToXml_unsafe.o
           $CXX IccFromXml_unsafe.o \
-            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML -L../iccDEV/Build/IccJSON \
-            -lIccProfLib2 -lIccXML2 -lIccJSON2 -lxml2 -lz -lm -o iccFromXml_unsafe
+            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
+            -lIccProfLib2 -lIccXML2 -lxml2 -lz -lm -o iccFromXml_unsafe
           $CXX IccToXml_unsafe.o \
-            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML -L../iccDEV/Build/IccJSON \
-            -lIccProfLib2 -lIccXML2 -lIccJSON2 -lxml2 -lz -lm -o iccToXml_unsafe
+            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
+            -lIccProfLib2 -lIccXML2 -lxml2 -lz -lm -o iccToXml_unsafe
 
       - name: Build for CodeQL - cfl (fuzzers)
         if: matrix.target == 'cfl'
