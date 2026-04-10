@@ -120,6 +120,11 @@ private:
 
 // Preformat messages before passing them to the variadic logger wrappers.
 // This avoids scan-build taint false positives on literal-format call sites.
+// The format string is validated at each call site; suppress -Wformat-nonliteral
+// inside the template bodies where the compiler cannot see the literal.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+
 template <typename... Args>
 inline void HcWarnFormatted(HeuristicCollector &hc, const char *fmt, Args... args)
 {
@@ -147,5 +152,7 @@ inline void HcCweFormatted(HeuristicCollector &hc, const char *fmt, Args... args
   const std::string msg = HeuristicCollector::format(fmt, args...);
   hc.cweNote("%s", msg.c_str());
 }
+
+#pragma clang diagnostic pop
 
 #endif // ICCHEURISTICRESULT_H

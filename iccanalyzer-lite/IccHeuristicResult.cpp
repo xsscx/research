@@ -71,6 +71,9 @@ HeuristicCollector &HeuristicCollector::instance()
 
 // ── String formatting helper ──
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+
 std::string HeuristicCollector::vformat(const char *fmt, va_list ap)
 {
   // Measure required length
@@ -84,6 +87,8 @@ std::string HeuristicCollector::vformat(const char *fmt, va_list ap)
   vsnprintf(&result[0], static_cast<size_t>(len) + 1, fmt, ap);
   return result;
 }
+
+#pragma clang diagnostic pop
 
 std::string HeuristicCollector::format(const char *fmt, ...)
 {
