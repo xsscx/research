@@ -36,7 +36,22 @@
 
 using namespace icctest;
 
-// Compatibility: iccDEV renamed Material* -> Multiplex*
+// Compatibility: iccDEV renamed Material* -> Multiplex* (April 2025)
+#ifndef icSigMultiplexVisualizationClass
+  #ifdef icSigMaterialVisualizationClass
+    #define icSigMultiplexVisualizationClass icSigMaterialVisualizationClass
+  #endif
+#endif
+#ifndef icSigMultiplexIdentificationClass
+  #ifdef icSigMaterialIdentificationClass
+    #define icSigMultiplexIdentificationClass icSigMaterialIdentificationClass
+  #endif
+#endif
+#ifndef icSigMultiplexLinkClass
+  #ifdef icSigMaterialLinkClass
+    #define icSigMultiplexLinkClass icSigMaterialLinkClass
+  #endif
+#endif
 #ifndef icSigMultiplexDefaultValuesTag
   #ifdef icSigMaterialDefaultValuesTag
     #define icSigMultiplexDefaultValuesTag icSigMaterialDefaultValuesTag
@@ -50,6 +65,12 @@ using namespace icctest;
   #else
     #define icSigMultiplexTypeArrayTag static_cast<icTagSignature>(0x6d637461)
   #endif
+#endif
+#if !defined(icMultiplexColorSignature) && defined(icMaterialColorSignature)
+  typedef icMaterialColorSignature icMultiplexColorSignature;
+#endif
+#if !defined(icGetMultiplexColorSpaceSamples) && defined(icGetMaterialColorSpaceSamples)
+  #define icGetMultiplexColorSpaceSamples icGetMaterialColorSpaceSamples
 #endif
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

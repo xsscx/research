@@ -25,6 +25,7 @@
 #include "IccHeuristicsHelpers.h"
 #include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
+#include "IccMultiplexCompat.h"
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
@@ -6312,7 +6313,7 @@ static int RunCF322_SolvStatusHandling(CIccProfile *pIcc) {
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
   int solvCount = 0;
-  int solvWithIf = 0;
+  int solvWithIf = 0; (void)solvWithIf;
   int solvWithoutIf = 0;
 
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
@@ -6383,7 +6384,7 @@ static int RunCF323_SolvDimensions(CIccProfile *pIcc) {
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
   int solvCount = 0;
-  int degenerateCount = 0;
+  int degenerateCount = 0; (void)degenerateCount;
 
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {
     CIccTag *tag = pIcc->FindTag(it->TagInfo.sig);
@@ -6506,7 +6507,7 @@ static int RunCF325_EnvStatusHandling(CIccProfile *pIcc) {
          ColorHeader(), ColorReset(), ColorInfo(), ColorReset());
 
   int envCount = 0;
-  int envWithIf = 0;
+  int envWithIf = 0; (void)envWithIf;
   int envWithoutIf = 0;
 
   for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); it++) {

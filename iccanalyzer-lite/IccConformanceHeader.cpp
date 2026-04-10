@@ -24,6 +24,7 @@
 #include "IccHeuristicsHelpers.h"
 #include "IccHeuristicResult.h"
 #include "IccAnalyzerColors.h"
+#include "IccMultiplexCompat.h"
 #include <openssl/evp.h>
 #include <cstdio>
 #include <cstdint>
