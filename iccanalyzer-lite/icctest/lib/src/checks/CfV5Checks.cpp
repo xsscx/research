@@ -545,10 +545,10 @@ static CheckResult check_cf114_mcs_colour_space_consistency(const ProfileView& p
     CIccProfile *pIcc = pv.unsafeLibraryHandle();
     if (!pIcc) return CheckResult::error("No library handle");
 
-    icMaterialColorSignature mcs = pIcc->m_Header.mcs;
+    icMultiplexColorSignature mcs = pIcc->m_Header.mcs;
     if (mcs == icSigNoMCSData) return CheckResult::ok("No MCS data — not applicable");
 
-    int nMCS = static_cast<int>(icGetMaterialColorSpaceSamples(mcs));
+    int nMCS = static_cast<int>(icGetMultiplexColorSpaceSamples(mcs));
     if (nMCS == 0) {
         std::vector<Finding> findings;
         findings.push_back({CheckID{CheckID::Kind::Conformance, 114}, Severity::HIGH,

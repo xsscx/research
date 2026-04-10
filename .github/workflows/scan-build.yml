@@ -84,7 +84,7 @@ jobs:
             rm -f CMakeCache.txt && rm -rf CMakeFiles
             sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
             cmake Cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLS=OFF
-            make -j$(nproc) IccProfLib2 IccXML2
+            make -j$(nproc) IccProfLib2 IccXML2 IccJSON2
           fi
 
       - name: scan-build — iccanalyzer-lite
@@ -112,7 +112,7 @@ jobs:
             -enable-checker core.NullDereference \
             -enable-checker core.DivideZero"
 
-          INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+          INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
 
           SRCS=$(ls *.cpp)
           TOTAL=0
@@ -170,7 +170,7 @@ jobs:
             -enable-checker core.NullDereference \
             -enable-checker core.DivideZero"
 
-          INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+          INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
 
           SRCS=$(ls *.cpp)
           TOTAL=0

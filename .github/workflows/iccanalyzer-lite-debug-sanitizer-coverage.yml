@@ -132,6 +132,7 @@ jobs:
           echo "Verifying instrumented libraries..."
           ls -lh IccProfLib/libIccProfLib2-static*.a
           ls -lh IccXML/libIccXML2-static*.a
+          ls -lh IccJSON/libIccJSON2-static*.a
 
           echo "Checking coverage instrumentation flags..."
           find . -name "flags.make" -path "*/CMakeFiles/*" -exec grep -l "fprofile-instr-generate" {} \; | sed -n '1,3p' || true
@@ -152,7 +153,7 @@ jobs:
 
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"
-          INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
+          INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I${ICCDEV_ROOT}/IccJSON/IccLibJSON -I/usr/include/libxml2"
           resolve_static_lib() {
             local dir="$1"
             local base="$2"
@@ -171,7 +172,8 @@ jobs:
           }
           LIB_PROF="$(resolve_static_lib "${ICCDEV_BUILD}/IccProfLib" "libIccProfLib2")"
           LIB_XML="$(resolve_static_lib "${ICCDEV_BUILD}/IccXML" "libIccXML2")"
-          LIBS="${LIB_PROF} ${LIB_XML} -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto"
+          LIB_JSON="$(resolve_static_lib "${ICCDEV_BUILD}/IccJSON" "libIccJSON2")"
+          LIBS="${LIB_PROF} ${LIB_XML} ${LIB_JSON} -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto"
 
           # Extract SOURCES from build.sh (single source of truth)
           SOURCES=$(grep '^SOURCES=' build.sh | head -1 | sed 's/^SOURCES=//' | tr -d '"')
@@ -762,7 +764,7 @@ jobs:
         if: always()
         env:
           BASH_ENV: /dev/null
-          LD_LIBRARY_PATH: "${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccXML"
+          LD_LIBRARY_PATH: "${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccXML:${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccJSON"
           ASAN_OPTIONS: "halt_on_error=0,detect_leaks=0"
           UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
           LLVM_PROFILE_FILE: "/dev/null"
@@ -847,7 +849,7 @@ jobs:
         if: always()
         env:
           BASH_ENV: /dev/null
-          LD_LIBRARY_PATH: "${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccXML"
+          LD_LIBRARY_PATH: "${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccProfLib:${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccXML:${{ github.workspace }}/iccanalyzer-lite/iccDEV/Build/IccJSON"
           ASAN_OPTIONS: "halt_on_error=0,detect_leaks=0"
           UBSAN_OPTIONS: "halt_on_error=0,print_stacktrace=1"
           LLVM_PROFILE_FILE: "${{ github.workspace }}/profraw/lut-io-%p-%m.profraw"

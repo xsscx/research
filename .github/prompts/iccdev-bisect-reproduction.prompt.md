@@ -1,4 +1,9 @@
-# iccDEV Bisect Reproduction -- Prompt
+---
+mode: agent
+description: Bisect iccDEV commits to find regression-introducing changes with ASAN verification
+---
+
+# iccDEV Bisect Reproduction
 
 Verified workflow for reproducing iccDEV bugs across branches.
 Derived from 9-turn failure analysis (April 2026) where unverified

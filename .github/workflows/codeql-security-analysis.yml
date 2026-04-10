@@ -107,7 +107,7 @@ jobs:
           sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/# LTO disabled by downstream CI\n    # set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Cmake/CMakeLists.txt 2>/dev/null || true
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DENABLE_TOOLS=OFF -DENABLE_STATIC_LIBS=ON
-          make -j$(nproc) IccProfLib2 IccXML2 IccProfLib2-static IccXML2-static
+          make -j$(nproc) IccProfLib2 IccXML2 IccJSON2 IccProfLib2-static IccXML2-static IccJSON2-static
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
@@ -121,15 +121,15 @@ jobs:
           set -euo pipefail
           cd iccanalyzer-lite
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0 -DICCANALYZER_LITE"
-          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
           SRCS=$(grep '^SOURCES=' build.sh | head -1 | sed 's/^SOURCES=//' | tr -d '"')
           for src in $SRCS; do
             $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
           done
           OBJS=$(echo "$SRCS" | sed 's/\.cpp/.o/g')
           $CXX $OBJS \
-            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
-            -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -llzma -lm -ltiff -lpng -ljpeg \
+            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML -L../iccDEV/Build/IccJSON \
+            -lIccProfLib2 -lIccXML2 -lIccJSON2 -lxml2 -lssl -lcrypto -lz -llzma -lm -ltiff -lpng -ljpeg \
             -Wl,--allow-multiple-definition \
             -o iccanalyzer-lite
 
@@ -153,15 +153,15 @@ jobs:
           set -euo pipefail
           cd colorbleed_tools
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0"
-          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
           $CXX $CXXFLAGS $INCLUDES IccFromXml_unsafe.cpp -c -o IccFromXml_unsafe.o
           $CXX $CXXFLAGS $INCLUDES IccToXml_unsafe.cpp -c -o IccToXml_unsafe.o
           $CXX IccFromXml_unsafe.o \
-            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
-            -lIccProfLib2 -lIccXML2 -lxml2 -lz -lm -o iccFromXml_unsafe
+            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML -L../iccDEV/Build/IccJSON \
+            -lIccProfLib2 -lIccXML2 -lIccJSON2 -lxml2 -lz -lm -o iccFromXml_unsafe
           $CXX IccToXml_unsafe.o \
-            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
-            -lIccProfLib2 -lIccXML2 -lxml2 -lz -lm -o iccToXml_unsafe
+            -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML -L../iccDEV/Build/IccJSON \
+            -lIccProfLib2 -lIccXML2 -lIccJSON2 -lxml2 -lz -lm -o iccToXml_unsafe
 
       - name: Build for CodeQL - cfl (fuzzers)
         if: matrix.target == 'cfl'

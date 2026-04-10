@@ -220,6 +220,7 @@ const HeuristicEntry kHeuristicRegistry[] = {
   {178, "spectralRangeType Encoding Validation", "ICC.2:2023 Sec.10.2.w","CWE-20/CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
   {179, "AddXform Create NULL Guard Detection", "IccCmm.cpp:8292 PR#708","CWE-476", nullptr, HeuristicPhase::EXPLOIT_GAP, HeuristicSeverity::HIGH},
   {180, "XML Round-Trip Fidelity", "ICC.1-2022-05 Sec.10","CWE-345", nullptr, HeuristicPhase::XML_SAFETY, HeuristicSeverity::HIGH},
+  {181, "JSON Bitmask Complement CWE-681", "IccProfileJson.cpp:85 #809","CWE-681", nullptr, HeuristicPhase::EXPLOIT_GAP, HeuristicSeverity::HIGH},
 };
 
 const size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);

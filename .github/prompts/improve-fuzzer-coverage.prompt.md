@@ -1,7 +1,12 @@
+---
+mode: agent
+description: Analyze LLVM coverage gaps and create targeted seeds to increase CFL fuzzer coverage
+---
+
 # Improve Fuzzer Code Coverage
 
-## Goal
-Analyze LLVM coverage reports and create targeted seed ICC profiles and dictionary entries to increase code coverage for the 13 LibFuzzer harnesses.
+Analyze LLVM coverage reports and create targeted seed ICC profiles and
+dictionary entries to increase code coverage for the 13 LibFuzzer harnesses.
 
 ## Prerequisites
 - Fuzzers built: `ls cfl/bin/icc_*_fuzzer | wc -l` should return 13
@@ -41,13 +46,13 @@ llvm-cov-18 show $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata --format=t
 ### 3. Create Seed Profiles
 Two approaches:
 
-**A. Harvest from test-profiles/** — Find profiles with tag types not already in seed corpora:
+**A. Harvest from test-profiles/** -- Find profiles with tag types not already in seed corpora:
 ```python
 # Compare tag types in test-profiles/ vs existing seed corpus
 # Copy missing profiles with doOpenPath bit set: data[-2] |= 0x08
 ```
 
-**B. Patch existing valid profiles** — For specific tag types:
+**B. Patch existing valid profiles** -- For specific tag types:
 ```python
 # Start with a valid profile (e.g., sample.icc, sRgbEncodingOverrides.icc)
 # Add tag: increment tag_count, insert 12-byte entry in tag table, shift offsets, append tag data
@@ -56,7 +61,7 @@ Two approaches:
 # Set doOpenPath: data[-2] |= 0x08 (uses non-validating Read() path)
 ```
 
-**Critical**: Minimal hand-crafted ICC profiles FAIL `ValidateIccProfile()` — always patch existing valid profiles.
+**Critical**: Minimal hand-crafted ICC profiles FAIL `ValidateIccProfile()` -- always patch existing valid profiles.
 
 ### 4. Add Dictionary Entries
 Add tokens for uncovered code paths to fuzzer `.dict` files:
@@ -117,18 +122,18 @@ profiles are the most LUT-dense class and exercise critical parser paths:
 |-------|---------------|----------------|
 | `mntr` (Display) | sRGB, Display P3 | Matrix+TRC, para curves, chad |
 | `prtr` (Printer) | Tek350Monaco2, SC_paper_eci | AToB/BToA LUT pairs, gamt, CMYK |
-| `scnr` (Scanner) | — | Input transforms, calibration |
-| `link` (DeviceLink) | — | Direct device-to-device transforms |
-| `spac` (ColorSpace) | — | Non-device color spaces |
-| `abst` (Abstract) | — | Abstract transforms |
-| `nmcl` (NamedColor) | — | Named color lookup |
+| `scnr` (Scanner) | -- | Input transforms, calibration |
+| `link` (DeviceLink) | -- | Direct device-to-device transforms |
+| `spac` (ColorSpace) | -- | Non-device color spaces |
+| `abst` (Abstract) | -- | Abstract transforms |
+| `nmcl` (NamedColor) | -- | Named color lookup |
 
-### Printer Profile Anatomy (Tek350Monaco2 — 405KB)
+### Printer Profile Anatomy (Tek350Monaco2 -- 405KB)
 - **7 LUT tags** = 77% of profile is dense numerical data
-- AToB0/1/2: 17³ = 4,913 CLUT entries each (mft1 type, 16KB)
-- BToA0/1/2: 33³ = 35,937 CLUT entries each (mft1 type, 109KB)
-- gamt: 3→1 channel reduction (33³ grid, 37KB)
-- Monaco CMM (`mnco`), v2.0, RGB→Lab PCS
+- AToB0/1/2: 17^3 = 4,913 CLUT entries each (mft1 type, 16KB)
+- BToA0/1/2: 33^3 = 35,937 CLUT entries each (mft1 type, 109KB)
+- gamt: 3->1 channel reduction (33^3 grid, 37KB)
+- Monaco CMM (`mnco`), v2.0, RGB->Lab PCS
 
 ## Coverage Baseline (March 2026, extended run)
 | Metric | Value |
@@ -173,34 +178,34 @@ comm -23 tool-funcs.txt fuzzer-funcs.txt  # Functions in tool but not fuzzer
 
 | Tool / Fuzzer | Functions | Lines | Fidelity |
 |---------------|-----------|-------|----------|
-| iccFromCube (upstream) | 3.62% | 3.96% | — |
+| iccFromCube (upstream) | 3.62% | 3.96% | -- |
 | icc_fromcube_fuzzer | 3.75% | 4.07% | **100%** (only `main` missing) |
-| iccDumpProfile (upstream) | 1.56% | 1.88% | — |
+| iccDumpProfile (upstream) | 1.56% | 1.88% | -- |
 | icc_dump_fuzzer | 29.99% | 27.65% | **>100%** (custom icRealloc) |
-| iccToXml (upstream) | 13.47% | 20.30% | — |
-| iccRoundTrip (upstream) | 22.58% | 28.65% | — |
+| iccToXml (upstream) | 13.47% | 20.30% | -- |
+| iccRoundTrip (upstream) | 22.58% | 28.65% | -- |
 
 ## Corpus State (March 2026, post-SSD migration)
 | Fuzzer | Files | Priority |
 |--------|-------|----------|
-| tiffdump | 47,158 | — |
-| applynamedcmm | 32,214 | — |
-| specsep | 30,764 | — |
-| applyprofiles | 28,582 | — |
-| fromxml | 27,648 | — |
-| v5dspobs | 24,882 | — |
-| toxml | 23,848 | — |
-| apply | 21,303 | — |
-| deep_dump | 19,209 | — |
-| calculator | 18,038 | — |
-| profile | 14,416 | — |
-| dump | 14,173 | — |
-| multitag | 12,333 | — |
-| roundtrip | 7,269 | SLOW (Read→Write→Read per input) |
+| tiffdump | 47,158 | -- |
+| applynamedcmm | 32,214 | -- |
+| specsep | 30,764 | -- |
+| applyprofiles | 28,582 | -- |
+| fromxml | 27,648 | -- |
+| v5dspobs | 24,882 | -- |
+| toxml | 23,848 | -- |
+| apply | 21,303 | -- |
+| deep_dump | 19,209 | -- |
+| calculator | 18,038 | -- |
+| profile | 14,416 | -- |
+| dump | 14,173 | -- |
+| multitag | 12,333 | -- |
+| roundtrip | 7,269 | SLOW (Read->Write->Read per input) |
 | link | 1,859 | NEEDS quarantine_size_mb=256 |
-| io | 1,103 | SMALL — needs more seeds |
-| spectral | 1,009 | SMALL — needs more seeds |
-| fromcube | 381 | OPTIMIZED (was 1,993/199MB → 381/2.2MB, +77% exec/s) |
+| io | 1,103 | SMALL -- needs more seeds |
+| spectral | 1,009 | SMALL -- needs more seeds |
+| fromcube | 381 | OPTIMIZED (was 1,993/199MB -> 381/2.2MB, +77% exec/s) |
 
 ## Top Coverage Gaps (by missed lines)
 | File | Missed | Coverage | Priority | Target Fuzzers |
@@ -211,12 +216,12 @@ comm -23 tool-funcs.txt fuzzer-funcs.txt  # Functions in tool but not fuzzer
 | IccMpeSpectral.cpp | 828 | 31.8% | HIGH | spectral, v5dspobs |
 | IccPcc.cpp | 359 | 16.5% | HIGH | spectral, v5dspobs (needs differing viewing conditions) |
 | IccSparseMatrix.cpp | 314 | 26.8% | HIGH | deep_dump, profile (needs sparse matrix tags) |
-| IccCmmSearch.cpp | 275 | 0.0% | LOW | NONE — no fuzzer exercises this API |
-| IccEval.cpp | 95 | 0.0% | LOW | NONE — needs new fuzzer |
+| IccCmmSearch.cpp | 275 | 0.0% | LOW | NONE -- no fuzzer exercises this API |
+| IccEval.cpp | 95 | 0.0% | LOW | NONE -- needs new fuzzer |
 
 ### Key Insight: IccCmm.cpp
 IccCmm.cpp has the most missed lines but requires profile PAIRS (not single profiles) to
-trigger the CMM pipeline (AddXform→Begin→Apply). Seed corpora need matched pairs:
+trigger the CMM pipeline (AddXform->Begin->Apply). Seed corpora need matched pairs:
 - sRGB + CMYK (3DLut/4DLut paths)
 - Lab + Lab with different whitepoints (PCS step chain)
 - v5 MPE profile pairs (CIccXformMpe)
@@ -241,7 +246,7 @@ tool fidelity, dict syntax), see `fuzzer-optimization.prompt.md`.
 
 ### UBSAN Fix Patterns (for iccanalyzer-lite code)
 When extracting 4-byte ICC signatures into `char[5]`:
-- ALWAYS use `static_cast<char>()` — values >127 trigger UBSAN implicit-conversion
+- ALWAYS use `static_cast<char>()` -- values >127 trigger UBSAN implicit-conversion
 - Prefer `SignatureToFourCC()` helper which handles cast + trailing space trim
 - For `tOffset + tSize` additions, use `(uint64_t)` widening to prevent unsigned overflow
 - 18 sites fixed across IccHeuristicsRawPost.cpp and IccHeuristicsLibrary.cpp
@@ -255,7 +260,7 @@ When extracting 4-byte ICC signatures into `char[5]`:
 | Fixed this session | 19 (constant-comparison, complex-condition, path-injection) |
 
 ## See Also
-- [fuzzer-optimization.prompt.md](fuzzer-optimization.prompt.md) — Coverage improvement strategies
-- [corpus-management.prompt.md](corpus-management.prompt.md) — Corpus storage operations
-- [fuzz-corpus-analysis.prompt.md](fuzz-corpus-analysis.prompt.md) — Corpus inventory and audit
-- [triage-fuzzer-crash.prompt.md](triage-fuzzer-crash.prompt.md) — Fuzzer crash triage
+- [fuzzer-optimization.prompt.md](fuzzer-optimization.prompt.md) -- Coverage improvement strategies
+- [corpus-management.prompt.md](corpus-management.prompt.md) -- Corpus storage operations
+- [fuzz-corpus-analysis.prompt.md](fuzz-corpus-analysis.prompt.md) -- Corpus inventory and audit
+- [triage-fuzzer-crash.prompt.md](triage-fuzzer-crash.prompt.md) -- Fuzzer crash triage

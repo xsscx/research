@@ -1,3 +1,8 @@
+---
+mode: agent
+description: Find unsigned integer overflow bugs in iccDEV offset+size bounds checks
+---
+
 # Upstream Bug Hunting -- UIO Pattern
 
 Find and fix unsigned integer overflow (UIO) bugs in iccDEV offset+size bounds checks.
