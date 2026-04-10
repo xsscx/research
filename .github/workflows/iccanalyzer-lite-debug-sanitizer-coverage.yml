@@ -132,7 +132,7 @@ jobs:
           echo "Verifying instrumented libraries..."
           ls -lh IccProfLib/libIccProfLib2-static*.a
           ls -lh IccXML/libIccXML2-static*.a
-          ls -lh IccJSON/libIccJSON2-static*.a
+          ls -lh IccJSON/libIccJSON2-static*.a 2>/dev/null || echo "IccJSON2 static lib not needed for analyzer"
 
           echo "Checking coverage instrumentation flags..."
           find . -name "flags.make" -path "*/CMakeFiles/*" -exec grep -l "fprofile-instr-generate" {} \; | sed -n '1,3p' || true
@@ -172,8 +172,7 @@ jobs:
           }
           LIB_PROF="$(resolve_static_lib "${ICCDEV_BUILD}/IccProfLib" "libIccProfLib2")"
           LIB_XML="$(resolve_static_lib "${ICCDEV_BUILD}/IccXML" "libIccXML2")"
-          LIB_JSON="$(resolve_static_lib "${ICCDEV_BUILD}/IccJSON" "libIccJSON2")"
-          LIBS="${LIB_PROF} ${LIB_XML} ${LIB_JSON} -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto"
+          LIBS="${LIB_PROF} ${LIB_XML} -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto"
 
           # Extract SOURCES from build.sh (single source of truth)
           SOURCES=$(grep '^SOURCES=' build.sh | head -1 | sed 's/^SOURCES=//' | tr -d '"')

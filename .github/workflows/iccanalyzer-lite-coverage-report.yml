@@ -123,7 +123,7 @@ jobs:
           make -j$(nproc)
           ls -lh IccProfLib/libIccProfLib2-static*.a
           ls -lh IccXML/libIccXML2-static*.a
-          ls -lh IccJSON/libIccJSON2-static*.a
+          ls -lh IccJSON/libIccJSON2-static*.a 2>/dev/null || echo "IccJSON2 static lib not needed for analyzer"
           echo "Verifying .gcno files generated..."
           GCNO_COUNT=$(find . -name "*.gcno" | wc -l)
           echo "Found $GCNO_COUNT .gcno files"
@@ -147,7 +147,7 @@ jobs:
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"
           INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I${ICCDEV_ROOT}/IccJSON/IccLibJSON -I/usr/include/libxml2"
-          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static*.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static*.a ${ICCDEV_BUILD}/IccJSON/libIccJSON2-static*.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto -lgcov"
+          LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static*.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static*.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto -lgcov"
 
           # Extract SOURCES from build.sh (single source of truth)
           SOURCES=$(grep '^SOURCES=' build.sh | head -1 | sed 's/^SOURCES=//' | tr -d '"')
