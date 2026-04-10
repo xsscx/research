@@ -305,6 +305,28 @@ def is_conformance_applicability_skip(summary: str) -> bool:
     return False
 
 
+def is_conformance_v1_finding_v2_skip_match(
+    v1_record: dict | None, v2_record: dict | None
+) -> bool:
+    """V1 raw-phase found issues but V2 correctly skips as not applicable.
+
+    This covers cases where V1 always runs raw-phase checks (e.g. GBD
+    conformance) on any profile regardless of version, while V2 correctly
+    gates by profile version or applicability and reports 'skip'.
+    """
+    if not v1_record or not v2_record:
+        return False
+
+    if v1_record.get("normalizedStatus", "") != "finding":
+        return False
+    if v2_record.get("normalizedStatus", "") != "skip":
+        return False
+    if int(v2_record.get("findingCount", 0)) != 0:
+        return False
+
+    return is_conformance_applicability_skip(v2_record.get("summary", ""))
+
+
 def is_conformance_applicability_match(v1_record: dict | None, v2_record: dict | None) -> bool:
     if not v1_record or not v2_record:
         return False
@@ -655,6 +677,18 @@ def compare_lane(
         ):
             comparison = "applicability_match"
             normalized_reason = "v1_text_omitted_not_applicable_conformance_check"
+        elif (
+            lane == "conformance"
+            and not v1_record
+            and v2_record
+            and check_id == "CF-190"
+            and v2_record.get("normalizedStatus", "") == "finding"
+        ):
+            # V1 has no CF-190 equivalent; V2's legibility gate fires when
+            # the library cannot load the profile.  V1 still analysed the
+            # file via raw-phase heuristics, so the omission is expected.
+            comparison = "implicit_skip_match"
+            normalized_reason = "v1_no_cf190_legibility_gate"
         elif not v1_record and v2_record and v2_record["normalizedStatus"] == "skip":
             comparison = "implicit_skip_match"
         elif not v2_record and v1_record and v1_record["normalizedStatus"] == "skip":
@@ -695,6 +729,10 @@ def compare_lane(
                 if is_conformance_advisory_match(v1_record, v2_record):
                     comparison = "advisory_match"
                     normalized_reason = "v1_ok_vs_v2_info_or_low_finding"
+                    entry_issues = []
+                elif is_conformance_v1_finding_v2_skip_match(v1_record, v2_record):
+                    comparison = "applicability_match"
+                    normalized_reason = "v1_finding_vs_v2_skip_not_applicable"
                     entry_issues = []
                 else:
                     comparison = "match" if not entry_issues else "delta"

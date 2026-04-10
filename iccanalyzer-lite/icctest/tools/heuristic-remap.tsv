@@ -179,3 +179,4 @@ id	status	implementation	v1_name	v2_name	v2_file	note
 178	exact	implemented	spectralRangeType Encoding Validation	spectralRangeType Encoding Validation	CfV5Checks.cpp	
 179	rename	implemented	AddXform Create NULL Guard Detection	AddXform Create NULL Guard	ExploitGapChecks.cpp	cosmetic: V2 drops Detection suffix
 180	exact	implemented	XML Round-Trip Fidelity	XML Round-Trip Fidelity	XmlSafetyChecks.cpp	
+181	exact	implemented	JSON Bitmask Complement CWE-681	JSON Bitmask Complement CWE-681	ExploitGapChecks.cpp	
