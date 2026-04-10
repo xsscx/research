@@ -1,0 +1,12 @@
+# CODEOWNERS -- require review for security-sensitive paths
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Workflow governance -- all CI changes require owner review
+.github/workflows/ @xsscx
+.github/actions/ @xsscx
+.github/scripts/ @xsscx
+
+# Security-critical components
+iccanalyzer-lite/ @xsscx
+cfl/ @xsscx
+mcp-server/ @xsscx
