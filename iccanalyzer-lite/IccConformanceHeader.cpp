@@ -67,10 +67,10 @@ static const icUInt32Number kV4DeviceClasses[] = {
 static constexpr int kV4DeviceClassCount = sizeof(kV4DeviceClasses) / sizeof(kV4DeviceClasses[0]);
 
 static const icUInt32Number kV5DeviceClasses[] = {
-  static_cast<icUInt32Number>(icSigMaterialVisualizationClass),  // 'mvis'
+  static_cast<icUInt32Number>(icSigMultiplexVisualizationClass),  // 'mvis'
   static_cast<icUInt32Number>(icSigColorEncodingClass),           // 'cenc'
-  static_cast<icUInt32Number>(icSigMaterialLinkClass),            // 'mlnk'
-  static_cast<icUInt32Number>(icSigMaterialIdentificationClass),  // 'mid '
+  static_cast<icUInt32Number>(icSigMultiplexLinkClass),            // 'mlnk'
+  static_cast<icUInt32Number>(icSigMultiplexIdentificationClass),  // 'mid '
 };
 static constexpr int kV5DeviceClassCount = sizeof(kV5DeviceClasses) / sizeof(kV5DeviceClasses[0]);
 

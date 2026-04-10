@@ -1,4 +1,9 @@
-# Upstream Code-Review Bug Hunting -- Prompt
+---
+mode: agent
+description: Find semantic bugs in iccDEV that fuzzers miss via targeted code review
+---
+
+# Upstream Code-Review Bug Hunting
 
 Find semantic bugs in iccDEV that fuzzers miss: logic errors, data corruption,
 dead code, serialization asymmetries, and division-by-zero in float paths.

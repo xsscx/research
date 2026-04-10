@@ -1,3 +1,8 @@
+---
+mode: agent
+description: File upstream iccDEV bug reports in gold standard golfed format (#753/#794/#795)
+---
+
 # Upstream iccDEV Bug Filing -- Issue Format
 
 Gold standard for filing bugs against

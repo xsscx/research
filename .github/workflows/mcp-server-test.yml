@@ -91,7 +91,8 @@ jobs:
           path: |
             iccDEV/Build/IccProfLib
             iccDEV/Build/IccXML
-          key: ${{ runner.os }}-iccdev-build-mcp-upstream-v2-${{ hashFiles('.github/workflows/mcp-server-test.yml') }}
+            iccDEV/Build/IccJSON
+          key: ${{ runner.os }}-iccdev-build-mcp-upstream-v3-${{ hashFiles('.github/workflows/mcp-server-test.yml') }}
 
       - name: Cache native tools
         id: cache-native-tools
@@ -146,7 +147,7 @@ jobs:
           # Build colorbleed_tools and iccanalyzer-lite (critical for demo)
           if [ "${{ steps.cache-native-tools.outputs.cache-hit }}" != 'true' ]; then
             export CXX=clang++
-            export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I/usr/include/libxml2"
+            export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
 
             echo "Building colorbleed_tools against cached iccDEV..."
             cd colorbleed_tools
@@ -154,14 +155,14 @@ jobs:
               -c ColorBleedAlloc.cpp -o ColorBleedAlloc.o
             $CXX -std=c++17 -O2 $INCLUDES \
               IccToXml_unsafe.cpp ColorBleedAlloc.o \
-              -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
-              -lIccProfLib2 -lIccXML2 -lxml2 -lz -lm \
+              -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML -L../iccDEV/Build/IccJSON \
+              -lIccProfLib2 -lIccXML2 -lIccJSON2 -lxml2 -lz -lm \
               -Wl,--allow-multiple-definition \
               -o iccToXml_unsafe
             $CXX -std=c++17 -O2 $INCLUDES \
               IccFromXml_unsafe.cpp ColorBleedAlloc.o \
-              -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
-              -lIccProfLib2 -lIccXML2 -lxml2 -lz -lm \
+              -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML -L../iccDEV/Build/IccJSON \
+              -lIccProfLib2 -lIccXML2 -lIccJSON2 -lxml2 -lz -lm \
               -Wl,--allow-multiple-definition \
               -o iccFromXml_unsafe
             ls -la iccToXml_unsafe iccFromXml_unsafe
@@ -176,8 +177,8 @@ jobs:
             done
             OBJS=$(echo "$SRCS" | sed 's/\.cpp/.o/g')
             $CXX $OBJS \
-              -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML \
-              -lIccProfLib2 -lIccXML2 -lxml2 -lssl -lcrypto -lz -llzma -lm -ltiff -lpng -ljpeg \
+              -L../iccDEV/Build/IccProfLib -L../iccDEV/Build/IccXML -L../iccDEV/Build/IccJSON \
+              -lIccProfLib2 -lIccXML2 -lIccJSON2 -lxml2 -lssl -lcrypto -lz -llzma -lm -ltiff -lpng -ljpeg \
               -Wl,--allow-multiple-definition \
               -o iccanalyzer-lite
             cd ..
@@ -240,7 +241,7 @@ jobs:
           set -euo pipefail
           cd mcp-server
           export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
-          export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:$(pwd)/../iccDEV/Build/IccJSON:${LD_LIBRARY_PATH:-}"
           python test_mcp.py
 
       - name: Run Web UI Tests
@@ -250,7 +251,7 @@ jobs:
           set -euo pipefail
           cd mcp-server
           export PATH="$(pwd)/../iccanalyzer-lite:$PATH"
-          export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="$(pwd)/../iccDEV/Build/IccProfLib:$(pwd)/../iccDEV/Build/IccXML:$(pwd)/../iccDEV/Build/IccJSON:${LD_LIBRARY_PATH:-}"
           python test_web_ui.py
 
       - name: Upload icctest parity artifacts

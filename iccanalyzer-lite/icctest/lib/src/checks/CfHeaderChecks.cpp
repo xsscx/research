@@ -58,10 +58,10 @@ static const uint32_t kV4DeviceClasses[] = {
 static constexpr int kV4DeviceClassCount = sizeof(kV4DeviceClasses) / sizeof(kV4DeviceClasses[0]);
 
 static const uint32_t kV5DeviceClasses[] = {
-    static_cast<uint32_t>(icSigMaterialVisualizationClass),
+    static_cast<uint32_t>(icSigMultiplexVisualizationClass),
     static_cast<uint32_t>(icSigColorEncodingClass),
-    static_cast<uint32_t>(icSigMaterialLinkClass),
-    static_cast<uint32_t>(icSigMaterialIdentificationClass),
+    static_cast<uint32_t>(icSigMultiplexLinkClass),
+    static_cast<uint32_t>(icSigMultiplexIdentificationClass),
 };
 static constexpr int kV5DeviceClassCount = sizeof(kV5DeviceClasses) / sizeof(kV5DeviceClasses[0]);
 

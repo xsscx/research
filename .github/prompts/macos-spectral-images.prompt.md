@@ -1,6 +1,10 @@
-# macOS Agent — Monochrome Spectral Image Generation Plan
+---
+mode: agent
+description: Generate monochrome spectral TIFF images on macOS for iccSpecSepToTiff fuzzer seeds
+---
 
-## Goal
+# macOS Agent -- Monochrome Spectral Image Generation
+
 Generate single-channel monochrome TIFF images on macOS using CoreGraphics
 for use as iccSpecSepToTiff inputs and CFL fuzzer seeds.
 
@@ -14,7 +18,7 @@ test images. macOS images add diversity via CoreGraphics' native TIFF writer
 ## What macOS Agent Should Generate
 
 ### Format Requirements (ALL images must match these)
-- **SamplesPerPixel**: 1 (mandatory — tool rejects multi-channel)
+- **SamplesPerPixel**: 1 (mandatory -- tool rejects multi-channel)
 - **PhotometricInterpretation**: MINISBLACK (1) or MINISWHITE (0)
 - **BitsPerSample**: 8 or 16
 - **Resolution**: 72 dpi (or any consistent value)
@@ -22,9 +26,9 @@ test images. macOS images add diversity via CoreGraphics' native TIFF writer
 
 ### Image Sets to Create
 
-#### Set A: CoreGraphics grayscale TIFFs (16-bit, 4×4)
+#### Set A: CoreGraphics grayscale TIFFs (16-bit, 4x4)
 Create 81 files named `cg_wl_{380..780}.tif` (5nm wavelength steps).
-Each file: 4×4 pixels, 16-bit gray, MINISBLACK.
+Each file: 4x4 pixels, 16-bit gray, MINISBLACK.
 Pixel values: gradient based on wavelength (e.g., `v = (wl-380) * 800`).
 
 ```swift
@@ -36,23 +40,23 @@ let ctx = CGBitmapContext(nil, 4, 4, 16, 4*2,
 // Write via CGImageDestination with kUTTypeTIFF
 ```
 
-#### Set B: CoreGraphics 8-bit small (32×32)
+#### Set B: CoreGraphics 8-bit small (32x32)
 Create 31 files named `cg_8b_{400..700}.tif` (10nm steps).
-32×32 pixels, 8-bit gray, MINISBLACK.
+32x32 pixels, 8-bit gray, MINISBLACK.
 
-#### Set C: Large images (256×256, 16-bit)
+#### Set C: Large images (256x256, 16-bit)
 Create 10 files named `cg_lg_{001..010}.tif`.
-256×256, 16-bit gray. For stress testing the merge.
+256x256, 16-bit gray. For stress testing the merge.
 
 #### Set D: Images with embedded ICC profiles
 Create 10 files named `cg_icc_{001..010}.tif`.
-32×32, 16-bit gray, with system ICC profiles embedded:
+32x32, 16-bit gray, with system ICC profiles embedded:
 - `/System/Library/ColorSync/Profiles/Generic Gray Gamma 2.2 Profile.icc`
 - `/System/Library/ColorSync/Profiles/sRGB Profile.icc` (gray component)
 
 #### Set E: Numbered digit images (visual verification)
 Create 10 files named `cg_digit_{0..9}.tif`.
-64×64, 8-bit gray. Each contains a rendered digit (0-9) using
+64x64, 8-bit gray. Each contains a rendered digit (0-9) using
 CoreText/NSFont for visual verification of merge order.
 
 ### Output Location

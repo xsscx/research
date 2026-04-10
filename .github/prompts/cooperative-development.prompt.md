@@ -1,10 +1,11 @@
-# Cooperative Multi-Agent Development -- Prompt
+---
+mode: agent
+description: Multi-agent coordination protocol for WSL-2, macOS, and Cloud CI agents
+---
 
-## Overview
+# Cooperative Multi-Agent Development
 
-This research repo is developed by multiple Copilot agents running on different platforms.
-Each agent has different capabilities determined by its OS, toolchain, and hardware.
-This prompt defines roles, handoff protocols, and efficiency strategies.
+Coordination protocol for agents sharing this repo across platforms.
 
 ## Agent Roles
 
@@ -108,159 +109,10 @@ See `.github/prompts/remote-analysis.prompt.md` for the full workflow.
 | `.github/copilot-instructions.md` | Both | High conflict risk -- merge carefully |
 | `test-profiles/` | Both | WSL-2 adds crash PoCs, macOS adds extracted profiles |
 
-## Efficiency Strategies
-
-### WSL-2 Agent -- Prioritized Task List
-
-#### High Priority (Coverage & Analysis Gaps)
-1. **Batch-analyze ~280 unanalyzed test profiles** (currently 49/329 = 14.9%):
-   ```bash
-   for f in test-profiles/*.icc; do
-     bn=$(basename "$f" .icc)
-     [ -f "analysis-reports/${bn}-analysis.md" ] && continue
-     .github/scripts/analyze-profile.sh "$f"
-   done
-   ```
-   Commit in batches of 50 to avoid giant commits.
-
-2. **Expand `icc_fromcube_fuzzer.dict`** -- currently **282 lines** (critically small vs
-   1500-6000+ for other dicts). Auto-extract from corpus + add .cube edge cases.
-
-3. ~~**Create CFL-011 patch**~~ -- Yes Done. `iccSpecSepToTiff.cpp:207-208,232`
-   alloc-dealloc-mismatch fixed (CFL-011 in active patches).
-
-4. **Seed spectral TIFFs into CFL corpora**:
-   ```bash
-   cp test-profiles/spectral/spec_*.tif cfl/corpus-icc_specsep_fuzzer/
-   cp test-profiles/spectral/spec_*.tif cfl/corpus-icc_tiffdump_fuzzer/
-   ```
-
-5. **Run targeted fuzzing on weak coverage areas** (from coverage-summary.md):
-   - `IccCmmSearch`: 0% coverage -> needs `icc_applynamedcmm_fuzzer` seeds
-   - `IccEnvVar`: 23-50% -> exercise environment variable paths
-   - `IccApplyBPC`: 33% -> needs BPC-enabled profiles
-   - Target: 65%+ line coverage (current: 59.01%)
-
-6. **Fix remaining iccDEV CI test failures** (~7 of 89):
-   - v5-001/002/003: Generate/locate v5 observer profiles for iccV5DspObsToV4Dsp
-   - dump-08 + xmlrt-named: Verify NamedColor.icc seed is valid (cascading failure)
-   - ncm-05: Fix encoding=4 data format mismatch
-   - search-04: Debug 3-profile chain initialization
-
-#### Medium Priority (Infrastructure)
-5. **Upstream sync check** -- Verify CFL patches against latest iccDEV:
-   ```bash
-   cd cfl/iccDEV && git fetch origin
-   git --no-pager log --oneline HEAD..origin/master | head -10
-   ```
-
-6. **Refresh call graphs** after any code changes:
-   ```bash
-   python3 call-graph/scripts/generate-callgraphs.py
-   ```
-
-#### Low Priority (Nice to Have)
-7. **Cross-validate iOS-extracted profiles** with iccanalyzer-lite:
-   - `fuzz/graphics/icc/ios-gen-sRGB-IEC61966-2.1.icc`
-   - `fuzz/graphics/icc/ios-gen-Display-P3.icc`
-   - `fuzz/graphics/icc/ios-gen-Adobe-RGB-1998.icc`
-
-8. ~~**Generate TIFF-with-ICC test images**~~ -- Yes Done. H139-H141 + H149-H150 tests
-   added (9 tests), including corrupt TIFF edge cases (239/239 total).
-
-### macOS Agent -- Prioritized Task List
-
-#### High Priority
-1. **Use MCP Docker API for ICC analysis** (avoids git commit overhead):
-   ```bash
-   # Upload and analyze profiles remotely -- see remote-analysis.prompt.md
-   curl -s -F "file=@profile.icc" http://<host>:8080/api/upload
-   curl -s "http://<host>:8080/api/security-json?path=<path>"
-   ```
-
-2. **Generate diverse ICC-bearing images** via iOS Image Generator:
-   - Target under-represented classes: `abst`, `nmcl`, `link`
-   - Use `--iterations 100` for statistical diversity
-   - Stage outputs to `fuzz/graphics/icc/` and `fuzz/graphics/tif/`
-
-3. **Test CFL crash files against ColorSync**:
-   ```bash
-   for crash in test-profiles/crash-*.icc test-profiles/hbo-*.icc test-profiles/sbo-*.icc; do
-     sips --getProperty all "$crash" 2>&1 | head -5
-   done
-   ```
-
-4. **Run xnuimagefuzzer against new seeds**:
-   ```bash
-   cd xnuimagetools && ./build-native.sh --build-only
-   FUZZ_ICC_DIR=../test-profiles /tmp/native-build/xnuimagetools --iterations 50
-   ```
-
-#### Medium Priority
-5. **Collect native coverage** to compare with WSL fuzzer coverage
-6. **Test TIFF images from fuzz/graphics/tif/** against ImageIO
-7. **Extract ICC profiles from Catalyst batch outputs** and seed into fuzz/
-
-## Batch Analysis Script for WSL-2
-
-The WSL-2 agent should use this pattern for bulk profile analysis:
-
-```bash
-#!/bin/bash
-# Batch-analyze all unanalyzed test profiles
-# Run on WSL-2 where iccanalyzer-lite binary exists
-
-BATCH_SIZE=50
-COUNT=0
-TOTAL=0
-
-for f in test-profiles/*.icc; do
-  bn=$(basename "$f" .icc)
-  [ -f "analysis-reports/${bn}-analysis.md" ] && continue
-  TOTAL=$((TOTAL + 1))
-done
-
-echo "Found $TOTAL unanalyzed profiles"
-
-for f in test-profiles/*.icc; do
-  bn=$(basename "$f" .icc)
-  [ -f "analysis-reports/${bn}-analysis.md" ] && continue
-
-  .github/scripts/analyze-profile.sh "$f"
-  COUNT=$((COUNT + 1))
-
-  if [ $((COUNT % BATCH_SIZE)) -eq 0 ]; then
-    git add analysis-reports/
-    git commit -m "analysis: batch ${COUNT}/${TOTAL} profile reports
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
-    git push
-  fi
-done
-
-# Final commit for remainder
-if [ $((COUNT % BATCH_SIZE)) -ne 0 ]; then
-  git add analysis-reports/
-  git commit -m "analysis: final batch ${COUNT}/${TOTAL} profile reports
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
-  git push
-fi
-```
-
 ## Communication Protocol
 
-1. **Before modifying shared files** (instructions, prompts, copilot-instructions.md):
-   - Check `git --no-pager log --oneline -5 -- <file>` to see recent changes
-   - If other agent modified within last commit, coordinate via PR
-
-2. **After pushing changes**: Leave a descriptive commit message so other agent
-   can `git log --oneline -5` and understand what changed
-
-3. **Conflict resolution**: If merge conflict occurs, the agent that encounters
-   it resolves by preserving both agents' additions (append, don't replace)
-
-## See Also
-- [upstream-sync.prompt.md](upstream-sync.prompt.md) -- Patch reconciliation workflow
-- [corpus-management.prompt.md](corpus-management.prompt.md) -- Corpus storage operations
-- [cve-enrichment.prompt.md](cve-enrichment.prompt.md) -- CVE-to-heuristic mapping
+1. **Before modifying shared files**: check `git log -5 -- <file>` for recent changes
+2. **After pushing**: use descriptive commit messages so other agents can catch up
+3. **Conflict resolution**: preserve both agents' additions (append, not replace)
+4. **Remote analysis**: use MCP Docker API (`/api/upload` + `/api/security-json`)
+   to avoid commit overhead for triage work

@@ -8,6 +8,8 @@ description: >
 allowed-tools:
   - bash
   - read
+  - grep
+  - glob
   - iccTest
 ---
 

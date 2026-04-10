@@ -12,25 +12,25 @@ and code coverage instrumentation. Mac Catalyst CI has many pitfalls not documen
 ## Critical Rules
 
 ### App Launch
-- Mac Catalyst binaries MUST be launched via `open "$APP_BUNDLE"` — bare Mach-O exits immediately
-- `open` blocks until the app exits — use `open "$APP_BUNDLE" & ; disown $!`
+- Mac Catalyst binaries MUST be launched via `open "$APP_BUNDLE"` -- bare Mach-O exits immediately
+- `open` blocks until the app exits -- use `open "$APP_BUNDLE" & ; disown $!`
 - Pass env vars via `open --env KEY=VALUE` (macOS 13+), NOT `launchctl setenv`
-- Mac Catalyst apps do NOT respond to `osascript quit` — use `pgrep -f "App Name"` + `kill`
-- SIGTERM does NOT trigger `atexit()` — send SIGINT first to flush profraw coverage
+- Mac Catalyst apps do NOT respond to `osascript quit` -- use `pgrep -f "App Name"` + `kill`
+- SIGTERM does NOT trigger `atexit()` -- send SIGINT first to flush profraw coverage
 
 ### SIGPIPE Prevention
 NEVER pipe macOS tools through `| head`. They crash with SIGABRT (exit 134).
 ```bash
-# BAD:  ls -la | head -20     → SIGPIPE crash
+# BAD:  ls -la | head -20     -> SIGPIPE crash
 # GOOD: ls -la | sed -n '1,20p'
-# BAD:  xcodebuild -version | head -1  → NSFileHandleOperationException
+# BAD:  xcodebuild -version | head -1  -> NSFileHandleOperationException
 # GOOD: xcodebuild -version | sed -n '1p'
 # BAD:  file -b "$f" | head -c 40
 # GOOD: file -b "$f" | cut -c1-40
 ```
 
 ### LLVM Coverage Symbols
-Use `dlsym(RTLD_DEFAULT, "__llvm_profile_write_file")` — NOT `__attribute__((weak)) extern`.
+Use `dlsym(RTLD_DEFAULT, "__llvm_profile_write_file")` -- NOT `__attribute__((weak)) extern`.
 Weak extern breaks iOS Simulator linker without `-fprofile-instr-generate`.
 
 ### Action Pinning
@@ -45,10 +45,10 @@ Actions pinned to older SHAs (node20) will emit deprecation warnings then fail.
 
 ### VideoToolbox ASAN
 VT fuzzer runs 10-50x slower under ASAN. Never call `malloc_zone_print()` in hot loops.
-The VT instrumented job is disabled in CI — test locally with extended timeouts.
+The VT instrumented job is disabled in CI -- test locally with extended timeouts.
 
 ### CodeQL on macOS (Known Limitations)
-- **macOS 15 + Xcode 16**: CodeQL C/C++ extractor cannot trace xcodebuild — SIP strips
+- **macOS 15 + Xcode 16**: CodeQL C/C++ extractor cannot trace xcodebuild -- SIP strips
   `DYLD_INSERT_LIBRARIES` from sandboxed child processes. All runs fail with:
   `"CodeQL detected code written in C/C++ but could not process any of it"`
 - **Upstream**: [github/codeql-action#2506](https://github.com/github/codeql-action/issues/2506)
@@ -60,15 +60,15 @@ The VT instrumented job is disabled in CI — test locally with extended timeout
 - xnuimagefuzzer's `codeql-analysis.yml` is marked DISABLED due to the SIP issue.
 
 ## Debugging Steps
-1. Check workflow YAML for `| head` patterns — replace with `| sed -n`
+1. Check workflow YAML for `| head` patterns -- replace with `| sed -n`
 2. Check app launch uses `open --env` not bare binary or `launchctl setenv`
 3. Verify polling threshold >= 80 and timeout >= 120s for xnuimagefuzzer
 4. Confirm SIGPIPE-safe output in all artifact upload steps
 5. Check `set -euo pipefail` is first line of every `run:` block
-6. If CodeQL fails with "could not process" — check macOS/Xcode version vs SIP issue
-7. If CodeQL fails with `Unexpected input(s) 'packs'` — move `packs` to `init` step
+6. If CodeQL fails with "could not process" -- check macOS/Xcode version vs SIP issue
+7. If CodeQL fails with `Unexpected input(s) 'packs'` -- move `packs` to `init` step
 
 ## See Also
-- [image-fuzzer-quality.prompt.md](image-fuzzer-quality.prompt.md) — Image fuzzer assessment
-- [cooperative-development.prompt.md](cooperative-development.prompt.md) — Multi-agent coordination
-- [health-check.prompt.yml](health-check.prompt.yml) — MCP server verification
+- [image-fuzzer-quality.prompt.md](image-fuzzer-quality.prompt.md) -- Image fuzzer assessment
+- [cooperative-development.prompt.md](cooperative-development.prompt.md) -- Multi-agent coordination
+- [health-check.prompt.yml](health-check.prompt.yml) -- MCP server verification
