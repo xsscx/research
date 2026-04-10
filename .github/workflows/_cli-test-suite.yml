@@ -412,6 +412,7 @@ jobs:
         if: always()
         env:
           BASH_ENV: /dev/null
+          INPUT_USE_DYNAMIC_CACHE: ${{ inputs.use-dynamic-cache }}
         run: |
           set -euo pipefail
           cd cli-test-results
@@ -455,7 +456,7 @@ jobs:
           EOF
 
           # Cache statistics (conditional)
-          USE_DYNAMIC_CACHE="${{ inputs.use-dynamic-cache }}"
+          USE_DYNAMIC_CACHE="${INPUT_USE_DYNAMIC_CACHE}"
           if [ "${USE_DYNAMIC_CACHE}" = "true" ]; then
           echo "<div class='cache-stats'>" >> $INDEX_FILE
           echo "<strong>APT Packages:</strong> <span class='${{ steps.cache-apt.outputs.cache-hit == 'true' && 'cache-hit' || 'cache-miss' }}'>${{ steps.cache-apt.outputs.cache-hit == 'true' && 'HIT' || 'MISS' }}</span> | " >> $INDEX_FILE
@@ -542,13 +543,16 @@ jobs:
         env:
           BASH_ENV: /dev/null
           GRAND_FAILED: ${{ env.grand_failed }}
+          INPUT_USE_DYNAMIC_CACHE: ${{ inputs.use-dynamic-cache }}
+          INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+          INPUT_REPORT_TITLE: ${{ inputs.report-title }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          USE_CACHE="${{ inputs.use-dynamic-cache }}"
-          ARTIFACT="${{ inputs.artifact-name }}"
+          USE_CACHE="${INPUT_USE_DYNAMIC_CACHE}"
+          ARTIFACT="${INPUT_ARTIFACT_NAME}"
           {
-            echo "## ${{ inputs.report-title }}"
+            echo "## ${INPUT_REPORT_TITLE}"
             echo ""
             if [ "${USE_CACHE}" = "true" ]; then
               echo "### Cache Performance"

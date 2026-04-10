@@ -1112,11 +1112,13 @@ jobs:
           WINDOWS_RESULT: ${{ needs.windows-build.result }}
           VERSION_RESULT: ${{ needs.version-header-test.result }}
           CLEAN_RESULT: ${{ needs.clean-rebuild-test.result }}
+          INPUT_REPORT_TITLE: ${{ inputs.report-title }}
+          INPUT_INCLUDE_FUZZERS: ${{ inputs.include-fuzzers }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          REPORT_TITLE="${{ inputs.report-title }}"
-          INCLUDE_FUZZERS="${{ inputs.include-fuzzers }}"
+          REPORT_TITLE="${INPUT_REPORT_TITLE}"
+          INCLUDE_FUZZERS="${INPUT_INCLUDE_FUZZERS}"
           {
             echo "# ${REPORT_TITLE}"
             echo ""
