@@ -2,7 +2,7 @@
   "mcpServers": {
     "icc-profile-mcp": {
       "type": "local",
-      "command": "python",
+      "command": "python3",
       "args": ["mcp-server/launch.py", "mcp"],
       "tools": [
         "health_check",
