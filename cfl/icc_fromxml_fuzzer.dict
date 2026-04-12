@@ -1714,3 +1714,6 @@ multi_sig="mwpmcl1l"
 # --- added by convert-libfuzzer-dict.py ---
 "\x01\x00\x00\x00\x00\x00\x0f_"
 "\x00\x00\x00\x00\x00\x00\x04\x95"
+
+# --- added by convert-libfuzzer-dict.py ---
+"\x01\x00\x00\x00\x00\x00\x00\x13"
