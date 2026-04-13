@@ -69,7 +69,7 @@ jobs:
           extra-packages: 'libssl-dev libclang-rt-18-dev liblzma-dev libwxgtk3.2-dev wx-common'
 
       - name: Cache iccDEV repository
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.0 (node24)
         id: cache-iccdev
         with:
           path: iccanalyzer-lite/iccDEV

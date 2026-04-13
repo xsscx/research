@@ -82,7 +82,7 @@ jobs:
           unset GITHUB_TOKEN || true
 
       - name: Cache APT packages
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.0 (node24)
         id: cache-apt
         with:
           path: |
@@ -112,7 +112,7 @@ jobs:
             zlib1g-dev nlohmann-json3-dev
 
       - name: Cache iccDEV source
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.0 (node24)
         id: cache-iccdev-src
         with:
           path: upstream-iccDEV
