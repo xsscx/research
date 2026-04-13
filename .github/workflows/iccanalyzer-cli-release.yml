@@ -522,7 +522,7 @@ jobs:
           ls -lh "${TARBALL}" "test-summary-${DATESTAMP}.txt" iccanalyzer-lite-linux-amd64-instrumented.tar.gz icctest-linux-amd64-instrumented.tar.gz SHA256SUMS.txt
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v2
         with:
           tag_name: ${{ steps.package.outputs.release_tag }}
           name: "iccAnalyzer-lite | Security Research Tools for Color Profiles"
