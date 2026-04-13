@@ -61,7 +61,7 @@ jobs:
           extra-packages: 'libssl-dev libclang-rt-18-dev libwxgtk3.2-dev'
 
       - name: "Checkout iccDEV"
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v5.0.0 (node24)
         with:
           persist-credentials: false
           repository: InternationalColorConsortium/iccDEV
