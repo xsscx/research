@@ -378,8 +378,8 @@ int RunCF022_CurveTypeEntryCount(CIccProfile *pIcc) {
     if (size == 0) {
       printf("         Tag '%s': curveType count=0 (identity curve)\n", sigBuf);
     } else if (size == 1) {
-      printf("         Tag '%s': curveType count=1 (gamma=%.4f)\n",
-             sigBuf, (*pCurve)[0]);
+      printf("         Tag '%s': curveType count=1 (gamma=%.8f)\n",
+             sigBuf, (double)((*pCurve)[0] * 65535.0f / 256.0f));
     }
     // count >= 2 is a lookup table — always valid structurally
   }
@@ -2685,8 +2685,11 @@ static int RunCF190_ProfileLegibility(CIccProfile *pIcc, const char *filename) {
   if (filename && filename[0]) {
     FILE *fp = fopen(filename, "rb");
     if (fp) {
-      fseek(fp, 0, SEEK_END);
-      long fileSize = ftell(fp);
+      long fileSize = 0;
+      if (fseek(fp, 0, SEEK_END) == 0) {
+        fileSize = ftell(fp);
+        if (fileSize < 0) fileSize = 0;
+      }
       fclose(fp);
 
       uint32_t headerSize = pIcc->m_Header.size;
@@ -4259,7 +4262,8 @@ int RunCF252_CurveGammaValid(CIccProfile *pIcc) {
         sigCC[2] = (char)((sig >> 8) & 0xFF);
         sigCC[3] = (char)(sig & 0xFF);
         sigCC[4] = '\0';
-        printf("    Non-conformance: '%s' curveType gamma=%.4f is not positive\n", sigCC, gamma);
+        printf("    Non-conformance: '%s' curveType gamma=%.8f is not positive\n",
+               sigCC, (double)(gamma * 65535.0f / 256.0f));
         issues++;
       }
       if (!std::isfinite(gamma)) {

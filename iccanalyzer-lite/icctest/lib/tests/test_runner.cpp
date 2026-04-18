@@ -248,7 +248,10 @@ static std::vector<uint8_t> read_file_bytes(const std::filesystem::path& path) {
         return data;
     }
 
-    std::fseek(fp, 0, SEEK_END);
+    if (std::fseek(fp, 0, SEEK_END) != 0) {
+        std::fclose(fp);
+        return data;
+    }
     long size = std::ftell(fp);
     std::rewind(fp);
     if (size > 0) {

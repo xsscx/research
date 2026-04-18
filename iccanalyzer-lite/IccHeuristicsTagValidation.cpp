@@ -233,7 +233,7 @@ if (fh) {
         if (entryPos + 12 > fileSize) break;
 
         icUInt8Number entry[12];
-        fseek(fh.fp, entryPos, SEEK_SET);
+        if (fseek(fh.fp, entryPos, SEEK_SET) != 0) break;
         if (fread(entry, 1, 12, fh.fp) != 12) break;
 
         icUInt32Number tagSig = (static_cast<icUInt32Number>(entry[0])<<24) | (static_cast<icUInt32Number>(entry[1])<<16) | (static_cast<icUInt32Number>(entry[2])<<8) | entry[3];
@@ -243,7 +243,7 @@ if (fh) {
         // Validate tag is within file bounds (overflow-safe check)
         if (tagOffset >= 128 && tagSize >= 4 && tagSize <= fileSize && tagOffset <= fileSize - tagSize) {
           icUInt8Number tagData[4];
-          fseek(fh.fp, tagOffset, SEEK_SET);
+          if (fseek(fh.fp, tagOffset, SEEK_SET) != 0) continue;
           if (fread(tagData, 1, 4, fh.fp) == 4) {
             icUInt32Number tagType = (static_cast<icUInt32Number>(tagData[0])<<24) | (static_cast<icUInt32Number>(tagData[1])<<16) |
                                      (static_cast<icUInt32Number>(tagData[2])<<8) | tagData[3];
@@ -747,7 +747,7 @@ hc.begin(25, "Tag Offset/Size Out-of-Bounds Detection");
           if (ePos + 12 > realSize) break;
 
           icUInt8Number e25[12];
-          fseek(fh25.fp, ePos, SEEK_SET);
+          if (fseek(fh25.fp, ePos, SEEK_SET) != 0) break;
           if (fread(e25, 1, 12, fh25.fp) != 12) break;
 
           icUInt32Number tSig = (static_cast<icUInt32Number>(e25[0])<<24) | (static_cast<icUInt32Number>(e25[1])<<16) |
@@ -809,7 +809,7 @@ hc.begin(26, "NamedColor2 String Validation");
             if (ePos + 12 > fs26) break;
 
             icUInt8Number e26[12];
-            fseek(fh26.fp, ePos, SEEK_SET);
+            if (fseek(fh26.fp, ePos, SEEK_SET) != 0) break;
             if (fread(e26, 1, 12, fh26.fp) != 12) break;
 
             icUInt32Number tOff26 = (static_cast<icUInt32Number>(e26[4])<<24) | (static_cast<icUInt32Number>(e26[5])<<16) |
@@ -820,7 +820,7 @@ hc.begin(26, "NamedColor2 String Validation");
             // Read first 4 bytes of tag data to check type
             if (tOff26 > fs26 || tOff26 + 4 > fs26 || tSz26 < 84) continue;
             icUInt8Number typeCheck[4];
-            fseek(fh26.fp, tOff26, SEEK_SET);
+            if (fseek(fh26.fp, tOff26, SEEK_SET) != 0) continue;
             if (fread(typeCheck, 1, 4, fh26.fp) != 4) continue;
             icUInt32Number tagType26 = (static_cast<icUInt32Number>(typeCheck[0])<<24) | (static_cast<icUInt32Number>(typeCheck[1])<<16) |
                                        (static_cast<icUInt32Number>(typeCheck[2])<<8) | typeCheck[3];
@@ -829,7 +829,7 @@ hc.begin(26, "NamedColor2 String Validation");
 
             // NamedColor2: type(4)+reserved(4)+vendorFlags(4)+count(4)+nDevCoords(4)+prefix(32)+suffix(32)
             icUInt8Number prefix[32], suffix[32];
-            fseek(fh26.fp, tOff26 + 20, SEEK_SET);
+            if (fseek(fh26.fp, tOff26 + 20, SEEK_SET) != 0) continue;
             if (fread(prefix, 1, 32, fh26.fp) != 32) continue;
             if (fread(suffix, 1, 32, fh26.fp) != 32) continue;
 
@@ -986,7 +986,7 @@ hc.begin(28, "LUT Dimension Validation (OOM Risk)");
           if (ePos + 12 > fs28) break;
 
           icUInt8Number e28[12];
-          fseek(fh28.fp, ePos, SEEK_SET);
+          if (fseek(fh28.fp, ePos, SEEK_SET) != 0) break;
           if (fread(e28, 1, 12, fh28.fp) != 12) break;
 
           icUInt32Number tOff28 = (static_cast<icUInt32Number>(e28[4])<<24) | (static_cast<icUInt32Number>(e28[5])<<16) |
@@ -997,7 +997,7 @@ hc.begin(28, "LUT Dimension Validation (OOM Risk)");
           // Need at least type(4) + reserved(4) + nInput(1) + nOutput(1) + nGrid(1) = 11 bytes
           if (tOff28 > fs28 || tOff28 + 11 > fs28 || tSz28 < 11) continue;
           icUInt8Number lutHdr[11];
-          fseek(fh28.fp, tOff28, SEEK_SET);
+          if (fseek(fh28.fp, tOff28, SEEK_SET) != 0) continue;
           if (fread(lutHdr, 1, 11, fh28.fp) != 11) continue;
 
           icUInt32Number lutType = (static_cast<icUInt32Number>(lutHdr[0])<<24) | (static_cast<icUInt32Number>(lutHdr[1])<<16) |
@@ -1085,7 +1085,7 @@ hc.begin(29, "ColorantTable String Validation");
           if (ePos + 12 > fs29) break;
 
           icUInt8Number e29[12];
-          fseek(fh29.fp, ePos, SEEK_SET);
+          if (fseek(fh29.fp, ePos, SEEK_SET) != 0) break;
           if (fread(e29, 1, 12, fh29.fp) != 12) break;
 
           icUInt32Number tOff29 = (static_cast<icUInt32Number>(e29[4])<<24) | (static_cast<icUInt32Number>(e29[5])<<16) |
@@ -1096,7 +1096,7 @@ hc.begin(29, "ColorantTable String Validation");
           // Read type signature
           if (tOff29 > fs29 || tOff29 + 12 > fs29 || tSz29 < 12) continue;
           icUInt8Number typeCheck29[12];
-          fseek(fh29.fp, tOff29, SEEK_SET);
+          if (fseek(fh29.fp, tOff29, SEEK_SET) != 0) continue;
           if (fread(typeCheck29, 1, 12, fh29.fp) != 12) continue;
 
           icUInt32Number tagType29 = (static_cast<icUInt32Number>(typeCheck29[0])<<24) | (static_cast<icUInt32Number>(typeCheck29[1])<<16) |
@@ -1122,7 +1122,7 @@ hc.begin(29, "ColorantTable String Validation");
             if (namePos + 32 > fs29) break;
 
             icUInt8Number name29[32];
-            fseek(fh29.fp, namePos, SEEK_SET);
+            if (fseek(fh29.fp, namePos, SEEK_SET) != 0) break;
             if (fread(name29, 1, 32, fh29.fp) != 32) break;
 
             bool hasNull = false;
@@ -1207,7 +1207,7 @@ hc.begin(30, "GamutBoundaryDesc Allocation Validation");
           if (ePos + 12 > fs30) break;
 
           icUInt8Number e30[12];
-          fseek(fh30.fp, ePos, SEEK_SET);
+          if (fseek(fh30.fp, ePos, SEEK_SET) != 0) break;
           if (fread(e30, 1, 12, fh30.fp) != 12) break;
 
           icUInt32Number tOff30 = (static_cast<icUInt32Number>(e30[4])<<24) | (static_cast<icUInt32Number>(e30[5])<<16) |
@@ -1218,7 +1218,7 @@ hc.begin(30, "GamutBoundaryDesc Allocation Validation");
           // 'gbd ' header: type(4)+reserved(4)+nPCSCh(2)+nDevCh(2)+nVertices(4)+nTriangles(4) = 20 bytes
           if (tOff30 > fs30 || tOff30 + 20 > fs30 || tSz30 < 20) continue;
           icUInt8Number gbdHdr[20];
-          fseek(fh30.fp, tOff30, SEEK_SET);
+          if (fseek(fh30.fp, tOff30, SEEK_SET) != 0) continue;
           if (fread(gbdHdr, 1, 20, fh30.fp) != 20) continue;
 
           icUInt32Number gbdType = (static_cast<icUInt32Number>(gbdHdr[0])<<24) | (static_cast<icUInt32Number>(gbdHdr[1])<<16) |
@@ -1242,7 +1242,7 @@ hc.begin(30, "GamutBoundaryDesc Allocation Validation");
                 uint64_t recPos = (uint64_t)tOff30 + 16 + (uint64_t)j * 8;
                 if (recPos + 8 > fs30 || recPos + 8 > (uint64_t)tOff30 + tSz30) break;
                 icUInt8Number rec[8];
-                fseek(fh30.fp, (long)recPos, SEEK_SET);
+                if (fseek(fh30.fp, (long)recPos, SEEK_SET) != 0) break;
                 if (fread(rec, 1, 8, fh30.fp) != 8) break;
 
                 icUInt32Number childOff = (static_cast<icUInt32Number>(rec[0])<<24) | (static_cast<icUInt32Number>(rec[1])<<16) |
@@ -1254,7 +1254,7 @@ hc.begin(30, "GamutBoundaryDesc Allocation Validation");
                 if (childPos + 20 > fs30 || childPos + childSz > (uint64_t)tOff30 + tSz30) continue;
 
                 icUInt8Number childHdr[20];
-                fseek(fh30.fp, (long)childPos, SEEK_SET);
+                if (fseek(fh30.fp, (long)childPos, SEEK_SET) != 0) continue;
                 if (fread(childHdr, 1, 20, fh30.fp) != 20) continue;
 
                 icUInt32Number childType = (static_cast<icUInt32Number>(childHdr[0])<<24) |
@@ -1314,7 +1314,7 @@ bool DetectH30GamutBoundaryDescAllocation(const char *filename) {
     uint64_t ePos = 132 + (uint64_t)i * 12;
     if (ePos + 12 > fs) break;
     icUInt8Number e[12];
-    fseek(fh.fp, (long)ePos, SEEK_SET);
+    if (fseek(fh.fp, (long)ePos, SEEK_SET) != 0) break;
     if (fread(e, 1, 12, fh.fp) != 12) break;
 
     icUInt32Number tOff = (static_cast<icUInt32Number>(e[4])<<24) | (static_cast<icUInt32Number>(e[5])<<16) |
@@ -1324,7 +1324,7 @@ bool DetectH30GamutBoundaryDescAllocation(const char *filename) {
     if (tOff > fs || tOff + 20 > fs || tSz < 20) continue;
 
     icUInt8Number tagHdr[20];
-    fseek(fh.fp, (long)tOff, SEEK_SET);
+    if (fseek(fh.fp, (long)tOff, SEEK_SET) != 0) continue;
     if (fread(tagHdr, 1, 20, fh.fp) != 20) continue;
     icUInt32Number typeSig = (static_cast<icUInt32Number>(tagHdr[0])<<24) |
                              (static_cast<icUInt32Number>(tagHdr[1])<<16) |
@@ -1345,7 +1345,7 @@ bool DetectH30GamutBoundaryDescAllocation(const char *filename) {
       uint64_t recPos = (uint64_t)tOff + 16 + (uint64_t)j * 8;
       if (recPos + 8 > fs || recPos + 8 > (uint64_t)tOff + tSz) break;
       icUInt8Number rec[8];
-      fseek(fh.fp, (long)recPos, SEEK_SET);
+      if (fseek(fh.fp, (long)recPos, SEEK_SET) != 0) break;
       if (fread(rec, 1, 8, fh.fp) != 8) break;
 
       icUInt32Number childOff = (static_cast<icUInt32Number>(rec[0])<<24) | (static_cast<icUInt32Number>(rec[1])<<16) |
@@ -1357,7 +1357,7 @@ bool DetectH30GamutBoundaryDescAllocation(const char *filename) {
       uint64_t childPos = (uint64_t)tOff + childOff;
       if (childPos + 20 > fs || childPos + childSz > (uint64_t)tOff + tSz) continue;
       icUInt8Number childHdr[20];
-      fseek(fh.fp, (long)childPos, SEEK_SET);
+      if (fseek(fh.fp, (long)childPos, SEEK_SET) != 0) continue;
       if (fread(childHdr, 1, 20, fh.fp) != 20) continue;
       icUInt32Number childType = (static_cast<icUInt32Number>(childHdr[0])<<24) |
                                  (static_cast<icUInt32Number>(childHdr[1])<<16) |
@@ -1498,7 +1498,7 @@ hc.begin(32, "Tag Data Type Confusion Detection");
           if (ePos + 12 > fs32) break;
 
           icUInt8Number e32[12];
-          fseek(fh32.fp, ePos, SEEK_SET);
+          if (fseek(fh32.fp, ePos, SEEK_SET) != 0) break;
           if (fread(e32, 1, 12, fh32.fp) != 12) break;
 
           icUInt32Number tSig32 = (static_cast<icUInt32Number>(e32[0])<<24) | (static_cast<icUInt32Number>(e32[1])<<16) |
@@ -1510,7 +1510,7 @@ hc.begin(32, "Tag Data Type Confusion Detection");
 
           if (tOff32 > fs32 || tOff32 + 4 > fs32 || tSz32 < 4) continue;
           icUInt8Number typeData32[4];
-          fseek(fh32.fp, tOff32, SEEK_SET);
+          if (fseek(fh32.fp, tOff32, SEEK_SET) != 0) continue;
           if (fread(typeData32, 1, 4, fh32.fp) != 4) continue;
 
           icUInt32Number dataType32 = (static_cast<icUInt32Number>(typeData32[0])<<24) | (static_cast<icUInt32Number>(typeData32[1])<<16) |
