@@ -321,7 +321,7 @@ static void Describe1DLUT(CIccTagCurve *curve, std::string &desc) {
   if (size == 0)
     desc += "Y = X";
   else if (size == 1)
-    desc += "Y = X ^ " + std::to_string(static_cast<double>((*curve)[0]) * 256.0);
+    desc += "Y = X ^ " + std::to_string(static_cast<double>((*curve)[0]) * 65535.0 / 256.0);
   else
     desc += "LookupTable[" + std::to_string(size) + "]";
 }
