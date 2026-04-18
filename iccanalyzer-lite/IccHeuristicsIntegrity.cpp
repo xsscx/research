@@ -813,7 +813,7 @@ int RunHeuristic_H130_TagAlignment(const char *filename) {
   size_t fsz = (size_t)fh.fileSize;
 
   unsigned char tcBuf[4];
-  fseek(fh.fp, 128, SEEK_SET);
+  if (fseek(fh.fp, 128, SEEK_SET) != 0) { return hc.end(nullptr); }
   if (fread(tcBuf, 1, 4, fh.fp) != 4) { return hc.end(nullptr); }
 
   uint32_t tagCount = ((uint32_t)tcBuf[0] << 24) | ((uint32_t)tcBuf[1] << 16) |
@@ -832,7 +832,7 @@ int RunHeuristic_H130_TagAlignment(const char *filename) {
     if (ePos + 12 > fsz) break;
 
     unsigned char entry[12];
-    fseek(fh.fp, (long)ePos, SEEK_SET);
+    if (fseek(fh.fp, (long)ePos, SEEK_SET) != 0) break;
     if (fread(entry, 1, 12, fh.fp) != 12) break;
 
     uint32_t offset = ((uint32_t)entry[4] << 24) | ((uint32_t)entry[5] << 16) |
@@ -881,7 +881,7 @@ int RunHeuristic_H131_ProfileIdMD5(const char *filename) {
 
   // Read stored Profile ID from bytes 84-99
   unsigned char storedId[16];
-  fseek(fh.fp, 84, SEEK_SET);
+  if (fseek(fh.fp, 84, SEEK_SET) != 0) { return hc.end(nullptr); }
   if (fread(storedId, 1, 16, fh.fp) != 16) { return hc.end(nullptr); }
 
   bool idIsZero = true;
@@ -1201,7 +1201,9 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
   }
 
   // Read tag count
-  fseek(fh.fp, 128, SEEK_SET);
+  if (fseek(fh.fp, 128, SEEK_SET) != 0) {
+    return hc.skip("Cannot seek to tag count");
+  }
   uint8_t tagCountBuf[4];
   if (fread(tagCountBuf, 1, 4, fh.fp) != 4) {
     return hc.skip("Cannot read tag count");
@@ -1218,7 +1220,7 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
   // Scan tag table for responseCurveSet16Type (rcs2 = 0x72637332)
   for (uint32_t i = 0; i < tagCount && i < 200; i++) {
     uint8_t tagEntry[12];
-    fseek(fh.fp, 132 + i * 12, SEEK_SET);
+    if (fseek(fh.fp, 132 + i * 12, SEEK_SET) != 0) break;
     if (fread(tagEntry, 1, 12, fh.fp) != 12) break;
 
     uint32_t tagOffset = ((uint32_t)tagEntry[4] << 24) |
@@ -1234,14 +1236,14 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
 
     // Read tag type signature at tagOffset
     uint8_t typeSig[4];
-    fseek(fh.fp, tagOffset, SEEK_SET);
+    if (fseek(fh.fp, tagOffset, SEEK_SET) != 0) continue;
     if (fread(typeSig, 1, 4, fh.fp) != 4) continue;
 
     // responseCurveSet16Type: 'rcs2' = 0x72637332
     if (typeSig[0] == 0x72 && typeSig[1] == 0x63 &&
         typeSig[2] == 0x73 && typeSig[3] == 0x32) {
       // Read channel count at offset+8 (uint16 BE)
-      fseek(fh.fp, tagOffset + 8, SEEK_SET);
+      if (fseek(fh.fp, tagOffset + 8, SEEK_SET) != 0) break;
       uint8_t chanBuf[2];
       if (fread(chanBuf, 1, 2, fh.fp) != 2) break;
       uint16_t nChannels = ((uint16_t)chanBuf[0] << 8) | chanBuf[1];
@@ -1262,7 +1264,7 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
       // Walk curve offsets and check per-channel nMeasurements
       for (uint16_t c = 0; c < nCurves && c < 16; c++) {
         uint8_t offBuf[4];
-        fseek(fh.fp, tagOffset + 12 + c * 4, SEEK_SET);
+        if (fseek(fh.fp, tagOffset + 12 + c * 4, SEEK_SET) != 0) break;
         if (fread(offBuf, 1, 4, fh.fp) != 4) break;
         uint32_t curveOff = ((uint32_t)offBuf[0] << 24) |
                             ((uint32_t)offBuf[1] << 16) |
@@ -1273,7 +1275,7 @@ int RunHeuristic_H136_ResponseCurveMeasurementCount(const char *filename) {
         if (absOff + 4 + (uint32_t)nChan * 4 > (uint32_t)fileSize) continue;
 
         // Skip measurement unit sig (4 bytes), read nMeasurements array
-        fseek(fh.fp, absOff + 4, SEEK_SET);
+        if (fseek(fh.fp, absOff + 4, SEEK_SET) != 0) break;
         for (uint16_t ch = 0; ch < nChan; ch++) {
           uint8_t mBuf[4];
           if (fread(mBuf, 1, 4, fh.fp) != 4) break;

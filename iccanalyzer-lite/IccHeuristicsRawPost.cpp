@@ -2425,7 +2425,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if (ePos + 12 > fileSize) break;
 
             icUInt8Number entry[12];
-            fseek(fhRaw.fp, ePos, SEEK_SET);
+            if (fseek(fhRaw.fp, ePos, SEEK_SET) != 0) break;
             if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
             icUInt32Number tOffset = ReadU32BE(&entry[4]);
@@ -2472,7 +2472,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if (ePos + 12 > fileSize) break;
 
             icUInt8Number entry[12];
-            fseek(fhRaw.fp, ePos, SEEK_SET);
+            if (fseek(fhRaw.fp, ePos, SEEK_SET) != 0) break;
             if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
             icUInt32Number tOffset = ReadU32BE(&entry[4]);
@@ -2506,7 +2506,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if (ePos + 12 > fileSize) break;
 
             icUInt8Number entry[12];
-            fseek(fhRaw.fp, ePos, SEEK_SET);
+            if (fseek(fhRaw.fp, ePos, SEEK_SET) != 0) break;
             if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
             icUInt32Number tOffset = ReadU32BE(&entry[4]);
@@ -2515,7 +2515,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if ((uint64_t)tOffset + 12 > fileSize || tSize < 12) continue;
 
             icUInt8Number typeSig[4];
-            fseek(fhRaw.fp, tOffset, SEEK_SET);
+            if (fseek(fhRaw.fp, tOffset, SEEK_SET) != 0) continue;
             if (fread(typeSig, 1, 4, fhRaw.fp) != 4) continue;
 
             char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
@@ -2526,7 +2526,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
 
             if ((uint64_t)tOffset + 12 > fileSize) continue;
             icUInt8Number lutHdr[4];
-            fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
+            if (fseek(fhRaw.fp, tOffset + 8, SEEK_SET) != 0) continue;
             if (fread(lutHdr, 1, 4, fhRaw.fp) != 4) continue;
 
             uint8_t nInput = lutHdr[0];
@@ -2565,14 +2565,14 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if (ePos + 12 > fileSize) break;
 
             icUInt8Number entry[12];
-            fseek(fhRaw.fp, ePos, SEEK_SET);
+            if (fseek(fhRaw.fp, ePos, SEEK_SET) != 0) break;
             if (fread(entry, 1, 12, fhRaw.fp) != 12) break;
 
             icUInt32Number tOffset = ReadU32BE(&entry[4]);
             if ((uint64_t)tOffset + 4 > fileSize) continue;
 
             icUInt8Number typeBuf[4];
-            fseek(fhRaw.fp, tOffset, SEEK_SET);
+            if (fseek(fhRaw.fp, tOffset, SEEK_SET) != 0) continue;
             if (fread(typeBuf, 1, 4, fhRaw.fp) != 4) continue;
 
             char tagSig[5] = {(char)entry[0], (char)entry[1], (char)entry[2], (char)entry[3], 0};
@@ -2593,7 +2593,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
               icUInt32Number tSize32 = ReadU32BE(&entry[8]);
               if ((uint64_t)tOffset + 16 <= fileSize && tSize32 >= 16) {
                 icUInt8Number mpetHdr[8];
-                fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
+                if (fseek(fhRaw.fp, tOffset + 8, SEEK_SET) != 0) continue;
                 if (fread(mpetHdr, 1, 8, fhRaw.fp) == 8) {
                   uint16_t pseudoIn  = (static_cast<uint16_t>(mpetHdr[0]) << 8) | mpetHdr[1];
                   uint16_t pseudoOut = (static_cast<uint16_t>(mpetHdr[2]) << 8) | mpetHdr[3];
@@ -2615,7 +2615,7 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
             if (tagTypeSig == 0x6D706574 && tSize32_c >= 16 &&
                 (uint64_t)tOffset + 16 <= fileSize) {
               icUInt8Number mpetInfo[8];
-              fseek(fhRaw.fp, tOffset + 8, SEEK_SET);
+              if (fseek(fhRaw.fp, tOffset + 8, SEEK_SET) != 0) continue;
               if (fread(mpetInfo, 1, 8, fhRaw.fp) == 8) {
                 uint32_t nElem = ReadU32BE(&mpetInfo[4]);
                 if (nElem > 0 && nElem <= 64) {
@@ -2624,13 +2624,13 @@ int RunRawFallbackHeuristics(const char *filename, bool libraryAnalyzed)
                   if (posTableEnd <= fileSize) {
                     for (uint32_t e = 0; e < nElem; e++) {
                       icUInt8Number posEntry[8];
-                      fseek(fhRaw.fp, posTableStart + e * 8, SEEK_SET);
+                      if (fseek(fhRaw.fp, posTableStart + e * 8, SEEK_SET) != 0) break;
                       if (fread(posEntry, 1, 8, fhRaw.fp) != 8) break;
                       uint32_t eOff = ReadU32BE(posEntry);
                       size_t absOff = tOffset + 8 + eOff;
                       if (absOff + 4 <= fileSize) {
                         icUInt8Number eSig[4];
-                        fseek(fhRaw.fp, absOff, SEEK_SET);
+                        if (fseek(fhRaw.fp, absOff, SEEK_SET) != 0) continue;
                         if (fread(eSig, 1, 4, fhRaw.fp) == 4) {
                           bool elemValid = true;
                           for (int b = 0; b < 4; b++) {

@@ -35,6 +35,13 @@ bool CIccTagCurve::SetSize(icUInt32Number nSize, icTagCurveSizeInit nSizeOpt)
     return true;
   }
 
+  // Guard against nSize * sizeof(icFloatNumber) overflow (CWE-190)
+  if (nSize > SIZE_MAX / sizeof(icFloatNumber)) {
+    m_nSize = 0;
+    m_nMaxIndex = 0;
+    return false;
+  }
+
   if (!m_Curve)
     m_Curve = (icFloatNumber*)malloc(nSize * sizeof(icFloatNumber));
   else

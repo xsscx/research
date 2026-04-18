@@ -77,8 +77,10 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
   }
 
   // Second pass: check for tags with extreme allocation amplification
-  // (tag data size that implies huge internal allocation via element count × struct size)
-  fseek(ctx.fh.fp, 132, SEEK_SET);
+  // (tag data size that implies huge internal allocation via element count x struct size)
+  if (fseek(ctx.fh.fp, 132, SEEK_SET) != 0) {
+    return hc.end("Cannot seek to tag table");
+  }
   for (const auto &_tag : ctx.tags) {
     uint32_t tSig    = _tag.sig;
     uint32_t tOffset = _tag.offset;
@@ -88,19 +90,20 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
 
     // Read tag type signature
     long savedPos = ftell(ctx.fh.fp);
-    fseek(ctx.fh.fp, tOffset, SEEK_SET);
+    if (savedPos < 0) break;
+    if (fseek(ctx.fh.fp, tOffset, SEEK_SET) != 0) break;
     uint8_t typeBuf[12];
     if (fread(typeBuf, 1, 12, ctx.fh.fp) != 12) {
-      fseek(ctx.fh.fp, savedPos, SEEK_SET);
+      if (fseek(ctx.fh.fp, savedPos, SEEK_SET) != 0) break;
       continue;
     }
-    fseek(ctx.fh.fp, savedPos, SEEK_SET);
+    if (fseek(ctx.fh.fp, savedPos, SEEK_SET) != 0) break;
 
     uint32_t typeSig = ReadU32BE(&typeBuf[0]);
 
     // ncl2 (NamedColor2): nDeviceCoords at offset+12 (uint32) drives allocation
     if (typeSig == 0x6E636C32 && tSize >= 16) { // 'ncl2'
-      fseek(ctx.fh.fp, tOffset + 12, SEEK_SET);
+      if (fseek(ctx.fh.fp, tOffset + 12, SEEK_SET) != 0) break;
       uint8_t ncBuf[4];
       if (fread(ncBuf, 1, 4, ctx.fh.fp) == 4) {
         uint32_t nDevCoords = ReadU32BE(ncBuf);
@@ -110,7 +113,7 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
                      "-> unbounded allocation in Read() (IccTagBasic.cpp)");
         }
       }
-      fseek(ctx.fh.fp, savedPos, SEEK_SET);
+      if (fseek(ctx.fh.fp, savedPos, SEEK_SET) != 0) break;
     }
 
     // mAB/mBA: sub-element offsets (Bcurves, Matrix, Acurves, CLUT) must be
@@ -118,7 +121,7 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
     // tag data as curve elements, triggering OOM from garbage nCount values.
     // mAB = 0x6D414220, mBA = 0x6D424120
     if ((typeSig == 0x6D414220 || typeSig == 0x6D424120) && tSize >= 28) {
-      fseek(ctx.fh.fp, tOffset + 12, SEEK_SET);
+      if (fseek(ctx.fh.fp, tOffset + 12, SEEK_SET) != 0) break;
       uint8_t mabBuf[16];
       if (fread(mabBuf, 1, 16, ctx.fh.fp) == 16) {
         const char *subNames[] = {"Bcurves", "Matrix", "Acurves", "CLUT"};
@@ -140,7 +143,7 @@ int RunHeuristic_H154_UncontrolledTagAllocationSize(RawProfileContext &ctx)
           }
         }
       }
-      fseek(ctx.fh.fp, savedPos, SEEK_SET);
+      if (fseek(ctx.fh.fp, savedPos, SEEK_SET) != 0) break;
     }
   }
 
@@ -166,7 +169,9 @@ int RunHeuristic_H155_IntegerOverflowTagDimensions(RawProfileContext &ctx)
 
   size_t fs = ctx.fileSize();
   std::vector<uint8_t> buf(fs);
-  fseek(ctx.fh.fp, 0, SEEK_SET);
+  if (fseek(ctx.fh.fp, 0, SEEK_SET) != 0) {
+    return hc.skip("Cannot seek to start");
+  }
   if (fread(buf.data(), 1, fs, ctx.fh.fp) != fs) {
     return hc.skip("Cannot read file");
   }
@@ -468,7 +473,9 @@ int RunHeuristic_H158_EnumRangeValidationExtended(RawProfileContext &ctx)
 
   size_t fs = ctx.fileSize();
   std::vector<uint8_t> buf(fs);
-  fseek(ctx.fh.fp, 0, SEEK_SET);
+  if (fseek(ctx.fh.fp, 0, SEEK_SET) != 0) {
+    return hc.skip("Cannot seek to start");
+  }
   if (fread(buf.data(), 1, fs, ctx.fh.fp) != fs) {
     return hc.skip("Cannot read file");
   }
@@ -697,7 +704,7 @@ int RunHeuristic_H160_FormatStringInjectionTextTags(RawProfileContext &ctx)
     size_t textLen = tSize - 8;
     if (textLen > 4096) textLen = 4096; // cap scan length
     std::vector<char> buf(textLen + 1, 0);
-    fseek(ctx.fh.fp, tOffset + 8, SEEK_SET);
+    if (fseek(ctx.fh.fp, tOffset + 8, SEEK_SET) != 0) continue;
     size_t nread = fread(buf.data(), 1, textLen, ctx.fh.fp);
     if (nread == 0) continue;
     buf[nread] = '\0';

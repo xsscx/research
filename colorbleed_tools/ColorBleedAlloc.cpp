@@ -38,7 +38,8 @@ void* icRealloc(void *ptr, size_t size) {
     // Returning nullptr signals allocation failure without causing UAF.
     return nullptr;
   }
-  if (g_total_alloc + size > CB_MAX_TOTAL_ALLOC) {
+  // Overflow-safe cumulative check: avoid g_total_alloc + size wrapping
+  if (size > CB_MAX_TOTAL_ALLOC - g_total_alloc) {
     fprintf(stderr, "[ColorBleed] icRealloc cumulative limit exceeded "
             "(total=%.1fMB + %.1fMB > %zuMB)\n",
             (double)g_total_alloc / (1024.0*1024.0),

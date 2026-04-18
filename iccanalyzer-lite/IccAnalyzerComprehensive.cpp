@@ -268,8 +268,10 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
     FILE *fpCheck = fopen(filename, "rb");
     long fileSizeCheck = 0;
     if (fpCheck) {
-      fseek(fpCheck, 0, SEEK_END);
-      fileSizeCheck = ftell(fpCheck);
+      if (fseek(fpCheck, 0, SEEK_END) == 0) {
+        fileSizeCheck = ftell(fpCheck);
+        if (fileSizeCheck < 0) fileSizeCheck = 0;
+      }
       fclose(fpCheck);
     }
     if (fileSizeCheck < 128) {

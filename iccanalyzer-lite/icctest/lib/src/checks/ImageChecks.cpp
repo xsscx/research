@@ -459,10 +459,17 @@ static CheckResult check_h150_tiff_tile(const ProfileView& pv) {
     uint32_t tilesDown = (height + tileH - 1) / tileH;
     uint16_t planar = PLANARCONFIG_CONTIG;
     TIFFGetField(tif.get(), TIFFTAG_PLANARCONFIG, &planar);
-    uint32_t expectedTiles = tilesAcross * tilesDown;
-    if (planar == PLANARCONFIG_SEPARATE) expectedTiles *= spp;
+    // Use uint64 to avoid overflow on large tile dimensions (CWE-190)
+    uint64_t expectedTiles64 = (uint64_t)tilesAcross * tilesDown;
+    if (planar == PLANARCONFIG_SEPARATE) expectedTiles64 *= spp;
+    uint32_t expectedTiles = (expectedTiles64 > UINT32_MAX) ? 0 : (uint32_t)expectedTiles64;
 
-    if (nTiles != expectedTiles) {
+    if (expectedTiles == 0 && expectedTiles64 > 0) {
+        cb.critical(
+            sfmt("HEURISTIC: Tile count overflow: %u x %u x %u exceeds uint32",
+                 tilesAcross, tilesDown, (planar == PLANARCONFIG_SEPARATE) ? spp : 1),
+            "CWE-190: Integer overflow in tile count calculation");
+    } else if (nTiles != expectedTiles) {
         cb.warn(
             sfmt("HEURISTIC: Tile count mismatch: expected %u (%ux%u), got %u",
                  expectedTiles, tilesAcross, tilesDown, nTiles));
