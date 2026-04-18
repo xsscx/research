@@ -2546,13 +2546,14 @@ static CheckResult check_cf252_curvetype_gamma_positive_finite(const ProfileView
         CIccTagCurve *pCurve = dynamic_cast<CIccTagCurve *>(pTag);
         if (!pCurve || pCurve->GetSize() != 1) continue;
 
-        // Single entry = gamma value
-        icFloatNumber gamma = (*pCurve)[0];
-        if (gamma <= 0.0f || std::isnan(gamma) || std::isinf(gamma)) {
+        // Single entry = gamma as u8Fixed8Number (normalized by ReadUInt16Float)
+        icFloatNumber gammaRaw = (*pCurve)[0];
+        double gammaActual = static_cast<double>(gammaRaw) * 65535.0 / 256.0;
+        if (gammaRaw <= 0.0f || std::isnan(gammaRaw) || std::isinf(gammaRaw)) {
             char s[5]; SigToChars(static_cast<uint32_t>(sig), s);
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 252}, Severity::HIGH,
-                std::string("TRC '") + s + "' gamma=" + std::to_string(gamma) +
+                std::string("TRC '") + s + "' gamma=" + std::to_string(gammaActual) +
                 " (must be positive and finite)",
                 "ICC.1-2022-05 §10.6", "CWE-682"});
         }
