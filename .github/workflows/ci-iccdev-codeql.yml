@@ -112,7 +112,7 @@ jobs:
           echo "iccDEV (${MATRIX_BRANCH}): $(git log --oneline -1)"
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2  # v4
+        uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225  # v4
         with:
           languages: cpp
           queries: security-and-quality
@@ -158,7 +158,7 @@ jobs:
           find Tools -type f -executable 2>/dev/null | wc -l | xargs -I{} echo "  {} tool binaries built"
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2  # v4
+        uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225  # v4
         with:
           category: "/language:cpp/iccdev-${{ matrix.branch }}"
           output: codeql-results
