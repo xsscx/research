@@ -167,7 +167,7 @@ jobs:
           ls -lh IccToXml_unsafe IccFromXml_unsafe
 
       - name: Upload tool artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         with:
           name: sanitizer-tools
           path: |
@@ -401,7 +401,7 @@ jobs:
 
       - name: Upload scan results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         with:
           name: icc-scan-results
           path: results/
@@ -684,7 +684,7 @@ jobs:
 
       - name: Upload XML scan results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         with:
           name: xml-scan-results
           path: results/

@@ -260,7 +260,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload fuzzer binaries
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         with:
           name: fuzzer-binaries-${{ env.SANITIZER }}
           path: |
@@ -457,7 +457,7 @@ jobs:
           key: cfl-corpus-${{ matrix.fuzzer }}-${{ github.run_number }}
 
       - name: Upload crash artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         if: always()
         with:
           name: crash-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -466,7 +466,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload corpus
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         if: always()
         with:
           name: corpus-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -475,7 +475,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload dict updates
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         if: always()
         with:
           name: dict-${{ matrix.fuzzer }}-${{ github.run_id }}
@@ -637,7 +637,7 @@ jobs:
           cp afl-output/default/fuzzer_stats afl-fuzzer_stats 2>/dev/null || true
 
       - name: Upload AFL corpus
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         if: always()
         with:
           name: afl-fromcube-corpus-${{ github.run_id }}
@@ -646,7 +646,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload AFL crashes and stats
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         if: always()
         with:
           name: afl-fromcube-crashes-${{ github.run_id }}
@@ -812,7 +812,7 @@ jobs:
           cp afl-output/default/fuzzer_stats afl-fuzzer_stats 2>/dev/null || true
 
       - name: Upload AFL corpus
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         if: always()
         with:
           name: afl-search-corpus-${{ github.run_id }}
@@ -821,7 +821,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload AFL crashes and stats
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         if: always()
         with:
           name: afl-search-crashes-${{ github.run_id }}
@@ -911,7 +911,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload consolidated report
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         if: always()
         with:
           name: campaign-report-${{ github.run_id }}
@@ -920,7 +920,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload consolidated dict updates
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         if: always()
         with:
           name: dict-updates-${{ github.run_id }}

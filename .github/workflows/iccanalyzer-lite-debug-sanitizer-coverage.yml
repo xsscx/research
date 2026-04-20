@@ -736,7 +736,7 @@ jobs:
 
       - name: Upload results artifact
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         with:
           name: iccanalyzer-debug-sanitizer-coverage
           path: |
@@ -746,7 +746,7 @@ jobs:
 
       - name: Upload icctest CLI bundle
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         with:
           name: icctest-cli-debug-sanitizer-coverage
           path: |
@@ -833,7 +833,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Upload LUT visualizations
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         with:
           name: iccanalyzer-lut-visualizations
           path: results/lut-visualizations/
@@ -1073,7 +1073,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Upload LUT Text I/O artifacts
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v6.0.0 (node24)
         with:
           name: iccanalyzer-lut-text-io
           path: results/lut-text-io/
