@@ -69,7 +69,7 @@ jobs:
 
       - name: Cache iccDEV source (${{ matrix.branch }})
         id: cache-iccdev-src
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.0 (node24)
         with:
           path: upstream-iccDEV
           key: ${{ runner.os }}-iccdev-codeql-${{ matrix.branch }}-v1

@@ -59,7 +59,7 @@ jobs:
           python-version: '3.12'
 
       - name: Cache pip packages
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.0 (node24)
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('mcp-server/requirements.txt') }}
@@ -79,14 +79,14 @@ jobs:
 
       - name: Cache iccDEV repository
         id: cache-iccdev
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.0 (node24)
         with:
           path: iccDEV
           key: ${{ runner.os }}-iccdev-mcp-upstream-v1
 
       - name: Cache iccDEV build
         id: cache-iccdev-build
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.0 (node24)
         with:
           path: |
             iccDEV/Build/IccProfLib
@@ -96,7 +96,7 @@ jobs:
 
       - name: Cache native tools
         id: cache-native-tools
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.0 (node24)
         with:
           path: |
             iccanalyzer-lite/iccanalyzer-lite

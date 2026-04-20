@@ -78,7 +78,7 @@ jobs:
             python3 llvm-18
 
       - name: Cache iccDEV repository
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.0 (node24)
         id: cache-iccdev
         with:
           path: iccanalyzer-lite/iccDEV
@@ -96,7 +96,7 @@ jobs:
           fi
 
       - name: Cache iccDEV build
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.0 (node24)
         id: cache-iccdev-build
         with:
           path: |
