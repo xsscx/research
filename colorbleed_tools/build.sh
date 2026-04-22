@@ -198,6 +198,12 @@ build_config() {
       ;;
   esac
 
+  # CMake generates IccLibXMLVer.h (and IccProfLibVer.h) into the build tree
+  # via configure_file(). Add the per-config build dirs so the headers resolve
+  # when compiling our sandboxed tools.
+  local gen_includes="-I$build_dir/IccXML -I$build_dir/IccProfLib"
+  local config_includes="$INCLUDE_FLAGS $gen_includes"
+
   banner "Building [$config]"
   echo "  Flags: $c_flags"
 
@@ -254,8 +260,8 @@ build_config() {
   local compat_obj="$build_dir/ColorBleedCompat.o"
   local f16_obj="$build_dir/ColorBleedSafeF16.o"
   $CXX $tool_flags -c "$REPO_ROOT/ColorBleedAlloc.cpp" -o "$alloc_obj"
-  $CXX $tool_flags $INCLUDE_FLAGS -c "$REPO_ROOT/ColorBleedCompat.cpp" -o "$compat_obj"
-  $CXX $tool_flags $INCLUDE_FLAGS -c "$REPO_ROOT/ColorBleedSafeF16.cpp" -o "$f16_obj"
+  $CXX $tool_flags $config_includes -c "$REPO_ROOT/ColorBleedCompat.cpp" -o "$compat_obj"
+  $CXX $tool_flags $config_includes -c "$REPO_ROOT/ColorBleedSafeF16.cpp" -o "$f16_obj"
 
   mkdir -p "$out_dir"
   cd "$REPO_ROOT"
@@ -270,7 +276,7 @@ build_config() {
     fi
 
     echo "  Building $bin..."
-    $CXX $tool_flags $INCLUDE_FLAGS "$src" \
+    $CXX $tool_flags $config_includes "$src" \
       "$alloc_obj" \
       "$compat_obj" \
       "$f16_obj" \
