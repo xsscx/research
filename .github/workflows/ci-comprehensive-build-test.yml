@@ -17,6 +17,5 @@ jobs:
   build-matrix:
     uses: ./.github/workflows/_build-matrix.yml
     with:
-      include-fuzzers: true
       report-title: 'Comprehensive Build and Test Results'
       artifact-prefix: 'comprehensive-build'

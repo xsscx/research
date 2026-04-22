@@ -7,13 +7,13 @@
 # callable workflow.
 #
 # Inputs:
-#   include-fuzzers  -- include fuzzer build job (default: false)
+# Inputs:
 #   report-title     -- title for final summary report
 #   artifact-prefix  -- prefix for artifact names
 #
 # Jobs:
 #   1. standard-builds     -- os x compiler x build_type
-#   2. fuzzer-builds       -- Debug + instrumentation (conditional)
+#   2. sanitizer-builds    -- Individual sanitizer builds
 #   3. sanitizer-builds    -- asan / ubsan / asan+ubsan
 #   4. option-matrix       -- cmake option toggles
 #   5. windows-build       -- MSVC + vcpkg
@@ -29,11 +29,6 @@ permissions:
 on:
   workflow_call:
     inputs:
-      include-fuzzers:
-        description: 'Include fuzzer build job'
-        required: false
-        type: boolean
-        default: false
       report-title:
         description: 'Title for final summary report'
         required: false
@@ -314,153 +309,6 @@ jobs:
             exit 1
           fi
 
-  #############################################################################
-  # Job 2: Fuzzer Builds (Debug + Full Instrumentation)
-  #############################################################################
-  fuzzer-builds:
-    if: inputs.include-fuzzers
-    name: "Fuzzer - Debug+Instrumentation"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        shell: bash --noprofile --norc {0}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Cache Dependencies
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
-        with:
-          path: |
-            /var/cache/apt/archives
-            ~/.cache/ccache
-          key: fuzzer-deps-${{ hashFiles('.github/workflows/_build-matrix.yml') }}
-          restore-keys: |
-            fuzzer-deps-
-
-      - name: Configure Git Environment
-        env:
-          BASH_ENV: /dev/null
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-
-      - name: Install Dependencies
-        env:
-          BASH_ENV: /dev/null
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git config --add safe.directory "$PWD"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            build-essential cmake clang-18 llvm-18 ccache \
-            libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev \
-            libclang-rt-dev || sudo apt-get install -y libclang-rt-18-dev 2>/dev/null || true
-          ccache --zero-stats || true
-
-      - name: Build Fuzzers via cfl/build.sh
-        env:
-          BASH_ENV: /dev/null
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git config --add safe.directory "$PWD"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-
-          echo "::group::Fuzzer Build Output"
-          BUILD_START=$(date +%s)
-          cd cfl && bash build.sh 2>&1 | tee build-fuzzing.log
-          BUILD_END=$(date +%s)
-          echo "::endgroup::"
-
-          BUILD_TIME=$((BUILD_END - BUILD_START))
-          echo "::notice title=Fuzzer Build Time::Fuzzer build completed in ${BUILD_TIME}s"
-
-          if command -v ccache >/dev/null 2>&1; then
-            echo "::group::ccache Statistics"
-            ccache --show-stats || true
-            echo "::endgroup::"
-          fi
-
-      - name: Verify Fuzzer Build
-        env:
-          BASH_ENV: /dev/null
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git config --add safe.directory "$PWD"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-          FUZZER_COUNT=$(find cfl/bin -name 'icc_*_fuzzer' -type f 2>/dev/null | wc -l)
-          echo "::notice title=Fuzzer Count::Built $FUZZER_COUNT fuzzers"
-          if [ "$FUZZER_COUNT" -lt 1 ]; then
-            echo "::error title=Fuzzer Verification::No fuzzer executables found in cfl/bin/"
-            ls -la cfl/bin/ 2>/dev/null || echo "[WARN] cfl/bin/ not found"
-            exit 1
-          fi
-
-      - name: Upload Fuzzer Build Artifacts (on failure)
-        if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
-        with:
-          name: fuzzer-build-logs
-          path: |
-            cfl/build-fuzzing.log
-            cfl/iccDEV/Build/CMakeCache.txt
-            cfl/iccDEV/Build/CMakeFiles/CMakeError.log
-          retention-days: 7
-
-      - name: Upload Fuzzer Executables (on success)
-        if: success()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
-        with:
-          name: fuzzer-executables-debug-instrumentation
-          path: cfl/bin/icc_*_fuzzer
-          if-no-files-found: warn
-          retention-days: 14
-          compression-level: 9
-
-      - name: Test Fuzzers
-        env:
-          BASH_ENV: /dev/null
-        run: |
-          set -euo pipefail
-          source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          git config --add safe.directory "$PWD"
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-          cd cfl/bin 2>/dev/null || { echo "[WARN] cfl/bin not found"; exit 0; }
-
-          EXPECTED_FUZZERS="icc_applynamedcmm_fuzzer icc_applyprofiles_fuzzer icc_dump_fuzzer icc_fromcube_fuzzer icc_fromxml_fuzzer icc_link_fuzzer icc_roundtrip_fuzzer icc_toxml_fuzzer icc_v5dspobs_fuzzer"
-
-          PASS=0
-          FAIL=0
-          for f in $EXPECTED_FUZZERS; do
-            if [ -x "$f" ]; then
-              PASS=$((PASS + 1))
-              echo "[OK] $f"
-            else
-              FAIL=$((FAIL + 1))
-              echo "[MISS] $f (not found or not executable)"
-            fi
-          done
-
-          echo "::notice title=Fuzzer Build Verification::$PASS of 14 fuzzers built successfully"
-          if [ "$FAIL" -gt 0 ]; then
-            echo "::warning title=Fuzzer Build::$FAIL fuzzers missing or not executable"
-          fi
 
   #############################################################################
   # Job 3: Sanitizer Builds (Individual Sanitizers)
@@ -1088,7 +936,7 @@ jobs:
   final-summary:
     name: "Test Summary"
     runs-on: ubuntu-latest
-    needs: [standard-builds, fuzzer-builds, sanitizer-builds, option-matrix, windows-build, version-header-test, clean-rebuild-test]
+    needs: [standard-builds, sanitizer-builds, option-matrix, windows-build, version-header-test, clean-rebuild-test]
     if: always()
 
     defaults:
@@ -1106,19 +954,16 @@ jobs:
         env:
           BASH_ENV: /dev/null
           STANDARD_RESULT: ${{ needs.standard-builds.result }}
-          FUZZER_RESULT: ${{ needs.fuzzer-builds.result }}
           SANITIZER_RESULT: ${{ needs.sanitizer-builds.result }}
           OPTION_RESULT: ${{ needs.option-matrix.result }}
           WINDOWS_RESULT: ${{ needs.windows-build.result }}
           VERSION_RESULT: ${{ needs.version-header-test.result }}
           CLEAN_RESULT: ${{ needs.clean-rebuild-test.result }}
           INPUT_REPORT_TITLE: ${{ inputs.report-title }}
-          INPUT_INCLUDE_FUZZERS: ${{ inputs.include-fuzzers }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           REPORT_TITLE="${INPUT_REPORT_TITLE}"
-          INCLUDE_FUZZERS="${INPUT_INCLUDE_FUZZERS}"
           {
             echo "# ${REPORT_TITLE}"
             echo ""
@@ -1150,11 +995,6 @@ jobs:
             echo "- ICC_TRACE_NAN_ENABLED"
             echo "- Shared libs only"
             echo ""
-            if [ "${INCLUDE_FUZZERS}" = "true" ]; then
-              echo "### Fuzzing"
-              echo "- libFuzzer harnesses (Debug + Full Instrumentation)"
-            fi
-            echo ""
             echo "### Special Tests"
             echo "- Version header generation (build directory)"
             echo "- Clean/rebuild cycle"
@@ -1164,9 +1004,6 @@ jobs:
             echo "| Job | Status |"
             echo "|-----|--------|"
             echo "| Standard Builds | ${STANDARD_RESULT} |"
-            if [ "${INCLUDE_FUZZERS}" = "true" ]; then
-              echo "| Fuzzer Builds | ${FUZZER_RESULT} |"
-            fi
             echo "| Sanitizer Builds | ${SANITIZER_RESULT} |"
             echo "| Option Matrix | ${OPTION_RESULT} |"
             echo "| Windows Build | ${WINDOWS_RESULT} |"

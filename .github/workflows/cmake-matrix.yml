@@ -30,7 +30,6 @@ on:
         type: choice
         options:
           - 'master'
-          - 'cfl'
       pr_number:
         description: 'Pull request number to build (overrides branch)'
         required: false

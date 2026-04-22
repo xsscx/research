@@ -17,6 +17,5 @@ jobs:
   build-matrix:
     uses: ./.github/workflows/_build-matrix.yml
     with:
-      include-fuzzers: false
       report-title: 'Build and Test Results (No Fuzzers)'
       artifact-prefix: 'build-no-fuzzers'

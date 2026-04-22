@@ -46,7 +46,7 @@ jobs:
       - name: Install build dependencies
         uses: ./.github/actions/setup-build-env
         with:
-          preset: 'cfl'
+          preset: 'analyzer'
           extra-packages: 'ca-certificates libjpeg-dev'
 
       - name: Cache iccDEV repository

@@ -2,7 +2,7 @@ name: 'Setup Build Environment'
 description: 'Install build dependencies for ICC security research tools'
 inputs:
   preset:
-    description: 'Package preset: analyzer, cfl, colorbleed, codeql, coverage, minimal'
+    description: 'Package preset: analyzer, colorbleed, codeql, coverage, minimal'
     required: false
     default: 'analyzer'
   extra-packages:
@@ -32,7 +32,7 @@ runs:
             PACKAGES="${COMMON} clang-18 llvm-18 libjpeg-dev libssl-dev liblzma-dev"
             ;;
           cfl)
-            PACKAGES="${COMMON} clang-18 clang-tools-18 libssl-dev llvm-18"
+            PACKAGES="${COMMON} clang-18 llvm-18 libjpeg-dev libssl-dev liblzma-dev"
             ;;
           colorbleed)
             PACKAGES="${COMMON} gcc g++ clang-18 clang-tools-18 libjpeg-dev libssl-dev llvm-18 python3 python3-pip curl git"

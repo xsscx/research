@@ -343,7 +343,6 @@ jobs:
           # Collect all available profiles
           find test-profiles/ -name "*.icc" > /tmp/all-profiles.txt 2>/dev/null || true
           find extended-test-profiles/ -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
-          find cfl/ -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
           find iccanalyzer-lite/iccDEV/Testing -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
 
           sort -u /tmp/all-profiles.txt > /tmp/all-profiles-dedup.txt

@@ -212,9 +212,7 @@ jobs:
           find test-profiles/ -name "*.icc" > /tmp/all-profiles.txt 2>/dev/null || true
           # 2. Extended test profiles (diverse ICC types)
           find extended-test-profiles/ -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
-          # 3. CFL seed corpora (fuzzer-generated edge cases)
-          find cfl/ -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
-          # 4. iccDEV Testing suite (specification-conformant profiles)
+          # 3. iccDEV Testing suite (specification-conformant profiles)
           find iccanalyzer-lite/iccDEV/Testing -name "*.icc" >> /tmp/all-profiles.txt 2>/dev/null || true
 
           # Deduplicate and drop known resource bombs from routine coverage sampling
@@ -233,7 +231,7 @@ jobs:
 
           shuf -n $USE_COUNT /tmp/all-profiles-routine.txt > coverage-report/selected-profiles.txt
           echo "Selected $USE_COUNT profiles from $AVAILABLE routine candidates for coverage"
-          echo "Sources: test-profiles/ + extended-test-profiles/ + cfl/ + iccDEV/Testing/"
+          echo "Sources: test-profiles/ + extended-test-profiles/ + iccDEV/Testing/"
           wc -l coverage-report/selected-profiles.txt
 
       - name: Run all CLI modes for coverage
