@@ -147,7 +147,7 @@ jobs:
           # Build colorbleed_tools and iccanalyzer-lite (critical for demo)
           if [ "${{ steps.cache-native-tools.outputs.cache-hit }}" != 'true' ]; then
             export CXX=clang++
-            export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
+            export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I../iccDEV/Build/IccXML -I../iccDEV/Build/IccProfLib -I/usr/include/libxml2"
 
             echo "Building colorbleed_tools against cached iccDEV..."
             cd colorbleed_tools

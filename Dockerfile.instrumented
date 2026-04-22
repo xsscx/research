@@ -63,7 +63,9 @@ RUN cd /opt/iccdev && mkdir -p build-coverage && cd build-coverage \
 COPY colorbleed_tools /opt/colorbleed_tools
 RUN cd /opt/colorbleed_tools \
  && CFLAGS="-O2 -DNDEBUG -std=gnu++17 -Wall" \
- && INCS="-I/opt/iccdev/IccProfLib -I/opt/iccdev/IccXML/IccLibXML $(pkg-config --cflags libxml-2.0)" \
+ && INCS="-I/opt/iccdev/IccProfLib -I/opt/iccdev/IccXML/IccLibXML \
+          -I/opt/iccdev/build-coverage/IccXML -I/opt/iccdev/build-coverage/IccProfLib \
+          $(pkg-config --cflags libxml-2.0)" \
  && LIBS="/opt/iccdev/build-coverage/IccProfLib/libIccProfLib2-staticd.a \
           /opt/iccdev/build-coverage/IccXML/libIccXML2-staticd.a \
           -lxml2 -lz -llzma -lm -fprofile-instr-generate" \
