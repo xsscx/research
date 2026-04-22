@@ -2,19 +2,19 @@
   "version": "1.0.0",
   "generated_by": "build-knowledge-graph.py",
   "stats": {
-    "nodes": 516,
-    "edges": 566,
-    "heuristics": 174,
-    "cves": 87,
-    "ghsas": 95,
-    "cwes": 55,
-    "patches": 60,
-    "components": 32,
+    "nodes": 519,
+    "edges": 578,
+    "heuristics": 181,
+    "cves": 98,
+    "ghsas": 106,
+    "cwes": 57,
+    "patches": 61,
+    "components": 3,
     "fuzzers": 13,
     "severity_distribution": {
       "CRITICAL": 62,
-      "HIGH": 41,
-      "MEDIUM": 31,
+      "HIGH": 47,
+      "MEDIUM": 32,
       "LOW": 37,
       "INFO": 3
     }
@@ -24,7 +24,7 @@
       "id": "H1",
       "type": "heuristic",
       "name": "Profile Size",
-      "specRef": "\u00a77.2.2",
+      "specRef": "Sec.7.2.2",
       "phase": "HEADER",
       "severity": "MEDIUM"
     },
@@ -37,7 +37,7 @@
       "id": "H2",
       "type": "heuristic",
       "name": "Magic Bytes",
-      "specRef": "\u00a77.2.6",
+      "specRef": "Sec.7.2.6",
       "phase": "HEADER",
       "severity": "LOW"
     },
@@ -50,7 +50,7 @@
       "id": "H3",
       "type": "heuristic",
       "name": "Color Space Signature",
-      "specRef": "\u00a77.2.6",
+      "specRef": "Sec.7.2.6",
       "phase": "HEADER",
       "severity": "LOW"
     },
@@ -58,7 +58,7 @@
       "id": "H4",
       "type": "heuristic",
       "name": "PCS Color Space",
-      "specRef": "\u00a77.2.7",
+      "specRef": "Sec.7.2.7",
       "phase": "HEADER",
       "severity": "LOW"
     },
@@ -66,7 +66,7 @@
       "id": "H5",
       "type": "heuristic",
       "name": "Platform/CMM/Manufacturer/Creator",
-      "specRef": "\u00a77.2.10",
+      "specRef": "Sec.7.2.10",
       "phase": "HEADER",
       "severity": "LOW"
     },
@@ -74,7 +74,7 @@
       "id": "H6",
       "type": "heuristic",
       "name": "Rendering Intent",
-      "specRef": "\u00a77.2.15",
+      "specRef": "Sec.7.2.15",
       "phase": "HEADER",
       "severity": "LOW"
     },
@@ -82,7 +82,7 @@
       "id": "H7",
       "type": "heuristic",
       "name": "Profile Class",
-      "specRef": "\u00a77.2.5",
+      "specRef": "Sec.7.2.5",
       "phase": "HEADER",
       "severity": "LOW"
     },
@@ -90,7 +90,7 @@
       "id": "H8",
       "type": "heuristic",
       "name": "Illuminant XYZ",
-      "specRef": "\u00a77.2.16",
+      "specRef": "Sec.7.2.16",
       "phase": "HEADER",
       "severity": "MEDIUM"
     },
@@ -103,7 +103,7 @@
       "id": "H15",
       "type": "heuristic",
       "name": "Date Validation",
-      "specRef": "\u00a77.2.4",
+      "specRef": "Sec.7.2.4",
       "phase": "HEADER",
       "severity": "LOW"
     },
@@ -111,7 +111,7 @@
       "id": "H16",
       "type": "heuristic",
       "name": "Signature Patterns",
-      "specRef": "\u00a77.2",
+      "specRef": "Sec.7.2",
       "phase": "HEADER",
       "severity": "INFO"
     },
@@ -124,7 +124,7 @@
       "id": "H17",
       "type": "heuristic",
       "name": "Spectral Range",
-      "specRef": "\u00a77.2.22",
+      "specRef": "Sec.7.2.22",
       "phase": "HEADER",
       "severity": "MEDIUM"
     },
@@ -137,7 +137,7 @@
       "id": "H9",
       "type": "heuristic",
       "name": "Critical Text Tags",
-      "specRef": "\u00a77.3",
+      "specRef": "Sec.7.3",
       "phase": "TAG_VALIDATION",
       "severity": "HIGH"
     },
@@ -166,7 +166,7 @@
       "id": "H10",
       "type": "heuristic",
       "name": "Tag Count",
-      "specRef": "\u00a77.3",
+      "specRef": "Sec.7.3",
       "phase": "TAG_VALIDATION",
       "severity": "MEDIUM"
     },
@@ -182,7 +182,7 @@
       "id": "H11",
       "type": "heuristic",
       "name": "CLUT Entry Limit",
-      "specRef": "\u00a710.10",
+      "specRef": "Sec.10.10",
       "phase": "TAG_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -235,7 +235,7 @@
       "id": "H12",
       "type": "heuristic",
       "name": "MPE Chain Depth",
-      "specRef": "\u00a710.26",
+      "specRef": "Sec.10.26",
       "phase": "TAG_VALIDATION",
       "severity": "HIGH"
     },
@@ -264,7 +264,7 @@
       "id": "H13",
       "type": "heuristic",
       "name": "Per Tag Size Check",
-      "specRef": "\u00a77.3.1",
+      "specRef": "Sec.7.3.1",
       "phase": "TAG_VALIDATION",
       "severity": "HIGH"
     },
@@ -277,7 +277,7 @@
       "id": "H14",
       "type": "heuristic",
       "name": "Tag Array Detection",
-      "specRef": "\u00a710.33",
+      "specRef": "Sec.10.33",
       "phase": "TAG_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -287,10 +287,18 @@
       "name": "CWE-416"
     },
     {
+      "id": "CVE-2026-34535",
+      "type": "cve"
+    },
+    {
+      "id": "GHSA-965q-9pp6-6vw5",
+      "type": "ghsa"
+    },
+    {
       "id": "H18",
       "type": "heuristic",
       "name": "Technology Signature",
-      "specRef": "\u00a79.2.27",
+      "specRef": "Sec.9.2.27",
       "phase": "TAG_VALIDATION",
       "severity": "LOW"
     },
@@ -298,7 +306,7 @@
       "id": "H19",
       "type": "heuristic",
       "name": "Tag Offset Overlap",
-      "specRef": "\u00a77.3.1",
+      "specRef": "Sec.7.3.1",
       "phase": "TAG_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -319,7 +327,7 @@
       "id": "H20",
       "type": "heuristic",
       "name": "Tag Type Signature",
-      "specRef": "\u00a710",
+      "specRef": "Sec.10",
       "phase": "TAG_VALIDATION",
       "severity": "HIGH"
     },
@@ -343,7 +351,7 @@
       "id": "H21",
       "type": "heuristic",
       "name": "Tag Struct Member Inspection",
-      "specRef": "\u00a710.32",
+      "specRef": "Sec.10.32",
       "phase": "TAG_VALIDATION",
       "severity": "MEDIUM"
     },
@@ -351,7 +359,7 @@
       "id": "H22",
       "type": "heuristic",
       "name": "Num Array Scalar Expectation",
-      "specRef": "\u00a710.21",
+      "specRef": "Sec.10.21",
       "phase": "TAG_VALIDATION",
       "severity": "LOW"
     },
@@ -359,7 +367,7 @@
       "id": "H23",
       "type": "heuristic",
       "name": "Num Array Value Range",
-      "specRef": "\u00a710.21",
+      "specRef": "Sec.10.21",
       "phase": "TAG_VALIDATION",
       "severity": "MEDIUM"
     },
@@ -372,7 +380,7 @@
       "id": "H24",
       "type": "heuristic",
       "name": "Tag Struct Nesting Depth",
-      "specRef": "\u00a710.32",
+      "specRef": "Sec.10.32",
       "phase": "TAG_VALIDATION",
       "severity": "HIGH"
     },
@@ -388,7 +396,7 @@
       "id": "H25",
       "type": "heuristic",
       "name": "Tag Offset OOB",
-      "specRef": "\u00a77.3.1",
+      "specRef": "Sec.7.3.1",
       "phase": "TAG_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -409,7 +417,7 @@
       "id": "H26",
       "type": "heuristic",
       "name": "Named Color2String Validation",
-      "specRef": "\u00a710.20",
+      "specRef": "Sec.10.20",
       "phase": "TAG_VALIDATION",
       "severity": "HIGH"
     },
@@ -422,7 +430,7 @@
       "id": "H27",
       "type": "heuristic",
       "name": "MPE Matrix Output Channel",
-      "specRef": "\u00a710.26",
+      "specRef": "Sec.10.26",
       "phase": "TAG_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -438,7 +446,7 @@
       "id": "H28",
       "type": "heuristic",
       "name": "LUT Dimension Validation",
-      "specRef": "\u00a710.10",
+      "specRef": "Sec.10.10",
       "phase": "TAG_VALIDATION",
       "severity": "HIGH"
     },
@@ -466,7 +474,7 @@
       "id": "H29",
       "type": "heuristic",
       "name": "Colorant Table String Validation",
-      "specRef": "\u00a710.4",
+      "specRef": "Sec.10.4",
       "phase": "TAG_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -476,14 +484,22 @@
       "name": "CWE-125/CWE-170"
     },
     {
+      "id": "CVE-2026-34556",
+      "type": "cve"
+    },
+    {
       "id": "GHSA-4wqv-pvm8-5h27",
+      "type": "ghsa"
+    },
+    {
+      "id": "GHSA-p9wm-xfv4-43qg",
       "type": "ghsa"
     },
     {
       "id": "H30",
       "type": "heuristic",
       "name": "Gamut Boundary Desc Allocation",
-      "specRef": "\u00a710.12",
+      "specRef": "Sec.10.12",
       "phase": "TAG_VALIDATION",
       "severity": "HIGH"
     },
@@ -495,7 +511,7 @@
       "id": "H31",
       "type": "heuristic",
       "name": "MPE Channel Count",
-      "specRef": "\u00a710.26",
+      "specRef": "Sec.10.26",
       "phase": "TAG_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -503,7 +519,7 @@
       "id": "H32",
       "type": "heuristic",
       "name": "Tag Data Type Confusion",
-      "specRef": "\u00a710",
+      "specRef": "Sec.10",
       "phase": "TAG_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -797,6 +813,14 @@
     {
       "id": "CVE-2026-21495",
       "type": "cve"
+    },
+    {
+      "id": "CVE-2026-34546",
+      "type": "cve"
+    },
+    {
+      "id": "GHSA-fxgq-wf5v-25pq",
+      "type": "ghsa"
     },
     {
       "id": "GHSA-xhrm-79rg-5784",
@@ -1362,6 +1386,14 @@
       "severity": "HIGH"
     },
     {
+      "id": "CVE-2026-34550",
+      "type": "cve"
+    },
+    {
+      "id": "GHSA-rmxp-pxf4-p7wm",
+      "type": "ghsa"
+    },
+    {
       "id": "H97",
       "type": "heuristic",
       "name": "Profile Sequence Id Validation",
@@ -1376,6 +1408,14 @@
       "specRef": null,
       "phase": "DATA_VALIDATION",
       "severity": "CRITICAL"
+    },
+    {
+      "id": "CVE-2026-34534",
+      "type": "cve"
+    },
+    {
+      "id": "GHSA-7x9w-g476-wcc2",
+      "type": "ghsa"
     },
     {
       "id": "H99",
@@ -1458,6 +1498,14 @@
       "severity": "MEDIUM"
     },
     {
+      "id": "CVE-2026-34537",
+      "type": "cve"
+    },
+    {
+      "id": "GHSA-3m63-c4jf-592f",
+      "type": "ghsa"
+    },
+    {
       "id": "H107",
       "type": "heuristic",
       "name": "Channel Cross Check",
@@ -1485,7 +1533,7 @@
       "id": "H110",
       "type": "heuristic",
       "name": "Class Tag Validation",
-      "specRef": "\u00a78",
+      "specRef": "Sec.8",
       "phase": "PROFILE_COMPLIANCE",
       "severity": "LOW"
     },
@@ -1493,7 +1541,7 @@
       "id": "H111",
       "type": "heuristic",
       "name": "Reserved Bytes",
-      "specRef": "\u00a77.2.19",
+      "specRef": "Sec.7.2.19",
       "phase": "PROFILE_COMPLIANCE",
       "severity": "LOW"
     },
@@ -1637,7 +1685,7 @@
       "id": "H128",
       "type": "heuristic",
       "name": "Version BCD",
-      "specRef": "\u00a77.2.4",
+      "specRef": "Sec.7.2.4",
       "phase": "INTEGRITY",
       "severity": "LOW"
     },
@@ -1653,7 +1701,7 @@
       "id": "H129",
       "type": "heuristic",
       "name": "PCS Illuminant D50",
-      "specRef": "\u00a77.2.16",
+      "specRef": "Sec.7.2.16",
       "phase": "INTEGRITY",
       "severity": "LOW"
     },
@@ -1661,7 +1709,7 @@
       "id": "H130",
       "type": "heuristic",
       "name": "Tag Alignment",
-      "specRef": "\u00a77.3.1",
+      "specRef": "Sec.7.3.1",
       "phase": "INTEGRITY",
       "severity": "LOW"
     },
@@ -1685,7 +1733,7 @@
       "id": "H133",
       "type": "heuristic",
       "name": "Flags Reserved Bits",
-      "specRef": "\u00a77.2.11",
+      "specRef": "Sec.7.2.11",
       "phase": "INTEGRITY",
       "severity": "LOW"
     },
@@ -1693,7 +1741,7 @@
       "id": "H134",
       "type": "heuristic",
       "name": "Tag Type Reserved Bytes",
-      "specRef": "\u00a710.1",
+      "specRef": "Sec.10.1",
       "phase": "INTEGRITY",
       "severity": "LOW"
     },
@@ -1701,7 +1749,7 @@
       "id": "H135",
       "type": "heuristic",
       "name": "Duplicate Tag Signatures",
-      "specRef": "\u00a77.3.1",
+      "specRef": "Sec.7.3.1",
       "phase": "INTEGRITY",
       "severity": "HIGH"
     },
@@ -1763,6 +1811,14 @@
       "type": "cve"
     },
     {
+      "id": "CVE-2026-34539",
+      "type": "cve"
+    },
+    {
+      "id": "GHSA-4f3j-q8mm-5hr6",
+      "type": "ghsa"
+    },
+    {
       "id": "GHSA-wh2p-cm3r-7hm3",
       "type": "ghsa"
     },
@@ -1786,7 +1842,7 @@
       "id": "H142",
       "type": "heuristic",
       "name": "XML Serialization Safety",
-      "specRef": "\u00a710",
+      "specRef": "Sec.10",
       "phase": "DATA_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -1879,6 +1935,10 @@
       "type": "cve"
     },
     {
+      "id": "CVE-2026-34548",
+      "type": "cve"
+    },
+    {
       "id": "GHSA-2f26-vh48-38g6",
       "type": "ghsa"
     },
@@ -1951,6 +2011,10 @@
       "type": "ghsa"
     },
     {
+      "id": "GHSA-prwp-9gv6-ccxv",
+      "type": "ghsa"
+    },
+    {
       "id": "GHSA-v3q7-7hw6-6jq8",
       "type": "ghsa"
     },
@@ -1974,7 +2038,7 @@
       "id": "H143",
       "type": "heuristic",
       "name": "XML Array Bounds Precheck",
-      "specRef": "\u00a710",
+      "specRef": "Sec.10",
       "phase": "DATA_VALIDATION",
       "severity": "HIGH"
     },
@@ -1990,7 +2054,7 @@
       "id": "H144",
       "type": "heuristic",
       "name": "XML String Termination Precheck",
-      "specRef": "\u00a710.4",
+      "specRef": "Sec.10.4",
       "phase": "DATA_VALIDATION",
       "severity": "HIGH"
     },
@@ -1998,7 +2062,7 @@
       "id": "H145",
       "type": "heuristic",
       "name": "XML Curve Type Consistency",
-      "specRef": "\u00a710.14",
+      "specRef": "Sec.10.14",
       "phase": "DATA_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -2014,7 +2078,7 @@
       "id": "H146",
       "type": "heuristic",
       "name": "Stack Buffer Overflow GetValues",
-      "specRef": "\u00a710.6",
+      "specRef": "Sec.10.6",
       "phase": "DATA_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -2022,6 +2086,14 @@
       "id": "CWE-121",
       "type": "cwe",
       "name": "CWE-121"
+    },
+    {
+      "id": "CVE-2026-34555",
+      "type": "cve"
+    },
+    {
+      "id": "GHSA-983c-rgh5-4982",
+      "type": "ghsa"
     },
     {
       "id": "GHSA-f79r-m9wh-wr6j",
@@ -2035,7 +2107,7 @@
       "id": "H147",
       "type": "heuristic",
       "name": "Null Pointer After Tag Read",
-      "specRef": "\u00a77.3",
+      "specRef": "Sec.7.3",
       "phase": "DATA_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -2043,7 +2115,7 @@
       "id": "H148",
       "type": "heuristic",
       "name": "Memory Copy Bounds Overlap",
-      "specRef": "\u00a710.14",
+      "specRef": "Sec.10.14",
       "phase": "DATA_VALIDATION",
       "severity": "CRITICAL"
     },
@@ -2072,15 +2144,23 @@
       "id": "H151",
       "type": "heuristic",
       "name": "Calculator Operator Enum Validation",
-      "specRef": "\u00a710.26",
+      "specRef": "Sec.10.26",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
+    },
+    {
+      "id": "CVE-2026-34533",
+      "type": "cve"
+    },
+    {
+      "id": "GHSA-8jj3-77m7-c3pq",
+      "type": "ghsa"
     },
     {
       "id": "H152",
       "type": "heuristic",
       "name": "Curve Element OOM Size Validation",
-      "specRef": "\u00a710.26",
+      "specRef": "Sec.10.26",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2093,7 +2173,7 @@
       "id": "H153",
       "type": "heuristic",
       "name": "Sampled Curve NaN-to-Unsigned Cast",
-      "specRef": "\u00a710.26",
+      "specRef": "Sec.10.26",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2101,7 +2181,7 @@
       "id": "H154",
       "type": "heuristic",
       "name": "Uncontrolled Tag Allocation Size",
-      "specRef": "\u00a77.3",
+      "specRef": "Sec.7.3",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2114,7 +2194,7 @@
       "id": "H155",
       "type": "heuristic",
       "name": "Integer Overflow in Tag Dimensions",
-      "specRef": "\u00a710.6",
+      "specRef": "Sec.10.6",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2122,7 +2202,7 @@
       "id": "H156",
       "type": "heuristic",
       "name": "Allocation Failure Path Profiles",
-      "specRef": "\u00a77.3",
+      "specRef": "Sec.7.3",
       "phase": "RAW_POST",
       "severity": "HIGH"
     },
@@ -2135,7 +2215,7 @@
       "id": "H157",
       "type": "heuristic",
       "name": "Alloc-Dealloc Mismatch Tag Patterns",
-      "specRef": "\u00a710.14",
+      "specRef": "Sec.10.14",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2148,7 +2228,7 @@
       "id": "H158",
       "type": "heuristic",
       "name": "Enum Range Violation Detection",
-      "specRef": "\u00a710.26",
+      "specRef": "Sec.10.26",
       "phase": "RAW_POST",
       "severity": "HIGH"
     },
@@ -2156,7 +2236,7 @@
       "id": "H159",
       "type": "heuristic",
       "name": "UAF Tag Ownership Chain Detection",
-      "specRef": "\u00a77.3",
+      "specRef": "Sec.7.3",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2164,7 +2244,7 @@
       "id": "H160",
       "type": "heuristic",
       "name": "Format String Injection in Text Tags",
-      "specRef": "\u00a710.24",
+      "specRef": "Sec.10.24",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2177,7 +2257,7 @@
       "id": "H161",
       "type": "heuristic",
       "name": "Stack Address Escape Deep Apply Chains",
-      "specRef": "\u00a710.14",
+      "specRef": "Sec.10.14",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2185,7 +2265,7 @@
       "id": "H162",
       "type": "heuristic",
       "name": "Partial Tag Data Overlap Detection",
-      "specRef": "\u00a77.3",
+      "specRef": "Sec.7.3",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2193,7 +2273,7 @@
       "id": "H163",
       "type": "heuristic",
       "name": "Executable Signature Scan In Tag Data",
-      "specRef": "\u00a77.3",
+      "specRef": "Sec.7.3",
       "phase": "RAW_POST",
       "severity": "HIGH"
     },
@@ -2201,7 +2281,7 @@
       "id": "H164",
       "type": "heuristic",
       "name": "Raw LUT Channel vs ColorSpace/PCS Cross-Check",
-      "specRef": "\u00a710.6",
+      "specRef": "Sec.10.6",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2209,7 +2289,7 @@
       "id": "H165",
       "type": "heuristic",
       "name": "LUT Data Sufficiency Validation",
-      "specRef": "\u00a710.6",
+      "specRef": "Sec.10.6",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2217,7 +2297,7 @@
       "id": "H166",
       "type": "heuristic",
       "name": "Division-by-Zero in CAM/Array/MPE",
-      "specRef": "\u00a710.26",
+      "specRef": "Sec.10.26",
       "phase": "RAW_POST",
       "severity": "HIGH"
     },
@@ -2225,7 +2305,7 @@
       "id": "H167",
       "type": "heuristic",
       "name": "Null MPE CLUT/Curve Application Guard",
-      "specRef": "\u00a710.10",
+      "specRef": "Sec.10.10",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2233,7 +2313,7 @@
       "id": "H168",
       "type": "heuristic",
       "name": "Unchecked Allocation Size Overflow",
-      "specRef": "\u00a77.3",
+      "specRef": "Sec.7.3",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2241,7 +2321,7 @@
       "id": "H169",
       "type": "heuristic",
       "name": "Dictionary Tag Element Bounds",
-      "specRef": "\u00a710.22",
+      "specRef": "Sec.10.22",
       "phase": "RAW_POST",
       "severity": "HIGH"
     },
@@ -2249,7 +2329,7 @@
       "id": "H170",
       "type": "heuristic",
       "name": "Copy Constructor UB via Null PCS",
-      "specRef": "\u00a77.2.7",
+      "specRef": "Sec.7.2.7",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2257,7 +2337,7 @@
       "id": "H171",
       "type": "heuristic",
       "name": "Curve Param Count vs FuncType Validation",
-      "specRef": "\u00a710.15/\u00a710.23",
+      "specRef": "Sec.10.15/Sec.10.23",
       "phase": "RAW_POST",
       "severity": "CRITICAL"
     },
@@ -2278,12 +2358,86 @@
       "severity": "MEDIUM"
     },
     {
+      "id": "CVE-2026-34549",
+      "type": "cve"
+    },
+    {
+      "id": "GHSA-v7qh-f995-p2fq",
+      "type": "ghsa"
+    },
+    {
       "id": "H174",
       "type": "heuristic",
       "name": "Half-Float Conversion Unsigned Underflow",
       "specRef": "IccUtil.cpp:665/677, IccIO.cpp:328",
       "phase": "RAW_POST",
       "severity": "MEDIUM"
+    },
+    {
+      "id": "H175",
+      "type": "heuristic",
+      "name": "Device Spectral Colour Space Range Requirement",
+      "specRef": "ICC.2:2023 Sec.7.2.8 amend",
+      "phase": "RAW_POST",
+      "severity": "HIGH"
+    },
+    {
+      "id": "H176",
+      "type": "heuristic",
+      "name": "deviceSpectralRangeTag Validation",
+      "specRef": "ICC.2:2023 Sec.9.2.x",
+      "phase": "RAW_POST",
+      "severity": "HIGH"
+    },
+    {
+      "id": "CWE-20/CWE-125",
+      "type": "cwe",
+      "name": "CWE-20/CWE-125"
+    },
+    {
+      "id": "H177",
+      "type": "heuristic",
+      "name": "devicePccTag Structure Validation",
+      "specRef": "ICC.2:2023 Sec.9.2.x+1",
+      "phase": "RAW_POST",
+      "severity": "HIGH"
+    },
+    {
+      "id": "CWE-20/CWE-476",
+      "type": "cwe",
+      "name": "CWE-20/CWE-476"
+    },
+    {
+      "id": "H178",
+      "type": "heuristic",
+      "name": "spectralRangeType Encoding Validation",
+      "specRef": "ICC.2:2023 Sec.10.2.w",
+      "phase": "RAW_POST",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "H179",
+      "type": "heuristic",
+      "name": "AddXform Create NULL Guard Detection",
+      "specRef": "IccCmm.cpp:8292 PR#708",
+      "phase": "EXPLOIT_GAP",
+      "severity": "HIGH"
+    },
+    {
+      "id": "H180",
+      "type": "heuristic",
+      "name": "XML Round-Trip Fidelity",
+      "specRef": "ICC.1-2022-05 Sec.10",
+      "phase": "XML_SAFETY",
+      "severity": "HIGH"
+    },
+    {
+      "id": "H181",
+      "type": "heuristic",
+      "name": "JSON Bitmask Complement CWE-681",
+      "specRef": "IccProfileJson.cpp:85 #809",
+      "phase": "EXPLOIT_GAP",
+      "severity": "HIGH"
     },
     {
       "id": "CFL-001",
@@ -2886,274 +3040,32 @@
       "review_state": "verified"
     },
     {
-      "id": "comp:iccdev/tools/IccApplyNamedCmm",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccApplyNamedCmm",
-      "ast_functions": 17002,
-      "cg_edges": 2022,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccApplyProfiles",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccApplyProfiles",
-      "ast_functions": 18160,
-      "cg_edges": 1585,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccApplySearch",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccApplySearch",
-      "ast_functions": 17684,
-      "cg_edges": 2065,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccApplyToLink",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccApplyToLink",
-      "ast_functions": 7298,
-      "cg_edges": 388,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccCommon",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccCommon",
-      "ast_functions": 32551,
-      "cg_edges": 7360,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccDumpProfile",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccDumpProfile",
-      "ast_functions": 7589,
-      "cg_edges": 439,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccFromCube",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccFromCube",
-      "ast_functions": 5716,
-      "cg_edges": 116,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccJpegDump",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccJpegDump",
-      "ast_functions": 4539,
-      "cg_edges": 331,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccPngDump",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccPngDump",
-      "ast_functions": 8271,
-      "cg_edges": 189,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccRoundTrip",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccRoundTrip",
-      "ast_functions": 6429,
-      "cg_edges": 14,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccSpecSepToTiff",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccSpecSepToTiff",
-      "ast_functions": 8192,
-      "cg_edges": 121,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccTiffDump",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccTiffDump",
-      "ast_functions": 6381,
-      "cg_edges": 90,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccV5DspObsToV4Dsp",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccV5DspObsToV4Dsp",
-      "ast_functions": 5939,
-      "cg_edges": 123,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/proflib/IccProfLib",
-      "type": "component",
-      "component": "iccdev/proflib",
-      "name": "IccProfLib",
-      "ast_functions": 211986,
-      "cg_edges": 13581,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/xml/IccLibXML",
-      "type": "component",
-      "component": "iccdev/xml",
-      "name": "IccLibXML",
-      "ast_functions": 54677,
-      "cg_edges": 5894,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_applynamedcmm_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_applynamedcmm_fuzzer",
-      "ast_functions": 6741,
-      "cg_edges": 26,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_applyprofiles_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_applyprofiles_fuzzer",
-      "ast_functions": 6753,
-      "cg_edges": 83,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_applysearch_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_applysearch_fuzzer",
-      "ast_functions": 7672,
-      "cg_edges": 43,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_cfg_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_cfg_fuzzer",
-      "ast_functions": 0,
-      "cg_edges": 43,
-      "cg_method": "regex-fallback"
-    },
-    {
-      "id": "comp:cfl/icc_dump_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_dump_fuzzer",
-      "ast_functions": 7362,
-      "cg_edges": 276,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_fromcube_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_fromcube_fuzzer",
-      "ast_functions": 5927,
-      "cg_edges": 156,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_fromxml_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_fromxml_fuzzer",
-      "ast_functions": 5208,
-      "cg_edges": 72,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_link_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_link_fuzzer",
-      "ast_functions": 6921,
-      "cg_edges": 55,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_roundtrip_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_roundtrip_fuzzer",
-      "ast_functions": 6580,
-      "cg_edges": 23,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_specsep_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_specsep_fuzzer",
-      "ast_functions": 2921,
-      "cg_edges": 136,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_tiffdump_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_tiffdump_fuzzer",
-      "ast_functions": 6918,
-      "cg_edges": 121,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_toxml_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_toxml_fuzzer",
-      "ast_functions": 4910,
-      "cg_edges": 49,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:cfl/icc_v5dspobs_fuzzer",
-      "type": "component",
-      "component": "cfl",
-      "name": "icc_v5dspobs_fuzzer",
-      "ast_functions": 6039,
-      "cg_edges": 85,
-      "cg_method": "llvm-ir"
+      "id": "CFL-078",
+      "type": "patch",
+      "file": "078-addxform-cenc-uaf-guard.patch",
+      "reachability": "cmm-runtime",
+      "priority": "P2",
+      "v1_defense": "partial",
+      "v2_defense": "no",
+      "review_state": "verified"
     },
     {
       "id": "comp:colorbleed/IccToXml_unsafe",
       "type": "component",
       "component": "colorbleed",
       "name": "IccToXml_unsafe",
-      "ast_functions": 7564,
-      "cg_edges": 542,
-      "cg_method": "llvm-ir"
+      "ast_functions": 0,
+      "cg_edges": 39,
+      "cg_method": "regex-fallback"
     },
     {
       "id": "comp:colorbleed/IccFromXml_unsafe",
       "type": "component",
       "component": "colorbleed",
       "name": "IccFromXml_unsafe",
-      "ast_functions": 7422,
-      "cg_edges": 350,
-      "cg_method": "llvm-ir"
+      "ast_functions": 0,
+      "cg_edges": 11,
+      "cg_method": "regex-fallback"
     },
     {
       "id": "comp:colorbleed/ColorBleedAlloc",
@@ -3162,15 +3074,6 @@
       "name": "ColorBleedAlloc",
       "ast_functions": 272,
       "cg_edges": 4,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:analyzer/iccanalyzer-lite",
-      "type": "component",
-      "component": "analyzer",
-      "name": "iccanalyzer-lite",
-      "ast_functions": 320844,
-      "cg_edges": 21354,
       "cg_method": "llvm-ir"
     },
     {
@@ -3582,6 +3485,16 @@
       "relationship": "CLASSIFIES"
     },
     {
+      "source": "H14",
+      "target": "CVE-2026-34535",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H14",
+      "target": "GHSA-965q-9pp6-6vw5",
+      "relationship": "DETECTS"
+    },
+    {
       "source": "H18",
       "target": "CWE-20",
       "relationship": "CLASSIFIES"
@@ -3728,7 +3641,17 @@
     },
     {
       "source": "H29",
+      "target": "CVE-2026-34556",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H29",
       "target": "GHSA-4wqv-pvm8-5h27",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H29",
+      "target": "GHSA-p9wm-xfv4-43qg",
       "relationship": "DETECTS"
     },
     {
@@ -3999,6 +3922,16 @@
     {
       "source": "H54",
       "target": "CVE-2026-21495",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H54",
+      "target": "CVE-2026-34546",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H54",
+      "target": "GHSA-fxgq-wf5v-25pq",
       "relationship": "DETECTS"
     },
     {
@@ -4588,7 +4521,17 @@
     },
     {
       "source": "H96",
+      "target": "CVE-2026-34550",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H96",
       "target": "GHSA-pf84-4c7q-x764",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H96",
+      "target": "GHSA-rmxp-pxf4-p7wm",
       "relationship": "DETECTS"
     },
     {
@@ -4600,6 +4543,16 @@
       "source": "H98",
       "target": "CWE-787",
       "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H98",
+      "target": "CVE-2026-34534",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H98",
+      "target": "GHSA-7x9w-g476-wcc2",
+      "relationship": "DETECTS"
     },
     {
       "source": "H99",
@@ -4660,6 +4613,16 @@
       "source": "H106",
       "target": "CWE-131",
       "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H106",
+      "target": "CVE-2026-34537",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H106",
+      "target": "GHSA-3m63-c4jf-592f",
+      "relationship": "DETECTS"
     },
     {
       "source": "H107",
@@ -4883,6 +4846,16 @@
     },
     {
       "source": "H139",
+      "target": "CVE-2026-34539",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H139",
+      "target": "GHSA-4f3j-q8mm-5hr6",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H139",
       "target": "GHSA-wh2p-cm3r-7hm3",
       "relationship": "DETECTS"
     },
@@ -5038,6 +5011,16 @@
     },
     {
       "source": "H142",
+      "target": "CVE-2026-34548",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H142",
+      "target": "CVE-2026-34556",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H142",
       "target": "GHSA-2f26-vh48-38g6",
       "relationship": "DETECTS"
     },
@@ -5143,7 +5126,17 @@
     },
     {
       "source": "H142",
+      "target": "GHSA-p9wm-xfv4-43qg",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H142",
       "target": "GHSA-pmcg-2h65-35h8",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H142",
+      "target": "GHSA-prwp-9gv6-ccxv",
       "relationship": "DETECTS"
     },
     {
@@ -5248,6 +5241,11 @@
     },
     {
       "source": "H144",
+      "target": "CVE-2026-34556",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H144",
       "target": "GHSA-4wqv-pvm8-5h27",
       "relationship": "DETECTS"
     },
@@ -5259,6 +5257,11 @@
     {
       "source": "H144",
       "target": "GHSA-h3ph-mwq5-3883",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H144",
+      "target": "GHSA-p9wm-xfv4-43qg",
       "relationship": "DETECTS"
     },
     {
@@ -5373,6 +5376,16 @@
     },
     {
       "source": "H146",
+      "target": "CVE-2026-34555",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H146",
+      "target": "GHSA-983c-rgh5-4982",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H146",
       "target": "GHSA-f79r-m9wh-wr6j",
       "relationship": "DETECTS"
     },
@@ -5480,6 +5493,16 @@
       "source": "H151",
       "target": "CWE-681",
       "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H151",
+      "target": "CVE-2026-34533",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H151",
+      "target": "GHSA-8jj3-77m7-c3pq",
+      "relationship": "DETECTS"
     },
     {
       "source": "H152",
@@ -5592,8 +5615,53 @@
       "relationship": "CLASSIFIES"
     },
     {
+      "source": "H173",
+      "target": "CVE-2026-34549",
+      "relationship": "DETECTS"
+    },
+    {
+      "source": "H173",
+      "target": "GHSA-v7qh-f995-p2fq",
+      "relationship": "DETECTS"
+    },
+    {
       "source": "H174",
       "target": "CWE-190",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H175",
+      "target": "CWE-20",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H176",
+      "target": "CWE-20/CWE-125",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H177",
+      "target": "CWE-20/CWE-476",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H178",
+      "target": "CWE-20/CWE-125",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H179",
+      "target": "CWE-476",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H180",
+      "target": "CWE-345",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H181",
+      "target": "CWE-681",
       "relationship": "CLASSIFIES"
     },
     {
@@ -5674,6 +5742,11 @@
     {
       "source": "CFL-007",
       "target": "H159",
+      "relationship": "COVERED_BY"
+    },
+    {
+      "source": "CFL-007",
+      "target": "H161",
       "relationship": "COVERED_BY"
     },
     {
@@ -5764,6 +5837,16 @@
     {
       "source": "CFL-073",
       "target": "H142",
+      "relationship": "COVERED_BY"
+    },
+    {
+      "source": "CFL-078",
+      "target": "CWE-416",
+      "relationship": "ADDRESSES"
+    },
+    {
+      "source": "CFL-078",
+      "target": "H159",
       "relationship": "COVERED_BY"
     },
     {
@@ -6105,132 +6188,6 @@
       "source": "CVE-2026-21507",
       "target": "GHSA-hgp5-r8m9-8qpj",
       "relationship": "ALIAS"
-    },
-    {
-      "source": "fuzzer:icc_dump_fuzzer",
-      "target": "comp:iccdev/tools/IccDumpProfile",
-      "relationship": "TARGETS",
-      "fidelity_pct": 100
-    },
-    {
-      "source": "fuzzer:icc_dump_fuzzer",
-      "target": "comp:cfl/icc_dump_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_toxml_fuzzer",
-      "target": "comp:cfl/icc_toxml_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_fromxml_fuzzer",
-      "target": "comp:cfl/icc_fromxml_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_roundtrip_fuzzer",
-      "target": "comp:iccdev/tools/IccRoundTrip",
-      "relationship": "TARGETS",
-      "fidelity_pct": 95
-    },
-    {
-      "source": "fuzzer:icc_roundtrip_fuzzer",
-      "target": "comp:cfl/icc_roundtrip_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_fromcube_fuzzer",
-      "target": "comp:iccdev/tools/IccFromCube",
-      "relationship": "TARGETS",
-      "fidelity_pct": 100
-    },
-    {
-      "source": "fuzzer:icc_fromcube_fuzzer",
-      "target": "comp:cfl/icc_fromcube_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_tiffdump_fuzzer",
-      "target": "comp:iccdev/tools/IccTiffDump",
-      "relationship": "TARGETS"
-    },
-    {
-      "source": "fuzzer:icc_tiffdump_fuzzer",
-      "target": "comp:cfl/icc_tiffdump_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_applynamedcmm_fuzzer",
-      "target": "comp:iccdev/tools/IccApplyNamedCmm",
-      "relationship": "TARGETS",
-      "fidelity_pct": 75
-    },
-    {
-      "source": "fuzzer:icc_applynamedcmm_fuzzer",
-      "target": "comp:cfl/icc_applynamedcmm_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_applyprofiles_fuzzer",
-      "target": "comp:iccdev/tools/IccApplyProfiles",
-      "relationship": "TARGETS"
-    },
-    {
-      "source": "fuzzer:icc_applyprofiles_fuzzer",
-      "target": "comp:cfl/icc_applyprofiles_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_link_fuzzer",
-      "target": "comp:iccdev/tools/IccApplyToLink",
-      "relationship": "TARGETS",
-      "fidelity_pct": 65
-    },
-    {
-      "source": "fuzzer:icc_link_fuzzer",
-      "target": "comp:cfl/icc_link_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_v5dspobs_fuzzer",
-      "target": "comp:iccdev/tools/IccV5DspObsToV4Dsp",
-      "relationship": "TARGETS"
-    },
-    {
-      "source": "fuzzer:icc_v5dspobs_fuzzer",
-      "target": "comp:cfl/icc_v5dspobs_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_specsep_fuzzer",
-      "target": "comp:iccdev/tools/IccSpecSepToTiff",
-      "relationship": "TARGETS",
-      "fidelity_pct": 85
-    },
-    {
-      "source": "fuzzer:icc_specsep_fuzzer",
-      "target": "comp:cfl/icc_specsep_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_applysearch_fuzzer",
-      "target": "comp:iccdev/tools/IccApplySearch",
-      "relationship": "TARGETS"
-    },
-    {
-      "source": "fuzzer:icc_applysearch_fuzzer",
-      "target": "comp:cfl/icc_applysearch_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
-    },
-    {
-      "source": "fuzzer:icc_cfg_fuzzer",
-      "target": "comp:iccdev/tools/IccApplyNamedCmm",
-      "relationship": "TARGETS"
-    },
-    {
-      "source": "fuzzer:icc_cfg_fuzzer",
-      "target": "comp:cfl/icc_cfg_fuzzer",
-      "relationship": "IMPLEMENTED_BY"
     }
   ]
 }

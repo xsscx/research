@@ -3,8 +3,8 @@
 ```mermaid
 pie title Heuristic Severity Distribution
     "CRITICAL" : 62
-    "HIGH" : 41
-    "MEDIUM" : 31
+    "HIGH" : 47
+    "MEDIUM" : 32
     "LOW" : 37
     "INFO" : 3
 ```
