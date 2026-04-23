@@ -61,7 +61,6 @@ Timeouts/OOMs handled by LibFuzzer `-timeout=30 -rss_limit_mb=4096`.
 |-------|------------|-----|-------------|
 | 001 | icAnsiToUtf8 null termination HBO | CWE-125/170 | IccTagBasic.cpp, IccUtilXml.cpp |
 | 002 | GamutBoundary triangles overflow | CWE-190 | IccTagLut.cpp |
-| 004 | ToneMapFunc Read parameter count HBO | CWE-122 | IccMpeBasic.cpp |
 | 005 | CalculatorFunc Read enum UBSAN | CWE-681 | IccMpeCalc.cpp |
 | 006 | SpectralMatrix Describe bounds HBO | CWE-122 | IccMpeSpectral.cpp |
 
@@ -83,15 +82,14 @@ Timeouts/OOMs handled by LibFuzzer `-timeout=30 -rss_limit_mb=4096`.
 | 034 | SearchApply interpolation key | CWE-345 | IccCmmConfig.cpp |
 | 035 | ApplyCmmSearch m_nApply OOB | CWE-122 | IccCmmSearch.cpp |
 | 036-039 | CreateLink/Profile/Search toJson | CWE-345/561 | IccCmmConfig.cpp |
-| 040-042 | fromIt8 CMYK/LAB/parse bugs | CWE-787/125/20 | IccCmmConfig.cpp |
+| 040-041 | fromIt8 CMYK/LAB bugs | CWE-787/125 | IccCmmConfig.cpp |
 | 043 | Tool toJson is_object vs is_array | CWE-697 | iccApplyNamedCmm.cpp |
 | 044-048 | NDLut/AddXform/PCS/DumpLut guards | CWE-476/762/122 | IccCmm.cpp, IccTagLut.cpp |
-| 049-055 | MBB/FormulaCurve/ParametricCurve | CWE-125/134 | IccTagLut.cpp, IccMpeBasic.cpp |
+| 049-054 | MBB/FormulaCurve/ParametricCurve | CWE-125/134 | IccTagLut.cpp, IccMpeBasic.cpp |
 | 056-059 | Spectral null/uninitialized/UBSAN | CWE-476/908/681 | IccMpeSpectral.cpp, IccIO.cpp |
-| 060-062 | icGetSigStr/icF16toF/icGetSig | CWE-190/191/681 | IccUtil.cpp |
+| 060 | icGetSigStr overflow | CWE-190 | IccUtil.cpp |
 | 064-067 | Segmented curve/bitmask underflow | CWE-191/681 | Multiple files |
 | 076 | GBD signed channel type confusion | CWE-681 | IccTagLut.h |
-| 077 | CAM CalcCoefficients div-by-zero | CWE-369 | IccCAM.cpp |
 | 078 | AddXform cenc UAF guard | CWE-416 | IccCmm.cpp |
 | 080 | IccUtilXml MCSNeedsSubset UBSAN | CWE-681 | IccUtilXml.cpp |
 
@@ -100,7 +98,8 @@ see `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`.
 
 ### Retired Patches (accepted upstream)
 
-003, 007, 010-013, 015-016, 018, 019-old, 020, 024, 026-027, 029, 034, 037, 039, 061, 063.
+003, 004, 007, 010-013, 015-016, 018, 019-old, 020, 024, 026-027, 029, 034, 037, 039,
+042, 055, 061, 062, 063, 072, 073, 077.
 
 ### Adding a New Patch
 

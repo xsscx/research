@@ -14,7 +14,9 @@ preserving the analyzer policy:
 ## Scope
 
 - Inventory source: active `.patch` files in `cfl/patches/`
-- Current active patch files on disk: **44**
+- Current active patch files on disk: **31** (post 2026-04-23 retirement sync)
+- CSV retains rows for retired/upstreamed patches as historical analyzer-coverage
+  reference — the analyzer still detects these patterns in malformed profiles.
 - Matrix file: [ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv](ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv)
 
 Current reachability split from the CSV:
