@@ -65,11 +65,16 @@ Full endpoint list: see `mcp-server.instructions.md`.
 | Repository | Path | Branch | Purpose |
 |-----------|------|--------|---------|
 | xsscx/research | `/research/` | main | Analyzer, CFL, call-graph, analysis |
+| InternationalColorConsortium/iccDEV | `~/bisect/iccDEV-bisect-60bbb8c-json` | bisect-60bbb8c-json | Active JSON/config bisect fixes |
 | xsscx/fuzz | `/research/fuzz/` | master | Curated malicious input corpus |
 | xsscx/xnuimagetools | `/research/xnuimagetools/` | main | iOS Image Generator + xnuimagefuzzer |
 | xsscx/xnuimagefuzzer | `/research/xnuimagefuzzer/` | main | iOS image fuzzer (submodule) |
 
 `fuzz/` and `xnuimagetools/` are separate git repos, NOT submodules.
+
+Latest iccDEV JSON/config reports are in `~/bisect/`. Before pushing that
+branch, run the parser regression script, JSON config suite, and JSON CLI
+exercise from the iccDEV worktree.
 
 ## Anti-Patterns (Mandatory Rules)
 
@@ -93,6 +98,7 @@ These rules derive from real multi-agent failures. Source: xsscx/governance LLMC
 | 14 | >=50% of commits must be core mission. Batch CI fixes into 1 commit. | Infrastructure churn drowns findings. |
 | 15 | After upstream sync: delete `Build/`, rebuild, verify ASAN with `nm | grep __asan`. | Stale cmake cache retains wrong flags. |
 | 16 | Test CLI script fixes with the exact failing command end-to-end. | Unit-logic tests miss design intent. |
+| 17 | JSON parsers fail closed: no silent truncation, skipped members, ignored nested failures, or stale reset state. | Invalid profiles get saved and regressions look like success. |
 
 ## Image+ICC Seed Pipeline
 

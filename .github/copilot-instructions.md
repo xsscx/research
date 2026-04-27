@@ -74,6 +74,21 @@ cd iccanalyzer-lite/icctest && ./build.sh
 After branch switches or upstream syncs, delete `Build/CMakeCache.txt` and
 `Build/CMakeFiles/` to avoid stale cmake cache errors.
 
+## Latest iccDEV JSON/config bisect
+
+- Branch: `InternationalColorConsortium/iccDEV` `bisect-60bbb8c-json`.
+- Local worktree: `~/bisect/iccDEV-bisect-60bbb8c-json`.
+- Reports: `~/bisect/iccdev-json-it8-srcType-report.txt` and
+  `~/bisect/iccdev-json-parser-regression-report.txt`.
+- Latest pushed fixes: `4ffcba5` (IT8 srcType + missing pccWeights) and
+  `0eca71b` (JSON parser/config fail-closed hardening).
+- Regression gate on that branch:
+  `.github/scripts/iccdev-json-parser-regression-tests.sh`,
+  `.github/scripts/iccdev-json-cfg-tests.sh`, and
+  `.github/scripts/json-cli-exercise.sh`.
+- Rule: JSON parser/config helpers fail closed. Do not truncate short arrays,
+  skip bad struct members, attach failed nested MPEs, or retain stale reset state.
+
 ## Coding Conventions
 
 ### Exit codes

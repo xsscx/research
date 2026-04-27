@@ -27,6 +27,13 @@ Additional repo workflows in active use:
 - `.github/scripts/pre-push-gate.sh`
   -- run the unified pre-push validation gate; it dispatches component-specific checks and calls `.github/scripts/pre-push-validate.sh` for iccanalyzer-lite build-sync verification.
 
+## Latest iccDEV Bisect Context
+JSON/config parser fixes live on upstream `InternationalColorConsortium/iccDEV`
+branch `bisect-60bbb8c-json` (local worktree:
+`~/bisect/iccDEV-bisect-60bbb8c-json`). Reports stay in `~/bisect/`; run
+`.github/scripts/iccdev-json-parser-regression-tests.sh` plus the JSON config
+suite before touching that branch again.
+
 ## Coding Style
 4-space indent in C++ and Python. Tabs only in Makefiles. `snake_case` for
 Python, `test_*.py`/`test_*.cpp` for tests, `CIcc*` for C++ types.
