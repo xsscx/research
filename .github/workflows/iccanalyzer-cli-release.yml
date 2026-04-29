@@ -93,6 +93,24 @@ jobs:
           echo "iccDEV cloned at: $(pwd)"
           echo "iccDEV commit: $(git log --oneline -1)"
 
+      - name: Clean iccDEV dependency
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          cd iccanalyzer-lite/iccDEV
+          git reset --hard HEAD
+          git clean -fd
+          if [ -n "$(git diff --name-only)" ]; then
+            echo "[FAIL] iccDEV dependency still has tracked modifications"
+            git diff --name-only | sed 's/^/  /'
+            exit 1
+          fi
+          echo "[OK] iccDEV dependency is clean"
+
       - name: Cache iccDEV build artifacts
         id: cache-iccdev-build
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
