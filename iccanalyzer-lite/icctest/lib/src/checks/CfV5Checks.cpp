@@ -396,7 +396,9 @@ static CheckResult check_cf087_v5_mpe_element_signature_valid(const ProfileView&
     }
 
     if (findings.empty())
-        return CheckResult::ok("All " + std::to_string(totalElements) + " MPE element signatures recognized");
+        return CheckResult::ok(
+            "All " + std::to_string(totalElements) + " MPE element signatures recognized across " +
+            std::to_string(mpeTagCount) + " MPE tag(s)");
     return {CheckResult::Status::FINDINGS, "Unknown MPE element types", std::move(findings)};
 }
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "icc-profile-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for ICC color profile security analysis, validation, and forensic inspection"
 readme = "README.md"
 license = "MIT"
@@ -33,23 +33,23 @@ dependencies = [
 
 [project.optional-dependencies]
 web = [
-    "starlette",
-    "uvicorn",
-    "httpx",
+    "starlette>=1.0.0,<2.0",
+    "uvicorn>=0.46.0,<1.0",
+    "httpx>=0.28.1,<1.0",
 ]
 dev = [
-    "starlette",
-    "uvicorn",
-    "httpx",
+    "starlette>=1.0.0,<2.0",
+    "uvicorn>=0.46.0,<1.0",
+    "httpx>=0.28.1,<1.0",
     "pytest",
     "pytest-asyncio",
 ]
 test = [
     "pytest",
     "pytest-asyncio",
-    "httpx",
-    "starlette",
-    "uvicorn",
+    "httpx>=0.28.1,<1.0",
+    "starlette>=1.0.0,<2.0",
+    "uvicorn>=0.46.0,<1.0",
 ]
 
 [project.urls]

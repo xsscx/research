@@ -78,7 +78,7 @@ sudo apt install -y build-essential cmake clang clang-tools \
 ### Quick Start
 ```
 cd colorbleed_tools
-make setup       # clone iccDEV, patch wxWidgets, build static libs
+make setup       # clone vanilla iccDEV, build static libs
 make test        # build tools and run tests
 ```
 

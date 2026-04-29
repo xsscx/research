@@ -3,7 +3,7 @@
  *  @brief Fork-based process isolation for unsafe ICC profile operations
  *  @author David Hoyt
  *  @date 28 FEB 2026
- *  @version 2.0.0
+ *  @version 2.0.1
  *
  *  Each profile operation runs in a forked child process with resource
  *  limits (memory, CPU, file size). ASan is configured in recoverable

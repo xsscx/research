@@ -89,7 +89,8 @@ public:
 
 private:
     Logger() = default;
-    void vlog(LogLevel level, const char* fmt, va_list args);
+    void vlog(LogLevel level, const char* fmt, va_list args)
+        __attribute__((format(printf, 3, 0)));
 
     LogLevel                   m_level{LogLevel::kNone};
     std::unique_ptr<LogSink>   m_sink;

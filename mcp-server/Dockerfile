@@ -40,11 +40,7 @@ COPY extended-test-profiles/ extended-test-profiles/
 # not track that nested checkout, and the MCP image must build against the
 # unpatched upstream sources instead of any local working tree residue.
 RUN rm -rf /build/iccanalyzer-lite/iccDEV \
- && git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /build/iccanalyzer-lite/iccDEV \
- && SIGUTILS=/build/iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h \
- && if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then \
-      sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"; \
-    fi
+ && git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git /build/iccanalyzer-lite/iccDEV
 
 # Build upstream iccDEV static libraries from a fresh unpatched checkout
 RUN find /build/iccanalyzer-lite/iccDEV/Build -mindepth 1 -maxdepth 1 \
@@ -58,14 +54,16 @@ RUN find /build/iccanalyzer-lite/iccDEV/Build -mindepth 1 -maxdepth 1 \
       -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -O0 -g3 -fsanitize=address,undefined -fprofile-instr-generate -fcoverage-mapping" \
       -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
       -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
-      -DENABLE_TOOLS=OFF \
-      -DENABLE_STATIC_LIBS=ON \
-      -DICC_LOG_SAFE=ON \
-      -DICC_TRACE_NAN_ENABLED=ON \
-      -Wno-dev \
+       -DENABLE_TOOLS=OFF \
+       -DENABLE_STATIC_LIBS=ON \
+       -DENABLE_WXWIDGETS=OFF \
+       -DICC_LOG_SAFE=ON \
+       -DICC_TRACE_NAN_ENABLED=ON \
+       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+       -Wno-dev \
  && make -j$(nproc)
 
-# Build iccanalyzer-lite (ASAN+UBSAN+Coverage — unpatched upstream iccDEV)
+# Build iccanalyzer-lite (ASAN+UBSAN+Coverage -- unpatched upstream iccDEV)
 RUN cd iccanalyzer-lite && bash build.sh
 
 # Build icctest V2 CLI against the same unpatched iccDEV tree
@@ -83,11 +81,13 @@ RUN cd /build/iccanalyzer-lite/iccDEV/Build \
       -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -O0 -g3 -fsanitize=address,undefined -fprofile-instr-generate -fcoverage-mapping" \
       -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
       -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
-      -DENABLE_TOOLS=ON \
-      -DENABLE_STATIC_LIBS=ON \
-      -DICC_LOG_SAFE=ON \
-      -DICC_TRACE_NAN_ENABLED=ON \
-      -Wno-dev \
+       -DENABLE_TOOLS=ON \
+       -DENABLE_STATIC_LIBS=ON \
+       -DENABLE_WXWIDGETS=OFF \
+       -DICC_LOG_SAFE=ON \
+       -DICC_TRACE_NAN_ENABLED=ON \
+       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+       -Wno-dev \
  && make -j$(nproc) \
       iccApplyNamedCmm \
       iccApplyProfiles \
@@ -114,7 +114,8 @@ RUN cd colorbleed_tools \
 # Python venv with MCP server
 RUN python3 -m venv --clear /build/mcp-venv \
  && /build/mcp-venv/bin/python3 -m ensurepip --upgrade \
- && /build/mcp-venv/bin/pip install --no-cache-dir -e /build/mcp-server
+ && /build/mcp-venv/bin/pip install --no-cache-dir -r /build/mcp-server/requirements.txt \
+ && /build/mcp-venv/bin/pip install --no-cache-dir --no-deps -e /build/mcp-server
 
 # --- Runtime stage ---
 FROM ubuntu:24.04

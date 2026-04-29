@@ -48,7 +48,7 @@ extern "C" const char* __ubsan_default_options() {
     return "halt_on_error=0:print_stacktrace=1:silence_unsigned_overflow=1";
 }
 
-static constexpr const char* kVersion = "2.0.0";
+static constexpr const char* kVersion = "2.0.1";
 
 int main(int argc, char** argv) {
     using namespace icctest;

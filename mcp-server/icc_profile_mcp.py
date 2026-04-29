@@ -38,7 +38,37 @@ def _init_repo_root() -> Path:
 REPO_ROOT = _init_repo_root()
 ANALYZER_BIN = REPO_ROOT / "iccanalyzer-lite" / "iccanalyzer-lite"
 ANALYZER_V2_BIN = REPO_ROOT / "iccanalyzer-lite" / "icctest" / "build" / "cli" / "icctest"
-ICCDEV_TOOLS_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV" / "Build" / "Tools"
+
+
+def _iccdev_candidates(repo_root: Path = REPO_ROOT) -> tuple[Path, Path]:
+    """Return supported local/container iccDEV checkout locations."""
+    return (
+        repo_root / "iccDEV",
+        repo_root / "iccanalyzer-lite" / "iccDEV",
+    )
+
+
+def _select_iccdev_dir(repo_root: Path = REPO_ROOT) -> Path:
+    """Prefer the repo-root upstream checkout, fall back to container layout."""
+    candidates = _iccdev_candidates(repo_root)
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return candidates[0]
+
+
+def _select_iccdev_tools_dir(repo_root: Path = REPO_ROOT) -> Path:
+    """Select an iccDEV Tools directory from the active checkout layout."""
+    candidates = _iccdev_candidates(repo_root)
+    for candidate in candidates:
+        tools_dir = candidate / "Build" / "Tools"
+        if tools_dir.is_dir():
+            return tools_dir
+    return _select_iccdev_dir(repo_root) / "Build" / "Tools"
+
+
+ICCDEV_DIR = _select_iccdev_dir()
+ICCDEV_TOOLS_DIR = _select_iccdev_tools_dir()
 TO_XML_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccToXml" / "iccToXml"
 FROM_XML_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccFromXml" / "iccFromXml"
 DUMP_SAFE_BIN = ICCDEV_TOOLS_DIR / "IccDumpProfile" / "iccDumpProfile"
@@ -50,7 +80,6 @@ DUMP_ALL_BIN = REPO_ROOT / "colorbleed_tools" / "iccDumpAll"
 DIAGNOSTIC_LOAD_BIN = REPO_ROOT / "colorbleed_tools" / "iccDiagnosticLoad"
 TEST_PROFILES = REPO_ROOT / "test-profiles"
 EXTENDED_PROFILES = REPO_ROOT / "extended-test-profiles"
-ICCDEV_DIR = REPO_ROOT / "iccanalyzer-lite" / "iccDEV"
 _VALID_ENGINES = frozenset({"v1", "v2", "auto"})
 _BATCH_TOOL_ALIASES = {
     "iccDumpProfile": "dump",
@@ -1198,8 +1227,9 @@ def _resolve_iccdev_dir() -> Path:
     """Locate the iccDEV source tree."""
     if ICCDEV_DIR.is_dir():
         return ICCDEV_DIR
+    candidates = ", ".join(str(path) for path in _iccdev_candidates())
     raise FileNotFoundError(
-        f"iccDEV not found at {ICCDEV_DIR}. "
+        f"iccDEV not found. Checked: {candidates}. "
         f"Clone it first: git clone https://github.com/InternationalColorConsortium/iccDEV.git {ICCDEV_DIR}"
     )
 
@@ -1335,44 +1365,8 @@ def _auto_select_tool_build_dir(iccdev: Path, required_tools: tuple[str, ...] = 
 
 
 def _patch_iccdev_source(iccdev: Path) -> list[str]:
-    """Apply known source patches to iccDEV tree.
-
-    1. Strip stray U+FE0F (emoji variation selector) from IccSignatureUtils.h
-    2. Patch out wxWidgets find_package if wx libs are not available
-
-    Returns list of patches applied.
-    """
-    patches: list[str] = []
-
-    # Strip U+FE0F from IccSignatureUtils.h (upstream bug, all workflows patch this)
-    sig_utils = iccdev / "IccProfLib" / "IccSignatureUtils.h"
-    if sig_utils.is_file():
-        content = sig_utils.read_bytes()
-        # U+FE0F = UTF-8 bytes \xef\xb8\x8f
-        if b"\xef\xb8\x8f" in content:
-            cleaned = content.replace(b"\xef\xb8\x8f", b"")
-            sig_utils.write_bytes(cleaned)
-            patches.append("Stripped U+FE0F from IccSignatureUtils.h")
-
-    # Patch out wxWidgets if not available (prevents cmake configure failure)
-    cmake_file = iccdev / "Build" / "Cmake" / "CMakeLists.txt"
-    if cmake_file.is_file() and not shutil.which("wx-config"):
-        content = cmake_file.read_text(errors="replace")
-        modified = False
-        for pattern in [
-            "find_package(wxWidgets",
-            "ADD_SUBDIRECTORY(Tools/wxProfileDump)",
-        ]:
-            uncommented = f"  {pattern}"
-            commented = f"#  {pattern}"
-            if uncommented in content and commented not in content:
-                content = content.replace(uncommented, commented)
-                modified = True
-        if modified:
-            cmake_file.write_text(content)
-            patches.append("Patched out wxWidgets (not installed)")
-
-    return patches
+    """Compatibility hook; MCP maintainer tools must not mutate iccDEV source."""
+    return []
 
 
 @mcp.tool()
@@ -1427,9 +1421,6 @@ async def cmake_configure(
     except FileNotFoundError as e:
         return f"[FAIL] {e}"
 
-    # Auto-patch source tree (U+FE0F strip, wxWidgets)
-    patches = _patch_iccdev_source(iccdev)
-
     # Auto-generate build dir name if not specified
     if not build_dir:
         parts = [f"build-{build_type.lower()}"]
@@ -1464,7 +1455,9 @@ async def cmake_configure(
         f"-DCMAKE_C_COMPILER={cc}",
         f"-DCMAKE_CXX_COMPILER={cxx}",
         f"-DENABLE_TOOLS={'ON' if enable_tools else 'OFF'}",
+        "-DENABLE_WXWIDGETS=OFF",
         "-DENABLE_STATIC_LIBS=ON",
+        "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF",
         "-Wno-dev",
     ]
 
@@ -1503,7 +1496,6 @@ async def cmake_configure(
     cmd.extend(extra)
 
     # Summary header
-    patch_str = "; ".join(patches) if patches else "(none needed)"
     summary = (
         f"[INFO] cmake configure\n"
         f"  Build type:    {build_type}\n"
@@ -1513,7 +1505,7 @@ async def cmake_configure(
         f"  Enable tools:  {enable_tools}\n"
         f"  Build dir:     {target_dir}\n"
         f"  Extra args:    {extra_cmake_args or '(none)'}\n"
-        f"  Source patches: {patch_str}\n"
+        f"  Source patches: disabled (using CMake flags)\n"
     )
 
     output = await _run_build(cmd, cwd=str(target_dir), timeout=120)
@@ -1848,8 +1840,6 @@ async def cmake_option_matrix(
     except FileNotFoundError as e:
         return f"[FAIL] {e}"
 
-    _patch_iccdev_source(iccdev)
-
     if compiler == "clang":
         cxx = "clang++"
         for suffix in ("", "-18", "-17", "-16"):
@@ -1878,6 +1868,8 @@ async def cmake_option_matrix(
             f"-DCMAKE_C_COMPILER={cc}",
             f"-DCMAKE_CXX_COMPILER={cxx}",
             f"-D{opt}=ON",
+            "-DENABLE_WXWIDGETS=OFF",
+            "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF",
             "-Wno-dev",
         ]
 

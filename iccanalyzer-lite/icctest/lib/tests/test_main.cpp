@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
     (void)argv;
     icctest::configureUniqueCoverageOutput("icctest-gcov-unit");
 
-    std::printf("IccTest Library — Unit Tests v2.0.0\n");
+    std::printf("IccTest Library -- Unit Tests v2.0.1\n");
     std::printf("====================================\n\n");
 
     // test_runner must run FIRST — it tests auto-registered checks from

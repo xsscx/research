@@ -3,7 +3,7 @@
  *  @brief Enhanced ICC Profile Dump -- Full v5/iccMAX MPE Element Detail
  *  @author David Hoyt
  *  @date 13 MAR 2026
- *  @version 2.0.0
+ *  @version 2.0.1
  *
  *  Based on iccDumpProfile from iccDEV by Max Derhak / Peter Wyatt.
  *  Core behavior is function-identical to upstream iccDumpProfile.
@@ -269,7 +269,7 @@ void printUsage(void)
          "  --read       Use ReadIccProfile (eager load all tags) instead of OpenIccProfile\n"
          "               (lazy load). Useful for A/B testing tag loading behavior.\n"
          "  int          Verboseness of output (1-100, default=100).\n\n");
-  printf("iccDumpAll v2.0.0 built with IccProfLib version " ICCPROFLIBVER "\n\n");
+  printf("iccDumpAll v2.0.1 built with IccProfLib version " ICCPROFLIBVER "\n\n");
 }
 
 static bool TryParseVerbosity(const char *arg, int &verbosity)
@@ -383,7 +383,7 @@ int main(int argc, char* argv[])
   icHeader* pHdr = NULL;
 
   // Precondition: nArg is argument of ICC profile filename
-  printf("iccDumpAll v2.0.0 built with IccProfLib version " ICCPROFLIBVER "\n\n");
+  printf("iccDumpAll v2.0.1 built with IccProfLib version " ICCPROFLIBVER "\n\n");
   if (!pIcc) {
     printf("Unable to parse '%s' as ICC profile!\n", argv[nArg]);
     nStatus = icValidateCriticalError;

@@ -14,7 +14,7 @@
 
 namespace icctest {
 
-static constexpr const char* ICCTEST_VERSION = "2.0.0-alpha";
+static constexpr const char* ICCTEST_VERSION = "2.0.1-alpha";
 
 static bool isRawMlucAlignmentCheck(const RegisteredCheck& check) {
     return check.id.kind == CheckID::Kind::Conformance &&

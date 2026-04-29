@@ -172,8 +172,6 @@ static const uint32_t kKnownTechSigs[] = {
     0x666C6578, 0x6D706673, 0x6D706672, 0x646D7064, // flex mpfs mpfr dmpd
     0x76696463, 0x64696774, // vidc digt
 };
-static constexpr int kKnownTechSigCount = 26;
-
 // ADGC constants
 static constexpr uint32_t kADGC_TagSig  = 0x41444743;
 static constexpr uint32_t kADGC_TypeSig = 0x61646763;
@@ -549,7 +547,7 @@ static CheckResult check_cf030_multilocalizedunicodetype_structure(const Profile
             uint32_t pairKey = (static_cast<uint32_t>(lang) << 16) | ctry;
             if (!seenPairs.insert(pairKey).second) {
                 char sig[5]; SigToChars(te.signature, sig);
-                char pairBuf[64];
+                char pairBuf[128];
                 std::snprintf(pairBuf, sizeof(pairBuf),
                               "mluc tag '%s' duplicate language/country pair (0x%04X/0x%04X) at record %u",
                               sig, lang, ctry, r);
@@ -1292,8 +1290,6 @@ static CheckResult check_cf137_multiplex_default_values_type(const ProfileView& 
 
 static CheckResult check_cf138_embedded_height_image_data_length(const ProfileView& pv) {
     if (!IsV5(pv)) return CheckResult::skip("Not a v5 profile");
-    const uint8_t *raw = pv.rawData();
-    size_t rawSize = pv.rawSize();
 
     // Check embeddedHeightImage tag data length (header=24 bytes per errata)
     for (const auto& te : pv.rawTagTable()) {
@@ -2791,8 +2787,10 @@ static CheckResult check_cf274_primary_colorant_chromaticity_sum_nonzero(const P
 
     // Each chromaticity coordinate pair should not both be zero
     std::vector<Finding> findings;
-    for (int c = 0; c < pChrom->GetSize() && c < 16; c++) {
-        icChromaticityNumber ch = *pChrom->Getxy(c);
+    icUInt32Number channelLimit = pChrom->GetSize();
+    if (channelLimit > 16) channelLimit = 16;
+    for (icUInt32Number c = 0; c < channelLimit; c++) {
+        icChromaticityNumber ch = *pChrom->Getxy(static_cast<int>(c));
         if (ch.x == 0.0 && ch.y == 0.0) {
             findings.push_back(Finding{
                 {CheckID::Kind::Conformance, 274}, Severity::MEDIUM,

@@ -3,7 +3,7 @@
  *  @brief Deep diagnostic ICC profile loader with IO tracing
  *  @author David Hoyt / Copilot
  *  @date 26 MAR 2026
- *  @version 1.0.0
+ *  @version 1.0.1
  *
  *  Traces every IO operation during profile loading to diagnose
  *  where malformed tag Read() calls fail. Designed for CFL patch
@@ -516,7 +516,7 @@ static void traceLoadTag(const char *path) {
 }
 
 static void printUsage(void) {
-    printf("IccDiagnosticLoad v1.0.0 -- Deep ICC profile loading diagnostics\n");
+    printf("IccDiagnosticLoad v1.0.1 -- Deep ICC profile loading diagnostics\n");
     printf("Built with IccProfLib " ICCPROFLIBVER "\n\n");
     printf("Usage: iccDiagnosticLoad [options] <profile.icc>\n\n");
     printf("Options:\n");
@@ -559,7 +559,7 @@ int main(int argc, char *argv[]) {
     if (!doRaw && !doCompare && !doTrace && !doDump)
         doRaw = doCompare = doTrace = true;
 
-    printf(C_BOLD "IccDiagnosticLoad v1.0.0" C_RESET "\n");
+    printf(C_BOLD "IccDiagnosticLoad v1.0.1" C_RESET "\n");
     printf("Profile: %s\n", profilePath);
 
     if (doRaw) rawAnalyze(profilePath);

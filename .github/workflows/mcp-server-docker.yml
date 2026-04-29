@@ -18,6 +18,12 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      image_version:
+        description: 'Version tag without leading v'
+        required: false
+        default: '0.1.1'
+        type: string
 
 concurrency:
   group: mcp-docker-${{ github.ref }}
@@ -58,6 +64,7 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp
           tags: |
             type=sha,prefix=
+            type=raw,value=v${{ github.event.inputs.image_version || '0.1.1' }}
             type=raw,value=dev
             type=raw,value=latest
 
@@ -74,29 +81,35 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Smoke test — MCP stdio
+      - name: Smoke test -- MCP stdio
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}
         run: |
           set -euo pipefail
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}"
           echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
             | docker run --rm -i "$IMAGE" mcp \
             | python3 -c "import sys,json; r=json.load(sys.stdin); assert r['result']['serverInfo']['name']=='icc-profile-analyzer', f'Bad: {r}'; print('[OK] MCP stdio init')"
 
-      - name: Smoke test — tool count
+      - name: Smoke test -- tool count
+        env:
+          EXPECTED_MCP_TOOLS: "28"
+          IMAGE: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           cat > /tmp/check_tools.py << 'PYEOF'
-          import sys, json
+          import os, sys, json
+          expected = int(os.environ["EXPECTED_MCP_TOOLS"])
           for line in sys.stdin:
               msg = json.loads(line)
               if 'result' in msg and 'tools' in msg['result']:
                   tools = [t['name'] for t in msg['result']['tools']]
                   print(f'[OK] {len(tools)} tools: {tools}')
-                  assert len(tools) >= 9, f'Expected 9+ tools, got {len(tools)}'
+                  assert len(tools) == expected, f'Expected {expected} tools, got {len(tools)}'
                   sys.exit(0)
           print('[FAIL] No tools/list response found')
           sys.exit(1)
@@ -105,10 +118,63 @@ jobs:
             | docker run --rm -i "$IMAGE" mcp \
             | python3 /tmp/check_tools.py
 
-      - name: Smoke test — icctest CLI in image
+      - name: Smoke test -- Web API
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cid="$(docker run -d --rm -p 127.0.0.1:8080:8080 "$IMAGE" web)"
+          trap 'docker stop "$cid" >/dev/null 2>&1 || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/api/health >/tmp/mcp-health.json; then
+              break
+            fi
+            sleep 2
+          done
+          python3 - <<'PYEOF'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/mcp-health.json").read_text())
+          assert payload.get("ok") is True, payload
+          assert payload.get("tools") == 28, payload
+          assert payload.get("defaultAnalysisEngine") in {"auto", "v1", "v2"}, payload
+          assert payload.get("defaultStructuralEngine") in {"auto", "v1", "v2"}, payload
+          print("[OK] Web API health")
+          PYEOF
+          docker exec "$cid" which xmllint
+          curl -fsS -F "file=@test-profiles/sRGB_D65_MAT.icc" \
+            http://127.0.0.1:8080/api/upload >/tmp/mcp-upload.json
+          profile_path="$(python3 - <<'PYEOF'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/mcp-upload.json").read_text())
+          assert payload.get("ok") is True, payload
+          assert payload.get("path"), payload
+          print(payload["path"])
+          PYEOF
+          )"
+          curl -fsS --get --data-urlencode "path=$profile_path" \
+            http://127.0.0.1:8080/api/security-json >/tmp/mcp-security-json.json
+          python3 - <<'PYEOF'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/mcp-security-json.json").read_text())
+          assert payload.get("ok") is True, payload
+          result = payload.get("result", {})
+          assert isinstance(result, dict), payload
+          assert "summary" in result or "stats" in result, payload
+          print("[OK] Web API upload and security-json")
+          PYEOF
+
+      - name: Smoke test -- icctest CLI in image
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           docker run --rm "$IMAGE" /app/iccanalyzer-lite/icctest/build/cli/icctest --version
           docker run --rm "$IMAGE" /app/iccanalyzer-lite/icctest/build/cli/icctest --registry >/dev/null
 
@@ -142,21 +208,29 @@ jobs:
           retention-days: 90
 
       - name: Summary
+        env:
+          IMAGE_DIGEST: ${{ steps.build-push.outputs.digest }}
+          IMAGE_REPOSITORY: ${{ github.repository }}
+          IMAGE_OWNER: ${{ github.repository_owner }}
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          safe_tags="$(printf '%s' "$IMAGE_TAGS" | tr '\n' ', ')"
           {
             echo "## MCP Server Docker Build"
             echo ""
             echo "| Property | Value |"
             echo "|----------|-------|"
-            echo "| **Image** | \`ghcr.io/${{ github.repository_owner }}/icc-profile-mcp\` |"
-            echo "| **Digest** | \`${{ steps.build-push.outputs.digest }}\` |"
-            echo "| **Tags** | $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ', ') |"
+            echo "| **Image** | \`ghcr.io/$(sanitize_line "$IMAGE_OWNER")/icc-profile-mcp\` |"
+            echo "| **Digest** | \`$(sanitize_line "$IMAGE_DIGEST")\` |"
+            echo "| **Tags** | $(sanitize_line "$safe_tags") |"
             echo ""
             echo "### Attestations"
             echo "- [OK] Build provenance (SLSA)"
             echo "- [OK] SBOM (SPDX)"
             echo ""
-            echo "Verify: \`gh attestation verify oci://ghcr.io/${{ github.repository_owner }}/icc-profile-mcp:latest -R ${{ github.repository }}\`"
+            echo "Verify: \`gh attestation verify oci://ghcr.io/$(sanitize_line "$IMAGE_OWNER")/icc-profile-mcp:latest -R $(sanitize_line "$IMAGE_REPOSITORY")\`"
           } >> $GITHUB_STEP_SUMMARY

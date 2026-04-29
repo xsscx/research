@@ -3,7 +3,7 @@
  *  @brief Sandboxed Unsafe ICC Blob Reader
  *  @author David Hoyt
  *  @date 28 FEB 2026
- *  @version 6.0.0
+ *  @version 6.0.1
  *
  *  Fork-isolated ICC->XML conversion using vanilla (unpatched) iccDEV.
  *  Each profile operation runs in a child process with resource limits.

@@ -74,7 +74,7 @@ public:
         out << "    \"tool\": {\n";
         out << "      \"driver\": {\n";
         out << "        \"name\": \"IccTest\",\n";
-        out << "        \"version\": \"2.0.0\",\n";
+        out << "        \"version\": \"2.0.1\",\n";
         out << "        \"informationUri\": \"https://github.com/xsscx/research\",\n";
         out << "        \"rules\": [\n";
 

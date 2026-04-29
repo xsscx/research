@@ -3,7 +3,7 @@
  *  @brief Diagnostic XML generation for malformed ICC profiles
  *  @author David Hoyt
  *  @date 10 MAR 2026
- *  @version 1.0.0
+ *  @version 1.0.1
  *
  *  When the iccDEV library cannot Read() a malformed ICC profile,
  *  this module generates a diagnostic XML representation from

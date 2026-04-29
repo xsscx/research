@@ -41,7 +41,7 @@
 #include <cstdio>
 
 // --- Version ---
-#define ICCANALYZER_VERSION       "3.7.0"
+#define ICCANALYZER_VERSION       "3.7.1"
 #define ICCANALYZER_VERSION_FULL  "iccAnalyzer-lite v" ICCANALYZER_VERSION
 
 // --- Heuristic return codes ---

@@ -36,6 +36,8 @@ from icc_profile_mcp import (
     _find_iccdev_tools,
     _build_tool_path,
     _patch_iccdev_source,
+    _select_iccdev_dir,
+    _select_iccdev_tools_dir,
     _sanitize_output,
     _VALID_BUILD_TYPES,
     _VALID_CMAKE_OPTIONS,
@@ -44,6 +46,7 @@ from icc_profile_mcp import (
     _VALID_GENERATORS,
     _VALID_VCPKG_SOURCES,
     ICCDEV_DIR,
+    ICCDEV_TOOLS_DIR,
     MAX_OUTPUT_BYTES,
     REPO_ROOT,
     list_test_profiles,
@@ -1034,6 +1037,7 @@ def test_valid_constants():
     T.ok("compilers", "clang" in _VALID_COMPILERS and "gcc" in _VALID_COMPILERS, "")
     T.ok("generators", "Ninja" in _VALID_GENERATORS and "Xcode" in _VALID_GENERATORS, "")
     T.ok("ICCDEV_DIR path", "iccDEV" in str(ICCDEV_DIR), "")
+    T.ok("ICCDEV_TOOLS_DIR path", "Build" in str(ICCDEV_TOOLS_DIR), str(ICCDEV_TOOLS_DIR))
 
     T.section_summary()
 
@@ -1299,9 +1303,9 @@ async def test_find_iccdev_tools():
     T.section_summary()
 
 
-def test_patch_iccdev_source():
-    """Test source patching helper."""
-    T.section("Functional: Source Patching")
+def test_iccdev_layout_and_no_source_patching():
+    """Test iccDEV layout discovery and no-source-mutation helper."""
+    T.section("Functional: iccDEV Layout")
 
     from pathlib import Path
     import tempfile
@@ -1310,25 +1314,26 @@ def test_patch_iccdev_source():
     result = _patch_iccdev_source(Path("/nonexistent/path"))
     T.ok("nonexistent dir no crash", isinstance(result, list), str(result))
 
-    # Create a mock iccDEV tree with U+FE0F byte
+    # Source patching is disabled; helper must not mutate upstream files.
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
         (td_path / "IccProfLib").mkdir()
         sig_file = td_path / "IccProfLib" / "IccSignatureUtils.h"
         sig_file.write_bytes(b"// test\xef\xb8\x8f content")
         result = _patch_iccdev_source(td_path)
-        T.ok("strips U+FE0F", any("U+FE0F" in p for p in result), str(result))
+        T.ok("source patching disabled", result == [], str(result))
         cleaned = sig_file.read_bytes()
-        T.ok("U+FE0F removed from file", b"\xef\xb8\x8f" not in cleaned, repr(cleaned))
+        T.ok("source bytes preserved", b"\xef\xb8\x8f" in cleaned, repr(cleaned))
 
-    # Already clean file -- no patch needed
     with tempfile.TemporaryDirectory() as td:
-        td_path = Path(td)
-        (td_path / "IccProfLib").mkdir()
-        sig_file = td_path / "IccProfLib" / "IccSignatureUtils.h"
-        sig_file.write_bytes(b"// clean content")
-        result = _patch_iccdev_source(td_path)
-        T.ok("clean file no patch", not any("U+FE0F" in p for p in result), str(result))
+        repo_root = Path(td)
+        root_iccdev = repo_root / "iccDEV"
+        nested_iccdev = repo_root / "iccanalyzer-lite" / "iccDEV"
+        root_iccdev.mkdir(parents=True)
+        nested_tools = nested_iccdev / "Build" / "Tools"
+        nested_tools.mkdir(parents=True)
+        T.ok("prefers root iccDEV checkout", _select_iccdev_dir(repo_root) == root_iccdev, "")
+        T.ok("finds nested container tools", _select_iccdev_tools_dir(repo_root) == nested_tools, "")
 
     T.section_summary()
 
@@ -1565,7 +1570,7 @@ async def main():
     await test_cmake_option_matrix_validation()
     test_valid_cmake_options_constant()
     await test_find_iccdev_tools()
-    test_patch_iccdev_source()
+    test_iccdev_layout_and_no_source_patching()
     test_windows_build_constants()
     await test_windows_build_validation()
 

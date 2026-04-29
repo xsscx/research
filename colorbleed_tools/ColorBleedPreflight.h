@@ -3,7 +3,7 @@
  *  @brief Pre-flight ICC profile validation before unsafe library calls
  *  @author David Hoyt
  *  @date 28 FEB 2026
- *  @version 1.0.0
+ *  @version 1.0.1
  *
  *  Pure binary-read validation of ICC profile headers and tag tables.
  *  Runs BEFORE calling any iccDEV library functions to detect malformed

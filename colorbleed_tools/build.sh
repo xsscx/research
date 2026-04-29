@@ -133,35 +133,15 @@ fi
 echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 
 # --- Step 2: Vanilla upstream (NO patches) ---
-banner "Step 2: Vanilla upstream - no CFL patches applied"
+banner "Step 2: Vanilla upstream source"
+if [ -n "$(cd "$ICCDEV_DIR" && git diff --name-only | grep -v '^Testing/' || true)" ]; then
+  echo "[FAIL] iccDEV checkout has tracked modifications; refusing no-patch build."
+  (cd "$ICCDEV_DIR" && git diff --name-only | sed 's/^/  /')
+  echo "Clean or reset $ICCDEV_DIR before rebuilding against upstream."
+  exit 1
+fi
 echo "ColorBleed tools deliberately use unpatched iccDEV to detect crashes."
-
-# Strip stray U+FE0F (emoji variation selector) from upstream source
-SIGUTILS="$ICCDEV_DIR/IccProfLib/IccSignatureUtils.h"
-if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-  sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-  echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-else
-  echo "[INFO] IccSignatureUtils.h already clean"
-fi
-
-# --- Step 3: Patch wxWidgets and LTO out ---
-banner "Step 3: Patch wxWidgets & LTO"
-CMAKELISTS="$ICCDEV_DIR/Build/Cmake/CMakeLists.txt"
-if grep -q 'find_package(wxWidgets' "$CMAKELISTS" 2>/dev/null; then
-  sed -i 's/find_package(wxWidgets/#find_package(wxWidgets/' "$CMAKELISTS"
-  sed -i 's/if(wxWidgets_FOUND)/if(FALSE AND wxWidgets_FOUND)/' "$CMAKELISTS"
-  sed -i '/wx_/ s/^/#/' "$CMAKELISTS" 2>/dev/null || true
-  echo "Patched out wxWidgets"
-else
-  echo "wxWidgets already patched"
-fi
-if grep -q 'set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)' "$CMAKELISTS" 2>/dev/null; then
-  sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' "$CMAKELISTS"
-  echo "Patched out LTO"
-else
-  echo "LTO already patched"
-fi
+echo "No CFL patches or source edits are applied."
 
 # -----------------------------------------------------
 # Build function: cmake libs + link tools for one config
@@ -222,6 +202,7 @@ build_config() {
     -DENABLE_STATIC_LIBS=ON \
     -DENABLE_SHARED_LIBS=ON \
     -DENABLE_TOOLS=OFF \
+    -DENABLE_WXWIDGETS=OFF \
     -Wno-dev 2>&1 | tail -3
 
   make -j"$NPROC" IccProfLib2-static IccXML2-static 2>&1 | tail -3
