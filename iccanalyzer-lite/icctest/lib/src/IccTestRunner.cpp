@@ -1,5 +1,5 @@
 /*
- * IccTest Library — IccTestRunner.cpp
+ * IccTest Library -- IccTestRunner.cpp
  * Main analysis orchestrator.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
@@ -16,7 +16,15 @@ namespace icctest {
 
 static constexpr const char* ICCTEST_VERSION = "2.0.0-alpha";
 
+static bool isRawMlucAlignmentCheck(const RegisteredCheck& check) {
+    return check.id.kind == CheckID::Kind::Conformance &&
+           check.id.number == 225;
+}
+
 static bool canRunWhenLibraryQuarantined(const RegisteredCheck& check) {
+    if (isRawMlucAlignmentCheck(check)) {
+        return true;
+    }
     if (check.id.kind == CheckID::Kind::Heuristic && check.id.number == 90) {
         return true;
     }
@@ -175,7 +183,7 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
 
     bool skipLibrary = opts.skipLibraryOnUB && pv.requiresLibraryQuarantine();
     if (skipLibrary) {
-        ICCTEST_WARN("UB patterns detected — skipping library-phase checks");
+        ICCTEST_WARN("UB patterns detected -- skipping library-phase checks");
         // Add info finding about skipped library checks
         result.findings.push_back(Finding{
             {CheckID::Kind::Heuristic, 0},
@@ -259,7 +267,7 @@ AnalysisResult IccTestRunner::analyze(const ProfileView& pv,
     result.stats.totalTime = std::chrono::duration_cast<std::chrono::microseconds>(
         endTime - startTime);
 
-    ICCTEST_INFO("Analysis complete: %d checks, %d findings, %lld µs",
+    ICCTEST_INFO("Analysis complete: %d checks, %d findings, %lld us",
         result.stats.checksRun, result.stats.findingsTotal,
         (long long)result.stats.totalTime.count());
 

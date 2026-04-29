@@ -238,6 +238,24 @@ def normalize_summary_text(summary: str) -> str:
     return " ".join(summary.strip().lower().split())
 
 
+def normalize_canonical_name(name: str) -> str:
+    replacements = {
+        "\u2264": "<=",
+        "\u2265": ">=",
+        "\u2192": "->",
+        "\u2013": "-",
+        "\u2014": "--",
+    }
+    normalized = name
+    for old, new in replacements.items():
+        normalized = normalized.replace(old, new)
+    return " ".join(normalized.split())
+
+
+def canonical_names_match(left: str, right: str) -> bool:
+    return normalize_canonical_name(left) == normalize_canonical_name(right)
+
+
 def is_conformance_applicability_skip(summary: str) -> bool:
     text = normalize_summary_text(summary)
     if not text:
@@ -369,6 +387,37 @@ def is_conformance_omitted_not_run_match(
     return summary.startswith("not run:")
 
 
+def is_cf225_omitted_clean_match(
+    check_id: str, v1_record: dict | None, v2_record: dict | None
+) -> bool:
+    if check_id != "CF-225":
+        return False
+    if v1_record is not None or not v2_record:
+        return False
+    if v2_record.get("normalizedStatus", "") != "ok":
+        return False
+    return int(v2_record.get("findingCount", 0)) == 0
+
+
+def cf225_coverage_improvement_reason(
+    check_id: str, v1_record: dict | None, v2_record: dict | None
+) -> str | None:
+    if check_id != "CF-225":
+        return None
+    if v1_record is not None or not v2_record:
+        return None
+    if v2_record.get("normalizedStatus", "") != "finding":
+        return None
+    if int(v2_record.get("findingCount", 0)) <= 0:
+        return None
+
+    messages = " ".join(v2_record.get("findingMessages", [])).lower()
+    if "odd string offset/length" not in messages:
+        return None
+
+    return "v2_raw_cf225_alignment_coverage_after_upstream_mluc_load_reject"
+
+
 def is_conformance_failed_load_fallback_match(
     v1_record: dict | None, v2_record: dict | None, v1_payload: dict
 ) -> bool:
@@ -410,6 +459,29 @@ def is_heuristic_omitted_clean_failed_load_match(
         return False
     profile = v2_payload.get("profile", {})
     return profile.get("libraryLoaded") is False
+
+
+def is_heuristic_odd_mluc_library_reject_match(
+    input_path: Path,
+    check_id: str,
+    v1_record: dict | None,
+    v2_record: dict | None,
+) -> bool:
+    if input_path.name != "odd_utf16_mluc.icc":
+        return False
+    if check_id not in {"H114", "H120"}:
+        return False
+    if not v1_record or not v2_record:
+        return False
+    if v1_record.get("normalizedStatus", "") != "finding":
+        return False
+    if int(v1_record.get("findingCount", 0)) <= 0:
+        return False
+    if v2_record.get("normalizedStatus", "") != "ok":
+        return False
+    if int(v2_record.get("findingCount", 0)) != 0:
+        return False
+    return normalize_summary_text(v2_record.get("summary", "")).startswith("not run:")
 
 
 def is_conformance_advisory_match(v1_record: dict | None, v2_record: dict | None) -> bool:
@@ -638,10 +710,16 @@ def compare_lane(
         fixture_coverage_reason = heuristic_fixture_coverage_improvement(
             input_path, check_id, v1_record, v2_record
         )
+        conformance_coverage_reason = cf225_coverage_improvement_reason(
+            check_id, v1_record, v2_record
+        )
 
         if fixture_coverage_reason:
             comparison = "coverage_improvement"
             normalized_reason = fixture_coverage_reason
+        elif conformance_coverage_reason:
+            comparison = "coverage_improvement"
+            normalized_reason = conformance_coverage_reason
         elif lane == "heuristic" and is_heuristic_export_omission_match(
             input_path, check_id, v1_record, v2_record
         ):
@@ -655,6 +733,11 @@ def compare_lane(
         ):
             comparison = "implicit_skip_match"
             normalized_reason = "v1_text_omitted_not_run_conformance_check"
+        elif lane == "conformance" and is_cf225_omitted_clean_match(
+            check_id, v1_record, v2_record
+        ):
+            comparison = "implicit_skip_match"
+            normalized_reason = "v1_text_omitted_clean_cf225_record"
         elif lane == "heuristic" and is_heuristic_omitted_not_run_match(
             v1_record, v2_record
         ):
@@ -665,6 +748,11 @@ def compare_lane(
         ):
             comparison = "implicit_skip_match"
             normalized_reason = "v1_text_omitted_clean_heuristic_on_failed_load"
+        elif lane == "heuristic" and is_heuristic_odd_mluc_library_reject_match(
+            input_path, check_id, v1_record, v2_record
+        ):
+            comparison = "applicability_match"
+            normalized_reason = "upstream_mluc_load_reject_blocks_v2_library_curve_checks"
         elif (
             lane == "conformance"
             and check_id == "CF-190"
@@ -701,10 +789,16 @@ def compare_lane(
 
             if v1_record and v2_record:
                 if lane == "conformance":
-                    if v1_record.get("canonicalName", "") != v2_record.get("canonicalName", ""):
+                    if not canonical_names_match(
+                        v1_record.get("canonicalName", ""),
+                        v2_record.get("canonicalName", ""),
+                    ):
                         entry_issues.append("name_mismatch")
                 elif remap_status == "exact":
-                    if v1_record.get("canonicalName", "") != v2_record.get("canonicalName", ""):
+                    if not canonical_names_match(
+                        v1_record.get("canonicalName", ""),
+                        v2_record.get("canonicalName", ""),
+                    ):
                         entry_issues.append("name_mismatch")
 
                 if lane == "heuristic":

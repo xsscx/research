@@ -35,17 +35,21 @@ bool CIccTagCurve::SetSize(icUInt32Number nSize, icTagCurveSizeInit nSizeOpt)
     return true;
   }
 
+  const size_t alloc_count = static_cast<size_t>(nSize);
+
   // Guard against nSize * sizeof(icFloatNumber) overflow (CWE-190)
-  if (nSize > SIZE_MAX / sizeof(icFloatNumber)) {
+  if (alloc_count > SIZE_MAX / sizeof(icFloatNumber)) {
     m_nSize = 0;
     m_nMaxIndex = 0;
     return false;
   }
 
+  const size_t alloc_size = alloc_count * sizeof(icFloatNumber);
+
   if (!m_Curve)
-    m_Curve = (icFloatNumber*)malloc(nSize * sizeof(icFloatNumber));
+    m_Curve = (icFloatNumber*)malloc(alloc_size);
   else
-    m_Curve = (icFloatNumber*)icRealloc(m_Curve, nSize * sizeof(icFloatNumber));
+    m_Curve = (icFloatNumber*)icRealloc(m_Curve, alloc_size);
 
   if (!m_Curve) {
     m_nSize = 0;

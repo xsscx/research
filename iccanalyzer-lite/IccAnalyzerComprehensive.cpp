@@ -413,6 +413,9 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
       ioConf.Close();
       printf("\n%s[NOT RUN] Deep conformance checks not run — profile failed to load%s\n",
              ColorWarning(), ColorReset());
+      printf("\n%s--- Raw Failed-Load Conformance Fallbacks ---%s\n\n",
+             ColorInfo(), ColorReset());
+      totalIssues += RunRawMlucStringAlignmentConformance(filename);
     }
   }
   phaseNum++;

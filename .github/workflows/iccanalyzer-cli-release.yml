@@ -6,12 +6,12 @@
 #
 # Based on: iccanalyzer-cli-test-suite.yml
 #
-# Usage: Actions → iccAnalyzer CLI Test Suite → Release →
+# Usage: Actions -> iccAnalyzer CLI Test Suite -> Release ->
 #        Run workflow (manual dispatch)
 #
 ###############################################################
 
-name: "iccAnalyzer CLI Test Suite → Release"
+name: "iccAnalyzer CLI Test Suite -> Release"
 
 permissions:
   contents: write
@@ -102,17 +102,6 @@ jobs:
             iccanalyzer-lite/iccDEV/Build/IccXML
           key: ${{ runner.os }}-iccdev-build-lite-reldbg-upstream-v2-${{ hashFiles('.github/workflows/iccanalyzer-cli-release.yml') }}
 
-      - name: Normalize upstream iccDEV source
-        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          # Strip stray U+FE0F (emoji variation selector) from upstream source
-          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
-          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-          fi
-
       - name: Build iccDEV libraries with full instrumentation
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
         env:
@@ -130,14 +119,15 @@ jobs:
 
           echo "Configuring CMake with full instrumentation..."
           rm -f CMakeCache.txt && rm -rf CMakeFiles
-          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3" \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
             -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
             -DENABLE_TOOLS=OFF \
+            -DENABLE_WXWIDGETS=OFF \
             -DICC_LOG_SAFE=ON \
             -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
@@ -397,7 +387,7 @@ jobs:
           </head>
           <body>
             <div class="container">
-              <h1>iccAnalyzer-lite CLI Test Suite — Release Report</h1>
+              <h1>iccAnalyzer-lite CLI Test Suite -- Release Report</h1>
           EOF
 
           echo "<div class='summary'>" >> $INDEX_FILE
@@ -550,6 +540,7 @@ jobs:
             - **Build Type:** Debug
             - **Sanitizers:** ASAN + UBSAN
             - **Coverage:** Enabled
+            - **Linker libs:** `-lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto`
             - **Release assets:** `iccanalyzer-lite-linux-amd64-instrumented.tar.gz`, `icctest-linux-amd64-instrumented.tar.gz`
             - **IccTest V2:** unit tests + parity verification passed
             - **Triggered by:** @${{ github.actor }}
@@ -586,7 +577,7 @@ jobs:
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
           cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY_EOF'
-          ## iccAnalyzer-lite CLI Test Suite → Release
+          ## iccAnalyzer-lite CLI Test Suite -> Release
 
           ### Results Summary
           | Metric | Value |
@@ -614,17 +605,17 @@ jobs:
 
           if [ "${grand_failed:-0}" -eq 0 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### [OK] ALL CLEAN — No sanitizer findings detected across all modes" >> $GITHUB_STEP_SUMMARY
+            echo "### [OK] ALL CLEAN -- No sanitizer findings detected across all modes" >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### [WARN] $(sanitize_line "${grand_failed:-0}") FINDING(S) — Sanitizer detections captured" >> $GITHUB_STEP_SUMMARY
+            echo "### [WARN] $(sanitize_line "${grand_failed:-0}") FINDING(S) -- Sanitizer detections captured" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Final status
         run: |
           set -euo pipefail
           echo "============================================"
-          echo "  CLI Test Suite → Release COMPLETE"
+          echo "  CLI Test Suite -> Release COMPLETE"
           echo "============================================"
           echo "Tag:      ${{ steps.package.outputs.release_tag }}"
           echo "Total:    ${grand_total:-0} tests"
@@ -636,6 +627,6 @@ jobs:
           if [ "${grand_failed:-0}" -eq 0 ]; then
             echo "STATUS: ALL CLEAN"
           else
-            echo "STATUS: ${grand_failed:-0} finding(s) — sanitizer detections, not infrastructure failures"
+            echo "STATUS: ${grand_failed:-0} finding(s) -- sanitizer detections, not infrastructure failures"
           fi
           exit 0

@@ -1,5 +1,5 @@
 #!/bin/bash
-# local_build.sh — Full local build for iccanalyzer-lite
+# local_build.sh -- Full local build for iccanalyzer-lite
 #
 # Bootstraps iccDEV (clone + cmake + make) then calls build.sh.
 # CI workflows handle iccDEV separately with 3-layer caching,
@@ -17,23 +17,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
-resolve_static_lib() {
-  local dir="$1"
-  local base="$2"
-  for candidate in \
-    "${dir}/${base}-static.a" \
-    "${dir}/${base}-staticd.a"; do
-    if [ -f "$candidate" ]; then
-      printf '%s' "$candidate"
-      return 0
-    fi
-  done
-  echo "ERROR: required static library not found in $dir for ${base}-static[ d].a" >&2
-  exit 1
-}
-
-LIB_PROF="$(resolve_static_lib "$ICCDEV_DIR/Build/IccProfLib" "libIccProfLib2")"
-LIB_XML="$(resolve_static_lib "$ICCDEV_DIR/Build/IccXML" "libIccXML2")"
 
 # --- Clean mode ---
 if [ "${1:-}" = "clean" ]; then
@@ -54,33 +37,13 @@ else
     git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
 fi
 
-# --- Step 1b: Strip stray U+FE0F (emoji variation selector) from upstream source ---
-SIGUTILS="$ICCDEV_DIR/IccProfLib/IccSignatureUtils.h"
-if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-    sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-    echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-else
-    echo "[INFO] IccSignatureUtils.h already clean"
+if [ -n "$(cd "$ICCDEV_DIR" && git diff --name-only | grep -v '^Testing/' || true)" ]; then
+    echo "ERROR: iccDEV checkout has tracked modifications; refusing no-patch build."
+    (cd "$ICCDEV_DIR" && git diff --name-only | sed 's/^/  /')
+    exit 1
 fi
 
-# --- Step 2: Build iccDEV static libraries ---
-if [ -f "$LIB_PROF" ] && [ -f "$LIB_XML" ]; then
-    echo "[INFO] iccDEV libs already built (skip)"
-else
-    echo "[INFO] Building iccDEV static libraries..."
-    cd "$ICCDEV_DIR/Build"
-    CXX=clang++ cmake Cmake \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DENABLE_TOOLS=OFF \
-        -DICC_LOG_SAFE=ON \
-        -DICC_TRACE_NAN_ENABLED=ON \
-        -Wno-dev
-    make -j"$(nproc)"
-    cd "$SCRIPT_DIR"
-    echo "[OK] iccDEV libs built:"
-    ls -lh "$LIB_PROF" "$LIB_XML"
-fi
-
-# --- Step 3: Build iccanalyzer-lite ---
+# --- Step 2: Build iccanalyzer-lite ---
+# build.sh configures missing iccDEV static libraries with matching flags.
 echo ""
 exec "$SCRIPT_DIR/build.sh"

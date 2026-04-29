@@ -3479,6 +3479,7 @@ static int RunCF224_MlucReservedFieldZero(CIccProfile *pIcc, const char *filenam
 // ═══════════════════════════════════════════════════════════════════════════════
 
 static int RunCF225_MlucStringAlignment(CIccProfile *pIcc, const char *filename) {
+  (void)pIcc;
   int issues = 0;
   int checked = 0;
 
@@ -3490,16 +3491,15 @@ static int RunCF225_MlucStringAlignment(CIccProfile *pIcc, const char *filename)
     return 0;
   }
 
-  RawFileHandle fh = OpenRawFile(filename);
-  if (!fh) return 0;
+  RawProfileContext ctx = OpenRawProfileContext(filename);
+  if (!ctx.valid) return 0;
 
   static const uint32_t kMlucTypeSig = 0x6D6C7563;
   std::vector<icUInt32Number> visitedOffsets;
 
-  for (auto it = pIcc->m_Tags.begin(); it != pIcc->m_Tags.end(); ++it) {
-    IccTagEntry *e = &(*it);
-    icUInt32Number tagOffset = e->TagInfo.offset;
-    icUInt32Number tagSize = e->TagInfo.size;
+  for (const auto &te : ctx.tags) {
+    icUInt32Number tagOffset = te.offset;
+    icUInt32Number tagSize = te.size;
 
     bool dup = false;
     for (size_t v = 0; v < visitedOffsets.size(); v++)
@@ -3507,10 +3507,14 @@ static int RunCF225_MlucStringAlignment(CIccProfile *pIcc, const char *filename)
     if (dup) continue;
     visitedOffsets.push_back(tagOffset);
 
-    if (tagSize < 16 || (long)(tagOffset + 16) > fh.fileSize) continue;
+    if (tagSize < 16) continue;
+    if (static_cast<size_t>(tagOffset) > ctx.fileSize() ||
+        ctx.fileSize() - static_cast<size_t>(tagOffset) < 16) {
+      continue;
+    }
 
     uint8_t hdr[16];
-    if (!fh.Seek((long)tagOffset) || !fh.ReadBytes(hdr, 16)) continue;
+    if (!ctx.ReadAt(tagOffset, hdr, sizeof(hdr))) continue;
     if (ReadU32BE(hdr) != kMlucTypeSig) continue;
 
     uint32_t recordCount = ReadU32BE(hdr + 8);
@@ -3519,18 +3523,19 @@ static int RunCF225_MlucStringAlignment(CIccProfile *pIcc, const char *filename)
 
     uint64_t recordsEnd = 16ULL + (uint64_t)recordCount * 12ULL;
     if (recordsEnd > tagSize) continue;
-
-    size_t recBytes = recordCount * 12;
-    std::vector<uint8_t> recBuf(recBytes);
-    if (!fh.Seek((long)(tagOffset + 16)) || !fh.ReadBytes(recBuf.data(), recBytes))
+    if (static_cast<size_t>(tagOffset) > ctx.fileSize() ||
+        ctx.fileSize() - static_cast<size_t>(tagOffset) < recordsEnd) {
       continue;
+    }
 
     checked++;
     char sigBuf[5];
-    SigToChars((uint32_t)e->TagInfo.sig, sigBuf);
+    SigToChars(te.sig, sigBuf);
 
     for (uint32_t r = 0; r < recordCount; r++) {
-      const uint8_t *rec = recBuf.data() + r * 12;
+      uint8_t rec[12];
+      size_t recOffset = static_cast<size_t>(tagOffset) + 16 + static_cast<size_t>(r) * 12;
+      if (!ctx.ReadAt(recOffset, rec, sizeof(rec))) break;
       uint32_t strLen = ReadU32BE(rec + 4);
       uint32_t strOff = ReadU32BE(rec + 8);
 
@@ -3561,6 +3566,22 @@ static int RunCF225_MlucStringAlignment(CIccProfile *pIcc, const char *filename)
     printf("         No mluc tags with records found\n");
 
   return issues;
+}
+
+
+int RunRawMlucStringAlignmentConformance(const char *filename) {
+  auto &hc = HeuristicCollector::instance();
+  int r = 0;
+
+  hc.begin(1225, "CF-225: mluc Name Record String Alignment");
+  r = RunCF225_MlucStringAlignment(nullptr, filename);
+  if (r < 0) {
+    hc.skip(nullptr);
+    return 0;
+  }
+  if (r > 0) hc.warn("%d non-conformance(s)", r);
+  hc.end("Conformant");
+  return r;
 }
 
 

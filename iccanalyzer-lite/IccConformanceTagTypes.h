@@ -16,5 +16,6 @@
 class CIccProfile;
 
 int RunTagTypeConformance(CIccProfile *pIcc, const char *filename);
+int RunRawMlucStringAlignmentConformance(const char *filename);
 
 #endif // ICC_CONFORMANCE_TAG_TYPES_H

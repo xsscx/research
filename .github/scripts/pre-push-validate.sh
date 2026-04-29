@@ -62,7 +62,7 @@ for wf in "${WORKFLOWS[@]}"; do
     echo -e "  ${YELLOW}[SKIP] $wf not found${NC}"
     continue
   fi
-  WF_LIBS=$(grep -oE -- '\-l[a-zA-Z0-9_]+' "$wf" | sort -u)
+  WF_LIBS=$(grep -oE -- '\-l[a-zA-Z0-9_]+' "$wf" | sort -u || true)
   MISSING=""
   for lib in $BUILDSH_LIBS; do
     if ! echo "$WF_LIBS" | grep -qF -- "$lib"; then
@@ -105,7 +105,7 @@ fi
 
 for wf in "${WORKFLOWS[@]}"; do
   if [ ! -f "$wf" ]; then continue; fi
-  WF_SOURCES=$(grep -oE 'Icc[A-Za-z0-9_]+\.cpp' "$wf" | sort -u)
+  WF_SOURCES=$(grep -oE 'Icc[A-Za-z0-9_]+\.cpp' "$wf" | sort -u || true)
   WF_COUNT=$(echo "$WF_SOURCES" | wc -l | tr -d ' ')
   if [ "$WF_COUNT" -lt "$((BUILDSH_COUNT - 2))" ]; then
     echo -e "  ${YELLOW}[WARN] $(basename $wf): $WF_COUNT sources (build.sh has $BUILDSH_COUNT)${NC}"
