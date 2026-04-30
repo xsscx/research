@@ -102,7 +102,7 @@ jobs:
           set -euo pipefail
           cd iccanalyzer-lite/iccDEV
           git reset --hard HEAD
-          git clean -fd
+          git clean -fdx
           dirty="$(git diff --name-only | grep -v '^Testing/' || true)"
           if [ -n "$dirty" ]; then
             echo "[FAIL] iccDEV dependency still has tracked modifications"
@@ -129,6 +129,7 @@ jobs:
           cd iccanalyzer-lite/iccDEV/Build
           rm -f CMakeCache.txt
           rm -rf CMakeFiles
+          rm -f IccProfLib/libIccProfLib2-static*.a IccXML/libIccXML2-static*.a
           cmake Cmake \
             -DCMAKE_C_COMPILER=clang-18 \
             -DCMAKE_CXX_COMPILER=clang++-18 \
@@ -142,7 +143,7 @@ jobs:
             -DENABLE_TOOLS=OFF \
             -DICC_LOG_SAFE=ON \
             -Wno-dev
-          make -j$(nproc)
+          make -j"$(nproc)"
           ls -lh IccProfLib/libIccProfLib2-static*.a IccXML/libIccXML2-static*.a
 
       - name: Build iccanalyzer-lite
@@ -163,6 +164,23 @@ jobs:
           ICCDEV_DIR="../iccanalyzer-lite/iccDEV"
           ICCDEV_BUILD="${ICCDEV_DIR}/Build"
 
+          resolve_static_lib() {
+            local dir="$1"
+            local base="$2"
+            local candidate=""
+            for candidate in "${dir}/${base}-staticd.a" "${dir}/${base}-static.a"; do
+              if [ -f "$candidate" ]; then
+                printf '%s' "$candidate"
+                return 0
+              fi
+            done
+            echo "[FAIL] missing ${base} static library in ${dir}" >&2
+            return 1
+          }
+
+          ICC_XML_LIB="$(resolve_static_lib "${ICCDEV_BUILD}/IccXML" libIccXML2)"
+          ICC_PROF_LIB="$(resolve_static_lib "${ICCDEV_BUILD}/IccProfLib" libIccProfLib2)"
+
           for tool in IccToXml IccFromXml; do
             src_dir="${ICCDEV_DIR}/IccXML/CmdLine/${tool}"
             echo "Building ${tool}_unsafe..."
@@ -174,8 +192,8 @@ jobs:
               -I /usr/include/libxml2 \
               "${src_dir}/${tool}.cpp" \
               -Wl,--whole-archive \
-              $(ls "${ICCDEV_BUILD}"/IccXML/libIccXML2-static*.a) \
-              $(ls "${ICCDEV_BUILD}"/IccProfLib/libIccProfLib2-static*.a) \
+              "${ICC_XML_LIB}" \
+              "${ICC_PROF_LIB}" \
               -Wl,--no-whole-archive \
               -lxml2 -ltiff -lz -lpng -ljpeg \
               -o "${tool}_unsafe"

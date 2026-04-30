@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   build:
-    name: "iccanalyzer-lite • clang • Debug"
+    name: "iccanalyzer-lite - clang - Debug"
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -119,6 +119,21 @@ jobs:
             echo "**Commit:**   $(git log --oneline -1)"
           } >> $GITHUB_STEP_SUMMARY
 
+      - name: Clean iccDEV source checkout
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/iccDEV
+          git reset --hard HEAD
+          git clean -fdx
+          dirty="$(git diff --name-only | grep -v '^Testing/' || true)"
+          if [ -n "$dirty" ]; then
+            echo "[FAIL] iccDEV dependency still has tracked modifications"
+            printf '%s\n' "$dirty" | sed 's/^/  /'
+            exit 1
+          fi
+
       - name: Cache iccDEV build
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev-build
@@ -127,17 +142,6 @@ jobs:
             iccanalyzer-lite/iccDEV/Build/IccProfLib
             iccanalyzer-lite/iccDEV/Build/IccXML
           key: ${{ runner.os }}-iccdev-build-lite-debug-upstream-v2-${{ hashFiles('.github/workflows/iccanalyzer-lite.yml') }}
-
-      - name: Normalize upstream iccDEV source
-        if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          # Strip stray U+FE0F (emoji variation selector) from upstream source
-          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
-          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-          fi
 
       - name: Build iccDEV libraries
         if: steps.cache-iccdev-build.outputs.cache-hit != 'true'
@@ -160,7 +164,6 @@ jobs:
           rm -rf CMakeFiles
 
           echo "Configuring CMake with instrumentation..."
-          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_C_COMPILER=clang-18 \
             -DCMAKE_CXX_COMPILER=clang++-18 \
@@ -169,7 +172,9 @@ jobs:
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
             -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
             -DENABLE_TOOLS=OFF \
+            -DENABLE_WXWIDGETS=OFF \
             -DICC_LOG_SAFE=ON \
             -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev

@@ -103,7 +103,7 @@ jobs:
 
           cd iccanalyzer-lite/iccDEV
           git reset --hard HEAD
-          git clean -fd
+          git clean -fdx
           if [ -n "$(git diff --name-only)" ]; then
             echo "[FAIL] iccDEV dependency still has tracked modifications"
             git diff --name-only | sed 's/^/  /'

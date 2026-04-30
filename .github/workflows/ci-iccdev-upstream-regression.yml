@@ -81,7 +81,7 @@ jobs:
           unset GITHUB_TOKEN || true
           cd iccDEV
           git reset --hard HEAD
-          git clean -fd
+          git clean -fdx
           dirty="$(git diff --name-only | grep -v '^Testing/' || true)"
           if [ -n "$dirty" ]; then
             echo "[FAIL] iccDEV checkout has tracked modifications"

@@ -90,14 +90,19 @@ jobs:
           cd iccDEV && git config --add safe.directory "$PWD"
           echo "iccDEV commit: $(git log --oneline -1)"
 
-      - name: Normalize upstream iccDEV source
+      - name: Clean iccDEV source checkout
+        env:
+          BASH_ENV: /dev/null
         run: |
           set -euo pipefail
-          # Strip stray U+FE0F (emoji variation selector) from upstream source
-          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
-          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
+          cd iccanalyzer-lite/iccDEV
+          git reset --hard HEAD
+          git clean -fdx
+          dirty="$(git diff --name-only | grep -v '^Testing/' || true)"
+          if [ -n "$dirty" ]; then
+            echo "[FAIL] iccDEV dependency still has tracked modifications"
+            printf '%s\n' "$dirty" | sed 's/^/  /'
+            exit 1
           fi
 
       - name: Build iccDEV libraries (Debug + ASan + UBSan + Coverage)
@@ -110,10 +115,6 @@ jobs:
           cd iccanalyzer-lite/iccDEV/Build
           find . -mindepth 1 -maxdepth 1 ! -name Cmake ! -name XCode -exec rm -rf {} +
 
-          # Disable LTO — produces bitcode archives incompatible with sanitizer linking
-          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' Cmake/CMakeLists.txt
-
-          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-18 \
@@ -121,8 +122,10 @@ jobs:
             -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -DDEBUG -ftrapv -fstack-protector-strong" \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -DDEBUG -ftrapv -fstack-protector-strong -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
             -DENABLE_TOOLS=OFF \
             -DENABLE_STATIC_LIBS=ON \
+            -DENABLE_WXWIDGETS=OFF \
             -DICC_LOG_SAFE=ON \
             -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
@@ -548,7 +551,7 @@ jobs:
           echo "Found $PROFRAW_COUNT .profraw files"
 
           if [ "$PROFRAW_COUNT" -eq 0 ]; then
-            echo "::warning::No profraw files generated — coverage instrumentation may have failed"
+            echo "::warning::No profraw files generated -- coverage instrumentation may have failed"
             echo "No coverage data available" > results/coverage/coverage-summary.txt
             exit 0
           fi
@@ -880,11 +883,11 @@ jobs:
               asan_count=$(grep -E "ERROR: AddressSanitizer|ERROR: LeakSanitizer" "$stderr_file" 2>/dev/null | wc -l || true)
               local ubsan_count
               # Filter out known false positives and upstream library noise:
-              #   "unsigned integer overflow" — defined C/C++ behavior (wrapping)
-              #   "implicit conversion" — truncation/sign-change sanitizer
-              #   "negation of .* cannot be represented" — unsigned negation
-              #   IccMD5.cpp — RFC 1321 intentional 32-bit wrapping arithmetic
-              #   iccDEV/ paths — upstream library UBSAN (float-cast-overflow,
+              #   "unsigned integer overflow" -- defined C/C++ behavior (wrapping)
+              #   "implicit conversion" -- truncation/sign-change sanitizer
+              #   "negation of .* cannot be represented" -- unsigned negation
+              #   IccMD5.cpp -- RFC 1321 intentional 32-bit wrapping arithmetic
+              #   iccDEV/ paths -- upstream library UBSAN (float-cast-overflow,
               #     NaN-to-int in IccMpeBasic/IccMatrixMath/IccCAM/IccTagLut,
               #     div-by-zero in IccCAM/IccProfile). Not actionable by us.
               ubsan_count=$(grep "runtime error:" "$stderr_file" 2>/dev/null \
@@ -931,7 +934,7 @@ jobs:
             log_result "xt:${name}" "$EC" "$OUTDIR/${name}_xt.log"
             # Count generated text files
             txt_count=$(find "$OUTDIR" -name "${name}_*.txt" 2>/dev/null | wc -l)
-            echo "    → $txt_count text file(s) exported"
+            echo "    -> $txt_count text file(s) exported"
           done
 
           echo ""
@@ -954,7 +957,7 @@ jobs:
             log_result "cube:${name}" "$EC" "$OUTDIR/${name}_cube.log"
             if [ -f "$cube_out" ]; then
               sz=$(stat -c%s "$cube_out" 2>/dev/null || echo "?")
-              echo "    → $cube_out ($sz bytes)"
+              echo "    -> $cube_out ($sz bytes)"
             fi
           done
 
@@ -975,7 +978,7 @@ jobs:
             log_result "from-cube:${name}" "$EC" "$OUTDIR/${name}_fromcube.log"
             if [ -f "$icc_out" ]; then
               sz=$(stat -c%s "$icc_out" 2>/dev/null || echo "?")
-              echo "    → $icc_out ($sz bytes)"
+              echo "    -> $icc_out ($sz bytes)"
               # Validate the generated ICC profile with -a
               EC2=0
               timeout 30 "$BINARY" -a "$icc_out" > "$OUTDIR/${name}_validate.log" 2>&1 || EC2=$?
@@ -984,8 +987,8 @@ jobs:
           done
 
           echo ""
-          echo "=== .cube Round-Trip (import → export → compare) ==="
-          # Full round-trip: .cube → ICC → .cube → compare
+          echo "=== .cube Round-Trip (import -> export -> compare) ==="
+          # Full round-trip: .cube -> ICC -> .cube -> compare
           RT_CUBE="cfl/icc_fromcube_fuzzer_seed_corpus/identity_2x2x2.cube"
           if [ -f "$RT_CUBE" ]; then
             RT_ICC="$OUTDIR/rt_identity.icc"
@@ -1003,7 +1006,7 @@ jobs:
           fi
 
           echo ""
-          echo "=== Text Import Round-Trip (-xt → edit → -it) ==="
+          echo "=== Text Import Round-Trip (-xt -> edit -> -it) ==="
           # Extract text, then re-import unchanged to verify round-trip
           RT_PROFILE="test-profiles/sRGB_D65_MAT.icc"
           if [ -f "$RT_PROFILE" ]; then
@@ -1030,7 +1033,7 @@ jobs:
           EC=0
           timeout 10 "$BINARY" -xt "/tmp/nonexistent.icc" "$OUTDIR/bad_" > "$OUTDIR/err_xt.log" 2>&1 || EC=$?
           log_result "err-xt-nonexistent" "$EC" "$OUTDIR/err_xt.log"
-          [ "$EC" -ne 0 ] && echo "    → correctly rejected (exit=$EC)"
+          [ "$EC" -ne 0 ] && echo "    -> correctly rejected (exit=$EC)"
 
           # Bad .cube
           echo "TITLE bad" > "$OUTDIR/bad.cube"
@@ -1038,7 +1041,7 @@ jobs:
           EC=0
           timeout 10 "$BINARY" -from-cube "$OUTDIR/bad.cube" "$OUTDIR/bad_out.icc" > "$OUTDIR/err_cube.log" 2>&1 || EC=$?
           log_result "err-bad-cube" "$EC" "$OUTDIR/err_cube.log"
-          [ "$EC" -ne 0 ] && echo "    → correctly rejected (exit=$EC)"
+          [ "$EC" -ne 0 ] && echo "    -> correctly rejected (exit=$EC)"
 
           echo ""
           echo "==========================================="
@@ -1056,8 +1059,8 @@ jobs:
             echo "| Text export (\`-xt\`) | ${#XT_PROFILES[@]} profiles tested |"
             echo "| Cube export (\`-cube\`) | ${#CUBE_PROFILES[@]} profiles tested |"
             echo "| Cube import (\`-from-cube\`) | ${#CUBE_SEEDS[@]} cube files tested |"
-            echo "| Cube round-trip | import → export → compare |"
-            echo "| Text round-trip | extract → import unchanged |"
+            echo "| Cube round-trip | import -> export -> compare |"
+            echo "| Text round-trip | extract -> import unchanged |"
             echo "| Error handling | bad inputs correctly rejected |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -1148,9 +1151,9 @@ jobs:
           GRAND_FINDINGS="${GRAND_FINDINGS:-0}"
 
           if [ "$SANITIZER_HITS" -gt 0 ]; then
-            echo "[WARN] **$(sanitize_line "${SANITIZER_HITS}") SANITIZER HIT(S)** detected — review sanitizer-logs/ in the artifact" >> $GITHUB_STEP_SUMMARY
+            echo "[WARN] **$(sanitize_line "${SANITIZER_HITS}") SANITIZER HIT(S)** detected -- review sanitizer-logs/ in the artifact" >> $GITHUB_STEP_SUMMARY
           elif [ "$GRAND_FINDINGS" -gt 0 ]; then
-            echo "**$(sanitize_line "${GRAND_FINDINGS}") FINDING(S)** — non-sanitizer detections (validation errors, exit codes)" >> $GITHUB_STEP_SUMMARY
+            echo "**$(sanitize_line "${GRAND_FINDINGS}") FINDING(S)** -- non-sanitizer detections (validation errors, exit codes)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "[OK] **ALL CLEAN** — No sanitizer findings across all modes" >> $GITHUB_STEP_SUMMARY
+            echo "[OK] **ALL CLEAN** -- No sanitizer findings across all modes" >> $GITHUB_STEP_SUMMARY
           fi
