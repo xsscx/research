@@ -10,7 +10,7 @@
 #
 # Origin: Post-merge audit of PR #657 / Issue #667.
 #         Review gap: reproducer-only approval without diff read.
-#         This workflow is the mechanical fix — catches functional
+#         This workflow is the mechanical fix -- catches functional
 #         regressions independent of review depth.
 #
 # Hardening:
@@ -55,6 +55,11 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      - name: Checkout research repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          persist-credentials: false
+
       - name: Install build dependencies
         uses: ./.github/actions/setup-build-env
         with:
@@ -75,11 +80,7 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           cd iccDEV
-          # Disable GUI tool for headless CI
-          sed -i 's/add_subdirectory(Tools\/wxProfileDump)/#add_subdirectory(Tools\/wxProfileDump)/' \
-            Build/Cmake/CMakeLists.txt 2>/dev/null || true
           mkdir -p Build && cd Build
-          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-18 \
@@ -88,6 +89,8 @@ jobs:
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0 -g3 -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
             -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+            -DENABLE_WXWIDGETS=OFF \
             -Wno-dev
           make -j"$(nproc)" 2>&1 | tail -10
           echo "Build complete"
@@ -101,7 +104,10 @@ jobs:
           set -euo pipefail
           cd iccDEV
           for d in Build/Tools/*/; do
-            [ -d "$d" ] && export PATH="$(realpath "$d"):$PATH"
+            if [ -d "$d" ]; then
+              tool_dir="$(realpath "$d")"
+              export PATH="${tool_dir}:$PATH"
+            fi
           done
           cd Testing
           timeout 300 sh CreateAllProfiles.sh 2>&1 | tail -5 || true
@@ -156,21 +162,21 @@ jobs:
             fi
 
             if [ $rc -eq 0 ] && [ $asan_hit -eq 0 ] && [ $output_ok -eq 1 ]; then
-              echo "  ✅ [$id] $desc (exit $rc)"
+              echo "  [OK] [$id] $desc (exit $rc)"
               PASS=$((PASS + 1))
             elif [ -n "$known_reason" ]; then
               local reason=""
               [ $rc -ne 0 ] && reason="exit=$rc "
               [ $asan_hit -eq 1 ] && reason="${reason}ASAN "
               [ $output_ok -eq 0 ] && reason="${reason}no-output "
-              echo "  ⚠️  [$id] $desc (${reason}— KNOWN: $known_reason)"
+              echo "  [WARN] [$id] $desc (${reason} -- KNOWN: $known_reason)"
               EXPECTED_FAIL=$((EXPECTED_FAIL + 1))
             else
               local reason=""
               [ $rc -ne 0 ] && reason="exit=$rc "
               [ $asan_hit -eq 1 ] && reason="${reason}ASAN "
               [ $output_ok -eq 0 ] && reason="${reason}no-output "
-              echo "  ❌ [$id] $desc (${reason})"
+              echo "  [FAIL] [$id] $desc (${reason})"
               [ $asan_hit -eq 1 ] && sed -n '1,20p' "$stderr_file"
               UNEXPECTED_FAIL=$((UNEXPECTED_FAIL + 1))
             fi
@@ -183,7 +189,7 @@ jobs:
           echo ""
 
           #---------------------------------------------------------
-          # 1. iccDumpProfile — basic profile inspection
+          # 1. iccDumpProfile -- basic profile inspection
           #---------------------------------------------------------
           echo "--- iccDumpProfile ---"
           DUMP="$TOOLS/IccDumpProfile/iccDumpProfile"
@@ -196,7 +202,7 @@ jobs:
           echo ""
 
           #---------------------------------------------------------
-          # 2. iccToXml + iccFromXml — round-trip
+          # 2. iccToXml + iccFromXml -- round-trip
           #---------------------------------------------------------
           echo "--- iccToXml / iccFromXml ---"
           TOXML="$TOOLS/IccToXml/iccToXml"
@@ -212,7 +218,7 @@ jobs:
           echo ""
 
           #---------------------------------------------------------
-          # 3. iccRoundTrip — color transform validation
+          # 3. iccRoundTrip -- color transform validation
           #---------------------------------------------------------
           echo "--- iccRoundTrip ---"
           ROUNDTRIP="$TOOLS/IccRoundTrip/iccRoundTrip"
@@ -223,7 +229,7 @@ jobs:
           echo ""
 
           #---------------------------------------------------------
-          # 4. iccFromCube — LUT file parsing
+          # 4. iccFromCube -- LUT file parsing
           #   Seeds from CFL corpus: .cube (3D LUT) and .lut (legacy)
           #---------------------------------------------------------
           echo "--- iccFromCube ---"
@@ -265,12 +271,12 @@ jobs:
           done
 
           if [ "$CUBE_N" -eq 0 ]; then
-            echo "  ⏭  No .cube/.lut files found — skipping"
+            echo "  [SKIP] No .cube/.lut files found -- skipping"
           fi
           echo ""
 
           #---------------------------------------------------------
-          # 5. iccApplyProfiles — CMM application
+          # 5. iccApplyProfiles -- CMM application
           #---------------------------------------------------------
           echo "--- iccApplyProfiles ---"
           APPLY="$TOOLS/IccApplyProfiles/iccApplyProfiles"
@@ -320,14 +326,14 @@ jobs:
               0 0 0 1 1 \
               "$T/Display/sRGB_D65_MAT.icc" 1
           else
-            echo "  ⏭  Failed to create test TIFF — skipping"
+            echo "  [SKIP] Failed to create test TIFF -- skipping"
           fi
           echo ""
 
           #---------------------------------------------------------
-          # 6. iccV5DspObsToV4Dsp — THE PR #657 REGRESSION TARGET
+          # 6. iccV5DspObsToV4Dsp -- THE PR #657 REGRESSION TARGET
           #    This is the primary gap this workflow addresses.
-          #    Tests all Display × PCC combinations.
+          #    Tests all Display x PCC combinations.
           #---------------------------------------------------------
           echo "--- iccV5DspObsToV4Dsp (PR #657 regression target) ---"
           V5DSP="$TOOLS/IccV5DspObsToV4Dsp/iccV5DspObsToV4Dsp"
@@ -336,7 +342,7 @@ jobs:
           REC2020="$T/Display/Rec2020rgbSpectral.icc"
           LCD="$T/Display/LCDDisplay.icc"
 
-          # PCC profiles — these are the exact profiles that expose #657
+          # PCC profiles -- these are the exact profiles that expose #657
           PCC_D65_MAT="$T/PCC/Spec400_10_700-D65_2deg-MAT.icc"
           PCC_D93_MAT="$T/PCC/Spec400_10_700-D93_2deg-MAT.icc"
           PCC_D50_10="$T/PCC/Spec400_10_700-D50_10deg-MAT.icc"
@@ -344,7 +350,7 @@ jobs:
           PCC_LAB="$T/PCC/Lab_float-D50_2deg.icc"
           PCC_XYZ="$T/PCC/XYZ_float-D65_2deg-MAT.icc"
 
-          # Rec2020 × 6 PCC combinations
+          # Rec2020 x 6 PCC combinations
           KNOWN="PR #657 Begin() regression (upstream Issue #667)"
           run_test "v5dsp-01" "Rec2020 + D65 2deg MAT" "$OUT/v5_rec_d65.icc" \
             "$V5DSP" "$REC2020" "$PCC_D65_MAT" "$OUT/v5_rec_d65.icc"
@@ -364,7 +370,7 @@ jobs:
           run_test "v5dsp-06" "Rec2020 + XYZ D65" "$OUT/v5_rec_xyz.icc" \
             "$V5DSP" "$REC2020" "$PCC_XYZ" "$OUT/v5_rec_xyz.icc"
 
-          # LCD × 3 PCC combinations
+          # LCD x 3 PCC combinations
           KNOWN="PR #657 Begin() regression (upstream Issue #667)"
           run_test "v5dsp-07" "LCD + D65 2deg MAT" "$OUT/v5_lcd_d65.icc" \
             "$V5DSP" "$LCD" "$PCC_D65_MAT" "$OUT/v5_lcd_d65.icc"
@@ -377,7 +383,7 @@ jobs:
           echo ""
 
           #---------------------------------------------------------
-          # 7. iccApplyToLink — profile linking
+          # 7. iccApplyToLink -- profile linking
           #---------------------------------------------------------
           echo "--- iccApplyToLink ---"
           LINK="$TOOLS/IccApplyToLink/iccApplyToLink"
@@ -387,7 +393,7 @@ jobs:
           #   option: 0=v4-16bit 1=v5 (when link_type=0)
           #   first_transform: 0=use first profile's transform
           #   interp: 0=linear 1=tetrahedral
-          run_test "link-01" "Link sRGB → sRGB 500lx" "$OUT/link_srgb.icc" \
+          run_test "link-01" "Link sRGB -> sRGB 500lx" "$OUT/link_srgb.icc" \
             "$LINK" "$OUT/link_srgb.icc" 0 33 0 \
             "sRGB_link" 0.0 1.0 0 1 \
             "$T/Display/sRGB_D65_MAT.icc" 1 \
@@ -395,7 +401,7 @@ jobs:
           echo ""
 
           #---------------------------------------------------------
-          # 8. iccTiffDump — TIFF metadata inspection
+          # 8. iccTiffDump -- TIFF metadata inspection
           #---------------------------------------------------------
           echo "--- iccTiffDump ---"
           TIFFDUMP="$TOOLS/IccTiffDump/iccTiffDump"
@@ -404,7 +410,7 @@ jobs:
             run_test "tiffdump-01" "TiffDump: $(basename "$TIFF_FILE")" "-" \
               "$TIFFDUMP" "$TIFF_FILE"
           else
-            echo "  ⏭  No TIFF files found — skipping"
+            echo "  [SKIP] No TIFF files found -- skipping"
           fi
           echo ""
 
@@ -458,7 +464,7 @@ jobs:
             echo ""
             echo "### Key Regression Targets"
             echo ""
-            echo "- **iccV5DspObsToV4Dsp**: 9 tests (Rec2020 × 6 PCC + LCD × 3 PCC)"
+            echo "- **iccV5DspObsToV4Dsp**: 9 tests (Rec2020 x 6 PCC + LCD x 3 PCC)"
             echo "  - These profiles expose the PR #657 copy-paste \`Begin()\` regression"
             echo "  - Tests verify exit 0 AND output file created (positive functional test)"
             echo "- **iccToXml/iccFromXml**: Round-trip serialization"

@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   unit-tests:
-    name: "Unit Tests • clang • ASAN+UBSAN"
+    name: "Unit Tests - clang - ASAN+UBSAN"
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -123,16 +123,6 @@ jobs:
             echo "**Commit:**   $(git log --oneline -1)"
           } >> $GITHUB_STEP_SUMMARY
 
-      - name: Normalize upstream iccDEV source
-        run: |
-          set -euo pipefail
-          # Strip stray U+FE0F (emoji variation selector) from upstream source
-          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
-          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-          fi
-
       - name: Build iccDEV libraries
         env:
           BASH_ENV: /dev/null
@@ -150,7 +140,6 @@ jobs:
           find . -mindepth 1 -maxdepth 1 ! -name Cmake ! -name XCode -exec rm -rf {} +
 
           echo "Configuring CMake with instrumentation..."
-          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_C_COMPILER=clang-18 \
             -DCMAKE_CXX_COMPILER=clang++-18 \
@@ -159,7 +148,9 @@ jobs:
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
             -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
             -DENABLE_TOOLS=OFF \
+            -DENABLE_WXWIDGETS=OFF \
             -DICC_LOG_SAFE=ON \
             -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
@@ -347,7 +338,7 @@ jobs:
             echo ""
             echo "### icctest V2 CLI Exercise"
             echo ""
-            echo "✅ All CLI modes exercised: -a, --json, --sarif, --registry, --version, --no-sandbox, --min-severity"
+            echo "[OK] All CLI modes exercised: -a, --json, --sarif, --registry, --version, --no-sandbox, --min-severity"
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Synthesize test corpus
@@ -516,11 +507,11 @@ jobs:
               echo "| Failed | ${failures} |"
               echo ""
               if [ "${failures}" = "0" ]; then
-                echo "✅ All tests passed"
+                echo "[OK] All tests passed"
               else
-                echo "❌ ${failures} test(s) failed"
+                echo "[FAIL] ${failures} test(s) failed"
               fi
             else
-              echo "⚠️ Test results file not found"
+              echo "[WARN] Test results file not found"
             fi
           } >> $GITHUB_STEP_SUMMARY

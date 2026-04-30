@@ -175,16 +175,6 @@ jobs:
           git config --add safe.directory "$PWD"
           echo "iccDEV commit: $(git log --oneline -1)"
 
-      - name: Normalize upstream iccDEV source
-        run: |
-          set -euo pipefail
-          # Strip stray U+FE0F (emoji variation selector) from upstream source
-          SIGUTILS="iccanalyzer-lite/iccDEV/IccProfLib/IccSignatureUtils.h"
-          if grep -qP '\xef\xb8\x8f' "$SIGUTILS" 2>/dev/null; then
-            sed -i 's/\xef\xb8\x8f//g' "$SIGUTILS"
-            echo "[OK] Stripped stray U+FE0F from IccSignatureUtils.h"
-          fi
-
       - name: Cache iccDEV build
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev-build
@@ -208,7 +198,6 @@ jobs:
           cd iccanalyzer-lite/iccDEV/Build
 
           echo "Building iccDEV libraries (cache miss)..."
-          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_C_COMPILER=clang-18 \
             -DCMAKE_CXX_COMPILER=clang++-18 \
@@ -217,7 +206,9 @@ jobs:
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fsanitize=integer -fsanitize-recover=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -fprofile-instr-generate -fcoverage-mapping -O0 -g3 -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
             -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined -fprofile-instr-generate" \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
             -DENABLE_TOOLS=OFF \
+            -DENABLE_WXWIDGETS=OFF \
             -DICC_LOG_SAFE=ON \
             -DICC_TRACE_NAN_ENABLED=ON \
             -Wno-dev
