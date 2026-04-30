@@ -74,6 +74,21 @@ jobs:
           ref: ${{ env.ICCDEV_REF }}
           path: iccDEV
 
+      - name: "Clean iccDEV source checkout"
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd iccDEV
+          git reset --hard HEAD
+          git clean -fd
+          dirty="$(git diff --name-only | grep -v '^Testing/' || true)"
+          if [ -n "$dirty" ]; then
+            echo "[FAIL] iccDEV checkout has tracked modifications"
+            printf '%s\n' "$dirty" | sed 's/^/  /'
+            exit 1
+          fi
+
       - name: "Build iccDEV (Debug + ASAN + UBSAN)"
         run: |
           set -euo pipefail

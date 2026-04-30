@@ -123,6 +123,21 @@ jobs:
             echo "**Commit:**   $(git log --oneline -1)"
           } >> $GITHUB_STEP_SUMMARY
 
+      - name: Clean iccDEV source checkout
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/iccDEV
+          git reset --hard HEAD
+          git clean -fd
+          dirty="$(git diff --name-only | grep -v '^Testing/' || true)"
+          if [ -n "$dirty" ]; then
+            echo "[FAIL] iccDEV dependency still has tracked modifications"
+            printf '%s\n' "$dirty" | sed 's/^/  /'
+            exit 1
+          fi
+
       - name: Build iccDEV libraries
         env:
           BASH_ENV: /dev/null

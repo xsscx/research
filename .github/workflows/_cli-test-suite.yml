@@ -175,6 +175,21 @@ jobs:
           git config --add safe.directory "$PWD"
           echo "iccDEV commit: $(git log --oneline -1)"
 
+      - name: Clean iccDEV source checkout
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          cd iccanalyzer-lite/iccDEV
+          git reset --hard HEAD
+          git clean -fd
+          dirty="$(git diff --name-only | grep -v '^Testing/' || true)"
+          if [ -n "$dirty" ]; then
+            echo "[FAIL] iccDEV dependency still has tracked modifications"
+            printf '%s\n' "$dirty" | sed 's/^/  /'
+            exit 1
+          fi
+
       - name: Cache iccDEV build
         uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
         id: cache-iccdev-build
