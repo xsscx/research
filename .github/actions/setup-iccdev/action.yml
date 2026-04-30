@@ -89,35 +89,24 @@ runs:
         echo "commit-sha=${SHA}" >> "$GITHUB_OUTPUT"
         echo "[OK] Cloned iccDEV at ${SHA}"
 
-    - name: Normalize iccDEV source
+    - name: Clean iccDEV source checkout
       shell: bash
       env:
         BASH_ENV: /dev/null
         ICCDEV_PATH: ${{ inputs.path }}
-        DISABLE_WX: ${{ inputs.disable-wxwidgets }}
       run: |
         set -euo pipefail
         git config --global credential.helper ""
         unset GITHUB_TOKEN || true
 
-        SIGUTILS="${ICCDEV_PATH}/IccProfLib/IccSignatureUtils.h"
-        if [ -f "${SIGUTILS}" ]; then
-          sed -i 's/\xef\xb8\x8f//g' "${SIGUTILS}"
-          echo "[OK] Stripped U+FE0F from IccSignatureUtils.h"
-        fi
-
-        CMAKE_FILE="${ICCDEV_PATH}/Build/Cmake/CMakeLists.txt"
-        if [ -f "${CMAKE_FILE}" ]; then
-          sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' "${CMAKE_FILE}"
-          echo "[OK] Removed debug postfix"
-        fi
-
-        if [ "${DISABLE_WX}" = "true" ] && [ -f "${CMAKE_FILE}" ]; then
-          sed -i 's/^  find_package(wxWidgets/#  find_package(wxWidgets/' "${CMAKE_FILE}"
-          sed -i 's/^      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/#      ADD_SUBDIRECTORY(Tools\/wxProfileDump)/' "${CMAKE_FILE}"
-          sed -i 's/^    message(FATAL_ERROR "wxWidgets not found/#    message(FATAL_ERROR "wxWidgets not found/' "${CMAKE_FILE}"
-          sed -i 's/set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)/' "${CMAKE_FILE}"
-          echo "[OK] Disabled wxWidgets"
+        cd "${ICCDEV_PATH}"
+        git reset --hard HEAD
+        git clean -fdx
+        dirty="$(git diff --name-only | grep -v '^Testing/' || true)"
+        if [ -n "$dirty" ]; then
+          echo "[FAIL] iccDEV checkout has tracked modifications"
+          printf '%s\n' "$dirty" | sed 's/^/  /'
+          exit 1
         fi
 
     - name: Apply CFL patches
@@ -164,6 +153,7 @@ runs:
         BUILD_TYPE: ${{ inputs.build-type }}
         SANITIZER_PRESET: ${{ inputs.sanitizers }}
         ENABLE_TOOLS: ${{ inputs.enable-tools }}
+        DISABLE_WX: ${{ inputs.disable-wxwidgets }}
       run: |
         set -euo pipefail
         git config --global credential.helper ""
@@ -176,6 +166,10 @@ runs:
         TOOLS_FLAG="-DENABLE_TOOLS=OFF"
         if [ "${ENABLE_TOOLS}" = "true" ]; then
           TOOLS_FLAG="-DENABLE_TOOLS=ON -DENABLE_SHARED_LIBS=ON -DENABLE_STATIC_LIBS=ON"
+        fi
+        WX_FLAG="-DENABLE_WXWIDGETS=ON"
+        if [ "${DISABLE_WX}" = "true" ]; then
+          WX_FLAG="-DENABLE_WXWIDGETS=OFF"
         fi
 
         case "${SANITIZER_PRESET}" in
@@ -220,7 +214,9 @@ runs:
           -DCMAKE_CXX_FLAGS="${SANITIZER_CXX_FLAGS}" \
           -DCMAKE_EXE_LINKER_FLAGS="${SANITIZER_LINK_FLAGS}" \
           -DCMAKE_SHARED_LINKER_FLAGS="${SANITIZER_LINK_FLAGS}" \
+          -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
           ${TOOLS_FLAG} \
+          ${WX_FLAG} \
           ${CMAKE_EXTRA} \
           -Wno-dev
 
