@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   scan-build:
-    name: scan-build — ${{ matrix.target }}
+    name: scan-build - ${{ matrix.target }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -47,7 +47,7 @@ jobs:
         uses: ./.github/actions/setup-build-env
         with:
           preset: 'analyzer'
-          extra-packages: 'ca-certificates libjpeg-dev'
+          extra-packages: 'ca-certificates libjpeg-dev clang-tools-18'
 
       - name: Cache iccDEV repository
         id: cache-iccdev
@@ -87,11 +87,16 @@ jobs:
             make -j$(nproc) IccProfLib2 IccXML2 IccJSON2
           fi
 
-      - name: scan-build — iccanalyzer-lite
+      - name: scan-build - iccanalyzer-lite
         if: matrix.target == 'iccanalyzer-lite'
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          SCAN_BUILD="$(command -v scan-build || command -v scan-build-18 || true)"
+          if [ -z "$SCAN_BUILD" ]; then
+            echo "::error::scan-build is not installed; install clang-tools or clang-tools-18"
+            exit 127
+          fi
           cd iccanalyzer-lite
           mkdir -p /tmp/scan-build-results
 
@@ -121,7 +126,7 @@ jobs:
           for src in $SRCS; do
             echo "::group::scan-build: $src"
             TOTAL=$((TOTAL + 1))
-            scan-build --status-bugs $CHECKERS \
+            "$SCAN_BUILD" --status-bugs $CHECKERS \
               -o /tmp/scan-build-results \
               clang++-18 -std=c++17 -DICCANALYZER_LITE $INCLUDES \
               -c "$src" -o /dev/null 2>&1 || BUGS=$((BUGS + 1))
@@ -154,11 +159,16 @@ jobs:
             exit 1
           fi
 
-      - name: scan-build — colorbleed_tools
+      - name: scan-build - colorbleed_tools
         if: matrix.target == 'colorbleed_tools'
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
+          SCAN_BUILD="$(command -v scan-build || command -v scan-build-18 || true)"
+          if [ -z "$SCAN_BUILD" ]; then
+            echo "::error::scan-build is not installed; install clang-tools or clang-tools-18"
+            exit 127
+          fi
           cd colorbleed_tools
           mkdir -p /tmp/scan-build-results
 
@@ -179,7 +189,7 @@ jobs:
           for src in $SRCS; do
             echo "::group::scan-build: $src"
             TOTAL=$((TOTAL + 1))
-            scan-build --status-bugs $CHECKERS \
+            "$SCAN_BUILD" --status-bugs $CHECKERS \
               -o /tmp/scan-build-results \
               clang++-18 -std=c++17 $INCLUDES \
               -c "$src" -o /dev/null 2>&1 || BUGS=$((BUGS + 1))
