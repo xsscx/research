@@ -84,7 +84,7 @@ jobs:
             rm -f CMakeCache.txt && rm -rf CMakeFiles
             sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
             cmake Cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLS=OFF
-            make -j$(nproc) IccProfLib2 IccXML2 IccJSON2
+            make -j"$(nproc)" IccProfLib2 IccXML2 IccJSON2
           fi
 
       - name: scan-build - iccanalyzer-lite
@@ -100,35 +100,43 @@ jobs:
           cd iccanalyzer-lite
           mkdir -p /tmp/scan-build-results
 
-          CHECKERS="\
-            -enable-checker alpha.security.ArrayBound \
-            -enable-checker alpha.security.ArrayBoundV2 \
-            -enable-checker alpha.security.MallocOverflow \
-            -enable-checker alpha.security.ReturnPtrRange \
-            -enable-checker alpha.security.taint.TaintPropagation \
-            -enable-checker security.insecureAPI.UncheckedReturn \
-            -enable-checker security.insecureAPI.getpw \
-            -enable-checker security.insecureAPI.gets \
-            -enable-checker security.insecureAPI.mkstemp \
-            -enable-checker security.insecureAPI.mktemp \
-            -enable-checker security.insecureAPI.vfork \
-            -enable-checker security.FloatLoopCounter \
-            -enable-checker deadcode.DeadStores \
-            -enable-checker core.NullDereference \
-            -enable-checker core.DivideZero"
+          CHECKERS=(
+            -enable-checker alpha.security.ArrayBound
+            -enable-checker alpha.security.ArrayBoundV2
+            -enable-checker alpha.security.MallocOverflow
+            -enable-checker alpha.security.ReturnPtrRange
+            -enable-checker alpha.security.taint.TaintPropagation
+            -enable-checker security.insecureAPI.UncheckedReturn
+            -enable-checker security.insecureAPI.getpw
+            -enable-checker security.insecureAPI.gets
+            -enable-checker security.insecureAPI.mkstemp
+            -enable-checker security.insecureAPI.mktemp
+            -enable-checker security.insecureAPI.vfork
+            -enable-checker security.FloatLoopCounter
+            -enable-checker deadcode.DeadStores
+            -enable-checker core.NullDereference
+            -enable-checker core.DivideZero
+          )
 
-          INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
+          INCLUDES=(
+            -I../iccDEV/IccProfLib
+            -I../iccDEV/IccXML/IccLibXML
+            -I../iccDEV/IccJSON/IccLibJSON
+            -I../iccDEV/Build/IccProfLib
+            -I../iccDEV/Build/IccXML
+            -I/usr/include/libxml2
+          )
 
-          SRCS=$(ls *.cpp)
+          mapfile -t SRCS < <(find . -maxdepth 1 -type f -name '*.cpp' -printf '%f\n' | sort)
           TOTAL=0
           BUGS=0
 
-          for src in $SRCS; do
+          for src in "${SRCS[@]}"; do
             echo "::group::scan-build: $src"
             TOTAL=$((TOTAL + 1))
-            "$SCAN_BUILD" --status-bugs $CHECKERS \
+            "$SCAN_BUILD" --status-bugs "${CHECKERS[@]}" \
               -o /tmp/scan-build-results \
-              clang++-18 -std=c++17 -DICCANALYZER_LITE $INCLUDES \
+              clang++-18 -std=c++17 -DICCANALYZER_LITE "${INCLUDES[@]}" \
               -c "$src" -o /dev/null 2>&1 || BUGS=$((BUGS + 1))
             echo "::endgroup::"
           done
@@ -139,7 +147,7 @@ jobs:
             echo "|--------|-------|"
             echo "| Modules scanned | $TOTAL |"
             echo "| Modules with bugs | $BUGS |"
-          } >> $GITHUB_STEP_SUMMARY
+          } >> "$GITHUB_STEP_SUMMARY"
 
           # Copy HTML reports if any exist, always generate summary
           mkdir -p scan-build-report
@@ -151,7 +159,7 @@ jobs:
             echo "Modules scanned: $TOTAL"
             echo "Modules with bugs: $BUGS"
             echo ""
-            for src in $SRCS; do echo "  [OK] $src"; done
+            for src in "${SRCS[@]}"; do echo "  [OK] $src"; done
           } > scan-build-report/summary.txt
 
           if [ "$BUGS" -gt 0 ]; then
@@ -172,26 +180,34 @@ jobs:
           cd colorbleed_tools
           mkdir -p /tmp/scan-build-results
 
-          CHECKERS="\
-            -enable-checker alpha.security.ArrayBound \
-            -enable-checker alpha.security.ArrayBoundV2 \
-            -enable-checker security.insecureAPI.UncheckedReturn \
-            -enable-checker deadcode.DeadStores \
-            -enable-checker core.NullDereference \
-            -enable-checker core.DivideZero"
+          CHECKERS=(
+            -enable-checker alpha.security.ArrayBound
+            -enable-checker alpha.security.ArrayBoundV2
+            -enable-checker security.insecureAPI.UncheckedReturn
+            -enable-checker deadcode.DeadStores
+            -enable-checker core.NullDereference
+            -enable-checker core.DivideZero
+          )
 
-          INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
+          INCLUDES=(
+            -I../iccDEV/IccProfLib
+            -I../iccDEV/IccXML/IccLibXML
+            -I../iccDEV/IccJSON/IccLibJSON
+            -I../iccDEV/Build/IccProfLib
+            -I../iccDEV/Build/IccXML
+            -I/usr/include/libxml2
+          )
 
-          SRCS=$(ls *.cpp)
+          mapfile -t SRCS < <(find . -maxdepth 1 -type f -name '*.cpp' -printf '%f\n' | sort)
           TOTAL=0
           BUGS=0
 
-          for src in $SRCS; do
+          for src in "${SRCS[@]}"; do
             echo "::group::scan-build: $src"
             TOTAL=$((TOTAL + 1))
-            "$SCAN_BUILD" --status-bugs $CHECKERS \
+            "$SCAN_BUILD" --status-bugs "${CHECKERS[@]}" \
               -o /tmp/scan-build-results \
-              clang++-18 -std=c++17 $INCLUDES \
+              clang++-18 -std=c++17 "${INCLUDES[@]}" \
               -c "$src" -o /dev/null 2>&1 || BUGS=$((BUGS + 1))
             echo "::endgroup::"
           done
@@ -202,7 +218,7 @@ jobs:
             echo "|--------|-------|"
             echo "| Modules scanned | $TOTAL |"
             echo "| Modules with bugs | $BUGS |"
-          } >> $GITHUB_STEP_SUMMARY
+          } >> "$GITHUB_STEP_SUMMARY"
 
           mkdir -p scan-build-report
           cp -r /tmp/scan-build-results/* scan-build-report/ 2>/dev/null || true
@@ -213,7 +229,7 @@ jobs:
             echo "Modules scanned: $TOTAL"
             echo "Modules with bugs: $BUGS"
             echo ""
-            for src in $SRCS; do echo "  [OK] $src"; done
+            for src in "${SRCS[@]}"; do echo "  [OK] $src"; done
           } > scan-build-report/summary.txt
 
           if [ "$BUGS" -gt 0 ]; then
