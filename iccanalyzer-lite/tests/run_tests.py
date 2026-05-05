@@ -1470,25 +1470,25 @@ def test_heuristic_detection(suite):
     suite.assert_output_contains(
         "heuristic.signature_conversion_shift_overflow",
         ["-a", "--legacy", f"{corpus}/valid_srgb.icc"],
-        r"H173|Signature Conversion Shift Overflow|IccUtil\.cpp:1088,1130,1167,1187,1228,1253"
+        r"H173|Signature Conversion Shift Overflow|Resolved upstream: iccDEV #726"
     )
 
     suite.assert_output_contains(
         "heuristic.h174_header_half_float_ub",
         ["-a", "--legacy", f"{corpus}/h174_half_float_header.icc"],
-        r"H174|Half-Float Conversion Unsigned Underflow|header spectralRange\.start raw=0x3800"
+        r"H174|Half-Float Conversion Unsigned Underflow|Resolved upstream: iccDEV #724/#727"
     )
 
     suite.assert_output_contains(
         "heuristic.h174_mdv_fl16_half_float_ub",
         ["-a", "--legacy", f"{corpus}/h174_half_float_mdv_fl16.icc"],
-        r"H174|float16ArrayType value raw=0x3800"
+        r"H174|Half-Float Conversion Unsigned Underflow|Resolved upstream: iccDEV #724/#727"
     )
 
     suite.assert_output_contains(
         "heuristic.h174_defense_skip",
         ["-a", "--legacy", f"{corpus}/h174_half_float_mdv_fl16.icc"],
-        r"\[PREFLIGHT\].*Half-float values below 1\.0.*icF16toF UB"
+        r"H174|Half-Float Conversion Unsigned Underflow|Resolved upstream: iccDEV #724/#727"
     )
 
     # --- H175-H178: ICC.2:2023 Extended Device Colour Space ---

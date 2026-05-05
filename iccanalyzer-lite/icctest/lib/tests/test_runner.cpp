@@ -2269,10 +2269,10 @@ static void test_embedding_tech_note_regressions() {
     {
         auto result = analyze_corpus_heuristics(corpusDir / "valid_srgb.icc", {173});
         ASSERT_EQ(1, result.stats.checksRun);
-        expect_heuristic_result(result, 173, CheckResult::Status::FINDINGS, 1);
+        expect_heuristic_result(result, 173, CheckResult::Status::SKIP, 0);
         const auto* h173 = find_per_check(result, CheckID::Kind::Heuristic, 173);
         ASSERT_TRUE(h173 != nullptr);
-        ASSERT_TRUE(h173->result.findings[0].message.find("IccUtil.cpp:1088,1130,1167,1187,1228,1253") != std::string::npos);
+        ASSERT_TRUE(h173->result.summary.find("Resolved upstream") != std::string::npos);
     }
 
     {
@@ -2288,9 +2288,9 @@ static void test_embedding_tech_note_regressions() {
 
         const auto* h174 = find_per_check(result, CheckID::Kind::Heuristic, 174);
         ASSERT_TRUE(h174 != nullptr);
-        ASSERT_EQ(CheckResult::Status::FINDINGS, h174->result.status);
-        ASSERT_TRUE(h174->result.findings[0].message.find("IccUtil.cpp:665,677") != std::string::npos);
-        ASSERT_TRUE(find_per_check(result, CheckID::Kind::Conformance, 81) == nullptr);
+        ASSERT_EQ(CheckResult::Status::SKIP, h174->result.status);
+        ASSERT_TRUE(h174->result.summary.find("Resolved upstream") != std::string::npos);
+        expect_conformance_result(result, 81, CheckResult::Status::FINDINGS, 1);
     }
 
     {
@@ -2305,10 +2305,10 @@ static void test_embedding_tech_note_regressions() {
         IccTestRunner runner;
         auto result = runner.analyze(corpusDir / "h174_half_float_header.icc", opts);
 
-        expect_heuristic_result(result, 174, CheckResult::Status::FINDINGS, 2);
+        expect_heuristic_result(result, 174, CheckResult::Status::SKIP, 0);
         const auto* h174 = find_per_check(result, CheckID::Kind::Heuristic, 174);
         ASSERT_TRUE(h174 != nullptr);
-        ASSERT_TRUE(h174->result.findings[0].message.find("IccUtil.cpp:665,677") != std::string::npos);
+        ASSERT_TRUE(h174->result.summary.find("Resolved upstream") != std::string::npos);
         expect_conformance_result(result, 81, CheckResult::Status::FINDINGS, 1);
     }
 

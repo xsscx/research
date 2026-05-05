@@ -288,13 +288,6 @@ int HeuristicAnalyze(const char *filename, const char *fingerprint_db)
       printf("=======================================================================\n\n");
     }
   }
-  if (DetectH174HalfFloatConversionUB(filename) && IsLibraryUBDefenseEnabled()) {
-    skipLibraryPhase = true;
-    printf("=======================================================================\n");
-    printf("[PREFLIGHT] Half-float values below 1.0 will trigger upstream icF16toF UB\n");
-    printf("            Library-API heuristics skipped to avoid unsafe parse/validate of user input\n");
-    printf("=======================================================================\n\n");
-  }
   if (DetectH101MPEElementOffsetSizeOverflow(filename)) {
     heuristicCount += RunHeuristic_H101_MPESubElementChannelContinuityRaw(filename);
     if (IsLibraryUBDefenseEnabled()) {

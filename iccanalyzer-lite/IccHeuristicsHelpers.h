@@ -52,18 +52,16 @@ inline uint16_t ReadU16BE(const unsigned char *buf) {
           static_cast<uint16_t>(buf[1]);
 }
 
-// The upstream iccDEV icF16toF() implementation rebiases the exponent using
-// unsigned arithmetic. Any non-zero half-float with exponent < 15 (that is,
-// any magnitude below 1.0, including subnormals) trips UBSAN even though the
-// numerical result is otherwise representable.
+// Historical iccDEV icF16toF() implementations rebiased the exponent using
+// unsigned arithmetic. Current upstream fixed that path; this predicate is
+// retained only for archived corpus fingerprinting helpers.
 inline bool HalfFloatTriggersIccUtilUB(icFloat16Number raw) {
   icUInt16Number mag = static_cast<icUInt16Number>(raw & 0x7FFFu);
   icUInt16Number exp = static_cast<icUInt16Number>((mag >> 10) & 0x1Fu);
   return mag != 0 && exp < 15;
 }
 
-// Analyzer-owned half-float conversion that preserves the upstream semantics
-// without the unsigned-wrap UBSAN hit in iccDEV IccUtil.cpp:665/677.
+// Analyzer-owned half-float conversion that preserves upstream semantics.
 inline icFloatNumber SafeF16ToF(icFloat16Number num) {
   icUInt16Number signBits = static_cast<icUInt16Number>(num & 0x8000u);
   icUInt16Number expBits = static_cast<icUInt16Number>((num >> 10) & 0x1Fu);

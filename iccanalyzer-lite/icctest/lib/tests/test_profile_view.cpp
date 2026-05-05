@@ -369,8 +369,8 @@ static void test_ub_prescan_half_float_header_allows_load() {
     }
 }
 
-static void test_ub_prescan_half_float_mdv_skip_load() {
-    std::printf("  test_ub_prescan_half_float_mdv_skip_load...\n");
+static void test_ub_prescan_half_float_mdv_keeps_library_loaded() {
+    std::printf("  test_ub_prescan_half_float_mdv_keeps_library_loaded...\n");
     auto corpusProfile = resolve_repo_file("tests/corpus/h174_half_float_mdv_fl16.icc");
     if (corpusProfile.empty()) {
         std::printf("    (skipped — H174 mdv/fl16 corpus profile not found)\n");
@@ -380,11 +380,9 @@ static void test_ub_prescan_half_float_mdv_skip_load() {
     auto pv = ProfileView::open(corpusProfile, true);
     ASSERT_TRUE(pv.has_value());
     if (pv) {
-        ASSERT_TRUE(pv->hasKnownUBPatterns());
-        ASSERT_TRUE(pv->requiresLibraryQuarantine());
-        ASSERT_FALSE(pv->libraryLoaded());
-        ASSERT_GT(pv->ubPatternDescriptions().size(), 0u);
-        ASSERT_TRUE(pv->ubPatternDescriptions()[0].find("float16ArrayType") != std::string::npos);
+        ASSERT_FALSE(pv->hasKnownUBPatterns());
+        ASSERT_FALSE(pv->requiresLibraryQuarantine());
+        ASSERT_TRUE(pv->libraryLoaded());
     }
 }
 
@@ -603,7 +601,7 @@ void test_profile_view() {
     test_ub_prescan_clean();
     test_ub_prescan_embedded_icc5_skip_load();
     test_ub_prescan_half_float_header_allows_load();
-    test_ub_prescan_half_float_mdv_skip_load();
+    test_ub_prescan_half_float_mdv_keeps_library_loaded();
     test_ub_prescan_namedcolor_keeps_library_loaded();
     test_ub_prescan_mpe_offset_wrap_skip_load();
     test_ub_prescan_mpe_offset_wrap_no_quarantine_attempts_load();

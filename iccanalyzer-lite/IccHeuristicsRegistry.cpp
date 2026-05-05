@@ -212,15 +212,15 @@ const HeuristicEntry kHeuristicRegistry[] = {
   {170, "Copy Constructor UB via Null PCS", "Sec.7.2.7","CWE-843", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   {171, "Curve Param Count vs FuncType Validation", "Sec.10.15/Sec.10.23","CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::CRITICAL},
   {172, "LUT Matrix Coefficient Validation", "ICC TN v4 Matrix Entries","CWE-682", nullptr, HeuristicPhase::DATA_VALIDATION, HeuristicSeverity::MEDIUM},
-  {173, "Signature Conversion Shift Overflow", "IccUtil.cpp:1088/1130/1167/1187/1228/1253","CWE-190", "CVE-2026-34549,GHSA-v7qh-f995-p2fq", HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
-  {174, "Half-Float Conversion Unsigned Underflow", "IccUtil.cpp:665/677, IccIO.cpp:328","CWE-190", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
+  {173, "Signature Conversion Shift Overflow", "Resolved upstream in iccDEV #726","CWE-190", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
+  {174, "Half-Float Conversion Unsigned Underflow", "Resolved upstream in iccDEV #724/#727","CWE-190", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
   {175, "Device Spectral Colour Space Range Requirement", "ICC.2:2023 Sec.7.2.8 amend","CWE-20", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
   {176, "deviceSpectralRangeTag Validation", "ICC.2:2023 Sec.9.2.x","CWE-20/CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
   {177, "devicePccTag Structure Validation", "ICC.2:2023 Sec.9.2.x+1","CWE-20/CWE-476", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::HIGH},
   {178, "spectralRangeType Encoding Validation", "ICC.2:2023 Sec.10.2.w","CWE-20/CWE-125", nullptr, HeuristicPhase::RAW_POST, HeuristicSeverity::MEDIUM},
-  {179, "AddXform Create NULL Guard Detection", "IccCmm.cpp:8292 PR#708","CWE-476", nullptr, HeuristicPhase::EXPLOIT_GAP, HeuristicSeverity::HIGH},
+  {179, "AddXform Create NULL Guard Detection", "Resolved upstream in iccDEV #893","CWE-476", nullptr, HeuristicPhase::EXPLOIT_GAP, HeuristicSeverity::HIGH},
   {180, "XML Round-Trip Fidelity", "ICC.1-2022-05 Sec.10","CWE-345", nullptr, HeuristicPhase::XML_SAFETY, HeuristicSeverity::HIGH},
-  {181, "JSON Bitmask Complement CWE-681", "IccProfileJson.cpp:85 #809","CWE-681", nullptr, HeuristicPhase::EXPLOIT_GAP, HeuristicSeverity::HIGH},
+  {181, "JSON Bitmask Complement CWE-681", "Resolved upstream in iccDEV #812/#813","CWE-681", nullptr, HeuristicPhase::EXPLOIT_GAP, HeuristicSeverity::HIGH},
 };
 
 const size_t kHeuristicRegistrySize = sizeof(kHeuristicRegistry) / sizeof(kHeuristicRegistry[0]);

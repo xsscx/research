@@ -228,11 +228,6 @@ static int32_t readS32BE(const uint8_t* p) {
     return static_cast<int32_t>(readU32BE(p));
 }
 
-struct HalfFloatUBScanResult {
-    int hitCount = 0;
-    std::vector<std::string> examples;
-};
-
 struct MpePositionUBScanResult {
     int hitCount = 0;
     std::vector<std::string> examples;
@@ -260,19 +255,6 @@ static std::string sigStrLocal(uint32_t sig) {
         if (c < 0x20 || c > 0x7E) buf[i] = '?';
     }
     return std::string(buf);
-}
-
-static bool halfFloatTriggersIccUtilUB(uint16_t raw) {
-    uint16_t mag = static_cast<uint16_t>(raw & 0x7FFFu);
-    uint16_t exp = static_cast<uint16_t>((mag >> 10) & 0x1Fu);
-    return mag != 0 && exp < 15;
-}
-
-static void recordHalfFloatUBHit(HalfFloatUBScanResult& result, std::string example) {
-    result.hitCount++;
-    if (result.examples.size() < 4) {
-        result.examples.push_back(std::move(example));
-    }
 }
 
 static void recordMpePositionUBHit(MpePositionUBScanResult& result, std::string example) {
@@ -535,41 +517,6 @@ static SpectralMpeUBScanResult scanSpectralMpeIccUtilUB(
     return result;
 }
 
-static HalfFloatUBScanResult scanHalfFloatIccUtilUB(const uint8_t* data,
-                                                    size_t len,
-                                                    const std::vector<RawTagEntry>& tags) {
-    HalfFloatUBScanResult result;
-    if (!data || len < 132) return result;
-
-    for (const auto& tag : tags) {
-        if (tag.size < 8 || static_cast<uint64_t>(tag.offset) + tag.size > len) continue;
-
-        size_t scanSize = tag.size;
-        if (scanSize > 4096) scanSize = 4096;
-        if (static_cast<uint64_t>(tag.offset) + scanSize > len) {
-            scanSize = len - tag.offset;
-        }
-        if (scanSize < 8) continue;
-
-        uint32_t typeSig = readU32BE(data + tag.offset);
-        std::string tagName = sigStrLocal(tag.signature);
-
-        if (typeSig == 0x666C3136 && scanSize >= 10) { // 'fl16'
-            for (size_t off = 8; off + 1 < scanSize; off += 2) {
-                uint16_t raw = readU16BE(data + tag.offset + off);
-                if (!halfFloatTriggersIccUtilUB(raw)) continue;
-                char msg[256];
-                std::snprintf(msg, sizeof(msg),
-                              "tag '%s' float16ArrayType value raw=0x%04X at tag+0x%zX",
-                              tagName.c_str(), raw, off);
-                recordHalfFloatUBHit(result, msg);
-            }
-        }
-    }
-
-    return result;
-}
-
 void ProfileView::parseHeader() {
     if (m_rawData.size() < 128) return;
     const uint8_t* h = m_rawData.data();
@@ -819,20 +766,6 @@ void ProfileView::runUBPreScan() {
                     }
                 }
             }
-        }
-    }
-
-    HalfFloatUBScanResult halfFloatResult =
-        scanHalfFloatIccUtilUB(m_rawData.data(), m_rawData.size(), m_rawTags);
-    if (halfFloatResult.hitCount > 0) {
-        m_ubPatternsDetected = true;
-        m_libraryLoadUnsafe = true;
-        for (const auto& example : halfFloatResult.examples) {
-            std::string desc =
-                "Half-float value triggers icF16toF unsigned-wrap UB (IccUtil.cpp:665/677): " +
-                example;
-            m_ubDescriptions.push_back(desc);
-            ICCTEST_WARN("UB pre-scan: %s", desc.c_str());
         }
     }
 

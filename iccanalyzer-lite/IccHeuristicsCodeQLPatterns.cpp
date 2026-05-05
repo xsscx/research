@@ -881,299 +881,39 @@ int RunHeuristic_H161_StackAddressEscapeDeepApply(RawProfileContext &ctx)
 
 // ---------------------------------------------------------------------------
 // H173: Signature Conversion Shift Overflow (CWE-190)
-// iccDEV IccUtil.cpp icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr()
-// iterate FourCC signatures with:
-//   for(i=0;i<4;i++) { c=(icUInt8Number)(sig>>24); pBuf[i]=c; sig<<=8; }
-// When sig > 0x00FFFFFF, the first sig<<=8 produces a value exceeding
-// UINT32_MAX, triggering UBSAN "left shift of N by 8 places cannot be
-// represented in type 'icUInt32Number'".
-// Every valid ICC signature with a non-zero first byte triggers this.
-// Detection: count header fields + tag sigs + tag type sigs where sig > 0x00FFFFFF.
+// Historical iccDEV IccUtil.cpp signature-formatting helpers used to iterate
+// FourCC signatures with "sig <<= 8", which triggered UBSAN for normal
+// non-zero first bytes. Upstream iccDEV fixed this in #726, and the analyzer
+// links safe overrides for older static libraries, so profile content alone is
+// no longer evidence of runtime UB.
 // ---------------------------------------------------------------------------
 int RunHeuristic_H173_SigConversionShiftOverflow(RawProfileContext &ctx)
 {
   auto &hc = HeuristicCollector::instance();
   hc.begin(173, "Signature Conversion Shift Overflow "
-               "(IccUtil.cpp signature formatting helpers)");
+                "(IccUtil.cpp signature formatting helpers)");
 
   if (!ctx.valid) return hc.skip("Cannot read profile");
-
-  int overflowCount = 0;
-  int totalSigs = 0;
-
-  // Header signature fields that pass through icGetSigStr/icGetColorSig:
-  // offset  4: preferred CMM type
-  // offset 12: device class
-  // offset 16: color data space
-  // offset 20: PCS
-  // offset 36: magic ('acsp')
-  // offset 40: primary platform
-  // offset 48: device manufacturer
-  // offset 52: device model
-  static const struct { int offset; const char *name; } kHeaderSigs[] = {
-    { 4, "preferredCMM"}, {12, "deviceClass"}, {16, "colorSpace"},
-    {20, "PCS"},          {36, "magic"},        {40, "platform"},
-    {48, "manufacturer"}, {52, "model"},
-  };
-
-  for (const auto &hs : kHeaderSigs) {
-    uint32_t sig = ReadU32BE(&ctx.header[hs.offset]);
-    if (sig == 0) continue;
-    totalSigs++;
-    if (sig > 0x00FFFFFFU) {
-      overflowCount++;
-    }
-  }
-
-  // Tag table: tag signatures
-  for (const auto &t : ctx.tags) {
-    totalSigs++;
-    if (t.sig > 0x00FFFFFFU) {
-      overflowCount++;
-    }
-  }
-
-  // Tag type signatures (first 4 bytes of each tag's data)
-  for (const auto &t : ctx.tags) {
-    const uint64_t typeEnd = static_cast<uint64_t>(t.offset) + 4u;
-    if (t.size < 4 || typeEnd > ctx.fileSize()) continue;
-    uint8_t buf[4];
-    if (!ctx.ReadAt(t.offset, buf, 4)) continue;
-    uint32_t typeSig = ReadU32BE(buf);
-    if (typeSig == 0) continue;
-    totalSigs++;
-    if (typeSig > 0x00FFFFFFU) {
-      overflowCount++;
-    }
-  }
-
-  if (overflowCount > 0) {
-    hc.warn("HEURISTIC: %d/%d FourCC signatures trigger UBSAN shift overflow "
-            "in icGetSig()/icGetSigStr()/icGetColorSig()/icGetColorSigStr() "
-            "— IccUtil.cpp:1088,1130,1167,1187,1228,1253",
-            overflowCount, totalSigs);
-    hc.cweNote("CWE-190: sig<<=8 on uint32 with first byte non-zero "
-               "produces value > UINT32_MAX (upstream iccDEV library pattern)");
-  }
-
-  char endMsg[128];
-  snprintf(endMsg, sizeof(endMsg),
-           "Signature shift overflow scan complete (%d/%d sigs checked)",
-           overflowCount, totalSigs);
-  return hc.end(endMsg);
-}
-
-struct H174HalfFloatScanResult {
-  int hitCount = 0;
-  std::vector<std::string> examples;
-};
-
-static void RecordH174Hit(H174HalfFloatScanResult &result,
-                          const std::string &example) {
-  result.hitCount++;
-  if (result.examples.size() < 4) {
-    result.examples.push_back(example);
-  }
-}
-
-static void ScanH174HeaderHalfFloats(RawProfileContext &ctx,
-                                     H174HalfFloatScanResult &result) {
-  if (!ctx.valid || ctx.fileSize() < 128) return;
-
-  uint32_t version = ReadU32BE(&ctx.header[8]);
-  if ((version >> 24) < 5) return;
-
-  uint32_t spectralPCS = ReadU32BE(&ctx.header[100]);
-  if (!spectralPCS) return;
-
-  struct HeaderField {
-    int offset;
-    const char *name;
-  };
-  static const HeaderField kFields[] = {
-    {104, "header spectralRange.start"},
-    {106, "header spectralRange.end"},
-    {110, "header biSpectralRange.start"},
-    {112, "header biSpectralRange.end"},
-  };
-
-  for (const auto &field : kFields) {
-    uint16_t raw = ReadU16BE(&ctx.header[field.offset]);
-    if (!HalfFloatTriggersIccUtilUB(raw)) continue;
-
-    char msg[192];
-    std::snprintf(msg, sizeof(msg),
-                  "%s raw=0x%04X at file+0x%02X",
-                  field.name, raw, field.offset);
-    RecordH174Hit(result, msg);
-  }
-}
-
-static void ScanH174TagHalfFloats(RawProfileContext &ctx,
-                                  H174HalfFloatScanResult &result,
-                                  bool parseTimeOnly = false) {
-  if (!ctx.valid) return;
-
-  for (const auto &tag : ctx.tags) {
-    if (tag.size < 8 ||
-        static_cast<uint64_t>(tag.offset) + static_cast<uint64_t>(tag.size) > ctx.fileSize()) {
-      continue;
-    }
-
-    size_t scanSize = static_cast<size_t>(tag.size);
-    if (scanSize > 4096) scanSize = 4096;
-
-    std::vector<uint8_t> buf(scanSize);
-    if (!ctx.ReadAt(tag.offset, buf.data(), scanSize)) continue;
-
-    uint32_t typeSig = ReadU32BE(buf.data());
-
-    if (typeSig == 0x666C3136 && scanSize >= 10) { // 'fl16'
-      for (size_t off = 8; off + 1 < scanSize; off += 2) {
-        uint16_t raw = ReadU16BE(&buf[off]);
-        if (!HalfFloatTriggersIccUtilUB(raw)) continue;
-
-        char msg[192];
-        char tagSig[5];
-        SigToChars(tag.sig, tagSig);
-        std::snprintf(msg, sizeof(msg),
-                      "tag '%s' float16ArrayType value raw=0x%04X at tag+0x%zX",
-                      tagSig, raw, off);
-        RecordH174Hit(result, msg);
-      }
-    } else if (!parseTimeOnly && typeSig == 0x7364696E && scanSize >= 24) { // 'sdin'
-      struct Field {
-        size_t offset;
-        const char *name;
-      };
-      static const Field kFields[] = {
-        {12, "sdin spectralRange.start"},
-        {14, "sdin spectralRange.end"},
-        {18, "sdin biSpectralRange.start"},
-        {20, "sdin biSpectralRange.end"},
-      };
-
-      for (const auto &field : kFields) {
-        uint16_t raw = ReadU16BE(&buf[field.offset]);
-        if (!HalfFloatTriggersIccUtilUB(raw)) continue;
-
-        char msg[192];
-        char tagSig[5];
-        SigToChars(tag.sig, tagSig);
-        std::snprintf(msg, sizeof(msg),
-                      "tag '%s' %s raw=0x%04X",
-                      tagSig, field.name, raw);
-        RecordH174Hit(result, msg);
-      }
-    } else if (!parseTimeOnly && typeSig == 0x7376636E && scanSize >= 34) { // 'svcn'
-      struct Field {
-        size_t offset;
-        const char *name;
-      };
-      static const Field kFields[] = {
-        {12, "svcn observerRange.start"},
-        {14, "svcn observerRange.end"},
-        {28, "svcn illuminantRange.start"},
-        {30, "svcn illuminantRange.end"},
-      };
-
-      for (const auto &field : kFields) {
-        uint16_t raw = ReadU16BE(&buf[field.offset]);
-        if (!HalfFloatTriggersIccUtilUB(raw)) continue;
-
-        char msg[192];
-        char tagSig[5];
-        SigToChars(tag.sig, tagSig);
-        std::snprintf(msg, sizeof(msg),
-                      "tag '%s' %s raw=0x%04X",
-                      tagSig, field.name, raw);
-        RecordH174Hit(result, msg);
-      }
-    } else if (!parseTimeOnly && typeSig == 0x6D706574) { // 'mpet'
-      // Scan inside multiProcessElementType for embedded sngf/samf elements
-      // that use float16 storage. These call ReadFloat16Float() at load time.
-      static const size_t kMpetScanMax = 65536;
-      size_t mpetScan = static_cast<size_t>(tag.size);
-      if (mpetScan > kMpetScanMax) mpetScan = kMpetScanMax;
-      if (static_cast<uint64_t>(tag.offset) + mpetScan > ctx.fileSize())
-        mpetScan = ctx.fileSize() - tag.offset;
-
-      std::vector<uint8_t> mpetBuf(mpetScan);
-      if (!ctx.ReadAt(tag.offset, mpetBuf.data(), mpetScan)) continue;
-
-      // Search for sngf (0x736E6766) and samf (0x73616D66) sub-element signatures
-      static const uint32_t kF16Elems[] = {0x736E6766, 0x73616D66};
-      static const char *kF16Names[] = {"sngf", "samf"};
-
-      for (size_t pos = 16; pos + 28 < mpetScan; pos += 4) {
-        uint32_t subSig = ReadU32BE(&mpetBuf[pos]);
-        for (int ei = 0; ei < 2; ++ei) {
-          if (subSig != kF16Elems[ei]) continue;
-          // storageType at element+12 (2 bytes)
-          if (pos + 14 > mpetScan) break;
-          uint16_t storageType = ReadU16BE(&mpetBuf[pos + 12]);
-          if (storageType != 0) break; // 0 = icValueTypeFloat16
-
-          // Scan data values starting at element+28
-          size_t dataStart = pos + 28;
-          size_t maxVals = 32;
-          for (size_t vi = 0; vi < maxVals && dataStart + vi * 2 + 2 <= mpetScan; ++vi) {
-            uint16_t raw = ReadU16BE(&mpetBuf[dataStart + vi * 2]);
-            if (!HalfFloatTriggersIccUtilUB(raw)) continue;
-
-            char msg[256];
-            char tagS[5];
-            SigToChars(tag.sig, tagS);
-            std::snprintf(msg, sizeof(msg),
-                          "tag '%s' embedded %s element (float16 storage) "
-                          "value raw=0x%04X at mpet+0x%zX",
-                          tagS, kF16Names[ei], raw, dataStart + vi * 2);
-            RecordH174Hit(result, msg);
-            break; // one example per element suffices
-          }
-          break;
-        }
-      }
-    }
-  }
-}
-
-static H174HalfFloatScanResult ScanH174HalfFloatPatterns(RawProfileContext &ctx) {
-  H174HalfFloatScanResult result;
-  ScanH174HeaderHalfFloats(ctx, result);
-  ScanH174TagHalfFloats(ctx, result);
-  return result;
-}
-
-static H174HalfFloatScanResult ScanH174HalfFloatReadPathPatterns(RawProfileContext &ctx) {
-  H174HalfFloatScanResult result;
-  ScanH174TagHalfFloats(ctx, result, true);
-  return result;
+  return hc.skip("Resolved upstream: iccDEV #726 removed the sig <<= 8 "
+                 "signature helper pattern; analyzer safe overrides are active");
 }
 
 bool DetectH174HalfFloatConversionUB(const char *filename) {
-  RawProfileContext ctx = OpenRawProfileContext(filename);
-  if (!ctx.valid) return false;
-  H174HalfFloatScanResult result = ScanH174HalfFloatPatterns(ctx);
-  return result.hitCount > 0;
+  (void)filename;
+  return false;
 }
 
 bool DetectH174HalfFloatReadPathUB(const char *filename) {
-  RawProfileContext ctx = OpenRawProfileContext(filename);
-  if (!ctx.valid) return false;
-  H174HalfFloatScanResult result = ScanH174HalfFloatReadPathPatterns(ctx);
-  return result.hitCount > 0;
+  (void)filename;
+  return false;
 }
 
 // ---------------------------------------------------------------------------
 // H174: Half-Float Conversion Unsigned Underflow (CWE-190)
-// iccDEV icF16toF() rebiases half-float exponents using unsigned arithmetic:
-//   ((numexp >> 10) - 15 + 127)
-// Any non-zero half-float with exponent < 15 (that is, any magnitude below 1.0,
-// including subnormals) trips UBSAN in IccUtil.cpp:665/677. Parse-time sites
-// such as CIccIO::ReadFloat16Float() reach the same utility at IccIO.cpp:328.
-// Detection: scan known header/tag half-float fields for values that will
-// enter the unsigned-wrap path before the upstream library touches them.
+// Historical iccDEV icF16toF() used unsigned exponent rebias arithmetic for
+// half-float values below 1.0. Upstream fixed the conversion in #724/#727 by
+// using signed temporary exponent arithmetic, so these raw half-float values
+// are no longer evidence of runtime UB.
 // ---------------------------------------------------------------------------
 int RunHeuristic_H174_HalfFloatConversionUnsignedUnderflow(RawProfileContext &ctx)
 {
@@ -1182,26 +922,8 @@ int RunHeuristic_H174_HalfFloatConversionUnsignedUnderflow(RawProfileContext &ct
                "(IccUtil.cpp icF16toF)");
 
   if (!ctx.valid) return hc.skip("Cannot read profile");
-
-  H174HalfFloatScanResult result = ScanH174HalfFloatPatterns(ctx);
-  if (result.hitCount == 0) {
-    return hc.skip("No vulnerable half-float values detected");
-  }
-
-  hc.warn("HEURISTIC: %d half-float value(s) would trigger UBSAN unsigned-wrap "
-          "in icF16toF() — IccUtil.cpp:665,677 / IccIO.cpp:328",
-          result.hitCount);
-  hc.cweNote("CWE-190: exponent rebias uses unsigned subtraction for non-zero "
-             "half-floats with exponent < 15 (values below 1.0)");
-  for (const auto &example : result.examples) {
-    hc.info("%s", example.c_str());
-  }
-
-  char endMsg[160];
-  std::snprintf(endMsg, sizeof(endMsg),
-                "Half-float UB scan complete (%d hit%s)",
-                result.hitCount, result.hitCount == 1 ? "" : "s");
-  return hc.end(endMsg);
+  return hc.skip("Resolved upstream: iccDEV #724/#727 fixed icF16toF() "
+                 "half-float exponent rebias arithmetic");
 }
 
 int RunCodeQLPatternHeuristics(RawProfileContext &ctx)

@@ -81,15 +81,6 @@ static bool HasLibraryUBPatterns(const char *filename) {
   }
 
   if (IsLibraryUBDefenseEnabled() &&
-      DetectH174HalfFloatReadPathUB(filename)) {
-    printf("\n%s[DEFENSE] Non-zero half-float values below 1.0 will hit "
-           "icF16toF() unsigned-wrap UBSAN (IccUtil.cpp:665/677) — "
-           "skipping library phase%s\n",
-           ColorCritical(), ColorReset());
-    return true;
-  }
-
-  if (IsLibraryUBDefenseEnabled() &&
       DetectH101MPEElementOffsetSizeOverflow(filename)) {
     printf("\n%s[DEFENSE] Malformed mpet element offset/size pair will wrap "
            "CIccTagMultiProcessElement::Read() (IccTagMPE.cpp:1042) — "
@@ -314,16 +305,6 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
   // Pre-loading defense: detect tag data patterns that trigger undefined behavior
   // in the upstream iccDEV library during Read(). Must run BEFORE any library call.
   bool skipLibrary = HasLibraryUBPatterns(filename);
-  bool skipLibraryValidation = false;
-  if (!skipLibrary &&
-      IsLibraryUBDefenseEnabled() &&
-      DetectH174HalfFloatConversionUB(filename)) {
-    skipLibraryValidation = true;
-    printf("%s[DEFENSE] H174 half-float fingerprint reaches upstream validation "
-           "paths — skipping Validate() phase but continuing with safe deep "
-           "conformance checks%s\n",
-           ColorCritical(), ColorReset());
-  }
   if (skipLibrary) {
     totalIssues += RunCF115_CalculatorElementComplexityRaw(filename);
     printf("%s[NOT RUN] Library-phase conformance not run — profile triggers upstream "
@@ -340,19 +321,9 @@ int ComprehensiveAnalyze(const char *filename, const char *fingerprint_db,
          ColorHeader(), phaseNum, ColorReset());
   printf("=======================================================================\n\n");
 
-  if (skipLibraryValidation) {
-    printf("%s[NOT RUN] Library validation not run — half-float fields would hit "
-           "upstream icF16toF UB during Validate()%s\n",
-           ColorCritical(), ColorReset());
-    printf("       %sDeep conformance checks will continue using analyzer-owned "
-           "safe conversions%s\n",
-           ColorInfo(), ColorReset());
-    totalIssues++;
-  } else {
-    int validateIssues = RunIccLibraryValidation(filename);
-    if (validateIssues > 0) {
-      totalIssues += validateIssues;
-    }
+  int validateIssues = RunIccLibraryValidation(filename);
+  if (validateIssues > 0) {
+    totalIssues += validateIssues;
   }
   phaseNum++;
 
