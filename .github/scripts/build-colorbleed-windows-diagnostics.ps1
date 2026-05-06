@@ -502,13 +502,17 @@ $hashes | Out-File -FilePath $checksumPath -Encoding ascii
 Compress-Archive -Path (Join-Path $artifactRoot '*') -DestinationPath $zipPath -Force
 
 if ($env:GITHUB_STEP_SUMMARY) {
+    function ConvertTo-SummaryHtml {
+        param([AllowEmptyString()][string]$Value = "")
+        return $Value.Replace('&', '&amp;').
+            Replace('<', '&lt;').
+            Replace('>', '&gt;').
+            Replace('"', '&quot;').
+            Replace("'", '&#39;')
+    }
+
     $summaryLines | ForEach-Object {
-        if (Get-Command Sanitize-Line -ErrorAction SilentlyContinue) {
-            Sanitize-Line $_
-        }
-        else {
-            $_
-        }
+        ConvertTo-SummaryHtml $_
     } | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 }
 
