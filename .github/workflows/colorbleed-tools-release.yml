@@ -10,12 +10,15 @@
 # Tools Under Test:
 #   iccToXml_unsafe  - ICC binary -> XML conversion
 #   iccFromXml_unsafe - XML -> ICC binary conversion
+#   iccDumpAll       - enhanced ICC profile dump
+#   iccDiagnosticLoad - diagnostic ICC profile loader
 #
 # Test Strategy:
 #   1. Build with gcc and clang (matrix)
 #   2. Roundtrip each test profile: ICC -> XML -> ICC
 #   3. Compare file sizes and checksums
-#   4. Package results into a GitHub Release
+#   4. Build Windows static standalone diagnostic tools
+#   5. Package results into a GitHub Release
 #
 ###############################################################
 
@@ -55,10 +58,158 @@ env:
   TEST_PROFILE_COUNT: ${{ github.event.inputs.test_profile_count || '25' }}
 
 jobs:
+  windows-static:
+    name: "Windows static diagnostic tools"
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+    env:
+      POWERSHELL_TELEMETRY_OPTOUT: 1
+      POWERSHELL_UPDATECHECK: Off
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0 (node24)
+        with:
+          persist-credentials: false
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Build standalone Windows tools
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+          git config --global credential.helper ""
+          if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
+          . .github/scripts/sanitize.ps1
+
+          $iccDevDir = Join-Path $env:GITHUB_WORKSPACE 'colorbleed_tools\iccDEV'
+          $iccSourceDir = Join-Path $iccDevDir 'Build\Cmake'
+          $iccBuildDir = Join-Path $iccDevDir 'Build-windows-static'
+          $toolsBuildDir = Join-Path $env:GITHUB_WORKSPACE 'colorbleed_tools\build-windows-static-tools'
+          $toolsCmakeBuildDir = Join-Path $toolsBuildDir 'build'
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE 'colorbleed-windows-static-x64'
+
+          if (Test-Path $iccDevDir) { Remove-Item -Recurse -Force $iccDevDir }
+          git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git $iccDevDir
+
+          cmake -S $iccSourceDir `
+            -B $iccBuildDir `
+            -G 'Visual Studio 17 2022' `
+            -A x64 `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+            -DENABLE_TOOLS=OFF `
+            -DENABLE_TESTS=OFF `
+            -DENABLE_WXWIDGETS=OFF `
+            -DENABLE_IMAGE_TOOLS=OFF `
+            -DENABLE_ICCXML=OFF `
+            -DENABLE_ICCJSON=OFF `
+            -DENABLE_CMM_TOOLS=OFF `
+            -DENABLE_IIS_TOOLS=OFF `
+            -DENABLE_SHARED_LIBS=OFF `
+            -DENABLE_STATIC_LIBS=ON
+          cmake --build $iccBuildDir --config Release --target IccProfLib2-static --parallel
+
+          $profLib = Get-ChildItem -Path (Join-Path $iccBuildDir 'IccProfLib') `
+            -Recurse -Filter 'IccProfLib2-static.lib' |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $profLib) {
+            throw 'IccProfLib2-static.lib was not produced'
+          }
+
+          New-Item -ItemType Directory -Force -Path $toolsBuildDir, $artifactDir | Out-Null
+
+          $cmakeLists = @"
+          cmake_minimum_required(VERSION 3.21)
+          project(ColorBleedWindowsStatic LANGUAGES CXX)
+          set(CMAKE_CXX_STANDARD 17)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          add_library(IccProfLib2Static STATIC IMPORTED GLOBAL)
+          set_target_properties(IccProfLib2Static PROPERTIES
+            IMPORTED_LOCATION "$($profLib.Replace('\', '/'))"
+            INTERFACE_INCLUDE_DIRECTORIES "$($iccBuildDir.Replace('\', '/'))/IccProfLib;$($iccDevDir.Replace('\', '/'))/IccProfLib;$($iccDevDir.Replace('\', '/'))"
+          )
+          add_executable(iccDiagnosticLoad "$($env:GITHUB_WORKSPACE.Replace('\', '/'))/colorbleed_tools/IccDiagnosticLoad.cpp")
+          add_executable(iccDumpAll "$($env:GITHUB_WORKSPACE.Replace('\', '/'))/colorbleed_tools/IccDumpAll.cpp")
+          target_compile_definitions(iccDiagnosticLoad PRIVATE WIN32)
+          target_compile_definitions(iccDumpAll PRIVATE WIN32)
+          target_link_libraries(iccDiagnosticLoad PRIVATE IccProfLib2Static)
+          target_link_libraries(iccDumpAll PRIVATE IccProfLib2Static)
+          "@
+          $cmakeLists | Out-File -FilePath (Join-Path $toolsBuildDir 'CMakeLists.txt') -Encoding ascii
+
+          cmake -S $toolsBuildDir `
+            -B $toolsCmakeBuildDir `
+            -G 'Visual Studio 17 2022' `
+            -A x64 `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build $toolsCmakeBuildDir --config Release --parallel
+
+          Copy-Item (Join-Path $toolsCmakeBuildDir 'Release\iccDiagnosticLoad.exe') $artifactDir
+          Copy-Item (Join-Path $toolsCmakeBuildDir 'Release\iccDumpAll.exe') $artifactDir
+
+          $profile = Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE 'test-profiles') `
+            -Filter '*.icc' -File |
+            Sort-Object FullName |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $profile) {
+            throw 'No test ICC profile found for Windows smoke test'
+          }
+
+          & (Join-Path $artifactDir 'iccDiagnosticLoad.exe') --compare $profile
+          & (Join-Path $artifactDir 'iccDumpAll.exe') --diag --read -v 10 $profile ALL `
+            | Out-File -FilePath (Join-Path $artifactDir 'iccDumpAll-smoke.txt') -Encoding utf8
+
+          $checksumFile = Join-Path $artifactDir 'SHA256SUMS-windows-static-x64.txt'
+          Get-ChildItem -Path $artifactDir -Filter '*.exe' |
+            Sort-Object Name |
+            ForEach-Object {
+              $hash = Get-FileHash -Algorithm SHA256 -Path $_.FullName
+              "$($hash.Hash.ToLowerInvariant())  $($_.Name)"
+            } |
+            Out-File -FilePath $checksumFile -Encoding ascii
+
+          @(
+            'ColorBleed Windows static x64 diagnostics'
+            ''
+            'Standalone tools:'
+            '- iccDiagnosticLoad.exe'
+            '- iccDumpAll.exe'
+            ''
+            'Built with MSVC /MT and linked to IccProfLib2-static.lib.'
+            'No IccProfLib2.dll is required at runtime.'
+          ) | Out-File -FilePath (Join-Path $artifactDir 'README-windows-static-x64.txt') -Encoding ascii
+
+          Compress-Archive -Path (Join-Path $artifactDir '*') `
+            -DestinationPath (Join-Path $env:GITHUB_WORKSPACE 'colorbleed-windows-static-x64.zip') `
+            -Force
+          Copy-Item $checksumFile (Join-Path $env:GITHUB_WORKSPACE 'SHA256SUMS-windows-static-x64.txt')
+
+          "### Windows Static Diagnostic Tools" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          Get-ChildItem -Path $artifactDir | ForEach-Object {
+            "$(Sanitize-Line $_.Name) ($($_.Length) bytes)" |
+              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          }
+
+      - name: Upload Windows release assets
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: colorbleed-windows-static-x64
+          path: |
+            colorbleed-windows-static-x64.zip
+            SHA256SUMS-windows-static-x64.txt
+          retention-days: 90
+
   build-test:
     name: "Build & Test (${{ matrix.compiler }})"
+    needs: windows-static
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      BASH_ENV: /dev/null
     strategy:
       fail-fast: false
       matrix:
@@ -119,16 +270,20 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Binary Verification ==="
-          ls -lh iccToXml_unsafe iccFromXml_unsafe
-          file iccToXml_unsafe iccFromXml_unsafe
+          ls -lh iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad
+          file iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad
           echo "=== Static Linking Check ==="
           echo "Dynamic dependencies (only libc/libxml2 expected):"
           ldd iccToXml_unsafe 2>&1 || true
           ldd iccFromXml_unsafe 2>&1 || true
-          sha256sum iccToXml_unsafe iccFromXml_unsafe | tee SHA256SUMS
+          ldd iccDumpAll 2>&1 || true
+          ldd iccDiagnosticLoad 2>&1 || true
+          sha256sum iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad | tee SHA256SUMS
 
       - name: Setup test profiles
         id: setup
+        env:
+          REQUESTED_PROFILE_COUNT: ${{ env.TEST_PROFILE_COUNT }}
         run: |
           set -euo pipefail
           source .github/scripts/icc-profile-quarantine.sh
@@ -136,7 +291,7 @@ jobs:
           mkdir -p colorbleed-test-results/outputs/roundtrip
           mkdir -p colorbleed-test-results/outputs/diffs
 
-          PROFILE_COUNT=${{ env.TEST_PROFILE_COUNT }}
+          PROFILE_COUNT="${REQUESTED_PROFILE_COUNT}"
           PROFILE_COUNT=$((PROFILE_COUNT > 50 ? 50 : PROFILE_COUNT))
 
           find test-profiles/ -type f -name "*.icc" | sort > /tmp/colorbleed-release-all.txt
@@ -294,8 +449,14 @@ jobs:
         working-directory: colorbleed_tools
         run: |
           set -euo pipefail
-          sha256sum iccToXml_unsafe iccFromXml_unsafe > SHA256SUMS
+          sha256sum iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad > SHA256SUMS
           cat SHA256SUMS
+
+      - name: Download Windows static release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (node24)
+        with:
+          name: colorbleed-windows-static-x64
+          path: windows-release-assets
 
       - name: Package release assets
         id: package
@@ -308,12 +469,14 @@ jobs:
 
           TAG_PREFIX="$(sanitize_ref "$INPUT_TAG_PREFIX")"
           DATESTAMP="$(date -u '+%Y%m%d-%H%M%S')"
-          RELEASE_TAG="${TAG_PREFIX}-${MATRIX_COMPILER}-${DATESTAMP}-run${{ github.run_number }}"
+          RELEASE_TAG="${TAG_PREFIX}-${MATRIX_COMPILER}-${DATESTAMP}-run${GITHUB_RUN_NUMBER}"
           echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
 
           # Copy binaries + checksums into results
           cp colorbleed_tools/iccToXml_unsafe  colorbleed-test-results/
           cp colorbleed_tools/iccFromXml_unsafe colorbleed-test-results/
+          cp colorbleed_tools/iccDumpAll colorbleed-test-results/
+          cp colorbleed_tools/iccDiagnosticLoad colorbleed-test-results/
           cp colorbleed_tools/SHA256SUMS        colorbleed-test-results/
           cp colorbleed_tools/test.xml          colorbleed-test-results/ 2>/dev/null || true
           cp colorbleed_tools/roundtrip.icc     colorbleed-test-results/ 2>/dev/null || true
@@ -331,13 +494,25 @@ jobs:
           # Copy binaries with compiler-stamped names for release upload
           cp colorbleed_tools/iccToXml_unsafe "iccToXml_unsafe-${MATRIX_COMPILER}"
           cp colorbleed_tools/iccFromXml_unsafe "iccFromXml_unsafe-${MATRIX_COMPILER}"
-          chmod +x "iccToXml_unsafe-${MATRIX_COMPILER}" "iccFromXml_unsafe-${MATRIX_COMPILER}"
+          cp colorbleed_tools/iccDumpAll "iccDumpAll-${MATRIX_COMPILER}"
+          cp colorbleed_tools/iccDiagnosticLoad "iccDiagnosticLoad-${MATRIX_COMPILER}"
+          chmod +x "iccToXml_unsafe-${MATRIX_COMPILER}" "iccFromXml_unsafe-${MATRIX_COMPILER}" \
+            "iccDumpAll-${MATRIX_COMPILER}" "iccDiagnosticLoad-${MATRIX_COMPILER}"
 
           # Wrap binaries in tar.gz to preserve execute permissions
           tar -czf "iccToXml_unsafe-${MATRIX_COMPILER}.tar.gz" "iccToXml_unsafe-${MATRIX_COMPILER}"
           tar -czf "iccFromXml_unsafe-${MATRIX_COMPILER}.tar.gz" "iccFromXml_unsafe-${MATRIX_COMPILER}"
+          tar -czf "iccDumpAll-${MATRIX_COMPILER}.tar.gz" "iccDumpAll-${MATRIX_COMPILER}"
+          tar -czf "iccDiagnosticLoad-${MATRIX_COMPILER}.tar.gz" "iccDiagnosticLoad-${MATRIX_COMPILER}"
 
-          ls -lh "${TARBALL}" "test-summary-${MATRIX_COMPILER}-${DATESTAMP}.txt" "SHA256SUMS-${MATRIX_COMPILER}.txt" "iccToXml_unsafe-${MATRIX_COMPILER}.tar.gz" "iccFromXml_unsafe-${MATRIX_COMPILER}.tar.gz"
+          ls -lh "${TARBALL}" "test-summary-${MATRIX_COMPILER}-${DATESTAMP}.txt" \
+            "SHA256SUMS-${MATRIX_COMPILER}.txt" \
+            "iccToXml_unsafe-${MATRIX_COMPILER}.tar.gz" \
+            "iccFromXml_unsafe-${MATRIX_COMPILER}.tar.gz" \
+            "iccDumpAll-${MATRIX_COMPILER}.tar.gz" \
+            "iccDiagnosticLoad-${MATRIX_COMPILER}.tar.gz" \
+            windows-release-assets/colorbleed-windows-static-x64.zip \
+            windows-release-assets/SHA256SUMS-windows-static-x64.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
@@ -361,6 +536,16 @@ jobs:
             |------|-------------|
             | `iccToXml_unsafe` | ICC binary -> XML conversion |
             | `iccFromXml_unsafe` | XML -> ICC binary conversion |
+            | `iccDumpAll` | Enhanced ICC profile dump |
+            | `iccDiagnosticLoad` | Diagnostic ICC profile loader |
+
+            ### Windows Standalone Diagnostics
+            The release includes `colorbleed-windows-static-x64.zip` containing:
+            - `iccDiagnosticLoad.exe`
+            - `iccDumpAll.exe`
+
+            These Windows binaries are built with MSVC `/MT` and linked against
+            `IccProfLib2-static.lib`; no `IccProfLib2.dll` is required at runtime.
 
             ### Test Methodology
             Each ICC profile is:
@@ -384,6 +569,10 @@ jobs:
             ${{ steps.package.outputs.checksums_file }}
             iccToXml_unsafe-${{ matrix.compiler }}.tar.gz
             iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz
+            iccDumpAll-${{ matrix.compiler }}.tar.gz
+            iccDiagnosticLoad-${{ matrix.compiler }}.tar.gz
+            windows-release-assets/colorbleed-windows-static-x64.zip
+            windows-release-assets/SHA256SUMS-windows-static-x64.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
