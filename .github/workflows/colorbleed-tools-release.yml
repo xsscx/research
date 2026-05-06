@@ -450,7 +450,7 @@ jobs:
           fi
 
           for variant_zip in "${variant_zips[@]}"; do
-            unzip -q "$variant_zip" -d windows-release-assets/expanded
+            unzip -oq "$variant_zip" -d windows-release-assets/expanded
           done
 
           cat > windows-release-assets/expanded/README-windows-diagnostics-x64.txt <<'README'
