@@ -197,6 +197,7 @@ add_library(IccProfLib2Runtime SHARED IMPORTED GLOBAL)
 set_target_properties(IccProfLib2Runtime PROPERTIES
   IMPORTED_IMPLIB "$profLib"
   IMPORTED_LOCATION "$profDll"
+  INTERFACE_COMPILE_DEFINITIONS "ICCPROFLIBDLL_IMPORTS"
   INTERFACE_INCLUDE_DIRECTORIES "$iccBuild/IccProfLib;$iccDev/IccProfLib;$iccDev"
 )
 "@
@@ -512,7 +513,12 @@ if ($env:GITHUB_STEP_SUMMARY) {
     }
 
     $summaryLines | ForEach-Object {
-        ConvertTo-SummaryHtml $_
+        if (Get-Command Sanitize-Line -ErrorAction SilentlyContinue) {
+            Sanitize-Line $_
+        }
+        else {
+            ConvertTo-SummaryHtml $_
+        }
     } | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 }
 

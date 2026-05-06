@@ -156,8 +156,14 @@ function Truncate-String {
         [int]$MaxLen
     )
     
+    if ($MaxLen -le 0) {
+        return ""
+    }
     if ($InputString.Length -le $MaxLen) {
         return $InputString
+    }
+    if ($MaxLen -le 3) {
+        return $InputString.Substring(0, $MaxLen)
     }
     $headLen = $MaxLen - 3
     return $InputString.Substring(0, $headLen) + "..."
