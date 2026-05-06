@@ -516,8 +516,8 @@ static void traceLoadTag(const char *path) {
 }
 
 static void printUsage(void) {
-    printf("IccDiagnosticLoad v1.0.1 -- Deep ICC profile loading diagnostics\n");
-    printf("Built with IccProfLib " ICCPROFLIBVER "\n\n");
+    printf("IccDiagnosticLoad v1.0.1 built with IccProfLib version " ICCPROFLIBVER "\n");
+    printf("Deep ICC profile loading diagnostics\n\n");
     printf("Usage: iccDiagnosticLoad [options] <profile.icc>\n\n");
     printf("Options:\n");
     printf("  --raw      Raw binary analysis + hex dump (no library)\n");
@@ -559,7 +559,7 @@ int main(int argc, char *argv[]) {
     if (!doRaw && !doCompare && !doTrace && !doDump)
         doRaw = doCompare = doTrace = true;
 
-    printf(C_BOLD "IccDiagnosticLoad v1.0.1" C_RESET "\n");
+    printf(C_BOLD "IccDiagnosticLoad v1.0.1 built with IccProfLib version " ICCPROFLIBVER C_RESET "\n");
     printf("Profile: %s\n", profilePath);
 
     if (doRaw) rawAnalyze(profilePath);

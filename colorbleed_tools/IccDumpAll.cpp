@@ -62,31 +62,32 @@ static const char* GetLateBindingNote(icElemTypeSignature sig)
 // Report active sanitizer configuration
 static void ReportSanitizerConfig()
 {
+  bool asanActive = false;
+  bool ubsanActive = false;
+
+#if defined(__SANITIZE_ADDRESS__)
+  asanActive = true;
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+  asanActive = true;
+#endif
+#endif
+
+#if defined(__SANITIZE_UNDEFINED__)
+  ubsanActive = true;
+#elif defined(__has_feature)
+#if __has_feature(undefined_behavior_sanitizer)
+  ubsanActive = true;
+#endif
+#endif
+
   fprintf(stderr, "[DIAG] === Sanitizer Configuration ===\n");
-#if defined(__SANITIZE_ADDRESS__) || defined(__has_feature)
-#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
-  fprintf(stderr, "[DIAG] ASAN: ACTIVE\n");
-#else
-  fprintf(stderr, "[DIAG] ASAN: not active\n");
-#endif
-#else
-  fprintf(stderr, "[DIAG] ASAN: not active\n");
-#endif
-
-#if defined(__SANITIZE_UNDEFINED__) || defined(__has_feature)
-#if __has_feature(undefined_behavior_sanitizer) || defined(__SANITIZE_UNDEFINED__)
-  fprintf(stderr, "[DIAG] UBSAN: ACTIVE\n");
-#else
-  fprintf(stderr, "[DIAG] UBSAN: not active\n");
-#endif
-#else
-  fprintf(stderr, "[DIAG] UBSAN: not active\n");
-#endif
-
-  const char *asan_opts = getenv("ASAN_OPTIONS");
-  const char *ubsan_opts = getenv("UBSAN_OPTIONS");
-  if (asan_opts) fprintf(stderr, "[DIAG] ASAN_OPTIONS=%s\n", asan_opts);
-  if (ubsan_opts) fprintf(stderr, "[DIAG] UBSAN_OPTIONS=%s\n", ubsan_opts);
+  fprintf(stderr, "[DIAG] ASAN: %s\n", asanActive ? "ACTIVE" : "not active");
+  fprintf(stderr, "[DIAG] UBSAN: %s\n", ubsanActive ? "ACTIVE" : "not active");
+  if (asanActive && getenv("ASAN_OPTIONS"))
+    fprintf(stderr, "[DIAG] ASAN_OPTIONS: set (value redacted)\n");
+  if (ubsanActive && getenv("UBSAN_OPTIONS"))
+    fprintf(stderr, "[DIAG] UBSAN_OPTIONS: set (value redacted)\n");
   fprintf(stderr, "[DIAG] ===\n");
 }
 
