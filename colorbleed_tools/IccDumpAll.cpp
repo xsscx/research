@@ -59,6 +59,15 @@ static const char* GetLateBindingNote(icElemTypeSignature sig)
   }
 }
 
+static icUInt32Number CountMpeElements(CIccTagMultiProcessElement *pMpe)
+{
+  icUInt32Number nElements = 0;
+  while (pMpe && pMpe->GetElement((int)nElements)) {
+    nElements++;
+  }
+  return nElements;
+}
+
 // Report active sanitizer configuration
 static void ReportSanitizerConfig()
 {
@@ -125,7 +134,7 @@ void DumpTagCore(CIccTag *pTag, icTagSignature sig, int nVerboseness)
     // Enhanced: for multiProcessElementType tags, show element chain summary
     if (pTag->GetType() == icSigMultiProcessElementType) {
       CIccTagMultiProcessElement *pMpe = static_cast<CIccTagMultiProcessElement*>(pTag);
-      icUInt32Number nElements = pMpe->NumElements();
+      icUInt32Number nElements = CountMpeElements(pMpe);
       printf("\n  === MPE Element Chain: %u elements, %u->%u channels ===\n",
              nElements, pMpe->NumInputChannels(), pMpe->NumOutputChannels());
 
@@ -236,7 +245,8 @@ void DumpV5Summary(CIccProfile *pIcc)
     if (pTag && pTag->GetType() == icSigMultiProcessElementType) {
       CIccTagMultiProcessElement *pMpe = static_cast<CIccTagMultiProcessElement*>(pTag);
       mpeCount++;
-      for (icUInt32Number j = 0; j < pMpe->NumElements(); j++) {
+      icUInt32Number nElements = CountMpeElements(pMpe);
+      for (icUInt32Number j = 0; j < nElements; j++) {
         CIccMultiProcessElement *pElem = pMpe->GetElement(j);
         if (pElem) {
           icElemTypeSignature eSig = pElem->GetType();
