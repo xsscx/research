@@ -44,6 +44,24 @@ on:
           - clang
           - gcc
           - both
+      test_profile_name:
+        description: 'Optional exact ICC profile basename to test instead of random selection'
+        required: false
+        default: ''
+        type: string
+      allow_roundtrip_failures:
+        description: 'Allow release publication when roundtrip tests fail'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      windows_diagnostic_profile_url:
+        description: 'ICC profile URL for Windows static diagnostic smoke test'
+        required: false
+        default: 'https://registry.color.org/profile-registry/profiles/Coated_Fogra39L_VIGC_300.icc'
+        type: string
       release_tag_prefix:
         description: 'Release tag prefix (auto-appended with date+run)'
         required: false
@@ -56,6 +74,9 @@ concurrency:
 
 env:
   TEST_PROFILE_COUNT: ${{ github.event.inputs.test_profile_count || '25' }}
+  TEST_PROFILE_NAME: ${{ github.event.inputs.test_profile_name || '' }}
+  ALLOW_ROUNDTRIP_FAILURES: ${{ github.event.inputs.allow_roundtrip_failures || 'false' }}
+  WINDOWS_DIAGNOSTIC_PROFILE_URL: ${{ github.event.inputs.windows_diagnostic_profile_url || 'https://registry.color.org/profile-registry/profiles/Coated_Fogra39L_VIGC_300.icc' }}
 
 jobs:
   windows-static:
@@ -68,6 +89,7 @@ jobs:
     env:
       POWERSHELL_TELEMETRY_OPTOUT: 1
       POWERSHELL_UPDATECHECK: Off
+      DIAGNOSTIC_PROFILE_URL: ${{ github.event.inputs.windows_diagnostic_profile_url || 'https://registry.color.org/profile-registry/profiles/Coated_Fogra39L_VIGC_300.icc' }}
 
     steps:
       - name: Checkout repository
@@ -158,9 +180,32 @@ jobs:
             throw 'No test ICC profile found for Windows smoke test'
           }
 
-          & (Join-Path $artifactDir 'iccDiagnosticLoad.exe') --compare $profile
+          $repoDiagLog = Join-Path $artifactDir 'iccDiagnosticLoad-repo-smoke.txt'
+          & (Join-Path $artifactDir 'iccDiagnosticLoad.exe') --compare $profile `
+            | Tee-Object -FilePath $repoDiagLog
           & (Join-Path $artifactDir 'iccDumpAll.exe') --diag --read -v 10 $profile ALL `
             | Out-File -FilePath (Join-Path $artifactDir 'iccDumpAll-smoke.txt') -Encoding utf8
+
+          $diagnosticProfile = Join-Path $artifactDir 'Coated_Fogra39L_VIGC_300.icc'
+          Invoke-WebRequest -Uri $env:DIAGNOSTIC_PROFILE_URL -OutFile $diagnosticProfile
+          $profileLength = (Get-Item $diagnosticProfile).Length
+          if ($profileLength -ne 8652444) {
+            throw "Downloaded diagnostic profile has unexpected size: $profileLength"
+          }
+
+          $fograDiagLog = Join-Path $artifactDir 'iccDiagnosticLoad-fogra-smoke.txt'
+          & (Join-Path $artifactDir 'iccDiagnosticLoad.exe') --compare $diagnosticProfile `
+            | Tee-Object -FilePath $fograDiagLog
+          $fograDiagText = Get-Content $fograDiagLog -Raw
+          if ($fograDiagText -notmatch 'OpenIccProfile OK' -or
+              $fograDiagText -notmatch 'ReadIccProfile OK' -or
+              $fograDiagText -notmatch 'ValidateIccProfile OK') {
+            throw 'FOGRA diagnostic smoke test did not report all expected OK states'
+          }
+
+          & (Join-Path $artifactDir 'iccDumpAll.exe') --diag --read -v 10 $diagnosticProfile ALL `
+            | Out-File -FilePath (Join-Path $artifactDir 'iccDumpAll-fogra-smoke.txt') -Encoding utf8
+          Remove-Item $diagnosticProfile
 
           $checksumFile = Join-Path $artifactDir 'SHA256SUMS-windows-static-x64.txt'
           Get-ChildItem -Path $artifactDir -Filter '*.exe' |
@@ -180,6 +225,11 @@ jobs:
             ''
             'Built with MSVC /MT and linked to IccProfLib2-static.lib.'
             'No IccProfLib2.dll is required at runtime.'
+            ''
+            'Smoke coverage:'
+            '- repository test profile diagnostic compare'
+            '- Coated_Fogra39L_VIGC_300.icc diagnostic compare'
+            '- Coated_Fogra39L_VIGC_300.icc diagnostic dump'
           ) | Out-File -FilePath (Join-Path $artifactDir 'README-windows-static-x64.txt') -Encoding ascii
 
           Compress-Archive -Path (Join-Path $artifactDir '*') `
@@ -284,6 +334,7 @@ jobs:
         id: setup
         env:
           REQUESTED_PROFILE_COUNT: ${{ env.TEST_PROFILE_COUNT }}
+          REQUESTED_PROFILE_NAME: ${{ env.TEST_PROFILE_NAME }}
         run: |
           set -euo pipefail
           source .github/scripts/icc-profile-quarantine.sh
@@ -296,7 +347,26 @@ jobs:
 
           find test-profiles/ -type f -name "*.icc" | sort > /tmp/colorbleed-release-all.txt
           icc_profile_filter_quarantine /tmp/colorbleed-release-all.txt /tmp/colorbleed-release-routine.txt
-          shuf -n ${PROFILE_COUNT} /tmp/colorbleed-release-routine.txt > colorbleed-test-results/selected-profiles.txt
+
+          if [ -n "${REQUESTED_PROFILE_NAME}" ]; then
+            awk -v wanted="${REQUESTED_PROFILE_NAME}" '
+              BEGIN { found=0 }
+              {
+                n=split($0, parts, "/")
+                if (parts[n] == wanted) {
+                  print $0
+                  found=1
+                  exit
+                }
+              }
+              END { if (!found) exit 1 }
+            ' /tmp/colorbleed-release-routine.txt > colorbleed-test-results/selected-profiles.txt || {
+              echo "::error::Requested profile not found after quarantine filtering: ${REQUESTED_PROFILE_NAME}"
+              exit 1
+            }
+          else
+            shuf -n ${PROFILE_COUNT} /tmp/colorbleed-release-routine.txt > colorbleed-test-results/selected-profiles.txt
+          fi
 
           AVAILABLE=$(wc -l < colorbleed-test-results/selected-profiles.txt | tr -d ' \n\r')
           echo "test_count=${AVAILABLE}" >> $GITHUB_OUTPUT
@@ -406,10 +476,11 @@ jobs:
 
               SUCCESS=$((SUCCESS + 1))
               echo "  Status: SUCCESS" >> $SUMMARY
-            else
-              FAILED=$((FAILED + 1))
-              echo "  Status: FAILED" >> $SUMMARY
-            fi
+              else
+                FAILED=$((FAILED + 1))
+                echo "$PROFILE_NAME" >> colorbleed-test-results/failed-profiles.txt
+                echo "  Status: FAILED" >> $SUMMARY
+              fi
 
             echo "" >> $SUMMARY
 
@@ -444,6 +515,31 @@ jobs:
           echo "grand_success=$SUCCESS" >> $GITHUB_ENV
           echo "grand_failed=$FAILED" >> $GITHUB_ENV
           echo "clean_rate=$RATE" >> $GITHUB_ENV
+
+      - name: Upload pre-release test results
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        if: always()
+        with:
+          name: colorbleed-pre-release-test-results-${{ matrix.compiler }}
+          path: colorbleed-test-results/
+          retention-days: 90
+
+      - name: Enforce release quality gate
+        env:
+          ROUNDTRIP_FAILED: ${{ env.grand_failed }}
+          ALLOW_FAILURES: ${{ env.ALLOW_ROUNDTRIP_FAILURES }}
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+
+          if [ "${ROUNDTRIP_FAILED}" -gt 0 ] && [ "${ALLOW_FAILURES}" != "true" ]; then
+            echo "::error::Roundtrip failures block release publication. Set allow_roundtrip_failures=true only for diagnostic-only releases."
+            if [ -f colorbleed-test-results/failed-profiles.txt ]; then
+              echo "::error::Failed profiles: $(tr '\n' ' ' < colorbleed-test-results/failed-profiles.txt)"
+            fi
+            exit 1
+          fi
 
       - name: Generate checksums for binaries
         working-directory: colorbleed_tools
@@ -588,45 +684,61 @@ jobs:
         if: always()
         env:
           MATRIX_COMPILER: ${{ matrix.compiler }}
+          CXX_NAME: ${{ env.CXX }}
+          GRAND_TOTAL: ${{ env.grand_total }}
+          GRAND_SUCCESS: ${{ env.grand_success }}
+          GRAND_FAILED: ${{ env.grand_failed }}
+          CLEAN_RATE: ${{ env.clean_rate }}
+          RELEASE_TAG: ${{ steps.package.outputs.release_tag }}
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
-          cat >> $GITHUB_STEP_SUMMARY << SUMMARY_EOF
-          ## ColorBleed Tools Roundtrip Test -> Release
 
-          ### Compiler: \`${MATRIX_COMPILER}\` (\`${{ env.CXX }}\`)
+          {
+            echo "## ColorBleed Tools Roundtrip Test -> Release"
+            echo ""
+            echo "### Compiler: \`$(sanitize_line "${MATRIX_COMPILER}")\` (\`$(sanitize_line "${CXX_NAME}")\`)"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Total Profiles | $(sanitize_line "${GRAND_TOTAL:-0}") |"
+            echo "| Roundtrip Success | $(sanitize_line "${GRAND_SUCCESS:-0}") |"
+            echo "| Roundtrip Failed | $(sanitize_line "${GRAND_FAILED:-0}") |"
+            echo "| Success Rate | $(sanitize_line "${CLEAN_RATE:-0.0}")% |"
+            echo ""
+            echo "### Release"
+            echo "**Tag:** \`$(sanitize_line "${RELEASE_TAG:-not-published}")\`"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          | Metric | Value |
-          |--------|-------|
-          | Total Profiles | ${{ env.grand_total }} |
-          | Roundtrip Success | ${{ env.grand_success }} |
-          | Roundtrip Failed | ${{ env.grand_failed }} |
-          | Success Rate | ${{ env.clean_rate }}% |
-
-          ### Release
-          **Tag:** \`${{ steps.package.outputs.release_tag }}\`
-
-          SUMMARY_EOF
-
-          if [ "${{ env.grand_failed }}" -eq 0 ]; then
-            echo "### [OK] ALL ROUNDTRIPS SUCCESSFUL" >> $GITHUB_STEP_SUMMARY
+          if [ "${GRAND_FAILED:-0}" -eq 0 ]; then
+            echo "### [OK] ALL ROUNDTRIPS SUCCESSFUL" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "### [WARN] $(sanitize_line "${{ env.grand_failed }}") ROUNDTRIP FAILURE(S)" >> $GITHUB_STEP_SUMMARY
+            echo "### [WARN] $(sanitize_line "${GRAND_FAILED}") ROUNDTRIP FAILURE(S)" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Final status
         env:
           MATRIX_COMPILER: ${{ matrix.compiler }}
+          RELEASE_TAG: ${{ steps.package.outputs.release_tag }}
+          GRAND_TOTAL: ${{ env.grand_total }}
+          GRAND_SUCCESS: ${{ env.grand_success }}
+          GRAND_FAILED: ${{ env.grand_failed }}
+          CLEAN_RATE: ${{ env.clean_rate }}
         run: |
           set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
           echo "============================================"
           echo "  ColorBleed Tools -> Release COMPLETE"
           echo "============================================"
           echo "Compiler: ${MATRIX_COMPILER}"
-          echo "Tag:      ${{ steps.package.outputs.release_tag }}"
-          echo "Total:    ${{ env.grand_total }} profiles"
-          echo "Success:  ${{ env.grand_success }}"
-          echo "Failed:   ${{ env.grand_failed }}"
-          echo "Rate:     ${{ env.clean_rate }}%"
+          echo "Tag:      ${RELEASE_TAG:-not-published}"
+          echo "Total:    ${GRAND_TOTAL:-0} profiles"
+          echo "Success:  ${GRAND_SUCCESS:-0}"
+          echo "Failed:   ${GRAND_FAILED:-0}"
+          echo "Rate:     ${CLEAN_RATE:-0.0}%"
           echo "============================================"
           exit 0
