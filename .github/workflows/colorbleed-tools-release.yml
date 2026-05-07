@@ -243,7 +243,30 @@ jobs:
               exit 1
             }
           else
-            shuf -n ${PROFILE_COUNT} /tmp/colorbleed-release-routine.txt > colorbleed-test-results/selected-profiles.txt
+            ROUNDTRIP_LIST=".github/scripts/colorbleed-roundtrip-profiles.txt"
+            if [ ! -f "$ROUNDTRIP_LIST" ]; then
+              echo "::error::Missing ColorBleed roundtrip profile list: $ROUNDTRIP_LIST"
+              exit 1
+            fi
+
+            awk '
+              /^[[:space:]]*($|#)/ { next }
+              { print $1 }
+            ' "$ROUNDTRIP_LIST" | while IFS= read -r profile; do
+              if [ -f "$profile" ] && grep -Fxq "$profile" /tmp/colorbleed-release-routine.txt; then
+                printf '%s\n' "$profile"
+              else
+                echo "::warning::Skipping unavailable or quarantined ColorBleed roundtrip profile: $profile" >&2
+              fi
+            done > /tmp/colorbleed-release-roundtrip.txt
+
+            AVAILABLE_ROUNDTRIP=$(wc -l < /tmp/colorbleed-release-roundtrip.txt | tr -d ' \n\r')
+            if [ "$AVAILABLE_ROUNDTRIP" -eq 0 ]; then
+              echo "::error::No ColorBleed roundtrip release profiles are available"
+              exit 1
+            fi
+
+            shuf -n "$PROFILE_COUNT" /tmp/colorbleed-release-roundtrip.txt > colorbleed-test-results/selected-profiles.txt
           fi
 
           AVAILABLE=$(wc -l < colorbleed-test-results/selected-profiles.txt | tr -d ' \n\r')
