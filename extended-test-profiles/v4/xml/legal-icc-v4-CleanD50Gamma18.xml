@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>NULL</PreferredCMMType>
+    <ProfileVersion>4.40</ProfileVersion>
+    <ProfileDeviceClass>mntr</ProfileDeviceClass>
+    <DataColourSpace>RGB </DataColourSpace>
+    <PCS>XYZ </PCS>
+    <CreationDateTime>2024-01-01T00:00:00</CreationDateTime>
+    <PrimaryPlatform>APPL</PrimaryPlatform>
+    <ProfileFlags EmbeddedInFile="false" UseWithEmbeddedDataOnly="false"/>
+    <DeviceAttributes ReflectiveOrTransparency="reflective" GlossyOrMatte="glossy" MediaPolarity="positive" MediaColour="colour"/>
+    <RenderingIntent>Perceptual</RenderingIntent>
+    <PCSIlluminant>
+      <XYZNumber X="0.964187622070" Y="1.000000000000" Z="0.824890136719"/>
+    </PCSIlluminant>
+    <ProfileCreator>test</ProfileCreator>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Legal V4 D50 Gamma 1.8]]></LocalizedText>
+    </multiLocalizedUnicodeType> </profileDescriptionTag>
+
+    <copyrightTag> <multiLocalizedUnicodeType>
+      <LocalizedText LanguageCountry="enUS"><![CDATA[Copyright 2026 ICC Security Research]]></LocalizedText>
+    </multiLocalizedUnicodeType> </copyrightTag>
+
+    <mediaWhitePointTag> <XYZArrayType>
+      <XYZNumber X="0.964187622070" Y="1.000000000000" Z="0.824890136719"/>
+    </XYZArrayType> </mediaWhitePointTag>
+
+    <redColorantTag> <XYZArrayType>
+      <XYZNumber X="0.436096191406" Y="0.222488403320" Z="0.013885498047"/>
+    </XYZArrayType> </redColorantTag>
+
+    <greenColorantTag> <XYZArrayType>
+      <XYZNumber X="0.385086059570" Y="0.716888427734" Z="0.097091674805"/>
+    </XYZArrayType> </greenColorantTag>
+
+    <blueColorantTag> <XYZArrayType>
+      <XYZNumber X="0.143096923828" Y="0.060592651367" Z="0.714096069336"/>
+    </XYZArrayType> </blueColorantTag>
+
+    <redTRCTag> <curveType>
+      <Curve>
+         460
+      </Curve>
+    </curveType> </redTRCTag>
+
+    <greenTRCTag> <curveType>
+      <Curve>
+         460
+      </Curve>
+    </curveType> </greenTRCTag>
+
+    <blueTRCTag> <curveType>
+      <Curve>
+         460
+      </Curve>
+    </curveType> </blueTRCTag>
+
+  </Tags>
+</IccProfile>
