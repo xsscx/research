@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-push-gate.sh — Unified pre-push validation for ALL components
+# pre-push-gate.sh - Unified pre-push validation for ALL components
 #
 # Runs the minimum viable checks before ANY push to main.
 # Detects which components changed and runs appropriate tests.
@@ -25,9 +25,9 @@ ERRORS=0
 WARNINGS=0
 SKIPPED=0
 
-echo -e "${BOLD}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}║         PRE-PUSH VALIDATION GATE                ║${NC}"
-echo -e "${BOLD}╚══════════════════════════════════════════════════╝${NC}"
+echo -e "${BOLD}+--------------------------------------------------+${NC}"
+echo -e "${BOLD}|         PRE-PUSH VALIDATION GATE                |${NC}"
+echo -e "${BOLD}+--------------------------------------------------+${NC}"
 echo ""
 
 # Detect what changed (uncommitted + last commit vs remote)
@@ -39,9 +39,9 @@ has_changes() {
   echo "$CHANGED_FILES" | grep -q "$1" 2>/dev/null
 }
 
-# ═══════════════════════════════════════════════════
+# ---------------------------------------------------
 # GATE 1: iccanalyzer-lite (if C++ changed)
-# ═══════════════════════════════════════════════════
+# ---------------------------------------------------
 echo -e "${BOLD}[GATE 1] iccanalyzer-lite${NC}"
 
 if has_changes "iccanalyzer-lite/.*\.cpp\|iccanalyzer-lite/.*\.h\|iccanalyzer-lite/build.sh"; then
@@ -86,21 +86,21 @@ if has_changes "iccanalyzer-lite/.*\.cpp\|iccanalyzer-lite/.*\.h\|iccanalyzer-li
     ERRORS=$((ERRORS + 1))
   fi
 else
-  echo -e "  ${YELLOW}(no C++ changes — skipped)${NC}"
+  echo -e "  ${YELLOW}(no C++ changes - skipped)${NC}"
   SKIPPED=$((SKIPPED + 1))
 
   # Still verify binary exists
   if [ ! -f "iccanalyzer-lite/iccanalyzer-lite" ]; then
-    echo -e "  ${RED}Binary missing — tests below may fail${NC}"
+    echo -e "  ${RED}Binary missing - tests below may fail${NC}"
     WARNINGS=$((WARNINGS + 1))
   fi
 fi
 
 echo ""
 
-# ═══════════════════════════════════════════════════
+# ---------------------------------------------------
 # GATE 2: MCP Server (if Python/HTML changed)
-# ═══════════════════════════════════════════════════
+# ---------------------------------------------------
 echo -e "${BOLD}[GATE 2] MCP Server${NC}"
 
 if has_changes "mcp-server/"; then
@@ -152,20 +152,20 @@ if has_changes "mcp-server/"; then
 
   # 2d. Browser verification reminder (if HTML changed)
   if has_changes "mcp-server/index.html"; then
-    echo -e "  ${YELLOW}⚠ index.html changed — verify in browser at http://127.0.0.1:8080${NC}"
+    echo -e "  ${YELLOW}[WARN] index.html changed - verify in browser at http://127.0.0.1:8080${NC}"
     echo -e "  ${YELLOW}  Click 5+ tools, check DevTools console for 0 errors${NC}"
     WARNINGS=$((WARNINGS + 1))
   fi
 else
-  echo -e "  ${YELLOW}(no MCP changes — skipped)${NC}"
+  echo -e "  ${YELLOW}(no MCP changes - skipped)${NC}"
   SKIPPED=$((SKIPPED + 1))
 fi
 
 echo ""
 
-# ═══════════════════════════════════════════════════
+# ---------------------------------------------------
 # GATE 3: Documentation (always check counts)
-# ═══════════════════════════════════════════════════
+# ---------------------------------------------------
 echo -e "${BOLD}[GATE 3] Consistency checks${NC}"
 
 # 3a. Heuristic count
@@ -177,13 +177,13 @@ try:
   r=json.load(sys.stdin)
   print(r.get('totalHeuristics','?'))
 except: print('?')" 2>/dev/null || echo "?")
-  if [ "$H_COUNT" = "150" ]; then
-    echo -e "${GREEN}150${NC}"
+  if [ "$H_COUNT" = "181" ]; then
+    echo -e "${GREEN}181${NC}"
   elif [ "$H_COUNT" = "?" ]; then
     echo -e "${YELLOW}could not read${NC}"
     WARNINGS=$((WARNINGS + 1))
   else
-    echo -e "${RED}$H_COUNT (expected 150)${NC}"
+    echo -e "${RED}$H_COUNT (expected 181)${NC}"
     ERRORS=$((ERRORS + 1))
   fi
 fi
@@ -200,10 +200,10 @@ fi
 
 echo ""
 
-# ═══════════════════════════════════════════════════
+# ---------------------------------------------------
 # SUMMARY
-# ═══════════════════════════════════════════════════
-echo -e "${BOLD}═══════════════════════════════════════════════════${NC}"
+# ---------------------------------------------------
+echo -e "${BOLD}===================================================${NC}"
 if [ "$ERRORS" -gt 0 ]; then
   echo -e "${RED}BLOCKED: $ERRORS error(s), $WARNINGS warning(s)${NC}"
   echo -e "${RED}Fix errors before pushing.${NC}"

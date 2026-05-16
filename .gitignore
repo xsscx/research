@@ -169,6 +169,7 @@ wasm/
 .codex/
 
 # AFL++ fuzzing - all input seeds, output queues, crash dirs, stats
+afl/bin/
 afl/afl-*/input/
 afl/afl-*/output*/
 afl/afl-*/cmin*/
