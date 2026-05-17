@@ -1,10 +1,10 @@
 #!/bin/bash
-# afl/triage.sh - Triage AFL++ crashes and hangs against unpatched upstream
+# afl/triage.sh - Triage AFL++ crashes and hangs against isolated upstream
 #
 # Usage: ./afl/triage.sh <target>
 #
-# Runs each crash/hang through the unpatched upstream iccDEV tool with
-# ASAN+UBSAN to determine if it is a real upstream bug or AFL artifact.
+# Runs each crash/hang through the isolated afl/iccDEV build deployed by
+# afl/build.sh to determine if it is a real upstream bug or AFL artifact.
 
 set -euo pipefail
 
@@ -20,39 +20,39 @@ fi
 
 case "$TARGET" in
     dump)
-        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile"
+        UPSTREAM_BIN="$AFL_BASE/bin/iccDumpProfile"
         UPSTREAM_EXTRA_ARGS=("ALL")
         ;;
     toxml)
-        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccToXml/iccToXml"
+        UPSTREAM_BIN="$AFL_BASE/bin/iccToXml"
         UPSTREAM_EXTRA_ARGS=("/dev/null")
         ;;
     fromxml)
-        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccFromXml/iccFromXml"
+        UPSTREAM_BIN="$AFL_BASE/bin/iccFromXml"
         UPSTREAM_EXTRA_ARGS=("/dev/null")
         ;;
     roundtrip)
-        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccRoundTrip/iccRoundTrip"
+        UPSTREAM_BIN="$AFL_BASE/bin/iccRoundTrip"
         UPSTREAM_EXTRA_ARGS=()
         ;;
     tiffdump)
-        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccTiffDump/iccTiffDump"
+        UPSTREAM_BIN="$AFL_BASE/bin/iccTiffDump"
         UPSTREAM_EXTRA_ARGS=()
         ;;
     jpegdump)
-        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccJpegDump/iccJpegDump"
+        UPSTREAM_BIN="$AFL_BASE/bin/iccJpegDump"
         UPSTREAM_EXTRA_ARGS=()
         ;;
     pngdump)
-        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccPngDump/iccPngDump"
+        UPSTREAM_BIN="$AFL_BASE/bin/iccPngDump"
         UPSTREAM_EXTRA_ARGS=()
         ;;
     fromcube)
-        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccFromCube/iccFromCube"
+        UPSTREAM_BIN="$AFL_BASE/bin/iccFromCube"
         UPSTREAM_EXTRA_ARGS=("/dev/null")
         ;;
     search)
-        UPSTREAM_BIN="$REPO_ROOT/iccDEV/Build/Tools/IccApplySearch/iccApplySearch"
+        UPSTREAM_BIN="$AFL_BASE/bin/iccApplySearch"
         UPSTREAM_EXTRA_ARGS=()
         ;;
     *)
@@ -61,12 +61,12 @@ case "$TARGET" in
         ;;
 esac
 
-UPSTREAM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML"
+UPSTREAM_LIB="$AFL_BASE/bin"
 AFL_DIR="$AFL_BASE/afl-$TARGET/output"
 
 if [[ ! -x "$UPSTREAM_BIN" ]]; then
     echo "ERROR: Upstream binary not found: $UPSTREAM_BIN"
-    echo "Build with: cd iccDEV/Build && cmake Cmake && make -j\$(nproc)"
+    echo "Build with: ./afl/build.sh"
     exit 1
 fi
 

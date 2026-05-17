@@ -19,6 +19,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=cfl/fuzzers.sh
+source "$SCRIPT_DIR/fuzzers.sh"
+
 BIN_DIR="$SCRIPT_DIR/bin"
 RAMDISK="/tmp/fuzz-ramdisk"
 RAMDISK_SIZE="4G"
@@ -32,24 +35,8 @@ if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
   shift
 fi
 
-ALL_FUZZERS=(
-  icc_applynamedcmm_fuzzer
-  icc_applyprofiles_fuzzer
-  icc_dump_fuzzer
-  icc_fromcube_fuzzer
-  icc_fromxml_fuzzer
-  icc_link_fuzzer
-  icc_roundtrip_fuzzer
-  icc_specsep_fuzzer
-  icc_tiffdump_fuzzer
-  icc_toxml_fuzzer
-  icc_v5dspobs_fuzzer
-)
-
-FUZZERS=("$@")
-if [ ${#FUZZERS[@]} -eq 0 ]; then
-  FUZZERS=("${ALL_FUZZERS[@]}")
-fi
+FUZZER_LIST="$(cfl_resolve_fuzzers "$@")" || exit 1
+mapfile -t FUZZERS <<< "$FUZZER_LIST"
 
 mount_ramdisk() {
   echo "[*] Mounting ${RAMDISK_SIZE} tmpfs ramdisk at ${RAMDISK}"

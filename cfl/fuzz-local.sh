@@ -25,24 +25,14 @@
 # Do not use set -e: fuzzer non-zero exits are expected when crashes are found.
 set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=cfl/fuzzers.sh
+source "$SCRIPT_DIR/fuzzers.sh"
+
 RAMDISK="/tmp/fuzz-ramdisk"
 FUZZ_SECONDS=14400
 WORKERS=4
 RSS_LIMIT=2048
-
-ALL_FUZZERS=(
-  icc_applynamedcmm_fuzzer
-  icc_applyprofiles_fuzzer
-  icc_dump_fuzzer
-  icc_fromcube_fuzzer
-  icc_fromxml_fuzzer
-  icc_link_fuzzer
-  icc_roundtrip_fuzzer
-  icc_specsep_fuzzer
-  icc_tiffdump_fuzzer
-  icc_toxml_fuzzer
-  icc_v5dspobs_fuzzer
-)
 
 usage() {
   sed -n '3,22p' "$0" | sed 's/^# \?//'
@@ -61,11 +51,8 @@ while getopts "t:w:r:m:h" opt; do
 done
 shift $((OPTIND - 1))
 
-if [ $# -gt 0 ]; then
-  FUZZERS=("$@")
-else
-  FUZZERS=("${ALL_FUZZERS[@]}")
-fi
+FUZZER_LIST="$(cfl_resolve_fuzzers "$@")" || exit 1
+mapfile -t FUZZERS <<< "$FUZZER_LIST"
 
 TOTAL_MEM_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
 TOTAL_MEM_MB=$((TOTAL_MEM_KB / 1024))
@@ -154,7 +141,7 @@ for f in "${FUZZERS[@]}"; do
   echo "[${TOTAL}/${#FUZZERS[@]}] $f  workers=$WORKERS  time=${FUZZ_SECONDS}s  dict=$(basename "${dict:-none}")"
 
   FUZZER_TIMEOUT=30
-  optf="$(cd "$(dirname "$0")" && pwd)/${f}.options"
+  optf="$SCRIPT_DIR/${f}.options"
   if [ -f "$optf" ]; then
     val=$(grep -m1 '^timeout' "$optf" | sed 's/[^0-9]//g')
     [ -n "$val" ] && FUZZER_TIMEOUT="$val"

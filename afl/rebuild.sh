@@ -9,7 +9,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUILD_DIR="$REPO_ROOT/iccDEV/Build-AFL"
+ICCDEV_DIR="$REPO_ROOT/afl/iccDEV"
+BUILD_DIR="$ICCDEV_DIR/Build-AFL"
 
 echo "[*] Full AFL rebuild requested"
 echo ""

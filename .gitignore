@@ -128,6 +128,7 @@ colorbleed_tools/test.xml
 cfl/bin/
 cfl/build/
 cfl/iccDEV/
+cfl/runs/
 colorbleed_tools/iccDEV/
 cfl/default.profraw
 cfl/fuzz-*.log
@@ -170,6 +171,7 @@ wasm/
 
 # AFL++ fuzzing - all input seeds, output queues, crash dirs, stats
 afl/bin/
+afl/iccDEV/
 afl/afl-*/input/
 afl/afl-*/output*/
 afl/afl-*/cmin*/

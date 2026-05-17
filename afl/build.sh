@@ -9,15 +9,19 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ICCDEV_DIR="$REPO_ROOT/iccDEV"
+SCRIPT_DIR="$REPO_ROOT/afl"
+ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
 BUILD_DIR="$ICCDEV_DIR/Build-AFL"
 CMAKE_DIR="$ICCDEV_DIR/Build/Cmake"
-BIN_DIR="$REPO_ROOT/afl/bin"
+BIN_DIR="$SCRIPT_DIR/bin"
 JOBS=$(nproc)
 
-# Clone iccDEV if not present or incomplete. AFL tests use upstream iccDEV.
-if [ ! -f "$CMAKE_DIR/CMakeLists.txt" ]; then
-    echo "[*] Cloning iccDEV (unpatched upstream for AFL)..."
+# Clone iccDEV if not present or incomplete. AFL tests use an isolated
+# upstream checkout so the root iccDEV/ source tree stays untouched.
+if [ -d "$ICCDEV_DIR/.git" ] && [ -f "$CMAKE_DIR/CMakeLists.txt" ]; then
+    echo "[*] Using isolated iccDEV checkout: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
+elif [ ! -f "$CMAKE_DIR/CMakeLists.txt" ]; then
+    echo "[*] Cloning iccDEV into afl/iccDEV (unpatched upstream for AFL)..."
     rm -rf "$ICCDEV_DIR"
     git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
 fi
@@ -35,9 +39,6 @@ if [[ "${1:-}" == "--clean" ]]; then
     rm -rf "$BUILD_DIR"
 fi
 
-mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
-
 echo "[*] Configuring iccDEV with AFL++ instrumentation..."
 echo "    Compiler: afl-clang-fast++"
 echo "    Sanitizers: ASAN + UBSAN"
@@ -48,7 +49,7 @@ ARCH_INCLUDE="/usr/include/$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null 
 ARCH_LIB="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu)"
 
 AFL_USE_ASAN=1 AFL_USE_UBSAN=1 \
-cmake "$CMAKE_DIR" \
+cmake -S "$CMAKE_DIR" -B "$BUILD_DIR" \
     -DCMAKE_C_COMPILER=afl-clang-fast \
     -DCMAKE_CXX_COMPILER=afl-clang-fast++ \
     -DCMAKE_BUILD_TYPE=Debug \
@@ -63,12 +64,11 @@ cmake "$CMAKE_DIR" \
     -DPNG_PNG_INCLUDE_DIR=/usr/include \
     -DPNG_LIBRARY="$ARCH_LIB/libpng.so" \
     -DJPEG_INCLUDE_DIR=/usr/include \
-    -DJPEG_LIBRARY="$ARCH_LIB/libjpeg.so" \
-    2>&1 | tail -5
+    -DJPEG_LIBRARY="$ARCH_LIB/libjpeg.so"
 
 echo "[*] Building with $JOBS cores..."
 AFL_USE_ASAN=1 AFL_USE_UBSAN=1 \
-make -j"$JOBS" 2>&1 | tail -3
+cmake --build "$BUILD_DIR" --parallel "$JOBS"
 
 echo ""
 echo "[OK] AFL-instrumented iccDEV built successfully"
@@ -92,51 +92,46 @@ done
 echo "  $DEPLOYED tool binaries deployed"
 
 # Deploy shared libraries. Debug builds use a "d" suffix in current iccDEV.
-# Preserve the active symlink chain and ignore stale versioned artifacts.
-deploy_shared_lib_family() {
-    local lib_dir="$1"
-    local root_glob="$2"
-    local required="$3"
-    local roots=()
-    mapfile -t roots < <(compgen -G "$lib_dir/$root_glob" || true)
+# Preserve active symlink chains for every iccDEV library used by tool binaries.
+deploy_shared_lib_root() {
+    local src="$1"
+    local root="$1"
+    local hops=0
 
-    if [[ ${#roots[@]} -eq 0 ]]; then
-        if [[ "$required" == "1" ]]; then
-            echo "[FAIL] No shared library found matching $lib_dir/$root_glob"
+    while true; do
+        cp -a "$src" "$BIN_DIR/"
+        if [[ ! -L "$src" ]]; then
+            break
+        fi
+
+        local target
+        target="$(readlink "$src")"
+        if [[ "$target" == /* ]]; then
+            src="$target"
+        else
+            src="$(dirname "$src")/$target"
+        fi
+
+        hops=$((hops + 1))
+        if [[ "$hops" -gt 16 ]]; then
+            echo "[FAIL] Symlink chain too deep for $root"
             exit 1
         fi
-        return 0
-    fi
-
-    for root in "${roots[@]}"; do
-        local src="$root"
-        local hops=0
-        while true; do
-            cp -a "$src" "$BIN_DIR/"
-            if [[ ! -L "$src" ]]; then
-                break
-            fi
-
-            local target
-            target="$(readlink "$src")"
-            if [[ "$target" == /* ]]; then
-                src="$target"
-            else
-                src="$(dirname "$src")/$target"
-            fi
-
-            hops=$((hops + 1))
-            if [[ "$hops" -gt 16 ]]; then
-                echo "[FAIL] Symlink chain too deep for $root"
-                exit 1
-            fi
-        done
     done
 }
 
-rm -f "$BIN_DIR"/libIccProfLib2*.so* "$BIN_DIR"/libIccXML2*.so*
-deploy_shared_lib_family "$BUILD_DIR/IccProfLib" "libIccProfLib2*.so" 1
-deploy_shared_lib_family "$BUILD_DIR/IccXML" "libIccXML2*.so" 0
+mapfile -t ICC_SHARED_ROOTS < <(
+    find "$BUILD_DIR" -mindepth 2 -maxdepth 2 \( -type f -o -type l \) -name 'libIcc*.so' | sort
+)
+if [[ ${#ICC_SHARED_ROOTS[@]} -eq 0 ]]; then
+    echo "[FAIL] No iccDEV shared libraries found under $BUILD_DIR"
+    exit 1
+fi
+
+rm -f "$BIN_DIR"/libIcc*.so*
+for lib_root in "${ICC_SHARED_ROOTS[@]}"; do
+    deploy_shared_lib_root "$lib_root"
+done
 
 echo ""
 echo "Shared libraries:"
