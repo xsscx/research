@@ -35,6 +35,7 @@ CXXFLAGS_FUZZER="$COMMON_CFLAGS $FUZZER_FLAGS $COVERAGE_FLAGS -frtti"
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccCommon"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles"
+INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccConnect/IccLibConnect"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
 
 # Upstream cmake may set CMAKE_DEBUG_POSTFIX="d" for Debug builds.
@@ -278,7 +279,7 @@ fi
 
 echo ""
 echo "JSON config fuzzer:"
-CFGCOMMON_DIR="$ICCDEV_DIR/Tools/CmdLine/IccCommon"
+CFGCOMMON_DIR="$ICCDEV_DIR/IccConnect/IccLibConnect"
 CFG_BUILD_TMP="$SCRIPT_DIR/.build_cfg_tmp"
 mkdir -p "$CFG_BUILD_TMP"
 if [ -f "$CFGCOMMON_DIR/IccCmmConfig.cpp" ] && [ -f "$CFGCOMMON_DIR/IccJsonUtil.cpp" ]; then
@@ -325,6 +326,18 @@ fi
 if [ "$FAILED" -gt 0 ]; then
   echo ""
   echo "[FAIL] fuzzer(s) failed to build"
+  exit 1
+fi
+
+if [ "$SKIPPED" -gt 0 ]; then
+  echo ""
+  echo "[FAIL] fuzzer source or dependency missing; skipped targets are not valid for a full CFL build"
+  exit 1
+fi
+
+if [ "$BUILT" -eq 0 ]; then
+  echo ""
+  echo "[FAIL] no CFL fuzzers were built"
   exit 1
 fi
 

@@ -8,13 +8,11 @@ CFL_FUZZERS=(
   icc_cfg_fuzzer
   icc_dump_fuzzer
   icc_fromcube_fuzzer
-  icc_fromjson_fuzzer
   icc_fromxml_fuzzer
   icc_link_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
   icc_tiffdump_fuzzer
-  icc_tojson_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer
 )
@@ -43,13 +41,11 @@ cfl_normalize_fuzzer() {
     cfg|config) name="icc_cfg_fuzzer" ;;
     dump) name="icc_dump_fuzzer" ;;
     cube|fromcube) name="icc_fromcube_fuzzer" ;;
-    fromjson) name="icc_fromjson_fuzzer" ;;
     fromxml) name="icc_fromxml_fuzzer" ;;
     link) name="icc_link_fuzzer" ;;
     roundtrip) name="icc_roundtrip_fuzzer" ;;
     specsep) name="icc_specsep_fuzzer" ;;
     tiffdump) name="icc_tiffdump_fuzzer" ;;
-    tojson) name="icc_tojson_fuzzer" ;;
     toxml) name="icc_toxml_fuzzer" ;;
     v5|v5dspobs) name="icc_v5dspobs_fuzzer" ;;
   esac
