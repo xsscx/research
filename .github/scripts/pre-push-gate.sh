@@ -40,6 +40,25 @@ has_changes() {
 }
 
 # ---------------------------------------------------
+# GATE 0: GitHub/workflow/hook preflight
+# ---------------------------------------------------
+echo -e "${BOLD}[GATE 0] GitHub/workflow preflight${NC}"
+
+if has_changes "\.github/\|\.githooks/\|Dockerfile\|\.dockerignore"; then
+  if .github/scripts/preflight-safety-checks.sh; then
+    echo -e "  ${GREEN}preflight OK${NC}"
+  else
+    echo -e "  ${RED}preflight FAILED${NC}"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  echo -e "  ${YELLOW}(no GitHub/hook/container changes - skipped)${NC}"
+  SKIPPED=$((SKIPPED + 1))
+fi
+
+echo ""
+
+# ---------------------------------------------------
 # GATE 1: iccanalyzer-lite (if C++ changed)
 # ---------------------------------------------------
 echo -e "${BOLD}[GATE 1] iccanalyzer-lite${NC}"

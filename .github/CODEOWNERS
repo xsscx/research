@@ -5,6 +5,12 @@
 .github/workflows/ @xsscx
 .github/actions/ @xsscx
 .github/scripts/ @xsscx
+.github/instructions/ @xsscx
+.github/prompts/ @xsscx
+.github/skills/ @xsscx
+.github/hooks/ @xsscx
+.githooks/ @xsscx
+.github/CODEOWNERS @xsscx
 
 # Security-critical components
 iccanalyzer-lite/ @xsscx
