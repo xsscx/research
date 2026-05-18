@@ -1,0 +1,17 @@
+diff --git a/IccProfLib/IccMpeSpectral.cpp b/IccProfLib/IccMpeSpectral.cpp
+index 4d1018c..6749300 100644
+--- a/IccProfLib/IccMpeSpectral.cpp
++++ b/IccProfLib/IccMpeSpectral.cpp
+@@ -343,9 +343,11 @@ void CIccMpeSpectralMatrix::Describe(std::string &sDescription, int /* nVerbosen
+   }
+   sDescription += "\n";
+ 
+-  if (data) {
++  if (data && m_size > 0) {
+     sDescription += "CHANNEL_DATA\n";
+     for (j=0; j<m_nOutputChannels; j++) {
++      if ((icUInt32Number)(data - m_pMatrix) + m_Range.steps > m_size)
++        break;
+       for (i=0; i<(int)m_Range.steps; i++) {
+         if (i)
+           sDescription += " ";

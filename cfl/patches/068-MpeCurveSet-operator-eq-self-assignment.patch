@@ -1,0 +1,12 @@
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -3077,6 +3077,9 @@ CIccMpeCurveSet::CIccMpeCurveSet(const CIccMpeCurveSet &curveSet)
+  ******************************************************************************/
+ CIccMpeCurveSet &CIccMpeCurveSet::operator=(const CIccMpeCurveSet &curveSet)
+ {
++  if (&curveSet == this)
++    return *this;
++
+   m_nReserved = curveSet.m_nReserved;
+ 
+   if (m_curve) {

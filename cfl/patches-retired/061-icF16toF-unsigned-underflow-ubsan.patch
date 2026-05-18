@@ -1,0 +1,31 @@
+diff --git a/IccProfLib/IccUtil.cpp b/IccProfLib/IccUtil.cpp
+index a90532c..4461e77 100644
+--- a/IccProfLib/IccUtil.cpp
++++ b/IccProfLib/IccUtil.cpp
+@@ -645,7 +645,7 @@ icFloatNumber ICCPROFLIB_API icF16toF(icFloat16Number num)
+   icUInt16Number numsgn, numexp, nummnt;
+   icUInt32Number rv = 0;    // because static analysis isn't perfect
+   icUInt32Number rvsgn, rvexp, rvmnt;
+-  icUInt32Number tmpexp;
++  icInt32Number tmpexp;
+   icFloatNumber * rvfp, rvf;
+   int exp;
+ 
+@@ -662,7 +662,7 @@ icFloatNumber ICCPROFLIB_API icF16toF(icFloat16Number num)
+         nummnt <<= 1;
+       } while (!(nummnt & 0x0400)); // Shift until leading bit overflows into exponent bit
+       rvsgn = ((icUInt32Number) numsgn) << 16;
+-      tmpexp = ((icUInt32Number)(numexp >> 10)) - 15 + 127 - exp;
++      tmpexp = ((icInt32Number)(numexp >> 10)) - 15 + 127 - exp;
+       rvexp = (icUInt32Number) (tmpexp << 23);
+       rvmnt = ((icUInt32Number) (nummnt & 0x03FFu)) << 13;
+       rv = (rvsgn | rvexp | rvmnt);
+@@ -674,7 +674,7 @@ icFloatNumber ICCPROFLIB_API icF16toF(icFloat16Number num)
+       }
+     } else {
+       rvsgn = ((icUInt32Number) numsgn) << 16;
+-      tmpexp = ((icUInt32Number)(numexp >> 10)) - 15 + 127;
++      tmpexp = ((icInt32Number)(numexp >> 10)) - 15 + 127;
+       rvexp = (icUInt32Number) (tmpexp << 23);
+       rvmnt = ((icUInt32Number) nummnt) << 13;
+       rv = (rvsgn | rvexp | rvmnt);

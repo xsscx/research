@@ -1,0 +1,27 @@
+--- a/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp.orig	2026-03-07 19:26:54.645108263 -0500
++++ b/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp	2026-03-07 19:27:00.296608204 -0500
+@@ -327,6 +327,24 @@
+     return false;
+   }
+ 
++  // CFL-082: Validate strip buffer is large enough for declared geometry.
++  // A malformed TIFF with StripByteCounts smaller than
++  // m_nRowsPerStrip * m_nBytesPerLine causes heap-buffer-overflow in ReadLine().
++  // CWE-122 / CWE-125.
++  if (m_nStripSamples <= 1) {
++    size_t requiredSize = (size_t)m_nRowsPerStrip * m_nBytesPerLine;
++    if ((size_t)m_nStripSize < requiredSize) {
++      Close();
++      return false;
++    }
++  } else {
++    size_t requiredPerPlane = (size_t)m_nRowsPerStrip * m_nBytesPerStripLine;
++    if ((size_t)m_nStripSize < requiredPerPlane) {
++      Close();
++      return false;
++    }
++  }
++
+   return true;
+ }
+ 

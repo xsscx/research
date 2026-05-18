@@ -1,0 +1,58 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
+index 104f25c..39e45b6 100644
+--- a/IccProfLib/IccMpeCalc.cpp
++++ b/IccProfLib/IccMpeCalc.cpp
+@@ -2851,7 +2851,7 @@ icFloat32Number CIccFuncTokenizer::GetValue()
+ }
+ 
+ 
+-bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
++bool CIccFuncTokenizer::GetEnvSig(icUInt32Number &envSig)
+ {
+   const char *pos = GetPos();
+ 
+@@ -2869,7 +2869,7 @@ bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
+       // this is difficult to format correctly on all platforms, because of pointer and integer size differences
+       sscanf(szToken+1, "%x", &sig );
+ 
+-      envSig = (icSigCmmEnvVar)sig;
++      envSig = sig;
+       return true;
+     }
+ 
+@@ -2883,11 +2883,11 @@ bool CIccFuncTokenizer::GetEnvSig(icSigCmmEnvVar &envSig)
+       sig |= 0x20;
+     }
+ 
+-    envSig = (icSigCmmEnvVar)sig;
++    envSig = sig;
+   }
+   else {
+     SetPos(pos); //Undo get token
+-    envSig = (icSigCmmEnvVar)0;
++    envSig = 0;
+     return false;
+   }
+ 
+@@ -3306,7 +3306,7 @@ const char *CIccCalculatorFunc::ParseFuncDef(const char *szFuncDef, CIccCalcOpLi
+ 
+       case icSigEnvVarOp:
+         {
+-          icSigCmmEnvVar envSig;
++          icUInt32Number envSig;
+           if (!scan.GetEnvSig(envSig))
+             return NULL;
+           op.data.size = (icUInt32Number)envSig;
+diff --git a/IccProfLib/IccMpeCalc.h b/IccProfLib/IccMpeCalc.h
+index 4808313..54303fc 100644
+--- a/IccProfLib/IccMpeCalc.h
++++ b/IccProfLib/IccMpeCalc.h
+@@ -339,7 +339,7 @@ public:
+   icSigCalcOp GetSig();
+   bool GetIndex(icUInt16Number &v1, icUInt16Number &v2, icUInt16Number initV1=0, icUInt16Number initV2=0);
+   icFloat32Number GetValue();
+-  bool GetEnvSig(icSigCmmEnvVar &envSig);
++  bool GetEnvSig(icUInt32Number &envSig);
+ 
+   //The following are used by XML variable and macro parsing
+   std::string GetName() const;

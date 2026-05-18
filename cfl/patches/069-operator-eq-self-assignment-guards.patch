@@ -1,0 +1,34 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index a61a0d0..c4a702f 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -152,6 +152,9 @@ CIccFormulaCurveSegment::CIccFormulaCurveSegment(const CIccFormulaCurveSegment &
+  ******************************************************************************/
+ CIccFormulaCurveSegment &CIccFormulaCurveSegment::operator=(const CIccFormulaCurveSegment &seg)
+ {
++  if (&seg == this)
++    return *this;
++
+   if (m_params)
+     free(m_params);
+ 
+@@ -911,6 +914,9 @@ CIccSampledCurveSegment::CIccSampledCurveSegment(const CIccSampledCurveSegment &
+  ******************************************************************************/
+ CIccSampledCurveSegment &CIccSampledCurveSegment::operator=(const CIccSampledCurveSegment &curve)
+ {
++  if (&curve == this)
++    return *this;
++
+   if (m_pSamples)
+     free(m_pSamples);
+ 
+@@ -1343,6 +1349,9 @@ CIccSingleSampledCurve::CIccSingleSampledCurve(const CIccSingleSampledCurve &cur
+ ******************************************************************************/
+ CIccSingleSampledCurve &CIccSingleSampledCurve::operator=(const CIccSingleSampledCurve &curve)
+ {
++  if (&curve == this)
++    return *this;
++
+   if (m_pSamples)
+     free(m_pSamples);
+ 

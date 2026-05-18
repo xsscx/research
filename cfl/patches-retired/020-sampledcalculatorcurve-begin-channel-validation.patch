@@ -1,0 +1,19 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 7b5977a..7058959 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -2354,7 +2354,13 @@ bool CIccSampledCalculatorCurve::Begin(icElemInterp nInterp, CIccTagMultiProcess
+ {
+   if (m_nDesiredSize < 2 || !m_pCalc || !m_pCalc->Begin(nInterp, pMPE))
+     return false;
+-  
++
++  // CFL-020: Validate calculator has exactly 1 input and 1 output channel.
++  // A sampled calculator curve is 1->1 by definition. If the calculator declares
++  // more output channels, Apply() writes past the single-float stack buffer 'dst'.
++  if (m_pCalc->NumInputChannels() != 1 || m_pCalc->NumOutputChannels() != 1)
++    return false;
++
+   icUInt32Number nSize = m_nDesiredSize;
+   if (nSize < 2)
+     nSize = 2;

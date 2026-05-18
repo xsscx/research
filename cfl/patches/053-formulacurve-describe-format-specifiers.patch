@@ -1,0 +1,19 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 8e6d193..f378556 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -266,7 +266,7 @@ void CIccFormulaCurveSegment::Describe(std::string &sDescription, int /* nVerbos
+       snprintf(buf, bufSize, "Y = %.8f * X + %.8f\n\n",
+       m_params[1], m_params[3]);
+     else
+-      snprintf(buf, bufSize, "Y = %8f * (%.8f * X + %.8f)^%.4f + %.8f\n\n",
++      snprintf(buf, bufSize, "Y = %.8f * (%.8f * X + %.8f)^%.4f + %.8f\n\n",
+               m_params[1], m_params[2], m_params[3], m_params[0], m_params[4]);
+     sDescription += buf;
+     return;
+@@ -275,4 +275,4 @@ void CIccFormulaCurveSegment::Describe(std::string &sDescription, int /* nVerbos
+     if (!icIsNear(m_params[0], 1.0))
+-      snprintf(buf, bufSize, "Y = %.8f * ln(%.8f * X^%8.f - %.8f) + %.8f\n\n",
++      snprintf(buf, bufSize, "Y = %.8f * ln(%.8f * X^%.8f - %.8f) + %.8f\n\n",
+         m_params[1], m_params[4], m_params[0], m_params[2], m_params[3]);
+     else

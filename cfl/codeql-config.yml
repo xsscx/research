@@ -1,0 +1,28 @@
+# CodeQL Configuration for CFL LibFuzzer Harnesses
+# Purpose: Security analysis of 19 LibFuzzer harnesses targeting iccDEV
+# Project: CFL (Clustered Fuzzing Lab)
+# Fuzzers: 14 core + 2 XML + 3 TIFF (including icc_spectral_b_fuzzer)
+
+name: "CFL LibFuzzer Security Analysis"
+
+disable-default-queries: false
+
+queries:
+  - uses: security-and-quality
+  - uses: security-experimental
+  - uses: ./cfl/codeql-queries
+
+packs:
+  - codeql/cpp-queries@latest
+  - codeql/cpp-all@latest
+
+paths:
+  - cfl/*.cpp
+  - cfl/*.h
+
+paths-ignore:
+  - iccDEV/**
+  - upstream-iccDEV/**
+  - cfl/iccDEV/**
+  - "**/*.md"
+  - "**/CMakeFiles/**"

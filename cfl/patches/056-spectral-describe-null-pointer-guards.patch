@@ -1,0 +1,56 @@
+--- a/IccProfLib/IccMpeSpectral.cpp
++++ b/IccProfLib/IccMpeSpectral.cpp
+@@ -321,20 +321,24 @@
+   sDescription += buf;
+ 
+   sDescription += "White\n";
+-  for (j=0; j<(int)m_Range.steps; j++) {
+-    if (j)
+-      sDescription += " ";
+-    snprintf(buf, bufSize, "%12.8lf", m_pWhite[j]);
+-    sDescription += buf;
++  if (m_pWhite) {
++    for (j=0; j<(int)m_Range.steps; j++) {
++      if (j)
++        sDescription += " ";
++      snprintf(buf, bufSize, "%12.8lf", m_pWhite[j]);
++      sDescription += buf;
++    }
+   }
+   sDescription += "\n";
+ 
+   sDescription += "BLACK_OFFSET\n";
+-  for (j=0; j<(int)m_Range.steps; j++) {
+-    if (j)
+-      sDescription += " ";
+-    snprintf(buf, bufSize, "%12.8lf", m_pOffset[j]);
+-    sDescription += buf;
++  if (m_pOffset) {
++    for (j=0; j<(int)m_Range.steps; j++) {
++      if (j)
++        sDescription += " ";
++      snprintf(buf, bufSize, "%12.8lf", m_pOffset[j]);
++      sDescription += buf;
++    }
+   }
+   sDescription += "\n";
+ 
+@@ -1832,11 +1836,13 @@
+   sDescription += buf;
+ 
+   sDescription += "White\n";
+-  for (j=0; j<(int)m_Range.steps; j++) {
+-    if (j)
+-      sDescription += " ";
+-    snprintf(buf, bufSize, "%12.8lf", m_pWhite[j]);
+-    sDescription += buf;
++  if (m_pWhite) {
++    for (j=0; j<(int)m_Range.steps; j++) {
++      if (j)
++        sDescription += " ";
++      snprintf(buf, bufSize, "%12.8lf", m_pWhite[j]);
++      sDescription += buf;
++    }
+   }
+   sDescription += "\n";
+ 

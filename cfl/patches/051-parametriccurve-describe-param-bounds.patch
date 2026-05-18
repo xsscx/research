@@ -1,0 +1,49 @@
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index e9e9aad..69e47d8 100644
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -849,13 +849,20 @@ void CIccTagParametricCurve::Describe(std::string &sDescription, int /* nVerbose
+   snprintf(buf, bufSize, "FunctionType: %04Xh\n", m_nFunctionType);
+   sDescription += buf;
+ 
++  if (!m_dParam || m_nNumParam == 0) {
++    sDescription += "  No parameters\n";
++    return;
++  }
++
+   switch(m_nFunctionType) {
+ case 0x0000:
++  if (m_nNumParam < 1) { sDescription += "  Insufficient parameters\n"; return; }
+   snprintf(buf, bufSize, "Y = X ^ %.4lf\n", m_dParam[0]);
+   sDescription += buf;
+   return;
+ 
+ case 0x0001:
++  if (m_nNumParam < 3) { sDescription += "  Insufficient parameters\n"; return; }
+   snprintf(buf, bufSize, "Y = 0 when (X < %.4lf / %.4lf)\n",
+     -m_dParam[2], m_dParam[1]);
+   sDescription += buf;
+@@ -867,6 +874,7 @@ case 0x0001:
+   return;
+ 
+ case 0x0002:
++  if (m_nNumParam < 4) { sDescription += "  Insufficient parameters\n"; return; }
+   snprintf(buf, bufSize, "Y = %.4lf   when (X < %.4lf / %.4lf)\n", m_dParam[3],
+     -m_dParam[2], m_dParam[1]);
+   sDescription += buf;
+@@ -879,6 +887,7 @@ case 0x0002:
+   return;
+ 
+ case 0x0003:
++  if (m_nNumParam < 5) { sDescription += "  Insufficient parameters\n"; return; }
+   snprintf(buf, bufSize, "Y = %lf * X   when (X < %.4lf)\n",
+     m_dParam[3], m_dParam[4]);
+   sDescription += buf;
+@@ -890,6 +899,7 @@ case 0x0003:
+   return;
+ 
+ case 0x0004:
++  if (m_nNumParam < 7) { sDescription += "  Insufficient parameters\n"; return; }
+   snprintf(buf, bufSize, "Y = %lf * X + %.4lf  when (X < %.4lf)\n",
+     m_dParam[3], m_dParam[6], m_dParam[4]);
+   sDescription += buf;

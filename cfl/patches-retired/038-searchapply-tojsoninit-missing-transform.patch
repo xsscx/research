@@ -1,0 +1,21 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+index c944c5f..613ad6d 100644
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -1085,10 +1085,15 @@ void CIccCfgSearchApply::toJsonInit(json &j) const
+   if (m_useV5SubProfileInitial)
+     j["useV5SubProfile"] = m_useV5SubProfileInitial;
+   int i;
++  for (i = 0; icTranNames[i]; i++)
++    if (icTranValues[i] == m_transformInitial)
++      break;
++  if (icTranNames[i])
++    j["transform"] = icTranNames[i];
+   for (i = 0; icInterpNames[i]; i++)
+     if (icInterpValues[i] == m_interpolationInitial)
+       break;
+-  if (icInterpValues[i] == icInterpLinear)
++  if (icInterpNames[i])
+     j["interpolation"] = icInterpNames[i];
+ 
+ }

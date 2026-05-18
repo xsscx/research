@@ -1,0 +1,19 @@
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -5466,7 +5469,7 @@ CIccMpeCLUT::CIccMpeCLUT(const CIccMpeCLUT &clut)
+   m_nReserved = clut.m_nReserved;
+   m_nInputChannels = clut.m_nInputChannels;
+   m_nOutputChannels = clut.m_nOutputChannels;
+-  m_interpType = ic1dInterp;
++  m_interpType = clut.m_interpType;
+ }
+ 
+ /**
+@@ -5495,6 +5498,7 @@ CIccMpeCLUT &CIccMpeCLUT::operator=(const CIccMpeCLUT &clut)
+   m_nReserved = clut.m_nReserved;
+   m_nInputChannels = clut.m_nInputChannels;
+   m_nOutputChannels = clut.m_nOutputChannels;
++  m_interpType = clut.m_interpType;
+ 
+   return *this;
+ }

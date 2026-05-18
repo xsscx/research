@@ -1,0 +1,21 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -650,7 +650,7 @@
+   jsonToValue(j["useHToS"], m_useHToS);
+   jsonToValue(j["useV5SubProfile"], m_useV5SubProfile);
+ 
+-  if (jsonToValue(j["transform"], str)) {
++  if (jsonToValue(j["interpolation"], str)) {
+     int i;
+     for (i = 0; icInterpNames[i]; i++) {
+       if (str == icInterpNames[i])
+@@ -1117,7 +1117,7 @@
+   jsonToValue(j["adjustPcsLuminance"], m_adjustPcsLuminanceInitial);
+   jsonToValue(j["useV5SubProfile"], m_useV5SubProfileInitial);
+ 
+-  if (jsonToValue(j["transform"], str)) {
++  if (jsonToValue(j["interpolation"], str)) {
+     int i;
+     for (i = 0; icInterpNames[i]; i++) {
+       if (str == icInterpNames[i])

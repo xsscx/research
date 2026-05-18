@@ -1,0 +1,34 @@
+diff --git a/IccProfLib/IccMatrixMath.cpp b/IccProfLib/IccMatrixMath.cpp
+index 162708c..e238c55 100644
+--- a/IccProfLib/IccMatrixMath.cpp
++++ b/IccProfLib/IccMatrixMath.cpp
+@@ -78,6 +78,7 @@
+ #include "IccUtil.h"
+ #include <cstring>
+ #include <cstdio>
++#include <cmath>
+ 
+ #ifdef USEICCDEVNAMESPACE
+ namespace iccDEV {
+@@ -359,6 +360,10 @@ bool CIccMatrixMath::SetRange(const icSpectralRange &srcRange, const icSpectralR
+   if (srcRange.steps == 0)
+     return false;
+ 
++
++  // CFL-028: Guard against division by zero when steps==1 or degenerate ranges
++  if (srcRange.steps <= 1 || dstRange.steps <= 1)
++    return false;
+   icUInt16Number d;
+   icFloatNumber srcStart = icF16toF(srcRange.start);
+   icFloatNumber srcEnd = icF16toF(srcRange.end);
+@@ -369,6 +374,10 @@ bool CIccMatrixMath::SetRange(const icSpectralRange &srcRange, const icSpectralR
+   icFloatNumber srcScale = (srcEnd - srcStart) / (srcRange.steps-1);
+   icFloatNumber dstScale = (dstEnd - dstStart ) / (dstRange.steps - 1);
+ 
++  // CFL-028: Validate scales are finite (NaN from 0/0 when start==end)
++  if (!std::isfinite(srcScale) || !std::isfinite(dstScale))
++    return false;
++
+   icFloatNumber *data=entry(0);
+   size_t dataSize = dstRange.steps * srcRange.steps * sizeof(icFloatNumber);
+   memset(data, 0, dataSize);

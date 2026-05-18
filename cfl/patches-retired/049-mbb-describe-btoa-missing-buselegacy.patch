@@ -1,0 +1,13 @@
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index e9e9aad..4abde04 100644
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -3641,7 +3641,7 @@ void CIccMBB::Describe(std::string &sDescription, int nVerboseness)
+     }
+ 
+     if (m_CLUT)
+-      m_CLUT->DumpLut(sDescription, "CLUT", m_csInput, m_csOutput, nVerboseness);
++      m_CLUT->DumpLut(sDescription, "CLUT", m_csInput, m_csOutput, nVerboseness, GetType()==icSigLut16Type);
+ 
+     if (m_CurvesM && this->GetType()!=icSigLut8Type) {
+       for (i=0; i<m_nOutput; i++) {

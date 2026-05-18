@@ -1,0 +1,18 @@
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -1635,10 +1635,13 @@ bool CIccSingleSampledCurve::Read(icUInt32Number size, CIccIO *pIO)
+   if (!pIO->Read16(&m_storageType))
+     return false;
+ 
+-  if (!SetSize(m_nCount, false))
++  // CFL-021: Validate m_nCount against remaining data BEFORE allocating.
++  // Without this check, a crafted ICC profile can set m_nCount to ~4 billion,
++  // causing SetSize() to attempt a multi-GB malloc (OOM / denial-of-service).
++  if (m_nCount > size - headerSize)
+     return false;
+ 
+-  if (m_nCount > size - headerSize)
++  if (!SetSize(m_nCount, false))
+     return false;
+ 
+   if (m_nCount) {

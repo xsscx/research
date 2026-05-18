@@ -1,0 +1,12 @@
+diff --git a/IccXML/IccLibXML/IccProfileXml.cpp b/IccXML/IccLibXML/IccProfileXml.cpp
+index 0c66f42..fda1a07 100644
+--- a/IccXML/IccLibXML/IccProfileXml.cpp
++++ b/IccXML/IccLibXML/IccProfileXml.cpp
+@@ -831,6 +831,7 @@ bool CIccProfileXml::ParseTag(xmlNode *pNode, std::string &parseStr)
+         }
+       }
+     }
++    break;
+   default:
+       break;
+   }

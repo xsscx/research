@@ -1,0 +1,16 @@
+--- a/IccXML/IccLibXML/IccUtilXml.cpp	2026-03-05 20:11:54.146153042 -0500
++++ b/IccXML/IccLibXML/IccUtilXml.cpp	2026-03-05 20:12:40.481968742 -0500
+@@ -306,9 +306,11 @@
+ 
+ const char *icFixXml(char *szDest, const char *szStr)
+ {
+-  char *m_ptr = szDest; 
++  char *m_ptr = szDest;
++  // Cap at 65536 output bytes to prevent stack buffer overflow
++  const char *m_end = szDest + 65536 - 7;
+ 
+-  while (*szStr) {
++  while (*szStr && m_ptr < m_end) {
+     switch (*szStr) {
+     case '\'':
+       strcpy(m_ptr, "&apos;");

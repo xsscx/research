@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cfl/rebuild.sh - Stop running CFL fuzzers and rebuild local LibFuzzer bins.
 #
-# Usage: ./cfl/rebuild.sh
+# Usage: ./cfl/rebuild.sh [build.sh args]
 #
 # This preserves corpora and the nested cfl/iccDEV source checkout. It only
 # removes local build outputs before delegating to cfl/build.sh.
@@ -22,4 +22,4 @@ rm -rf "${SCRIPT_DIR:?}/bin" \
        "${SCRIPT_DIR:?}/.build_tmp" \
        "${SCRIPT_DIR:?}/.build_cfg_tmp"
 
-exec "$REPO_ROOT/cfl/build.sh"
+exec "$REPO_ROOT/cfl/build.sh" "$@"

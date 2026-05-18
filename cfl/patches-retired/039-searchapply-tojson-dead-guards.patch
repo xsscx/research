@@ -1,0 +1,28 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+index c944c5f..e5ce7a6 100644
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -1131,12 +1131,17 @@ bool CIccCfgSearchApply::fromJsonInit(json j)
+ 
+ void CIccCfgSearchApply::toJson(json& j) const
+ {
+-  if (jsonExistsField(j, "profileSequence"))
+-    toJsonProfiles(j["profileSequence"]);
+-  if (jsonExistsField(j, "initial"))
+-    toJsonInit(j["initial"]);
+-  if (jsonExistsField(j, "pccWeights"))
+-    toJsonPccWeights(j["pccWeights"]);
++  json profiles;
++  toJsonProfiles(profiles);
++  j["profileSequence"] = profiles;
++
++  json init;
++  toJsonInit(init);
++  j["initial"] = init;
++
++  json weights;
++  toJsonPccWeights(weights);
++  j["pccWeights"] = weights;
+ }
+ 
+ bool CIccCfgSearchApply::fromJson(json j, bool bReset)

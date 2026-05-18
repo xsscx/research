@@ -1,0 +1,11 @@
+--- a/IccXML/IccLibXML/IccUtilXml.cpp	2026-03-23 16:08:34.128984589 +0000
++++ b/IccXML/IccLibXML/IccUtilXml.cpp	2026-03-23 16:08:34.130984571 +0000
+@@ -1548,7 +1548,7 @@
+     xml += line;
+   }
+ 
+-  icUInt32Number otherFlags = ~(icEmbeddedProfileTrue | icUseWithEmbeddedDataOnly | icExtendedRangePCS);
++  icUInt32Number otherFlags = ~(icUInt32Number)(icEmbeddedProfileTrue | icUseWithEmbeddedDataOnly | icExtendedRangePCS);
+ 
+   if (bUsesMCS) {
+     if (flags & icMCSNeedsSubsetTrue)

@@ -7,6 +7,7 @@
 #
 # Usage:  ./build.sh          # build all fuzzers
 #         ./build.sh clean    # remove build artifacts and start fresh
+#         ./build.sh --no-patches --refresh-iccdev
 #
 # Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev, libtiff-dev, zlib,
 #               libclang-rt-<ver>-dev (provides ASan/UBSan runtime)
@@ -22,6 +23,11 @@ NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 CC="${CC:-clang}"
 CXX="${CXX:-clang++}"
+APPLY_PATCHES="${CFL_APPLY_PATCHES:-1}"
+REFRESH_ICCDEV="${CFL_REFRESH_ICCDEV:-0}"
+PATCH_WX="${CFL_PATCH_WX:-0}"
+KEEP_ICCDEV="${CFL_KEEP_ICCDEV:-0}"
+SELECTED_PATCHES=()
 
 # Sanitizer + debug + instrumentation + coverage flags
 COMMON_CFLAGS="-g -O1 -fno-omit-frame-pointer"
@@ -80,7 +86,72 @@ banner() {
   echo "========================================"
 }
 
-if [ "${1:-}" = "clean" ]; then
+usage() {
+  sed -n '2,12p' "$0" | sed 's/^# \?//'
+  echo ""
+  echo "Options:"
+  echo "  clean             remove build artifacts and nested iccDEV checkout"
+  echo "  --no-patches      build against unpatched iccDEV even when cfl/patches exists"
+  echo "  --patches         apply cfl/patches before building (default)"
+  echo "  --patch-file FILE apply one patch file; may be repeated"
+  echo "  --keep-iccdev     preserve current cfl/iccDEV source edits"
+  echo "  --refresh-iccdev  fetch origin/master and reset the nested checkout to it"
+  echo "  --patch-wx        apply the legacy local wxWidgets CMake workaround"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    clean)
+      CLEAN=1
+      shift
+      ;;
+    --no-patches)
+      APPLY_PATCHES=0
+      shift
+      ;;
+    --patches)
+      APPLY_PATCHES=1
+      shift
+      ;;
+    --patch-file|--patch)
+      if [[ $# -lt 2 ]]; then
+        echo "[FAIL] ERROR: $1 requires a patch path or cfl/patches filename"
+        exit 1
+      fi
+      APPLY_PATCHES=selected
+      SELECTED_PATCHES+=("$2")
+      shift 2
+      ;;
+    --keep-iccdev)
+      KEEP_ICCDEV=1
+      shift
+      ;;
+    --refresh-iccdev)
+      REFRESH_ICCDEV=1
+      shift
+      ;;
+    --patch-wx)
+      PATCH_WX=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "[FAIL] ERROR: unknown argument: $1"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ "$REFRESH_ICCDEV" = "1" && "$KEEP_ICCDEV" = "1" ]]; then
+  echo "[FAIL] ERROR: --refresh-iccdev and --keep-iccdev are mutually exclusive"
+  exit 1
+fi
+
+if [ "${CLEAN:-0}" = "1" ]; then
   banner "Cleaning build artifacts"
   rm -rf "$OUTPUT_DIR" "$ICCDEV_DIR" "$SCRIPT_DIR/.build_tmp"
   echo "[OK] Clean complete"
@@ -126,27 +197,51 @@ echo "  Coverage: $COVERAGE_FLAGS"
 
 banner "Step 1: iccDEV source"
 if [ -d "$ICCDEV_DIR/.git" ]; then
-  echo "Using existing checkout: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
+  if [ "$REFRESH_ICCDEV" = "1" ]; then
+    echo "Refreshing existing checkout from origin/master"
+    git -C "$ICCDEV_DIR" fetch origin master
+    git -C "$ICCDEV_DIR" reset --hard origin/master
+    git -C "$ICCDEV_DIR" clean -fd
+  else
+    echo "Using existing checkout: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
+  fi
 else
   echo "Cloning iccDEV..."
   rm -rf "$ICCDEV_DIR"
-  git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
+  git clone --branch master --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
 fi
+echo "Branch: $(cd "$ICCDEV_DIR" && git rev-parse --abbrev-ref HEAD)"
 echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 
 # Apply CFL patches if present. Zero patches is valid.
-(cd "$ICCDEV_DIR" && git checkout -- . 2>/dev/null)
+if [ "$KEEP_ICCDEV" = "1" ]; then
+  echo "Preserving current cfl/iccDEV source edits"
+else
+  (cd "$ICCDEV_DIR" && git checkout -- . 2>/dev/null)
+fi
+
 PATCH_DIR="$SCRIPT_DIR/patches"
-if [ -d "$PATCH_DIR" ] && ls "$PATCH_DIR"/*.patch 1>/dev/null 2>&1; then
+if [ "$APPLY_PATCHES" = "0" ]; then
+  echo "Patch application disabled (building current cfl/iccDEV state)"
+elif [ "$APPLY_PATCHES" = "selected" ]; then
   PATCH_OK=0
   PATCH_FAIL=0
-  for p in "$PATCH_DIR"/*.patch; do
-    pname=$(basename "$p")
-    if patch --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
-      patch -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1
+  for p in "${SELECTED_PATCHES[@]}"; do
+    if [ -f "$p" ]; then
+      patch_path="$p"
+    elif [ -f "$PATCH_DIR/$p" ]; then
+      patch_path="$PATCH_DIR/$p"
+    else
+      echo "[FAIL] Patch not found: $p"
+      exit 1
+    fi
+
+    pname=$(basename "$patch_path")
+    if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1; then
+      patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1
       echo "[OK] Applied: $pname"
       PATCH_OK=$((PATCH_OK + 1))
-    elif patch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
+    elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1; then
       echo "[OK] Already applied: $pname"
       PATCH_OK=$((PATCH_OK + 1))
     else
@@ -156,15 +251,40 @@ if [ -d "$PATCH_DIR" ] && ls "$PATCH_DIR"/*.patch 1>/dev/null 2>&1; then
   done
   echo "Patches: $PATCH_OK OK, $PATCH_FAIL FAIL"
   if [ "$PATCH_FAIL" -gt 0 ]; then
-    echo "WARNING: Some patches failed - check upstream changes"
+    echo "[FAIL] selected patch application failed"
+    exit 1
+  fi
+elif [ -d "$PATCH_DIR" ] && ls "$PATCH_DIR"/*.patch 1>/dev/null 2>&1; then
+  PATCH_OK=0
+  PATCH_FAIL=0
+  for p in "$PATCH_DIR"/*.patch; do
+    pname=$(basename "$p")
+    if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
+      patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1
+      echo "[OK] Applied: $pname"
+      PATCH_OK=$((PATCH_OK + 1))
+    elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
+      echo "[OK] Already applied: $pname"
+      PATCH_OK=$((PATCH_OK + 1))
+    else
+      echo "[FAIL] Cannot apply: $pname"
+      PATCH_FAIL=$((PATCH_FAIL + 1))
+    fi
+  done
+  echo "Patches: $PATCH_OK OK, $PATCH_FAIL FAIL"
+  if [ "$PATCH_FAIL" -gt 0 ]; then
+    echo "[FAIL] patch application failed"
+    exit 1
   fi
 else
   echo "No patches to apply (zero-patch mode)"
 fi
 
-banner "Step 2: Patch wxWidgets"
+banner "Step 2: Optional wxWidgets workaround"
 CMAKELISTS="$ICCDEV_DIR/Build/Cmake/CMakeLists.txt"
-if grep -q 'find_package(wxWidgets' "$CMAKELISTS" 2>/dev/null; then
+if [ "$PATCH_WX" != "1" ]; then
+  echo "Skipped (unpatched source mode)"
+elif grep -q 'find_package(wxWidgets' "$CMAKELISTS" 2>/dev/null; then
   sed -i 's/find_package(wxWidgets/#find_package(wxWidgets/' "$CMAKELISTS"
   sed -i 's/if(wxWidgets_FOUND)/if(FALSE AND wxWidgets_FOUND)/' "$CMAKELISTS"
   sed -i '/wx_/ s/^/#/' "$CMAKELISTS" 2>/dev/null || true

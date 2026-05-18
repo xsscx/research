@@ -1,0 +1,73 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 7d2a7a1..580d330 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -222,8 +222,14 @@ void CIccFormulaCurveSegment::Describe(std::string &sDescription, int /* nVerbos
+   snprintf(buf, bufSize, "]\nFunctionType: %04Xh\n", m_nFunctionType);
+   sDescription += buf;
+ 
++  if (!m_params || m_nParameters == 0) {
++    sDescription += "  No parameters\n\n";
++    return;
++  }
++
+   switch(m_nFunctionType) {
+   case 0x0000:
++    if (m_nParameters < 4) { sDescription += "  Insufficient parameters\n\n"; return; }
+     if (icIsNear(m_params[1], 0.0) && icIsNear(m_params[2], 0.0))
+       snprintf(buf, bufSize, "Y = %.8f\n\n", m_params[3]);
+     else if (icIsNear(m_params[0], 1.0) && icIsNear(m_params[1], 1.0) &&
+@@ -239,18 +245,21 @@ void CIccFormulaCurveSegment::Describe(std::string &sDescription, int /* nVerbos
+     return;
+ 
+   case 0x0001:
++    if (m_nParameters < 5) { sDescription += "  Insufficient parameters\n\n"; return; }
+     snprintf(buf, bufSize, "Y = %.8f * log (%.8f * (X ^ %.8f)  + %.8f) + %.8f\n\n",
+             m_params[1], m_params[2], m_params[0], m_params[3], m_params[4]);
+     sDescription += buf;
+     return;
+ 
+   case 0x0002:
++    if (m_nParameters < 5) { sDescription += "  Insufficient parameters\n\n"; return; }
+     snprintf(buf, bufSize, "Y = %.8f * (%.8f ^ (%.8f * X + %.8f)) + %.8f\n\n",
+             m_params[0], m_params[1], m_params[2], m_params[3], m_params[4]);
+     sDescription += buf;
+     return;
+ 
+   case 0x0003:
++    if (m_nParameters < 5) { sDescription += "  Insufficient parameters\n\n"; return; }
+     if (icIsNear(m_params[1],0.0) && icIsNear(m_params[2], 0.0))
+       snprintf(buf, bufSize, "Y = %.8f\n\n", m_params[3]);
+     else if (icIsNear(m_params[0], 1.0) && icIsNear(m_params[1], 1.0) &&
+@@ -272,6 +281,7 @@ void CIccFormulaCurveSegment::Describe(std::string &sDescription, int /* nVerbos
+     return;
+ 
+   case 0x0004:
++    if (m_nParameters < 5) { sDescription += "  Insufficient parameters\n\n"; return; }
+     if (!icIsNear(m_params[0], 1.0))
+       snprintf(buf, bufSize, "Y = %.8f * ln(%.8f * X^%8.f - %.8f) + %.8f\n\n",
+         m_params[1], m_params[4], m_params[0], m_params[2], m_params[3]);
+@@ -283,6 +293,7 @@ void CIccFormulaCurveSegment::Describe(std::string &sDescription, int /* nVerbos
+     return;
+ 
+   case 0x0005:
++    if (m_nParameters < 6) { sDescription += "  Insufficient parameters\n\n"; return; }
+     if (!icIsNear(m_params[0], 1.0))
+       snprintf(buf, bufSize, "Y = %.8f * exp((%.8f * X^%.8f - %.8f) / %.8f) + %.8f\n\n",
+         m_params[5], m_params[4], m_params[0], m_params[3], m_params[1], m_params[2]);
+@@ -294,6 +305,7 @@ void CIccFormulaCurveSegment::Describe(std::string &sDescription, int /* nVerbos
+     return;
+ 
+   case 0x0006:
++    if (m_nParameters < 7) { sDescription += "  Insufficient parameters\n\n"; return; }
+     if (!icIsNear(m_params[1], 1.0))
+       snprintf(buf, bufSize, "Y = %.8f * (max[(%.8f * X^%.8f - %.8f), 0] / (%.8f - %.8f * X^%.8f))^%.8f\n\n",
+         m_params[5], m_params[6], m_params[1], m_params[2], m_params[3], m_params[4], m_params[1], m_params[0]);
+@@ -304,6 +316,7 @@ void CIccFormulaCurveSegment::Describe(std::string &sDescription, int /* nVerbos
+     return;
+ 
+   case 0x0007:
++    if (m_nParameters < 6) { sDescription += "  Insufficient parameters\n\n"; return; }
+     if (!icIsNear(m_params[1], 1.0))
+       snprintf(buf, bufSize, "Y = %.8f * ((%.8f + %.8f * X^%.8f) / (1 + %.8f * X^%.8f))^%.8f\n\n",
+         m_params[5], m_params[2], m_params[3], m_params[1], m_params[4], m_params[1], m_params[0]);

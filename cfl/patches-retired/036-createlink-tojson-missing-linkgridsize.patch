@@ -1,0 +1,11 @@
+diff --git a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+--- a/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
++++ b/Tools/CmdLine/IccCommon/IccCmmConfig.cpp
+@@ -537,6 +537,7 @@ void CIccCfgCreateLink::toJson(json& j) const
+     break;
+   }
+ 
++  j["linkGridSize"] = m_linkGridSize;
+   j["linkTitle"] = m_linkTitle;
+   j["linkMinRange"] = m_linkMinRange;
+   j["linkMaxRange"] = m_linkMaxRange;
