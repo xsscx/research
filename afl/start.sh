@@ -3,7 +3,7 @@
 #
 # Usage: ./afl/start.sh <target> [--parallel N]
 #
-# Targets: dump, toxml, fromxml, roundtrip, tiffdump, jpegdump, pngdump, fromcube
+# Targets are defined in afl/targets.sh.
 #
 # Examples:
 #   ./afl/start.sh dump                 # Single instance
@@ -17,6 +17,8 @@ AFL_TIMEOUT="${AFL_TIMEOUT:-5000}"
 AFL_MAP_SIZE_VAL="${AFL_MAP_SIZE:-131072}"
 BIN_DIR="$REPO_ROOT/afl/bin"
 
+source "$AFL_BASE/targets.sh"
+
 TARGET="${1:-}"
 PARALLEL=1
 
@@ -29,120 +31,22 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$TARGET" ]]; then
+if [[ -z "$TARGET" || "$TARGET" == "--list" ]]; then
     echo "Usage: $0 <target> [--parallel N]"
     echo ""
-    echo "Available targets (single-file input):"
-    echo "  dump        - iccDumpProfile (ICC binary -> text dump)"
-    echo "  toxml       - iccToXml (ICC binary -> XML)"
-    echo "  fromxml     - iccFromXml (ICC XML -> binary)"
-    echo "  roundtrip   - iccRoundTrip (ICC binary round-trip)"
-    echo "  tiffdump    - iccTiffDump (TIFF -> ICC extraction)"
-    echo "  jpegdump    - iccJpegDump (JPEG -> ICC extraction)"
-    echo "  pngdump     - iccPngDump (PNG -> ICC extraction)"
-    echo "  fromcube    - iccFromCube (.cube LUT text -> ICC)"
-    echo "  search      - iccApplySearch (ICC search/optimization)"
+    afl_print_targets
+    if [[ "$TARGET" == "--list" ]]; then
+        exit 0
+    fi
     exit 1
 fi
 
 # Target-specific configuration
-case "$TARGET" in
-    dump)
-        BINARY="$BIN_DIR/iccDumpProfile"
-        AFL_DIR="$AFL_BASE/afl-dump"
-        DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
-        SEED_DIRS=(
-            "$REPO_ROOT/test-profiles"
-            "$REPO_ROOT/fuzz/graphics/icc"
-        )
-        AFL_ARGS=("@@" "ALL")
-        ;;
-    toxml)
-        BINARY="$BIN_DIR/iccToXml"
-        AFL_DIR="$AFL_BASE/afl-toxml"
-        DICT="$REPO_ROOT/cfl/icc_toxml_fuzzer.dict"
-        SEED_DIRS=(
-            "$REPO_ROOT/test-profiles"
-            "$REPO_ROOT/fuzz/graphics/icc"
-        )
-        AFL_ARGS=("@@" "/dev/null")
-        ;;
-    fromxml)
-        BINARY="$BIN_DIR/iccFromXml"
-        AFL_DIR="$AFL_BASE/afl-fromxml"
-        DICT="$REPO_ROOT/cfl/icc_fromxml_fuzzer.dict"
-        SEED_DIRS=(
-            "$REPO_ROOT/fuzz/xml/icc"
-            "$REPO_ROOT/cfl/corpus-icc_fromxml_fuzzer"
-        )
-        AFL_ARGS=("@@" "/dev/null")
-        ;;
-    roundtrip)
-        BINARY="$BIN_DIR/iccRoundTrip"
-        AFL_DIR="$AFL_BASE/afl-roundtrip"
-        DICT="$REPO_ROOT/cfl/icc_roundtrip_fuzzer.dict"
-        SEED_DIRS=(
-            "$REPO_ROOT/test-profiles"
-            "$REPO_ROOT/fuzz/graphics/icc"
-        )
-        AFL_ARGS=("@@")
-        ;;
-    tiffdump)
-        BINARY="$BIN_DIR/iccTiffDump"
-        AFL_DIR="$AFL_BASE/afl-tiffdump"
-        DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
-        SEED_DIRS=(
-            "$AFL_BASE/afl-tiffdump/input"
-            "$REPO_ROOT/fuzz/graphics/tif"
-            "$REPO_ROOT/mangled-images"
-            "$REPO_ROOT/test-profiles"
-        )
-        AFL_ARGS=("@@")
-        ;;
-    jpegdump)
-        BINARY="$BIN_DIR/iccJpegDump"
-        AFL_DIR="$AFL_BASE/afl-jpegdump"
-        DICT="$REPO_ROOT/cfl/icc.dict"
-        SEED_DIRS=(
-            "$REPO_ROOT/fuzz/graphics/jpg"
-        )
-        AFL_ARGS=("@@")
-        ;;
-    pngdump)
-        BINARY="$BIN_DIR/iccPngDump"
-        AFL_DIR="$AFL_BASE/afl-pngdump"
-        DICT="$REPO_ROOT/cfl/icc.dict"
-        SEED_DIRS=(
-            "$REPO_ROOT/fuzz/graphics/png"
-        )
-        AFL_ARGS=("@@")
-        ;;
-    fromcube)
-        BINARY="$BIN_DIR/iccFromCube"
-        AFL_DIR="$AFL_BASE/afl-fromcube"
-        DICT="$REPO_ROOT/cfl/icc_fromcube_fuzzer.dict"
-        SEED_DIRS=(
-            "$REPO_ROOT/cfl/icc_fromcube_fuzzer_seed_corpus"
-            "$REPO_ROOT/cfl/corpus-icc_fromcube_fuzzer"
-        )
-        AFL_ARGS=("@@" "/dev/null")
-        ;;
-    search)
-        BINARY="$BIN_DIR/iccApplySearch"
-        AFL_DIR="$AFL_BASE/afl-search"
-        DICT="$REPO_ROOT/cfl/icc_applysearch_fuzzer.dict"
-        SEED_DIRS=(
-            "$REPO_ROOT/test-profiles"
-            "$REPO_ROOT/fuzz/graphics/icc"
-        )
-        AFL_ARGS=("$AFL_BASE/afl-search/search-data.txt" "0" "0" "@@" "1" "@@" "1")
-        ;;
-    *)
-        echo "ERROR: Unknown target '$TARGET'"
-        echo "Available: dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube search"
-        exit 1
-        ;;
-esac
+if ! afl_configure_target "$TARGET"; then
+    echo "ERROR: Unknown target '$TARGET'"
+    afl_print_targets
+    exit 1
+fi
 
 # Verify binary exists
 if [[ ! -x "$BINARY" ]]; then
@@ -175,6 +79,13 @@ elif ! compgen -G "$BIN_DIR/libIccProfLib2*.so*" >/dev/null; then
     exit 1
 fi
 
+for required_file in "${REQUIRED_FILES[@]}"; do
+    if [[ ! -e "$required_file" ]]; then
+        echo "ERROR: Required support file not found: $required_file"
+        exit 1
+    fi
+done
+
 # Set up AFL directories
 mkdir -p "$AFL_DIR"/{input,output}
 
@@ -203,10 +114,17 @@ SEED_COUNT=$(find "$AFL_DIR/input" -mindepth 1 -maxdepth 1 -type f 2>/dev/null |
 echo "[*] Target:     $TARGET"
 echo "[*] Binary:     $BINARY"
 echo "[*] Seeds:      $SEED_COUNT files"
-echo "[*] Dictionary: $(basename "$DICT" 2>/dev/null || echo 'none')"
+if [[ -n "$DICT" ]]; then
+    echo "[*] Dictionary: $(basename "$DICT")"
+else
+    echo "[*] Dictionary: none"
+fi
 echo "[*] Output:     $AFL_DIR/output/"
 echo "[*] Timeout:    ${AFL_TIMEOUT}ms"
 echo "[*] Parallel:   $PARALLEL instance(s)"
+if [[ -n "$TARGET_NOTE" ]]; then
+    echo "[WARN] $TARGET_NOTE"
+fi
 echo ""
 
 # Build AFL command

@@ -10,59 +10,26 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
+BIN_DIR="$AFL_BASE/bin"
 TARGET="${1:-}"
+
+source "$AFL_BASE/targets.sh"
 
 if [[ -z "$TARGET" ]]; then
     echo "Usage: $0 <target>"
-    echo "Available: dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube search"
+    afl_print_targets
     exit 1
 fi
 
-case "$TARGET" in
-    dump)
-        UPSTREAM_BIN="$AFL_BASE/bin/iccDumpProfile"
-        UPSTREAM_EXTRA_ARGS=("ALL")
-        ;;
-    toxml)
-        UPSTREAM_BIN="$AFL_BASE/bin/iccToXml"
-        UPSTREAM_EXTRA_ARGS=("/dev/null")
-        ;;
-    fromxml)
-        UPSTREAM_BIN="$AFL_BASE/bin/iccFromXml"
-        UPSTREAM_EXTRA_ARGS=("/dev/null")
-        ;;
-    roundtrip)
-        UPSTREAM_BIN="$AFL_BASE/bin/iccRoundTrip"
-        UPSTREAM_EXTRA_ARGS=()
-        ;;
-    tiffdump)
-        UPSTREAM_BIN="$AFL_BASE/bin/iccTiffDump"
-        UPSTREAM_EXTRA_ARGS=()
-        ;;
-    jpegdump)
-        UPSTREAM_BIN="$AFL_BASE/bin/iccJpegDump"
-        UPSTREAM_EXTRA_ARGS=()
-        ;;
-    pngdump)
-        UPSTREAM_BIN="$AFL_BASE/bin/iccPngDump"
-        UPSTREAM_EXTRA_ARGS=()
-        ;;
-    fromcube)
-        UPSTREAM_BIN="$AFL_BASE/bin/iccFromCube"
-        UPSTREAM_EXTRA_ARGS=("/dev/null")
-        ;;
-    search)
-        UPSTREAM_BIN="$AFL_BASE/bin/iccApplySearch"
-        UPSTREAM_EXTRA_ARGS=()
-        ;;
-    *)
-        echo "ERROR: Unknown target '$TARGET'"
-        exit 1
-        ;;
-esac
+if ! afl_configure_target "$TARGET"; then
+    echo "ERROR: Unknown target '$TARGET'"
+    afl_print_targets
+    exit 1
+fi
 
 UPSTREAM_LIB="$AFL_BASE/bin"
-AFL_DIR="$AFL_BASE/afl-$TARGET/output"
+UPSTREAM_BIN="$BINARY"
+AFL_DIR="$AFL_DIR/output"
 
 if [[ ! -x "$UPSTREAM_BIN" ]]; then
     echo "ERROR: Upstream binary not found: $UPSTREAM_BIN"
@@ -106,7 +73,17 @@ triage_dir() {
         local exit_code=0
         local output
 
-        output=$(timeout "$timeout_sec" "$UPSTREAM_BIN" "$f" "${UPSTREAM_EXTRA_ARGS[@]}" 2>&1) || exit_code=$?
+        local triage_args=()
+        local arg
+        for arg in "${AFL_ARGS[@]}"; do
+            if [[ "$arg" == "@@" ]]; then
+                triage_args+=("$f")
+            else
+                triage_args+=("$arg")
+            fi
+        done
+
+        output=$(timeout "$timeout_sec" "$UPSTREAM_BIN" "${triage_args[@]}" 2>&1) || exit_code=$?
 
         if [[ $exit_code -ge 128 ]]; then
             local signal=$((exit_code - 128))

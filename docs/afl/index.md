@@ -18,6 +18,7 @@ tools directly, without a custom wrapper harness.
 # Start fuzzing a target
 ./afl/start.sh dump
 ./afl/start.sh toxml --parallel 4
+./afl/start.sh --list
 
 # Monitor and stop
 ./afl/status.sh
@@ -42,9 +43,10 @@ tools directly, without a custom wrapper harness.
 
 ## Target Model
 
-The wired AFL targets are the tools that can be exercised with a single primary
-input file or a simple command line. Multi-argument tools can still be explored,
-but they usually need purpose-built wrappers or fixed argument scaffolding.
+`afl/start.sh --list` prints the current target map. The launcher wires each
+deployed iccDEV tool binary to either a direct `@@` input or a documented fixed
+argument scaffold from `docs/iccDEV/Tools/`, so multi-argument tools can be
+fuzzed without a custom wrapper.
 
 ## Relationship to CFL
 

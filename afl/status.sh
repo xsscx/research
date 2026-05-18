@@ -12,6 +12,8 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
 TARGET="${1:-}"
 
+source "$AFL_BASE/targets.sh"
+
 print_status() {
     local name="$1"
     local dir="$AFL_BASE/afl-$name/output"
@@ -102,14 +104,12 @@ print_status() {
     done
 }
 
-TARGETS=(dump toxml fromxml roundtrip tiffdump jpegdump pngdump fromcube search)
-
 if [[ -n "$TARGET" ]]; then
     print_status "$TARGET"
 else
     echo "=== AFL++ Fuzzer Status ==="
     echo ""
-    for t in "${TARGETS[@]}"; do
+    for t in "${AFL_TARGETS[@]}"; do
         print_status "$t"
     done
 
