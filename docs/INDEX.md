@@ -1,91 +1,41 @@
 # Documentation Start Here
 
-Use this file when you know what you want to do and need the shortest path to
-the right part of `docs/`.
+Use this file when you know the task and need the shortest path to the right
+material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 
 ## Common Tasks
 
-### Build or Run Tools
+| Task | Start Here |
+|------|------------|
+| Build or run repo tools | `../README.md`, `iccDEV/shell-helpers/README.md`, `iccDEV/Tools/README.md` |
+| Run AFL++ tool fuzzing | `afl/index.md` |
+| Run CFL LibFuzzer harnesses | `../cfl/README.md` |
+| Review fuzzing assets and A/B tracking policy | `Testing/FUZZ_CFL_INVENTORY.md` |
+| Investigate a bug or security issue | `pocs/`, `analysis/`, `cve/iccDEV-CVE-Report.md` |
+| File an upstream issue | `../.github/prompts/upstream-issue-filing.prompt.md` |
+| Reproduce or bisect an iccDEV bug | `../.github/prompts/iccdev-bisect-reproduction.prompt.md` |
+| Run or review tests | `Testing/README.md` |
+| Study ICC binary structure | `icc-format/ICC-Binary-Format-Reference.md` |
+| Review call graph notes | `callgraph/CALLGRAPH_EXAMINATION_INDEX.md` |
+| Review TIFF-specific analysis | `tiffimg/START_HERE.md` |
+| Set up Apple Silicon host flow | `LOCAL_MACOS_ARM64_ONBOARDING.md` |
 
-- Upstream `iccDEV` build recipes: `iccDEV/shell-helpers/README.md`
-- Per-tool usage pages: `iccDEV/Tools/README.md`
-- Repo-level build entry points: `../README.md`
-- Apple Silicon host setup (Linux container host flow): `LOCAL_MACOS_ARM64_ONBOARDING.md`
+## Security Research
 
-### Investigate a Bug or Security Issue
-
-- Vulnerability taxonomy: `iccDEV/vulnerability-taxonomy.md`
-- CVE inventory: `cve/iccDEV-CVE-Report.md`
-- PoC notes and reproductions: `pocs/`
-- Upstream bug hunting findings catalog: `pocs/iccdev-upstream-bug-hunting.md`
-- Issue 763 visual poster: `pocs/iccdev-issue-763-poster.html`
-- Static-analysis workflow: `iccDEV/codeql/README.md`
-- Runtime analyzer findings: `analysis/`
-- Three-layer HTML overlay for conformance vs bug patterns:
-  `iccDEV/specifications/html/icc-profile-conformance-and-vulnerability-overlay.html`
-- Annotated byte-level specimen page for a minimal iccMAX profile:
-  `iccDEV/specifications/html/iccmax-srgbencoding-annotated-dump.html`
-- Static PNG poster for the same minimal iccMAX specimen:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`
-- High-resolution table-first PNG v2 for the same specimen:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`
-- ICC-homepage-branded PNG v3 for the same specimen:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v3.png`
-- GIF-style PNG v4 for the same specimen:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v4.png`
-- TIFF-style PNG v5 for the same specimen:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v5.png`
-- No-logo `ico_png`-style PNG v6 for the same specimen:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v6.png`
-- No-logo `bmp5`-style PNG v7 for the same specimen:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v7.png`
-
-### File Upstream Issues
-
-- Golfed issue format: `.github/prompts/upstream-issue-filing.prompt.md`
-- Code-review bug hunting: `.github/prompts/upstream-code-review-hunting.prompt.md`
-- Bisect reproduction: `.github/prompts/iccdev-bisect-reproduction.prompt.md`
-- UIO overflow hunting: `.github/prompts/upstream-uio-hunting.prompt.md`
-
-### Run or Review Tests
-
-- Testing index: `Testing/README.md`
-- Saved parity and release checkpoint:
-  `analysis/ICCANALYZER_PARITY_AND_MCP_RELEASE_STATUS_2026-03-29.md`
-- ICC binary format notes: `icc-format/ICC-Binary-Format-Reference.md`
-- ICC poster example: `icc-format/icc-sRgbEncoding-poster.html`
-- ICC poster example v2: `icc-format/icc-sRgbEncoding-poster-v2.html`
-
-### Understand Generated Research Artifacts
-
-- Call graph notes: `callgraph/CALLGRAPH_EXAMINATION_INDEX.md`
-- TIFF analysis package: `tiffimg/START_HERE.md`
-- XNU image fuzzer notes: `xnuimagefuzzer/ICC_PROFILE_ANALYSIS.md`
-
-### Study ICC Design And Parsing
-
-- ICC specifications and technotes: `iccDEV/specifications/README.md`
-- HTML overlay for issue #599 and the `gbd ` signed-overflow PoC:
-  `iccDEV/specifications/html/icc-profile-conformance-and-vulnerability-overlay.html`
-- Corkami-style HTML dump poster for `test-profiles/sRgbEncoding.icc`:
-  `iccDEV/specifications/html/iccmax-srgbencoding-annotated-dump.html`
-- Matching PNG poster for `test-profiles/sRgbEncoding.icc`:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`
-- Matching high-resolution PNG v2 for `test-profiles/sRgbEncoding.icc`:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`
-- Matching ICC-homepage-branded PNG v3 for `test-profiles/sRgbEncoding.icc`:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v3.png`
-- Matching GIF-style PNG v4 for `test-profiles/sRgbEncoding.icc`:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v4.png`
-- Matching TIFF-style PNG v5 for `test-profiles/sRgbEncoding.icc`:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v5.png`
-- Matching no-logo `ico_png`-style PNG v6 for `test-profiles/sRgbEncoding.icc`:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v6.png`
-- Matching no-logo `bmp5`-style PNG v7 for `test-profiles/sRgbEncoding.icc`:
-  `iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v7.png`
+| Area | Path |
+|------|------|
+| Vulnerability taxonomy | `iccDEV/vulnerability-taxonomy.md` |
+| CVE and GHSA inventory | `cve/iccDEV-CVE-Report.md` |
+| PoC reproductions and techniques | `pocs/` |
+| Runtime analyzer findings | `analysis/` |
+| Static-analysis workflow | `iccDEV/codeql/README.md` |
+| ICC conformance and parser-risk overlays | `iccDEV/specifications/html/` |
+| ICC specimen posters and generated images | `iccDEV/specifications/png/` |
 
 ## Notes
 
 - Prefer authored entry docs over raw logs and saved results.
-- Treat `Testing/results/` and similar artifact folders as evidence, not
-  onboarding material.
+- Treat `Testing/results/`, coverage output, and fuzzer runtime directories as
+  evidence, not onboarding material.
+- When exact inventory matters, inspect the filesystem or source scripts in the
+  current checkout.

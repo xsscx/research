@@ -193,13 +193,18 @@ for f in "${FUZZERS[@]}"; do
 done
 
 echo ""
-artifacts=$(find "$RAMDISK" -maxdepth 1 \( -name 'crash-*' -o -name 'leak-*' -o -name 'oom-*' \) 2>/dev/null | wc -l)
-echo "  Artifacts: $artifacts crash/leak/oom files"
+crashes=$(find "$RAMDISK" -maxdepth 1 -type f -name 'crash-*' 2>/dev/null | wc -l)
+leaks=$(find "$RAMDISK" -maxdepth 1 -type f -name 'leak-*' 2>/dev/null | wc -l)
+ooms=$(find "$RAMDISK" -maxdepth 1 -type f -name 'oom-*' 2>/dev/null | wc -l)
+timeouts=$(find "$RAMDISK" -maxdepth 1 -type f -name 'timeout-*' 2>/dev/null | wc -l)
+slow_units=$(find "$RAMDISK" -maxdepth 1 -type f -name 'slow-unit-*' 2>/dev/null | wc -l)
+artifacts=$((crashes + leaks + ooms + timeouts + slow_units))
+echo "  Artifacts: $artifacts files (crash=$crashes leak=$leaks oom=$ooms timeout=$timeouts slow-unit=$slow_units)"
 echo "  Disk free: $(df -h "$RAMDISK" | tail -1 | awk '{print $4}')"
 echo ""
 echo "[*] Done. $PASS/$TOTAL fuzzers completed cleanly."
 echo ""
 echo "Next steps:"
 echo "  Sync corpus to disk:  .github/scripts/ramdisk-sync-to-disk.sh"
-echo "  Check artifacts:      ls $RAMDISK/crash-* $RAMDISK/leak-*"
+echo "  Check artifacts:      find $RAMDISK -maxdepth 1 -type f \\( -name 'crash-*' -o -name 'leak-*' -o -name 'oom-*' -o -name 'timeout-*' -o -name 'slow-unit-*' \\) -print"
 echo "  Merge corpus:         .github/scripts/ramdisk-merge.sh"

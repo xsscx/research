@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cfl/stop.sh - Stop running CFL LibFuzzer sessions.
 #
-# Usage: ./cfl/stop.sh [fuzzer|alias|all] [--force] [--timeout SECONDS]
+# Usage: ./cfl/stop.sh [fuzzer|alias|all] [--force] [--reap] [--timeout SECONDS]
 
 set -euo pipefail
 
@@ -12,17 +12,26 @@ source "$SCRIPT_DIR/fuzzers.sh"
 RUNS_DIR="$SCRIPT_DIR/runs"
 STOP_TIMEOUT=10
 FORCE=0
+REAP=0
 QUIET=0
 TARGETS=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force) FORCE=1; shift ;;
+    --reap) REAP=1; shift ;;
     --quiet) QUIET=1; shift ;;
     --timeout) STOP_TIMEOUT="$2"; shift 2 ;;
     --runs-dir) RUNS_DIR="$2"; shift 2 ;;
     -h|--help)
       sed -n '2,5p' "$0" | sed 's/^# \?//'
+      echo ""
+      echo "Options:"
+      echo "  --force            send TERM/KILL if SIGINT does not stop the process"
+      echo "  --reap             remove stale pid files for non-running fuzzers"
+      echo "  --timeout SECONDS  wait for graceful shutdown (default: 10)"
+      echo "  --runs-dir DIR     run state directory (default: cfl/runs)"
+      echo "  --quiet            suppress non-error output"
       exit 0
       ;;
     -*) echo "ERROR: Unknown option: $1" >&2; exit 1 ;;
@@ -45,8 +54,14 @@ stop_fuzzer() {
   local waited=0
 
   if ! cfl_pid_is_running "$pid_file" "$fuzzer"; then
-    say "[SKIP] $fuzzer not running"
-    rm -f "$pid_file"
+    if [[ "$REAP" -eq 1 && -f "$pid_file" ]]; then
+      rm -f "$pid_file"
+      [[ -d "$run_dir" ]] && date +%s > "$run_dir/stop.time"
+      say "[OK] $fuzzer stale pid reaped"
+    else
+      say "[SKIP] $fuzzer not running"
+      [[ -f "$pid_file" ]] && say "       stale pid file remains; use --reap to remove"
+    fi
     return 0
   fi
 

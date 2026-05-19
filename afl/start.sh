@@ -27,15 +27,16 @@ shift || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --parallel) PARALLEL="${2:-1}"; shift 2 ;;
+        --help|-h) TARGET=""; break ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
-if [[ -z "$TARGET" || "$TARGET" == "--list" ]]; then
+if [[ -z "$TARGET" || "$TARGET" == "--list" || "$TARGET" == "--help" || "$TARGET" == "-h" ]]; then
     echo "Usage: $0 <target> [--parallel N]"
     echo ""
     afl_print_targets
-    if [[ "$TARGET" == "--list" ]]; then
+    if [[ "$TARGET" == "--list" || "$TARGET" == "--help" || "$TARGET" == "-h" ]]; then
         exit 0
     fi
     exit 1

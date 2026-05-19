@@ -1,71 +1,89 @@
-# AFL++ Fuzzing Reference
+# AFL++ Tool Fuzzing
 
-This directory documents the AFL++ workflow used to fuzz upstream `iccDEV`
-tools directly, without a custom wrapper harness.
+`afl/` fuzzes real iccDEV command-line tools with AFL++ instrumentation. This
+complements `cfl/`, which uses LibFuzzer harnesses and optional patch stacks.
 
-## Why AFL++
+Use `afl/targets.sh` as the source of truth for available targets.
 
-- Targets the real tool binaries rather than a library-only harness.
-- Exercises argument parsing, file handling, and end-to-end tool behavior.
-- Complements the `cfl/` LibFuzzer setup rather than replacing it.
-
-## Quick Start
+## Fast Path
 
 ```bash
-# Build the AFL-instrumented tool set
+# Build AFL-instrumented iccDEV tools.
 ./afl/build.sh
 
-# Start fuzzing a target
+# List targets and start a run.
+./afl/start.sh --list
 ./afl/start.sh dump
 ./afl/start.sh toxml --parallel 4
-./afl/start.sh --list
 
-# Monitor and stop
+# Inspect, stop, and triage.
 ./afl/status.sh
+./afl/status.sh --json | jq .
 ./afl/stop.sh dump
-
-# Triage crashes against the upstream reference build
 ./afl/triage.sh dump
 ```
 
-## Directory Layout
-
-| Path | Purpose |
-|------|---------|
-| `afl/build.sh` | Build `iccDEV` with AFL instrumentation |
-| `afl/start.sh` | Start one target, optionally in parallel |
-| `afl/status.sh` | Show AFL runtime status |
-| `afl/stop.sh` | Stop running jobs |
-| `afl/triage.sh` | Re-run crashes against the unpatched upstream build |
-| `afl/harvest.sh` | Pull artifacts and seed local corpora |
-| `afl/bin/` | AFL-instrumented binaries and shared libraries |
-| `afl/afl-*/` | Per-target input and output directories |
-
 ## Target Model
 
-`afl/start.sh --list` prints the current target map. The launcher wires each
-deployed iccDEV tool binary to either a direct `@@` input or a documented fixed
-argument scaffold from `docs/iccDEV/Tools/`, so multi-argument tools can be
-fuzzed without a custom wrapper.
+`afl/targets.sh` maps short target names to:
 
-## Relationship to CFL
+- the instrumented binary in `afl/bin/`
+- seed directories
+- the dictionary copied into the per-target directory
+- any fixed arguments needed to drive multi-argument tools
+
+The current target list includes tool-level coverage for profile dumping,
+XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile
+visualization, profile linking, and CMM apply flows. Run `./afl/start.sh --list`
+for the exact list in the active checkout.
+
+## A/B Role
 
 | AFL++ | CFL |
 |-------|-----|
-| Fuzzes the real tool binaries | Fuzzes custom LibFuzzer harnesses |
-| Good for end-to-end tool behavior | Good for deep library coverage |
-| Crash repro is close to user-facing execution | Coverage is usually deeper and faster |
+| Runs real tool binaries | Runs LibFuzzer harnesses |
+| Best for CLI parsing, file handling, and user-facing repros | Best for deep library coverage |
+| Triage against upstream reference tools | Compare patched vs unpatched builds |
 
-Use both when possible.
+Use AFL++ findings to produce concrete tool repros, then validate the same
+root cause through upstream ASAN/UBSAN builds before filing or patching.
+
+## What Belongs In Git
+
+Track reusable AFL assets:
+
+- `afl/*.sh` orchestration scripts
+- `afl/targets.sh`
+- curated per-target dictionaries such as `afl/afl-dump/dump.dict`
+- curated seed inputs only when they are intentionally promoted fixtures
+
+Keep runtime output local unless promoted:
+
+- `afl/bin/`
+- `afl/iccDEV/`
+- `afl/afl-*/output*/`
+- AFL queue, crash, hang, stats, and log output
+
+If a crash, hang, timeout, or minimized queue entry becomes durable evidence,
+move it to `test-profiles/`, `fuzz/`, or `docs/pocs/` with a short repro note
+instead of committing a raw runtime directory.
 
 ## Triage Rule
 
-Treat AFL crashes as findings only after reproducing them against the upstream
-reference build under ASAN/UBSAN. The patched or instrumented fuzz build is not
-the source of truth for upstream crash validity.
+AFL-instrumented crashes are not automatically upstream bugs. Re-run the input
+against the intended upstream reference build under ASAN/UBSAN and record the
+exact command, input path, exit mode, and sanitizer summary.
+
+```bash
+ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=1 \
+UBSAN_OPTIONS=halt_on_error=1,print_stacktrace=1 \
+LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
+  iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile path/to/input.icc ALL
+```
 
 ## Notes
 
-- Keep exact target lists, corpus sizes, and coverage figures in dated reports
-  or command output, not in this overview.
-- For the current LibFuzzer side of the workflow, use `cfl/README.md`.
+- Keep exact target counts, corpus sizes, and dated coverage figures in reports
+  or command output.
+- Use `./afl/status.sh --detail` when deciding what to stop, reap, or triage.
+- Use `./afl/stop.sh --reap` only for stale empty output state.

@@ -1,15 +1,18 @@
 # CFL Patches -- Active Security Fixes
 
-Last Updated: 2026-05-18
+Last Updated: 2026-05-19
 
 This directory contains the active CFL patch stack for current
 `InternationalColorConsortium/iccDEV:master`.
 
+This file is the source of truth for active patch inventory. Higher-level docs
+should link here instead of duplicating the full patch table.
+
 Current upstream baseline:
 
 - Branch: `origin/master`
-- Commit: `793bce9`
-- Active patches: 22
+- Commit: `6e991ae`
+- Active patches: 25
 
 ## Build Modes
 
@@ -37,6 +40,7 @@ Patch application failures are fatal in patched mode.
 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Env var signature parsing |
 | `019-pcc-getReflectanceObserver-null-guard.patch` | PCC observer null guard |
 | `021-singlesampled-curve-oom-size-validation.patch` | Sampled curve allocation size |
+| `022-xyzmatrix-sum-overflow.patch` | LUT XYZ matrix validation sum overflow |
 | `025-clut-interpnd-null-apply-guard.patch` | CLUT interpolation null guard |
 | `041-fromit8-lab-xyz-val4-oob.patch` | IT8 LAB/XYZ indexing |
 | `043-tool-tojson-is-object-vs-is-array.patch` | JSON type checks |
@@ -53,6 +57,8 @@ Patch application failures are fatal in patched mode.
 | `068-MpeCurveSet-operator-eq-self-assignment.patch` | Curve set self-assignment |
 | `069-operator-eq-self-assignment-guards.patch` | Additional self-assignment guards |
 | `070-missing-member-copies-operator-eq-copyctor.patch` | Missing member copies |
+| `084-tagcurve-setgamma-range-ubsan.patch` | JSON gamma curve range validation |
+| `085-json-numeric-narrowing-ubsan.patch` | JSON numeric narrowing validation |
 
 ## Drift Review
 
@@ -60,8 +66,12 @@ The 2026-05-18 review moved these previously active patches to
 `../patches-retired/` because current upstream master already contains the
 fix, contains a stronger related hardening change, or made the patch obsolete:
 
-`006`, `007`, `008`, `022`, `023`, `028`, `029`, `040`, `042`, `046`, `055`,
+`006`, `007`, `008`, `023`, `028`, `029`, `040`, `042`, `046`, `055`,
 `057`, `059`, `062`, `063`, `072`, `075`, `079`, `080`.
 
 The `017`, `053`, and `054` patches were refreshed against current source and
 verified for both individual dry-run application and ordered-stack application.
+
+Patch `022` was restored to the active stack after
+`iccDumpProfile -v 100 ... ALL` reproduced a signed integer overflow in
+`CIccTagLut8::Validate()`.

@@ -15,6 +15,13 @@ TARGET="${1:-}"
 
 source "$AFL_BASE/targets.sh"
 
+if [[ "$TARGET" == "--help" || "$TARGET" == "-h" ]]; then
+    echo "Usage: $0 <target>"
+    echo ""
+    afl_print_targets
+    exit 0
+fi
+
 if [[ -z "$TARGET" ]]; then
     echo "Usage: $0 <target>"
     afl_print_targets
@@ -29,7 +36,7 @@ fi
 
 UPSTREAM_LIB="$AFL_BASE/bin"
 UPSTREAM_BIN="$BINARY"
-AFL_DIR="$AFL_DIR/output"
+AFL_OUTPUT_DIR="$AFL_DIR/output"
 
 if [[ ! -x "$UPSTREAM_BIN" ]]; then
     echo "ERROR: Upstream binary not found: $UPSTREAM_BIN"
@@ -38,8 +45,45 @@ if [[ ! -x "$UPSTREAM_BIN" ]]; then
 fi
 
 export LD_LIBRARY_PATH="$UPSTREAM_LIB"
-export ASAN_OPTIONS="halt_on_error=0,detect_leaks=0,symbolize=1,allocator_may_return_null=1"
-export UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1"
+export ASAN_OPTIONS="halt_on_error=1,abort_on_error=1,detect_leaks=0,symbolize=1,allocator_may_return_null=1"
+export UBSAN_OPTIONS="halt_on_error=1,print_stacktrace=1"
+
+classify_owner() {
+    local output="$1"
+    local frame
+
+    while IFS= read -r frame; do
+        case "$frame" in
+            *"/iccanalyzer-lite/"*|*"/colorbleed_tools/"*|*"/cfl/"*)
+                echo "OUR_CODE"
+                return
+                ;;
+            *"/iccDEV/"*)
+                echo "UPSTREAM"
+                return
+                ;;
+        esac
+    done < <(printf '%s\n' "$output" | grep -E '^\s*#[0-9]+ ' || true)
+
+    echo "UNKNOWN"
+}
+
+classify_exit() {
+    local exit_code="$1"
+    local output="$2"
+
+    if [[ "$exit_code" -eq 124 ]]; then
+        echo "TIMEOUT"
+    elif printf '%s\n' "$output" | grep -Eaiq 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)'; then
+        echo "SANITIZER"
+    elif [[ "$exit_code" -ge 128 ]]; then
+        echo "SIGNAL"
+    elif [[ "$exit_code" -eq 0 ]]; then
+        echo "CLEAN"
+    else
+        echo "SOFT_FAIL"
+    fi
+}
 
 triage_dir() {
     local kind="$1"
@@ -48,9 +92,14 @@ triage_dir() {
     local total=0
     local upstream_bug=0
     local fuzzer_only=0
+    local soft_fail=0
+    local clean=0
+    local sanitizer=0
+    local signal=0
+    local timeout_count=0
     local files=()
 
-    for d in "$AFL_DIR"/*/; do
+    for d in "$AFL_OUTPUT_DIR"/*/; do
         local artifact_dir="$d/$kind"
         [[ -d "$artifact_dir" ]] || continue
         while IFS= read -r -d '' f; do
@@ -85,21 +134,37 @@ triage_dir() {
 
         output=$(timeout "$timeout_sec" "$UPSTREAM_BIN" "${triage_args[@]}" 2>&1) || exit_code=$?
 
-        if [[ $exit_code -ge 128 ]]; then
-            local signal=$((exit_code - 128))
-            echo "  [UPSTREAM BUG] $fname - signal $signal (exit $exit_code)"
-            echo "    $output" | tail -3 | sed 's/^/    /'
+        local classification
+        local owner
+        classification=$(classify_exit "$exit_code" "$output")
+        owner=$(classify_owner "$output")
+
+        if [[ "$classification" == "SIGNAL" ]]; then
+            local sig=$((exit_code - 128))
+            echo "  [CRASH]       $fname - signal $sig (exit $exit_code, owner=$owner)"
+            printf '%s\n' "$output" | tail -3 | sed 's/^/    /'
             upstream_bug=$((upstream_bug + 1))
-        elif [[ $exit_code -eq 124 ]]; then
-            echo "  [TIMEOUT]      $fname - hung for ${timeout_sec}s"
+            signal=$((signal + 1))
+        elif [[ "$classification" == "SANITIZER" ]]; then
+            echo "  [SANITIZER]   $fname - sanitizer finding (exit $exit_code, owner=$owner)"
+            printf '%s\n' "$output" | grep -Eai 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY:' | tail -3 | sed 's/^/    /'
             upstream_bug=$((upstream_bug + 1))
+            sanitizer=$((sanitizer + 1))
+        elif [[ "$classification" == "TIMEOUT" ]]; then
+            echo "  [TIMEOUT]     $fname - hung for ${timeout_sec}s"
+            upstream_bug=$((upstream_bug + 1))
+            timeout_count=$((timeout_count + 1))
+        elif [[ "$classification" == "SOFT_FAIL" ]]; then
+            echo "  [SOFT_FAIL]   $fname - graceful tool failure (exit $exit_code)"
+            soft_fail=$((soft_fail + 1))
         else
+            clean=$((clean + 1))
             fuzzer_only=$((fuzzer_only + 1))
         fi
     done
 
     echo ""
-    echo "  $kind summary: $total total, $upstream_bug upstream bugs, $fuzzer_only fuzzer-only"
+    echo "  $kind summary: $total total, $upstream_bug actionable, $fuzzer_only clean, $soft_fail soft-fail, $sanitizer sanitizer, $signal signal, $timeout_count timeout"
 }
 
 echo "=== AFL Triage: $TARGET ==="

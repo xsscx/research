@@ -1,8 +1,8 @@
 # Documentation Map
 
 This directory mixes authored references, research notes, fixtures, and saved
-evidence. Start with `INDEX.md` for task-based navigation. Use this file when
-you want a quick map of the major subtrees.
+evidence. Start with `INDEX.md` for task-based navigation. Use this file for a
+compact map of the major subtrees.
 
 ## Reference Material
 
@@ -11,33 +11,12 @@ you want a quick map of the major subtrees.
 | `iccDEV/Tools/` | Upstream CLI tool pages and examples |
 | `iccDEV/shell-helpers/` | Build, sanitizer, and platform workflows |
 | `iccDEV/codeql/` | Query catalog and maintainer workflow |
-| `iccDEV/specifications/` | ICC specifications and technotes |
-| `iccDEV/specifications/html/` | Standalone HTML overlays tying spec clauses to concrete profile examples and parser risks |
+| `iccDEV/specifications/` | ICC specifications, technotes, overlays, and posters |
 | `icc-format/` | ICC binary format notes and CWE mapping |
+| `afl/` | AFL++ tool-level fuzzing reference |
+| `Testing/FUZZ_CFL_INVENTORY.md` | Fuzzing asset map and tracking policy |
 
-Current HTML overlays include the visual issue `#599` byte-to-patch poster for
-`test-profiles/ub-runtime-error-signed-integer-overflowIccTagLut_cpp-Line5638.icc`
-and the annotated `xxd` poster for the compact iccMAX specimen
-`test-profiles/sRgbEncoding.icc`.
-
-The same iccMAX specimen also has a generated PNG poster at
-`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump.png`.
-
-There is also a higher-resolution table-first variant at
-`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v2.png`.
-
-The ICC-homepage-branded table-first `v3` poster is at
-`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v3.png`.
-
-Two additional corkami-inspired variants are now available:
-`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v4.png` and
-`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v5.png`.
-
-No-logo follow-on variants based on `ico_png` and `bmp5` are at
-`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v6.png` and
-`iccDEV/specifications/png/iccmax-srgbencoding-annotated-dump-v7.png`.
-
-## Research and Evidence
+## Research And Evidence
 
 | Path | Purpose |
 |------|---------|
@@ -47,10 +26,12 @@ No-logo follow-on variants based on `ico_png` and `bmp5` are at
 | `pocs/` | Reproduction notes and exploit techniques |
 | `callgraph/` | Call graph generation notes |
 | `tiffimg/` | TIFF-specific analysis package |
-| `xnuimagefuzzer/` | ICC notes for the sibling XNU image fuzzer work |
+| `xnuimagefuzzer/` | ICC notes for sibling image-fuzzer work |
 
 ## Maintenance Rules
 
 - Keep broad onboarding in the repo-root `README.md`.
-- Keep this directory focused on reference material and saved research.
-- Put volatile counts and one-off test outcomes in dated reports, not hub docs.
+- Keep task routing in `INDEX.md`.
+- Keep volatile counts and one-off test outcomes in dated reports.
+- Promote only durable fuzzing evidence into docs; leave raw run output in
+  ignored runtime directories.

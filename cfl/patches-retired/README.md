@@ -1,27 +1,27 @@
-# CFL Patches -- Retired Archive
+# CFL Patches - Retired Archive
 
-Last Updated: 2026-05-18
+Last updated: 2026-05-19
 
-This directory is the archive for CFL patch files that should not be applied by
-the active `cfl/build.sh` patch stack.
+This directory archives CFL patch files that are not part of the active
+`cfl/build.sh --patches` stack. The active stack is documented in
+`../patches/README.md`.
 
-Retirement reasons include:
+Patch files stay here for audit history when they are:
 
-- Accepted upstream in `iccDEV`
-- Superseded by newer upstream hardening
-- Superseded by LibFuzzer runtime limits
-- Preserved from older recovery snapshots for reference
+- accepted upstream in `iccDEV`
+- superseded by newer upstream hardening
+- replaced by LibFuzzer runtime limits
+- preserved from older recovery snapshots
 
-The archive currently contains 119 patch files. Some patch numbers appear more
-than once with different names because historical recovery snapshots are kept
-verbatim.
+Some patch numbers appear more than once because the archive keeps historical
+recovery names verbatim.
 
-## 2026-05-18 Current-Master Drift Cleanup
+## Drift Cleanup Note
 
-These patches were moved out of `../patches/` after review against
-`InternationalColorConsortium/iccDEV:master` at commit `793bce9`:
+The 2026-05-18 drift review moved obsolete or superseded patches from
+`../patches/` into this archive after comparing against current iccDEV master.
+Patch `022-xyzmatrix-sum-overflow.patch` was later restored to the active stack
+after the signed-overflow validation path reproduced again.
 
-`006`, `007`, `008`, `022`, `023`, `028`, `029`, `040`, `042`, `046`, `055`,
-`057`, `059`, `062`, `063`, `072`, `075`, `079`, `080`.
-
-The active patch stack is documented in `../patches/README.md`.
+Do not use this README as an active patch inventory. Use
+`../patches/README.md` for current A/B builds.

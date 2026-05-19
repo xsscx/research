@@ -58,12 +58,24 @@ unmount_ramdisk() {
 
   mkdir -p "$SCRIPT_DIR/findings"
   local found_artifacts=0
+  local crashes=0
+  local leaks=0
+  local ooms=0
+  local timeouts=0
+  local slow_units=0
   while IFS= read -r -d '' artifact; do
     cp -- "$artifact" "$SCRIPT_DIR/findings/"
     found_artifacts=1
-  done < <(find "$RAMDISK" -maxdepth 1 \( -name 'crash-*' -o -name 'oom-*' -o -name 'timeout-*' -o -name 'slow-unit-*' \) -print0 2>/dev/null)
+    case "$(basename "$artifact")" in
+      crash-*) crashes=$((crashes + 1)) ;;
+      leak-*) leaks=$((leaks + 1)) ;;
+      oom-*) ooms=$((ooms + 1)) ;;
+      timeout-*) timeouts=$((timeouts + 1)) ;;
+      slow-unit-*) slow_units=$((slow_units + 1)) ;;
+    esac
+  done < <(find "$RAMDISK" -maxdepth 1 \( -name 'crash-*' -o -name 'leak-*' -o -name 'oom-*' -o -name 'timeout-*' -o -name 'slow-unit-*' \) -print0 2>/dev/null)
   if [ "$found_artifacts" -eq 1 ]; then
-    echo "    [WARN] Crash artifacts saved to cfl/findings/"
+    echo "    [WARN] Artifacts saved to cfl/findings/ (crash=$crashes leak=$leaks oom=$ooms timeout=$timeouts slow-unit=$slow_units)"
   fi
 
   echo "[*] Unmounting ramdisk"
