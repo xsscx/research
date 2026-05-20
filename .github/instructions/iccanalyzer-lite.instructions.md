@@ -33,9 +33,10 @@ cd iccanalyzer-lite && ./build.sh    # ASAN+UBSAN+coverage, uses 32 cores
 | 1 | `iccanalyzer-lite/build.sh` | `SOURCES=` |
 | 2 | `iccanalyzer-lite/CMakeLists.txt` | `add_executable()` |
 | 3 | `codeql-security-analysis.yml` | `SRCS=` + linker flags |
-| 4 | `iccanalyzer-lite-coverage-report.yml` | `SOURCES=` + linker flags |
-| 5 | `iccanalyzer-lite-debug-sanitizer-coverage.yml` | `SOURCES=` + linker flags |
-| 6 | `mcp-server-test.yml` | `SRCS=` + linker flags |
+| 4 | `iccanalyzer-cli-release.yml` | `SRCS=` + linker flags |
+| 5 | `iccanalyzer-lite-coverage-report.yml` | `SOURCES=` + linker flags |
+| 6 | `iccanalyzer-lite-debug-sanitizer-coverage.yml` | `SOURCES=` + linker flags |
+| 7 | `mcp-server-test.yml` | `SRCS=` + linker flags |
 
 For `IccImageAnalyzer.cpp`, also add `-ltiff` to linker flags in all CI workflows.
 

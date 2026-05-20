@@ -9,7 +9,6 @@ allowed-tools:
   - write
   - grep
   - glob
-  - grep
 ---
 
 # Corpus Management

@@ -2,7 +2,20 @@
 
 Cross-cutting rules for ALL components. Component-specific details live in
 path-specific instruction files that auto-load when you touch those paths.
-Task-specific workflows are available as skills in `.github/skills/`.
+Task-specific workflows are available as skills in `.github/skills/`. Invoke a
+skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
+
+## Skills
+
+| Skill | Use When |
+|-------|----------|
+| `corpus-management` | Manage fuzzing corpus lifecycle, ramdisk/SSD setup, merges, dedup, and artifact preservation |
+| `icc-crash-triage` | Triage ASAN/UBSAN fuzzer crashes, classify exit codes, attribute stack traces, and map CWE ownership |
+| `icc-security-analysis` | Run full ICC/TIFF/PNG/JPEG security analysis with structural, registry, round-trip, and report steps |
+| `iccdev-linear-stack` | Rebase an iccDEV feature branch onto upstream master and stack commits without merge commits |
+| `mcp-health-check` | Verify MCP server health, binaries, dependencies, and test profile access |
+| `upstream-sync` | Sync `cfl/iccDEV/` to upstream and reconcile/rebuild/verify CFL security patches |
+| `version-bump` | Synchronize iccDEV version numbers across upstream and research repo locations |
 
 ## Architecture
 
@@ -23,6 +36,13 @@ Task-specific workflows are available as skills in `.github/skills/`.
 | `cfl/iccDEV/` | CFL fuzzer build (security patches applied) | Yes |
 
 For crash fidelity, ALWAYS use `iccDEV/Build/Tools/` (unpatched).
+
+**Unpatched analyzer policy:** `iccanalyzer-lite/`, `iccanalyzer-lite/icctest/`,
+and `colorbleed_tools/` link unpatched upstream iccDEV. Harden those components
+with analyzer/tool-owned defensive programming: input validation, bounds and
+overflow checks, allocation caps, signal handling, recoverable sanitizer paths,
+and explicit error handling around every iccDEV API call. Do NOT move those
+runtime hardening fixes into `cfl/patches/`.
 
 ## Key Counts
 
@@ -45,6 +65,17 @@ cd mcp-server && pip install -e .       # MCP server
 - **Cloud CI**: `copilot-setup-steps.yml` pre-builds everything. Do NOT run build scripts.
 - **Local/WSL-2**: Build before use.
 
+## Windows and WSL Notes
+
+- Prefer WSL for Bash-first build and fuzzing flows (`build.sh`, `make`, AFL/CFL helpers).
+- Use `python mcp-server/launch.py mcp` for MCP stdio and
+  `python mcp-server/launch.py web --host 127.0.0.1 --port 8000` for Web UI.
+- On Windows, `launch.py` auto-delegates into WSL in this order:
+  `~/work/codex/current/research`, `~/work/codex/research`, then `~/po/research`.
+  Override with `ICC_MCP_WSL_ROOT=/some/wsl/path` or disable with `ICC_MCP_NO_WSL=1`.
+- Windows-native upstream iccDEV build notes live in
+  `docs/iccDEV/shell-helpers/windows.md`.
+
 ## Test Commands
 
 ```bash
@@ -62,6 +93,22 @@ python3 iccanalyzer-lite/tests/run_tests.py --list              # list sections
 python3 -m pytest mcp-server/test_web_ui.py::test_health -x     # one MCP test
 ```
 
+## Repo Workflow Scripts
+
+```bash
+.github/scripts/batch-test-external.sh /path/to/profiles [--timeout N] [--max N] [--csv]
+bash .github/scripts/test-iccdev-all.sh [--quick] [--asan] [--tool=NAME]
+.github/scripts/pre-push-gate.sh
+```
+
+- `batch-test-external.sh` sweeps an external ICC corpus with `iccDumpProfile`,
+  `iccToXml`, and `iccRoundTrip` without committing results.
+- `test-iccdev-all.sh` runs the checked-in per-tool iccDEV shell test suite;
+  use `--quick` for shorter envelope passes and `--tool=` to isolate one tool.
+- `pre-push-gate.sh` is the unified pre-push validation gate. It dispatches
+  component-specific checks and calls `pre-push-validate.sh` for the analyzer
+  build-sync check.
+
 ## iccDEV Upstream Build
 
 ```bash
@@ -73,6 +120,20 @@ cd iccanalyzer-lite/icctest && ./build.sh
 
 After branch switches or upstream syncs, delete `Build/CMakeCache.txt` and
 `Build/CMakeFiles/` to avoid stale cmake cache errors.
+
+## icctest V2 Quick Reference
+
+`iccanalyzer-lite/icctest/` is the V2 analyzer rewrite and parity engine. Build
+with `cd iccanalyzer-lite/icctest && ./build.sh`, run all registered tests with
+`ctest --test-dir build --output-on-failure`, and smoke the CLI with:
+
+```bash
+iccanalyzer-lite/icctest/build/cli/icctest --registry
+iccanalyzer-lite/icctest/build/tools/icctest-parity --help
+```
+
+Parity helpers live under `iccanalyzer-lite/icctest/tools/`; use
+`verifyParity.py` and `verifyPawg.py` when checking V1/V2 behavior.
 
 ## Latest iccDEV JSON/config bisect
 
@@ -102,6 +163,13 @@ After branch switches or upstream syncs, delete `Build/CMakeCache.txt` and
 - Both iccDEV libs AND the linking tool must use matching sanitizer flags
 - `-fsanitize=integer` required for unsigned overflow detection
 
+### Analyzer heuristic output
+- All V1 analyzer heuristics use `HeuristicCollector::instance()`.
+- Use `begin()`, `info()`, `warn()`, `critical()`, `cweNote()`, `end()`, and
+  `skip()` for structured output; do not add raw `printf("[H##]...")`.
+- Structured modes reset the collector, run analysis in quiet/captured mode,
+  then format `HeuristicCollector::results()` as JSON, reports, XML, or PAWG.
+
 ### Style
 - No emojis in code/CI/reports. Use `[OK]`, `[WARN]`, `[FAIL]`, `[SKIP]`, `[CRITICAL]`.
 - All C++ requires clang/clang++. C++ types use `CIcc*` prefix.
@@ -128,11 +196,26 @@ never shell heredocs. See `AGENTS.md` for TUI encoding defect details.
 
 - `docs/INDEX.md` -- task-based navigation
 - `.github/instructions/*.instructions.md` -- path-specific (auto-loaded per file)
-- `.github/skills/*/SKILL.md` -- on-demand task workflows (6 skills)
+- `.github/skills/*/SKILL.md` -- on-demand task workflows (7 skills)
 - `.github/prompts/` -- prompt templates (17 prompts)
 - `.github/agents/` -- custom agents (3 agents)
 - `.github/hooks/` -- session hooks (2 hook configs)
 - `AGENTS.md` -- agent session rules, multi-platform notes
+
+### Documentation shortcuts
+
+| Task | Start Here |
+|------|------------|
+| Build or run repo tools | `README.md`, `docs/iccDEV/shell-helpers/README.md`, `docs/iccDEV/Tools/README.md` |
+| Run AFL++ tool fuzzing | `docs/afl/index.md` |
+| Run CFL LibFuzzer harnesses | `cfl/README.md` |
+| Investigate a bug or security issue | `docs/pocs/`, `docs/analysis/`, `docs/cve/iccDEV-CVE-Report.md` |
+| File an upstream issue | `.github/prompts/upstream-issue-filing.prompt.md` |
+| Reproduce or bisect an iccDEV bug | `.github/prompts/iccdev-bisect-reproduction.prompt.md` |
+| Run or review tests | `docs/Testing/README.md` |
+| Study ICC binary structure | `docs/icc-format/ICC-Binary-Format-Reference.md` |
+| Review call graph notes | `docs/callgraph/CALLGRAPH_EXAMINATION_INDEX.md` |
+| Set up Apple Silicon host flow | `docs/LOCAL_MACOS_ARM64_ONBOARDING.md` |
 
 Vendor mirrors (`opencv/`) and archived dirs (`demo-rit/`, `issue-711/`) are
 read-only unless a task explicitly targets them.
@@ -173,14 +256,28 @@ Classify by **stack frame file path** (frame #2-#3), NEVER by profile filename:
 ## Pre-push Verification
 
 ```bash
-cd iccanalyzer-lite && ./build.sh           # 1. Build
-python3 tests/run_tests.py                   # 2. Test
-ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-  ./iccanalyzer-lite -a ../test-profiles/sRGB_D65_MAT-500lx.icc  # 3. ASAN check
-.github/scripts/pre-push-validate.sh         # 4. Verify all build locations
+.github/scripts/pre-push-gate.sh             # unified component-aware gate
 ```
 
-Step 4 is mandatory. A local `build.sh` success does NOT guarantee CI success.
+For analyzer-only validation, the gate runs the same required sequence: build,
+tests, ASAN spot-check, and `.github/scripts/pre-push-validate.sh`. The
+`pre-push-validate.sh` check is mandatory because a local `build.sh` success does
+NOT guarantee CI success.
+
+### iccanalyzer-lite build sync
+
+When adding/removing analyzer sources or linker flags, keep all 7 build locations
+in sync:
+
+| # | File | What to Sync |
+|---|------|--------------|
+| 1 | `iccanalyzer-lite/build.sh` | `SOURCES=` and `LIBS=` |
+| 2 | `iccanalyzer-lite/CMakeLists.txt` | executable sources and linker flags |
+| 3 | `.github/workflows/codeql-security-analysis.yml` | `SRCS=` and linker flags |
+| 4 | `.github/workflows/iccanalyzer-cli-release.yml` | `SRCS=` and linker flags |
+| 5 | `.github/workflows/iccanalyzer-lite-coverage-report.yml` | `SOURCES=` and linker flags |
+| 6 | `.github/workflows/iccanalyzer-lite-debug-sanitizer-coverage.yml` | `SOURCES=` and linker flags |
+| 7 | `.github/workflows/mcp-server-test.yml` | `SRCS=` and linker flags |
 
 ## OpenTelemetry Monitoring
 

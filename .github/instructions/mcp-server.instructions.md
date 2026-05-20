@@ -1,4 +1,4 @@
-# mcp-server/ — Path-Specific Instructions
+# mcp-server/ -- Path-Specific Instructions
 
 ## What This Is
 
@@ -6,35 +6,26 @@ A [Model Context Protocol](https://modelcontextprotocol.io/) server (Python, Fas
 exposing 28 tools (13 analysis + 7 maintainer + 6 operations + 2 graph) for AI-assisted ICC
 profile security research. Supports MCP stdio, REST API, and interactive WebUI modes.
 
-**Docker image**: `ghcr.io/xsscx/icc-profile-mcp` — built with full ASAN+UBSAN
+**Docker image**: `ghcr.io/xsscx/icc-profile-mcp` -- built with full ASAN+UBSAN
 instrumentation. Two modes: `mcp` (default, stdio) and `web` (REST API + HTML UI
 on port 8080).
 
 ## File Structure
 
-```
-mcp-server/
-├── icc_profile_mcp.py      # Main MCP server — 28 tools via FastMCP
-├── launch.py               # Cross-platform launcher (prefers repo-local .venv)
-├── web_ui.py                # REST API + interactive HTML WebUI
-├── test_mcp.py              # MCP server tests
-├── test_web_ui.py           # WebUI tests
-├── Dockerfile               # Docker container (ASAN+UBSAN, linux/amd64)
-├── build.sh                 # Build script for Docker image
-├── pyproject.toml           # Python packaging (hatchling)
-├── requirements.txt         # Python dependencies
-├── index.html               # Demo report template
-├── codeql-config.yml        # CodeQL security scanning config
-└── codeql-queries/          # 7 custom CodeQL queries for MCP security
-    ├── api-path-traversal.ql
-    ├── missing-output-sanitization.ql
-    ├── path-traversal-build-dir.ql
-    ├── subprocess-command-injection.ql
-    ├── unsafe-env-server-bind.ql
-    ├── unvalidated-file-upload.ql
-    ├── security-research-suite.qls
-    └── qlpack.yml
-```
+| Path | Purpose |
+|------|---------|
+| `icc_profile_mcp.py` | Main MCP server, 28 tools via FastMCP |
+| `launch.py` | Cross-platform launcher, prefers repo-local `.venv` |
+| `web_ui.py` | REST API + interactive HTML WebUI |
+| `test_mcp.py` | MCP server tests |
+| `test_web_ui.py` | WebUI tests |
+| `Dockerfile` | Docker container, ASAN+UBSAN, linux/amd64 |
+| `build.sh` | Docker image build script |
+| `pyproject.toml` | Python packaging, hatchling |
+| `requirements.txt` | Python dependencies |
+| `index.html` | Demo report template |
+| `codeql-config.yml` | CodeQL security scanning config |
+| `codeql-queries/` | 7 custom CodeQL queries for MCP security |
 
 ## Build and Run
 
@@ -70,13 +61,13 @@ cd mcp-server && docker build -t icc-mcp-local:test -f Dockerfile ..
 docker run --rm -d -p 8081:8080 --name mcp-test icc-mcp-local:test web
 
 # 3. Validate API endpoints
-curl -s http://localhost:8081/api/health          # → {"ok":true,"tools":28}
+curl -s http://localhost:8081/api/health          # -> {"ok":true,"tools":28}
 curl -s http://localhost:8081/api/registry | python3 -c "
 import json,sys; r=json.load(sys.stdin)['registry']
 print(f'heuristics:{r[\"totalHeuristics\"]} CVEs:{r[\"uniqueCVEs\"]} GHSAs:{r[\"uniqueGHSAs\"]}')"
 curl -s 'http://localhost:8081/api/health-check' | python3 -c "
 import json,sys; d=json.load(sys.stdin); print(d['result'][:200])"
-docker exec mcp-test which xmllint               # → /usr/bin/xmllint
+docker exec mcp-test which xmllint               # -> /usr/bin/xmllint
 
 # 4. Upload and analyze a test profile
 curl -s -F "file=@test-profiles/sRGB_D65_MAT.icc" http://localhost:8081/api/upload
@@ -96,21 +87,21 @@ HTML forms. The `test_form_fields_per_tool()` test validates that each tool's
 `renderInputs()` branch creates the correct `inp-*` field IDs, but cannot verify
 visual rendering. When modifying `index.html`:
 
-1. **Run form validation tests** — catches missing inp-* IDs and missing renderInputs branches:
+1. **Run form validation tests** -- catches missing inp-* IDs and missing renderInputs branches:
    ```bash
    python3 test_web_ui.py  # Must include "Form Fields Per Tool: N/N" in output
    ```
 
-2. **Browser smoke test** — open `http://localhost:8080` and click through at least
+2. **Browser smoke test** -- open `http://localhost:8080` and click through at least
    5 different tools. Verify each renders the correct form (not a generic ICC profile
    selector). Specifically check tools with custom forms:
-   - `validate_xml` → directory dropdown + checks dropdown + XML file list
-   - `cmake_configure` → 4 select dropdowns (build_type, sanitizers, compiler, generator)
-   - `batch_test` → directory dropdown + tool dropdown + build_dir input
-   - `compare` → two path inputs (Profile A, Profile B)
-   - `upload_and_analyze` → mode dropdown + file upload button
+   - `validate_xml` -> directory dropdown + checks dropdown + XML file list
+   - `cmake_configure` -> 4 select dropdowns (build_type, sanitizers, compiler, generator)
+   - `batch_test` -> directory dropdown + tool dropdown + build_dir input
+   - `compare` -> two path inputs (Profile A, Profile B)
+   - `upload_and_analyze` -> mode dropdown + file upload button
 
-3. **DevTools console** — should show 0 JavaScript errors when switching tools.
+3. **DevTools console** -- should show 0 JavaScript errors when switching tools.
 
 **Anti-pattern**: Claiming "WebUI tests pass (N/N)" without browser verification.
 API tests check HTTP responses; they cannot detect wrong form fields, broken
@@ -121,7 +112,7 @@ After CI rebuilds the image, pull and re-validate:
 ```bash
 docker pull ghcr.io/xsscx/icc-profile-mcp:latest
 docker run --rm -d -p 8080:8080 --name mcp-verify ghcr.io/xsscx/icc-profile-mcp web
-curl -s http://localhost:8080/api/health          # → {"ok":true,"tools":28}
+curl -s http://localhost:8080/api/health          # -> {"ok":true,"tools":28}
 curl -s http://localhost:8080/api/registry | python3 -c "
 import json,sys; r=json.load(sys.stdin)['registry']
 print(f'heuristics:{r[\"totalHeuristics\"]} CVEs:{r[\"uniqueCVEs\"]} GHSAs:{r[\"uniqueGHSAs\"]}')"
@@ -143,12 +134,12 @@ cd mcp-server && python3 test_web_ui.py  # WebUI/API tests
 |---|------|-------------|
 | 1 | `health_check` | Server status, binary availability, profile counts |
 | 2 | `inspect_profile` | Header, tag table, field values |
-| 3 | `analyze_security` | 180-heuristic security scan (H1–H180) |
+| 3 | `analyze_security` | Registry-backed security scan |
 | 4 | `validate_roundtrip` | AToB/BToA tag pair completeness |
 | 5 | `analyze_security_json` | Structured JSON security analysis |
 | 6 | `analyze_security_report` | Professional severity-sorted report |
 | 7 | `full_analysis` | All modes combined in one pass |
-| 8 | `profile_to_xml` | Binary ICC → XML conversion |
+| 8 | `profile_to_xml` | Binary ICC -> XML conversion |
 | 9 | `compare_profiles` | Unified diff of two profiles |
 | 10 | `list_test_profiles` | Browse available profiles by directory |
 | 11 | `upload_and_analyze` | Base64 upload + any analysis mode |
@@ -159,13 +150,13 @@ cd mcp-server && python3 test_web_ui.py  # WebUI/API tests
 
 | # | Tool | Description |
 |---|------|-------------|
-| 12 | `build_tools` | Build C++ analysis tools from source |
-| 13 | `cmake_configure` | Configure iccDEV cmake |
-| 14 | `cmake_build` | Compile cmake build |
-| 15 | `create_all_profiles` | Generate ~80+ ICC test profiles |
-| 16 | `run_iccdev_tests` | Validate generated profiles |
-| 17 | `cmake_option_matrix` | Test 17 cmake toggles |
-| 18 | `windows_build` | MSVC + vcpkg cross-platform build |
+| 14 | `build_tools` | Build C++ analysis tools from source |
+| 15 | `cmake_configure` | Configure iccDEV cmake |
+| 16 | `cmake_build` | Compile cmake build |
+| 17 | `create_all_profiles` | Generate ICC test profiles |
+| 18 | `run_iccdev_tests` | Validate generated profiles |
+| 19 | `cmake_option_matrix` | Test cmake option toggles |
+| 20 | `windows_build` | MSVC + vcpkg cross-platform build |
 
 ### Operations Tools (6)
 
@@ -185,7 +176,7 @@ cd mcp-server && python3 test_web_ui.py  # WebUI/API tests
 | 27 | `query_attack_surface` | Rank components by graph centrality |
 | 28 | `coverage_gaps` | Identify heuristics/patches/components lacking coverage |
 
-## Tool Count Sync — 6 Locations
+## Tool Count Sync -- 6 Locations
 
 **CRITICAL**: When changing the tool count, ALL 6 files must be updated simultaneously:
 
@@ -212,7 +203,7 @@ This server processes **untrusted binary files** (fuzzer crash samples, CVE PoCs
 | Null byte rejection | Paths containing `\x00` are rejected |
 | Command injection prevention | `exec` (argument list), never `shell=True` |
 | Output size cap | 10 MB limit on subprocess output |
-| Process timeout | 60–120s with proper cleanup |
+| Process timeout | 60-120s with proper cleanup |
 | Upload limits | 20 MB max, filename sanitization |
 | CSP nonce rotation | Per-request nonce, strict security headers |
 | Output sanitization | Strip ANSI escapes + C0 control chars (except LF/tab) |
@@ -229,23 +220,23 @@ This server processes **untrusted binary files** (fuzzer crash samples, CVE PoCs
 ## Profile Path Resolution
 
 Profiles can be referenced by:
-- **Filename**: `sRGB_D65_MAT.icc` — searches `test-profiles/`, `extended-test-profiles/`, repo root
+- **Filename**: `sRGB_D65_MAT.icc` -- searches `test-profiles/`, `extended-test-profiles/`, repo root
 - **Directory-qualified**: `extended-test-profiles/cve-2023-46602.icc`
 - **Mounted directory**: `my-profiles/custom.icc` (via Docker `-v` mount)
 
-All paths are validated against `_ALLOWED_BASES` — traversal attempts are blocked.
+All paths are validated against `_ALLOWED_BASES` -- traversal attempts are blocked.
 
 ## Docker Image Policy
 
-- **MUST** include full ASAN+UBSAN instrumentation — NEVER add `NO_SANITIZERS=1`
+- **MUST** include full ASAN+UBSAN instrumentation -- NEVER add `NO_SANITIZERS=1`
 - **MUST** include `libclang-rt-18-dev` for sanitizer runtimes
-- **MUST** use `-O0 -g3` compiler flags (not `-O1 -g`) — maximum debug info, no optimization
+- **MUST** use `-O0 -g3` compiler flags (not `-O1 -g`) -- maximum debug info, no optimization
 - **MUST** enable coverage instrumentation (never set `NO_COVERAGE=1`)
-- **MUST** set `LLVM_PROFILE_FILE=/dev/null` in runtime stage — prevents profraw
+- **MUST** set `LLVM_PROFILE_FILE=/dev/null` in runtime stage -- prevents profraw
   permission errors when running as non-root `mcp` user
-- Build `linux/amd64` only — ASAN shadow memory is incompatible with QEMU cross-arch
+- Build `linux/amd64` only -- ASAN shadow memory is incompatible with QEMU cross-arch
 - Apple Silicon Macs: **Docker Desktop only** (Rosetta 2 supports ASAN)
-- **Colima and OrbStack NOT supported** — QEMU/VZ backends lack ASAN support
+- **Colima and OrbStack NOT supported** -- QEMU/VZ backends lack ASAN support
 - colorbleed_tools use `make CONFIG=release` in Docker (runtime stage lacks libclang-rt)
 - Binary size ~43MB confirms ASAN instrumentation (non-instrumented ~5MB)
 
@@ -255,23 +246,23 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 
 | Method | Endpoint | Parameters | Description |
 |--------|----------|------------|-------------|
-| `GET` | `/api/health` | — | `{"ok": true, "tools": 28}` |
-| `GET` | `/api/health-check` | — | Full health check (binary availability, profile counts) |
+| `GET` | `/api/health` | - | `{"ok": true, "tools": 28}` |
+| `GET` | `/api/health-check` | - | Full health check (binary availability, profile counts) |
 | `GET` | `/api/list` | `directory` | List profiles in directory |
 | `GET` | `/api/inspect` | `path` | Structural dump |
-| `GET` | `/api/security` | `path` | 180-heuristic scan (text) |
-| `GET` | `/api/security-json` | `path` | 180-heuristic scan (JSON) |
+| `GET` | `/api/security` | `path` | Registry-backed security scan (text) |
+| `GET` | `/api/security-json` | `path` | Registry-backed security scan (JSON) |
 | `GET` | `/api/security-report` | `path` | Severity-sorted report |
 | `GET` | `/api/roundtrip` | `path` | Round-trip validation |
 | `GET` | `/api/full` | `path` | Combined analysis |
-| `GET` | `/api/xml` | `path` | ICC → XML conversion |
-| `GET` | `/api/xml/download` | `path` | ICC → XML as file download |
+| `GET` | `/api/xml` | `path` | ICC -> XML conversion |
+| `GET` | `/api/xml/download` | `path` | ICC -> XML as file download |
 | `GET` | `/api/compare` | `path_a`, `path_b` | Side-by-side diff |
 | `GET` | `/api/attack-surface` | `top_n` | Graph-centrality view of attack-surface nodes |
 | `GET` | `/api/coverage-gaps` | `severity_filter` | Uncovered heuristics/CVEs/patches from graph data |
 | `GET` | `/api/dump-all` | `path`, `verbosity`, `use_read`, `diag` | Deep tag dump via `iccDumpAll` |
 | `GET` | `/api/diagnostic-load` | `path`, `mode` | Deep diagnostic load analysis |
-| `GET` | `/api/check-dependencies` | — | Check build dependency availability |
+| `GET` | `/api/check-dependencies` | - | Check build dependency availability |
 | `GET` | `/api/find-artifacts` | `build_dir` | Find binaries, checksums, linkage |
 | `POST` | `/api/upload` | `file` (multipart) | Upload ICC file (20 MB max) |
 | `POST` | `/api/output/download` | `text`, `filename` | Download output as file |
@@ -281,25 +272,25 @@ See Anti-Pattern #1 in `multi-agent.instructions.md` for the full history.
 | `POST` | `/api/coverage-report` | `build_dir` | Merge profraw + llvm-cov report |
 | `POST` | `/api/scan-logs` | `directory`, `pattern` | Grep logs for errors/crashes |
 | `POST` | `/api/upload-and-analyze` | `data_base64`, `filename`, `mode` | Base64 upload + analysis |
-| `GET` | `/api/registry` | — | Full heuristic registry JSON (dynamic counts) |
+| `GET` | `/api/registry` | - | Full heuristic registry JSON (dynamic counts) |
 
 ## Exit Codes (iccanalyzer-lite)
 
 | Code | Meaning |
 |------|---------|
-| `0` | Clean — no findings |
-| `1` | Finding — security heuristic triggered |
-| `2` | Error — malformed input (profile fails to load) |
-| `3` | Usage — incorrect arguments |
+| `0` | Clean -- no findings |
+| `1` | Finding -- security heuristic triggered |
+| `2` | Error -- malformed input (profile fails to load) |
+| `3` | Usage -- incorrect arguments |
 
-Exit code 1 is NOT a crash — it means findings were detected. See CJF-13 in
+Exit code 1 is NOT a crash -- it means findings were detected. See CJF-13 in
 `copilot-instructions.md`.
 
 ## Adding a New MCP Tool
 
 1. Add the `@mcp.tool()` decorated async function in `icc_profile_mcp.py`
 2. Add the REST API route in `web_ui.py` if the tool should be web-accessible
-3. Update tool count (for example 28→29) in ALL sync locations (see Tool Count Sync table)
+3. Update tool count (for example 28 -> 29) in ALL sync locations (see Tool Count Sync table)
 4. Add test in `test_mcp.py`
 5. Add WebUI test in `test_web_ui.py` if web-accessible
 6. Update `.github/copilot-instructions.md` tool count references
@@ -307,35 +298,34 @@ Exit code 1 is NOT a crash — it means findings were detected. See CJF-13 in
 
 ## Common Pitfalls
 
-- **Tool count mismatch** — The #1 recurring CI failure. When changing tools, update
+- **Tool count mismatch** -- The #1 recurring CI failure. When changing tools, update
   all sync locations simultaneously. See Anti-Pattern #2.
-- **Heuristic count mismatch** — The #2 recurring issue. When heuristic count changes
-  (currently 173), update ALL locations: `icc_profile_mcp.py` docstrings,
-  `web_ui.py` endpoint descriptions, `index.html` meta, `README.md`, this file's
-  REST API table. See `iccanalyzer-lite.instructions.md` for the full sync list.
-- **Docker ASAN removal** — NEVER remove ASAN from the Docker image. The entire
+- **Heuristic count mismatch** -- Prefer dynamic registry wording in docs. When
+  code must expose exact heuristic totals, source them from `/api/registry` or
+  `iccanalyzer-lite --registry` and update all listed sync locations together.
+- **Docker ASAN removal** -- NEVER remove ASAN from the Docker image. The entire
   purpose is security analysis with sanitizer instrumentation.
-- **stderr contamination of JSON** — `_run()` in `icc_profile_mcp.py` appends stderr
+- **stderr contamination of JSON** -- `_run()` in `icc_profile_mcp.py` appends stderr
   to stdout by default. Any tool returning structured JSON (e.g., `analyze_security_json`)
   MUST call `_run()` with `include_stderr=False`. The `web_ui.py` handler has
   defense-in-depth stripping as a secondary guard.
-- **CVE PoC crash recovery** — When iccanalyzer-lite hits SIGSEGV on malicious
+- **CVE PoC crash recovery** -- When iccanalyzer-lite hits SIGSEGV on malicious
   profiles, signal recovery produces a banner on stderr but NO JSON on stdout.
   The `/api/security-json` endpoint returns a structured `crashRecovery` JSON
   fallback: `{"summary":{"crashRecovery":true,...},"results":[]}`. Any new JSON
   endpoint that processes untrusted profiles must implement this pattern.
-- **Output sanitization** — All subprocess output passes through `_sanitize_output()`
+- **Output sanitization** -- All subprocess output passes through `_sanitize_output()`
   which strips ANSI escapes and C0 control chars. If adding a new tool that produces
   binary output, handle it before sanitization.
-- **Path validation** — All profile paths must go through `_resolve_profile_path()`.
+- **Path validation** -- All profile paths must go through `_resolve_profile_path()`.
   Never construct paths from user input without validation.
-- **README sync** — Keep `mcp-server/README.md`, this file, and the Copilot MCP
+- **README sync** -- Keep `mcp-server/README.md`, this file, and the Copilot MCP
   config synchronized with the live 28-tool surface.
-- **WebUI form rendering** — The #3 recurring issue. Every tool in the `TOOLS`
+- **WebUI form rendering** -- The #3 recurring issue. Every tool in the `TOOLS`
   object (index.html ~line 390) must have a dedicated `renderInputs()` branch
   that creates `inp-${fieldName}` DOM elements matching its `fields` array.
   Tools without a branch fall through to the default `else` which renders a
-  generic ICC profile selector — silently wrong. The `test_form_fields_per_tool()`
+  generic ICC profile selector -- silently wrong. The `test_form_fields_per_tool()`
   test catches this programmatically. When adding/modifying tools, also verify
   in a browser (see WebUI Rendering Verification above). See Anti-Pattern #11.
 
