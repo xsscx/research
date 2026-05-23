@@ -6,7 +6,7 @@ format.
 ## Usage
 
 ```text
-iccDumpProfile {-v} {verbosity_int} profile {tagId/"ALL"}
+iccDumpProfile {-v} {verbosity_int} {--diag} {--read} profile {tagId/"ALL"}
 ```
 
 ## Arguments
@@ -15,6 +15,8 @@ iccDumpProfile {-v} {verbosity_int} profile {tagId/"ALL"}
 |----------|----------|-------|
 | `-v` | No | Enable validation while dumping |
 | `verbosity_int` | No | Verbosity level, usually `1` to `100` |
+| `--diag` | No | Emit diagnostic size checks and tag-load tracing to stderr |
+| `--read` | No | Use eager `ReadIccProfile` loading instead of lazy `OpenIccProfile` |
 | `profile` | Yes | Input ICC profile path |
 | `tagId` or `ALL` | No | Dump one tag or every tag |
 
@@ -41,6 +43,9 @@ iccDumpProfile test-profiles/sRGB_D65_MAT.icc desc
 
 # Dump every tag
 iccDumpProfile test-profiles/sRGB_D65_MAT.icc ALL
+
+# Diagnostic eager-load run for hostile inputs
+iccDumpProfile --diag --read suspicious.icc ALL
 ```
 
 ## Output
