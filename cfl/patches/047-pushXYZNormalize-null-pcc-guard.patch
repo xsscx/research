@@ -2,12 +2,7 @@ diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
 index bf22ca3..3cb53b3 100644
 --- a/IccProfLib/IccCmm.cpp
 +++ b/IccProfLib/IccCmm.cpp
-@@ -3053,6 +3053,8 @@ icStatusCMM CIccPcsXform::pushXYZConvert(CIccXform *pFromXform, CIccXform *pToXf
- void CIccPcsXform::pushXYZNormalize(IIccProfileConnectionConditions *pPcc, const icSpectralRange &srcRange, const icSpectralRange &dstRange)
- {
-   const CIccTagSpectralViewingConditions *pView = pPcc->getPccViewingConditions();
+@@ -3107,0 +3108,3 @@ void CIccPcsXform::pushXYZNormalize(IIccProfileConnectionConditions *pPcc, const
++
 +  if (!pView)
 +    return;
-   CIccPcsXform tmp;
- 
-   icSpectralRange illuminantRange;

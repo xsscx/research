@@ -1,6 +1,6 @@
 # CFL Patches -- Active Security Fixes
 
-Last Updated: 2026-05-19
+Last Updated: 2026-05-23
 
 This directory contains the active CFL patch stack for current
 `InternationalColorConsortium/iccDEV:master`.
@@ -11,13 +11,13 @@ should link here instead of duplicating the full patch table.
 Current upstream baseline:
 
 - Branch: `origin/master`
-- Commit: `6e991ae`
-- Active patches: 25
+- Commit: `5272011`
+- Active patches: 29
 
 ## Build Modes
 
 ```bash
-# Apply all active patches and build all 13 fuzzers.
+# Apply all active patches and build all fuzzers.
 ./cfl/build.sh --patches --refresh-iccdev
 
 # Build current upstream master without CFL patches.
@@ -40,7 +40,6 @@ Patch application failures are fatal in patched mode.
 | `017-envvar-getEnvSig-parse-enum-ubsan.patch` | Env var signature parsing |
 | `019-pcc-getReflectanceObserver-null-guard.patch` | PCC observer null guard |
 | `021-singlesampled-curve-oom-size-validation.patch` | Sampled curve allocation size |
-| `022-xyzmatrix-sum-overflow.patch` | LUT XYZ matrix validation sum overflow |
 | `025-clut-interpnd-null-apply-guard.patch` | CLUT interpolation null guard |
 | `041-fromit8-lab-xyz-val4-oob.patch` | IT8 LAB/XYZ indexing |
 | `043-tool-tojson-is-object-vs-is-array.patch` | JSON type checks |
@@ -53,12 +52,17 @@ Patch application failures are fatal in patched mode.
 | `054-parametriccurve-describe-format-specifiers.patch` | Parametric curve format specifiers |
 | `056-spectral-describe-null-pointer-guards.patch` | Spectral Describe null guards |
 | `064-segmented-curve-subtraction-underflow-ubsan.patch` | Segmented curve underflow guard |
-| `067-icIsS15Fixed16NumberNear-float-overflow-ubsan.patch` | S15Fixed16 float overflow guard |
 | `068-MpeCurveSet-operator-eq-self-assignment.patch` | Curve set self-assignment |
 | `069-operator-eq-self-assignment-guards.patch` | Additional self-assignment guards |
 | `070-missing-member-copies-operator-eq-copyctor.patch` | Missing member copies |
-| `084-tagcurve-setgamma-range-ubsan.patch` | JSON gamma curve range validation |
-| `085-json-numeric-narrowing-ubsan.patch` | JSON numeric narrowing validation |
+| `071-json-language-code-unsigned-shift.patch` | JSON language/country code shifts |
+| `072-json-curve-setsize-guards.patch` | JSON curve allocation guards |
+| `073-cam-divzero-guards.patch` | CAM division-by-zero guards |
+| `074-calculator-describe-window-underflow.patch` | Calculator report window underflow |
+| `075-xml-curve-setsize-guards.patch` | XML curve allocation guards |
+| `076-cmm-pcs-scale-divzero.patch` | PCS scale denominator guards |
+| `077-cmm-dest-space-sample-guard.patch` | CMM destination sample consistency |
+| `078-search-cost-weight-validation.patch` | Search cost weight validation |
 
 ## Drift Review
 
@@ -72,6 +76,7 @@ fix, contains a stronger related hardening change, or made the patch obsolete:
 The `017`, `053`, and `054` patches were refreshed against current source and
 verified for both individual dry-run application and ordered-stack application.
 
-Patch `022` was restored to the active stack after
-`iccDumpProfile -v 100 ... ALL` reproduced a signed integer overflow in
-`CIccTagLut8::Validate()`.
+The 2026-05-21 review moved `022`, `067`, `084`, and `085` to
+`../patches-retired/` because current upstream master contains equivalent or
+stronger fixes. Patches `047` and `069` were refreshed against the current
+source after nearby upstream context drift.

@@ -1,0 +1,18 @@
+diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
+index 3ef8cdd..6f57332 100644
+--- a/IccProfLib/IccCmm.cpp
++++ b/IccProfLib/IccCmm.cpp
+@@ -8962,6 +8962,13 @@ icStatusCMM CIccCmm::Begin(bool bAllocApplyCmm/*=true*/, bool bUsePCSConversions
+   if (rv != icCmmStatOk && rv!=icCmmStatIdentityXform)
+     return rv;
+ 
++  if (m_Xforms && !m_Xforms->empty()) {
++    CIccXform *pLastXform = m_Xforms->rbegin()->ptr;
++    if (!pLastXform ||
++        icGetSpaceSamples(m_nDestSpace) != pLastXform->GetNumDstSamples())
++      return icCmmStatBadXform;
++  }
++
+   if (bAllocApplyCmm) {
+     m_pApply = GetNewApplyCmm(rv);
+   }

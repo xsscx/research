@@ -1,0 +1,64 @@
+diff --git a/IccXML/IccLibXML/IccTagXml.cpp b/IccXML/IccLibXML/IccTagXml.cpp
+index 002f0fe..a082d42 100644
+--- a/IccXML/IccLibXML/IccTagXml.cpp
++++ b/IccXML/IccLibXML/IccTagXml.cpp
+@@ -3019,7 +3019,8 @@ bool CIccTagXmlCurve::ParseXml(xmlNode *pNode, icConvertType nType, std::string
+             if (nSize <= 1)
+               return false;
+             
+-            SetSize(nSize);
++            if (!SetSize(nSize))
++              return false;
+ 
+             if (m_nSize == nSize) {
+               icUInt32Number j;
+@@ -3037,7 +3038,8 @@ bool CIccTagXmlCurve::ParseXml(xmlNode *pNode, icConvertType nType, std::string
+           }
+         }
+         else {
+-          SetSize(data.GetSize());
++          if (!SetSize(data.GetSize()) || m_nSize != data.GetSize())
++            return false;
+ 
+           icUInt32Number j;
+           icUInt8Number *src = data.GetBuf();
+@@ -3068,7 +3070,8 @@ bool CIccTagXmlCurve::ParseXml(xmlNode *pNode, icConvertType nType, std::string
+             if (nSize <= 1)
+               return false;
+             
+-            SetSize(nSize);
++            if (!SetSize(nSize))
++              return false;
+ 
+             if (m_nSize == nSize) {
+               icUInt32Number j;
+@@ -3086,7 +3089,8 @@ bool CIccTagXmlCurve::ParseXml(xmlNode *pNode, icConvertType nType, std::string
+           }
+         }              
+         else {
+-          SetSize(data.GetSize());
++          if (!SetSize(data.GetSize()) || m_nSize != data.GetSize())
++            return false;
+ 
+           icUInt32Number j;
+           icUInt16Number *src = data.GetBuf();
+@@ -3110,7 +3114,8 @@ bool CIccTagXmlCurve::ParseXml(xmlNode *pNode, icConvertType nType, std::string
+             if (nSize <= 1)
+               return false;
+ 
+-            SetSize(nSize);
++            if (!SetSize(nSize))
++              return false;
+ 
+             if (m_nSize == nSize) {
+               icUInt32Number j;
+@@ -3128,7 +3133,8 @@ bool CIccTagXmlCurve::ParseXml(xmlNode *pNode, icConvertType nType, std::string
+           }
+         }
+         else {
+-          SetSize(data.GetSize());
++          if (!SetSize(data.GetSize()) || m_nSize != data.GetSize())
++            return false;
+ 
+           icUInt32Number j;
+           icFloatNumber *src = data.GetBuf();
