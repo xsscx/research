@@ -95,12 +95,20 @@ if [[ $(find "$AFL_DIR/input" -mindepth 1 -maxdepth 1 -type f 2>/dev/null | wc -
     echo "[*] Seeding input corpus..."
     for seed_dir in "${SEED_DIRS[@]}"; do
         if [[ -d "$seed_dir" ]]; then
-            count=$(find "$seed_dir" -maxdepth 1 -type f 2>/dev/null | wc -l)
-            echo "    $seed_dir ($count files)"
-            if [[ "$count" -gt 200 ]]; then
-                find "$seed_dir" -maxdepth 1 -type f | shuf -n 200 | xargs -I{} cp -n {} "$AFL_DIR/input/"
+            seed_find=(find "$seed_dir" -maxdepth 1 -type f)
+            if [[ "${SEED_MAX_BYTES:-0}" -gt 0 ]]; then
+                seed_find+=( -size "-${SEED_MAX_BYTES}c" )
+            fi
+            count=$("${seed_find[@]}" 2>/dev/null | wc -l)
+            if [[ "${SEED_MAX_BYTES:-0}" -gt 0 ]]; then
+                echo "    $seed_dir ($count files <= ${SEED_MAX_BYTES} bytes)"
             else
-                find "$seed_dir" -maxdepth 1 -type f -exec cp -n {} "$AFL_DIR/input/" \;
+                echo "    $seed_dir ($count files)"
+            fi
+            if [[ "$count" -gt "${SEED_LIMIT:-200}" ]]; then
+                "${seed_find[@]}" | shuf -n "${SEED_LIMIT:-200}" | xargs -r -I{} cp -n {} "$AFL_DIR/input/"
+            else
+                "${seed_find[@]}" -exec cp -n {} "$AFL_DIR/input/" \;
             fi
         fi
     done

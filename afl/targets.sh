@@ -4,7 +4,14 @@
 AFL_TARGETS=(
     applynamedcmm
     applyprofiles
+    applyprofiles-fast
+    applyprofiles-deep
+    applyprofiles-row
     applysearch
+    applysearch-weight-positive
+    applysearch-weight-zero
+    applysearch-weight-negative
+    applysearch-weight-nan
     applytolink
     describesink
     dump
@@ -28,7 +35,14 @@ afl_print_targets() {
     echo "Available targets:"
     echo "  applynamedcmm    - iccApplyNamedCmm (fixed data, fuzz ICC profile)"
     echo "  applyprofiles    - iccApplyProfiles (fixed TIFF, fuzz ICC profile)"
+    echo "  applyprofiles-fast - iccApplyProfiles (small ICC profile lane)"
+    echo "  applyprofiles-deep - iccApplyProfiles (large ICC profile lane)"
+    echo "  applyprofiles-row - iccApplyProfiles (-threads row-apply lane)"
     echo "  applysearch      - iccApplySearch (fixed data, fuzz ICC profiles)"
+    echo "  applysearch-weight-positive - iccApplySearch (fuzz PCC profile, fixed weight 1)"
+    echo "  applysearch-weight-zero - iccApplySearch (fuzz PCC profile, fixed weight 0)"
+    echo "  applysearch-weight-negative - iccApplySearch (fuzz PCC profile, fixed weight -1)"
+    echo "  applysearch-weight-nan - iccApplySearch (fuzz PCC profile, fixed weight nan)"
     echo "  applytolink      - iccApplyToLink (DeviceLink/.cube generation)"
     echo "  describesink     - iccDescribeSinkTest (profile sink description)"
     echo "  dump             - iccDumpProfile (ICC binary -> text dump)"
@@ -84,6 +98,8 @@ afl_configure_target() {
     AFL_DIR="$AFL_BASE/afl-$target"
     DICT=""
     TARGET_NOTE=""
+    SEED_MAX_BYTES=0
+    SEED_LIMIT=200
     REQUIRED_FILES=()
     SEED_DIRS=()
     AFL_ARGS=()
@@ -100,7 +116,7 @@ afl_configure_target() {
             REQUIRED_FILES=("$rgb_data")
             AFL_ARGS=("$rgb_data" "0" "0" "@@" "1")
             ;;
-        applyprofiles)
+        applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-row|profiles-row)
             BINARY="$BIN_DIR/iccApplyProfiles"
             DICT="$REPO_ROOT/cfl/icc_applyprofiles_fuzzer.dict"
             SEED_DIRS=(
@@ -109,12 +125,45 @@ afl_configure_target() {
                 "$REPO_ROOT/extended-test-profiles"
             )
             REQUIRED_FILES=("$fixed_tiff")
-            AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "1" "0" "0" "0" "0" "@@" "1")
+            case "$target" in
+                applyprofiles-fast|profiles-fast)
+                    AFL_DIR="$AFL_BASE/afl-applyprofiles-fast"
+                    SEED_MAX_BYTES=262144
+                    SEED_LIMIT=300
+                    TARGET_NOTE="Fast ApplyProfiles lane: only seeds <= 256 KiB are copied into a fresh corpus."
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "1" "0" "0" "0" "0" "@@" "1")
+                    ;;
+                applyprofiles-deep|profiles-deep)
+                    AFL_DIR="$AFL_BASE/afl-applyprofiles-deep"
+                    SEED_MAX_BYTES=0
+                    SEED_LIMIT=200
+                    TARGET_NOTE="Deep ApplyProfiles lane: includes large ICC profiles and may run much slower."
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "1" "0" "0" "0" "0" "@@" "1")
+                    ;;
+                applyprofiles-row|profiles-row)
+                    AFL_DIR="$AFL_BASE/afl-applyprofiles-row"
+                    SEED_MAX_BYTES=524288
+                    SEED_LIMIT=300
+                    TARGET_NOTE="Row ApplyProfiles lane: uses -threads 0 to exercise row/batched CMM Apply."
+                    AFL_ARGS=("-threads" "0" "$fixed_tiff" "${tmp_prefix}.tif" "1" "0" "0" "0" "0" "@@" "1")
+                    ;;
+                profiles)
+                    AFL_DIR="$AFL_BASE/afl-applyprofiles"
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "1" "0" "0" "0" "0" "@@" "1")
+                    ;;
+                *)
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "1" "0" "0" "0" "0" "@@" "1")
+                    ;;
+            esac
             ;;
-        applysearch|search)
+        applysearch|search|applysearch-weight|search-weight|applysearch-weight-positive|search-weight-positive|applysearch-weight-zero|search-weight-zero|applysearch-weight-negative|search-weight-negative|applysearch-weight-nan|search-weight-nan)
             BINARY="$BIN_DIR/iccApplySearch"
             if [[ "$target" == "search" ]]; then
                 AFL_DIR="$AFL_BASE/afl-search"
+            elif [[ "$target" == applysearch-weight* ]]; then
+                AFL_DIR="$AFL_BASE/afl-$target"
+            elif [[ "$target" == search-weight* ]]; then
+                AFL_DIR="$AFL_BASE/afl-applysearch-weight-${target#search-weight-}"
             else
                 AFL_DIR="$AFL_BASE/afl-applysearch"
             fi
@@ -125,7 +174,18 @@ afl_configure_target() {
                 "$REPO_ROOT/extended-test-profiles"
             )
             REQUIRED_FILES=("$rgb_data" "$srgb_profile")
-            AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "@@" "1" "-INIT" "1")
+            if [[ "$target" == applysearch-weight* || "$target" == search-weight* ]]; then
+                local weight_value="1"
+                case "$target" in
+                    *zero) weight_value="0" ;;
+                    *negative) weight_value="-1" ;;
+                    *nan) weight_value="nan" ;;
+                esac
+                AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
+                TARGET_NOTE="Weight-focused apply-search target: @@ is the fuzzed PCC profile; fixed weight is $weight_value."
+            else
+                AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "@@" "1" "-INIT" "1")
+            fi
             ;;
         applytolink)
             BINARY="$BIN_DIR/iccApplyToLink"

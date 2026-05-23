@@ -1,7 +1,7 @@
 #!/bin/bash
 # afl/build.sh - Build iccDEV with AFL++ instrumentation (ASAN+UBSAN)
 #
-# Usage: ./afl/build.sh [--clean]
+# Usage: ./afl/build.sh [--clean] [--patches|--no-patches] [--refresh-iccdev]
 #
 # Builds the full iccDEV library and tools using afl-clang-fast++ with
 # AddressSanitizer and UndefinedBehaviorSanitizer enabled.
@@ -15,6 +15,72 @@ BUILD_DIR="$ICCDEV_DIR/Build-AFL"
 CMAKE_DIR="$ICCDEV_DIR/Build/Cmake"
 BIN_DIR="$SCRIPT_DIR/bin"
 JOBS=$(nproc)
+PATCH_DIR="$REPO_ROOT/cfl/patches"
+APPLY_PATCHES="${AFL_APPLY_PATCHES:-1}"
+REFRESH_ICCDEV="${AFL_REFRESH_ICCDEV:-0}"
+KEEP_ICCDEV="${AFL_KEEP_ICCDEV:-0}"
+SELECTED_PATCHES=()
+
+usage() {
+    sed -n '2,8p' "$0" | sed 's/^# \?//'
+    echo ""
+    echo "Options:"
+    echo "  --clean           remove Build-AFL before building"
+    echo "  --patches         apply cfl/patches before building (default)"
+    echo "  --no-patches      build against current afl/iccDEV state"
+    echo "  --patch-file FILE apply one patch file; may be repeated"
+    echo "  --refresh-iccdev  fetch origin/master and reset the nested checkout"
+    echo "  --keep-iccdev     preserve current afl/iccDEV source edits"
+}
+
+CLEAN=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --clean|clean)
+            CLEAN=1
+            shift
+            ;;
+        --patches)
+            APPLY_PATCHES=1
+            shift
+            ;;
+        --no-patches)
+            APPLY_PATCHES=0
+            shift
+            ;;
+        --patch-file|--patch)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: $1 requires a patch path or cfl/patches filename"
+                exit 1
+            fi
+            APPLY_PATCHES=selected
+            SELECTED_PATCHES+=("$2")
+            shift 2
+            ;;
+        --refresh-iccdev)
+            REFRESH_ICCDEV=1
+            shift
+            ;;
+        --keep-iccdev)
+            KEEP_ICCDEV=1
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR: unknown argument: $1"
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [[ "$REFRESH_ICCDEV" = "1" && "$KEEP_ICCDEV" = "1" ]]; then
+    echo "ERROR: --refresh-iccdev and --keep-iccdev are mutually exclusive"
+    exit 1
+fi
 
 # Clone iccDEV if not present or incomplete. AFL tests use an isolated
 # upstream checkout so the root iccDEV/ source tree stays untouched.
@@ -26,6 +92,67 @@ elif [ ! -f "$CMAKE_DIR/CMakeLists.txt" ]; then
     git clone --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
 fi
 
+if [[ "$REFRESH_ICCDEV" = "1" ]]; then
+    echo "[*] Refreshing AFL iccDEV checkout from origin/master..."
+    git -C "$ICCDEV_DIR" fetch origin master
+    git -C "$ICCDEV_DIR" reset --hard origin/master
+    git -C "$ICCDEV_DIR" clean -fd
+elif [[ "$KEEP_ICCDEV" != "1" ]]; then
+    git -C "$ICCDEV_DIR" checkout -- . 2>/dev/null || true
+fi
+
+if [[ "$APPLY_PATCHES" = "0" ]]; then
+    echo "[*] Patch application disabled for AFL build"
+elif [[ "$APPLY_PATCHES" = "selected" ]]; then
+    PATCH_OK=0
+    PATCH_FAIL=0
+    for p in "${SELECTED_PATCHES[@]}"; do
+        if [[ -f "$p" ]]; then
+            patch_path="$p"
+        elif [[ -f "$PATCH_DIR/$p" ]]; then
+            patch_path="$PATCH_DIR/$p"
+        else
+            echo "[FAIL] Patch not found: $p"
+            exit 1
+        fi
+        pname="$(basename "$patch_path")"
+        if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" >/dev/null 2>&1; then
+            patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$patch_path" >/dev/null 2>&1
+            echo "[OK] Applied: $pname"
+            PATCH_OK=$((PATCH_OK + 1))
+        elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" >/dev/null 2>&1; then
+            echo "[OK] Already applied: $pname"
+            PATCH_OK=$((PATCH_OK + 1))
+        else
+            echo "[FAIL] Cannot apply: $pname"
+            PATCH_FAIL=$((PATCH_FAIL + 1))
+        fi
+    done
+    echo "[*] AFL patches: $PATCH_OK OK, $PATCH_FAIL FAIL"
+    [[ "$PATCH_FAIL" -eq 0 ]] || exit 1
+elif [[ -d "$PATCH_DIR" ]] && ls "$PATCH_DIR"/*.patch >/dev/null 2>&1; then
+    PATCH_OK=0
+    PATCH_FAIL=0
+    for p in "$PATCH_DIR"/*.patch; do
+        pname="$(basename "$p")"
+        if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$p" >/dev/null 2>&1; then
+            patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$p" >/dev/null 2>&1
+            echo "[OK] Applied: $pname"
+            PATCH_OK=$((PATCH_OK + 1))
+        elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$p" >/dev/null 2>&1; then
+            echo "[OK] Already applied: $pname"
+            PATCH_OK=$((PATCH_OK + 1))
+        else
+            echo "[FAIL] Cannot apply: $pname"
+            PATCH_FAIL=$((PATCH_FAIL + 1))
+        fi
+    done
+    echo "[*] AFL patches: $PATCH_OK OK, $PATCH_FAIL FAIL"
+    [[ "$PATCH_FAIL" -eq 0 ]] || exit 1
+else
+    echo "[*] No AFL patches to apply"
+fi
+
 # Verify AFL++ is installed
 if ! command -v afl-clang-fast++ &>/dev/null; then
     echo "ERROR: afl-clang-fast++ not found. Install AFL++:"
@@ -34,7 +161,7 @@ if ! command -v afl-clang-fast++ &>/dev/null; then
 fi
 
 # Clean build if requested
-if [[ "${1:-}" == "--clean" ]]; then
+if [[ "$CLEAN" == "1" ]]; then
     echo "[*] Cleaning Build-AFL directory..."
     rm -rf "$BUILD_DIR"
 fi

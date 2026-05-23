@@ -1,7 +1,7 @@
 #!/bin/bash
 # afl/rebuild.sh - Clean rebuild of AFL-instrumented iccDEV
 #
-# Usage: ./afl/rebuild.sh
+# Usage: ./afl/rebuild.sh [build.sh options]
 #
 # Performs a clean rebuild: removes Build-AFL, reconfigures, and compiles.
 # Use after upstream iccDEV sync or when build is corrupted.
@@ -30,4 +30,4 @@ if [[ -d "$BUILD_DIR" ]]; then
 fi
 
 # Delegate to build.sh
-exec "$REPO_ROOT/afl/build.sh"
+exec "$REPO_ROOT/afl/build.sh" "$@"
