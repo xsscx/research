@@ -59,6 +59,7 @@ CORE_FUZZERS=(
   icc_applynamedcmm_fuzzer
   icc_fromcube_fuzzer
   icc_applysearch_fuzzer
+  icc_applysearch_weight_fuzzer
 )
 
 # XML fuzzers (IccProfLib + IccXML + libxml2)
@@ -70,6 +71,7 @@ XML_FUZZERS=(
 # TIFF fuzzers (IccProfLib + TiffImg.o + libtiff)
 TIFF_FUZZERS=(
   icc_applyprofiles_fuzzer
+  icc_applyprofiles_row_fuzzer
   icc_specsep_fuzzer
   icc_tiffdump_fuzzer
 )
@@ -296,6 +298,7 @@ fi
 banner "Step 3: Build IccProfLib2-static + IccXML2-static"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
+rm -f IccProfLib/libIccProfLib2-static*.a IccXML/libIccXML2-static*.a
 
 cmake Cmake/ \
   -DCMAKE_C_COMPILER="$CC" \
@@ -310,6 +313,11 @@ cmake Cmake/ \
   -Wno-dev 2>&1 | tail -5
 
 make -j"$NPROC" IccProfLib2-static IccXML2-static 2>&1 | tail -3
+
+LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-staticd.a"
+LIB_XML="$BUILD_DIR/IccXML/libIccXML2-staticd.a"
+[ ! -f "$LIB_PROF" ] && LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-static.a"
+[ ! -f "$LIB_XML" ] && LIB_XML="$BUILD_DIR/IccXML/libIccXML2-static.a"
 
 echo ""
 echo "Libraries:"

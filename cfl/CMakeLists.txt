@@ -76,12 +76,37 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_include_directories(icc_applynamedcmm_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_applynamedcmm_fuzzer IccProfLib2)
 
+  set(TIFF_FUZZER_COMMON
+    ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
+  )
+
   # ApplyProfiles fuzzer
-  add_executable(icc_applyprofiles_fuzzer icc_applyprofiles_fuzzer.cpp)
+  add_executable(icc_applyprofiles_fuzzer icc_applyprofiles_fuzzer.cpp ${TIFF_FUZZER_COMMON})
   target_compile_options(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
-  target_include_directories(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_INCLUDES})
-  target_link_libraries(icc_applyprofiles_fuzzer IccProfLib2)
+  target_include_directories(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_INCLUDES} ${TIFF_INCLUDE_DIRS})
+  target_link_libraries(icc_applyprofiles_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
+
+  # ApplyProfiles row-apply fuzzer (-threads path)
+  add_executable(icc_applyprofiles_row_fuzzer icc_applyprofiles_row_fuzzer.cpp ${TIFF_FUZZER_COMMON})
+  target_compile_options(icc_applyprofiles_row_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+  target_link_options(icc_applyprofiles_row_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+  target_include_directories(icc_applyprofiles_row_fuzzer PRIVATE ${FUZZER_INCLUDES} ${TIFF_INCLUDE_DIRS})
+  target_link_libraries(icc_applyprofiles_row_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
+
+  # ApplySearch fuzzer
+  add_executable(icc_applysearch_fuzzer icc_applysearch_fuzzer.cpp)
+  target_compile_options(icc_applysearch_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+  target_link_options(icc_applysearch_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+  target_include_directories(icc_applysearch_fuzzer PRIVATE ${FUZZER_INCLUDES})
+  target_link_libraries(icc_applysearch_fuzzer IccProfLib2)
+
+  # ApplySearch weight-focused variant
+  add_executable(icc_applysearch_weight_fuzzer icc_applysearch_weight_fuzzer.cpp)
+  target_compile_options(icc_applysearch_weight_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+  target_link_options(icc_applysearch_weight_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+  target_include_directories(icc_applysearch_weight_fuzzer PRIVATE ${FUZZER_INCLUDES})
+  target_link_libraries(icc_applysearch_weight_fuzzer IccProfLib2)
 
   # JSON Config fuzzer (IccCmmConfig.cpp + IccJsonUtil.cpp compiled in -- not in shared lib)
   set(CFG_FUZZER_SOURCES
@@ -114,31 +139,28 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
   # TIFF-based fuzzers (require TIFF)
   if(TIFF_FOUND)
-    # SpecSep and TiffDump fuzzers require TiffImg.cpp compilation
-    # TODO: Add TiffImg.cpp to build or create separate TIFF tools library
-    #
-    # add_executable(icc_specsep_fuzzer icc_specsep_fuzzer.cpp)
-    # target_compile_options(icc_specsep_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined -g -O1)
-    # target_link_options(icc_specsep_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)
-    # target_include_directories(icc_specsep_fuzzer PRIVATE ${FUZZER_INCLUDES})
-    # target_link_libraries(icc_specsep_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
-    #
-    # add_executable(icc_tiffdump_fuzzer icc_tiffdump_fuzzer.cpp)
-    # target_compile_options(icc_tiffdump_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined -g -O1)
-    # target_link_options(icc_tiffdump_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)
-    # target_include_directories(icc_tiffdump_fuzzer PRIVATE ${FUZZER_INCLUDES})
-    # target_link_libraries(icc_tiffdump_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
+    add_executable(icc_specsep_fuzzer icc_specsep_fuzzer.cpp ${TIFF_FUZZER_COMMON})
+    target_compile_options(icc_specsep_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+    target_link_options(icc_specsep_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+    target_include_directories(icc_specsep_fuzzer PRIVATE ${FUZZER_INCLUDES} ${TIFF_INCLUDE_DIRS})
+    target_link_libraries(icc_specsep_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
+
+    add_executable(icc_tiffdump_fuzzer icc_tiffdump_fuzzer.cpp ${TIFF_FUZZER_COMMON})
+    target_compile_options(icc_tiffdump_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+    target_link_options(icc_tiffdump_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+    target_include_directories(icc_tiffdump_fuzzer PRIVATE ${FUZZER_INCLUDES} ${TIFF_INCLUDE_DIRS})
+    target_link_libraries(icc_tiffdump_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
   endif()
 
   message(STATUS "Fuzzing harnesses configured:")
   message(STATUS "  Core: v5dspobs, roundtrip, dump, link, fromcube (5)")
-  message(STATUS "  Apply: applynamedcmm, applyprofiles (2)")
+  message(STATUS "  Apply: applynamedcmm, applyprofiles, applyprofiles-row, applysearch, applysearch-weight (5)")
   message(STATUS "  Config: cfg (1)")
   if(TARGET IccXML2)
     message(STATUS "  XML: fromxml, toxml (2)")
   endif()
   if(TIFF_FOUND)
-    message(STATUS "  TIFF: specsep, tiffdump (disabled - requires TiffImg.cpp)")
+    message(STATUS "  TIFF: specsep, tiffdump (2)")
   endif()
 else()
   message(STATUS "Fuzzing disabled (requires Clang and -DENABLE_FUZZING=ON)")

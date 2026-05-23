@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-19
 
-`cfl/` contains the LibFuzzer side of the iccDEV fuzzing workflow: 13
+`cfl/` contains the LibFuzzer side of the iccDEV fuzzing workflow: active
 harnesses, sanitizer builds, dictionaries, seed material, and the active patch
 stack used for patched vs upstream A/B testing.
 
@@ -63,7 +63,9 @@ Current harness areas:
 |------|---------|
 | Named color CMM | `icc_applynamedcmm_fuzzer` |
 | Multi-profile transforms | `icc_applyprofiles_fuzzer` |
+| Multi-profile row transforms | `icc_applyprofiles_row_fuzzer` |
 | Search optimization | `icc_applysearch_fuzzer` |
+| Search weight validation | `icc_applysearch_weight_fuzzer` |
 | JSON config parsing | `icc_cfg_fuzzer` |
 | Profile dump/validate/describe | `icc_dump_fuzzer` |
 | CUBE import | `icc_fromcube_fuzzer` |

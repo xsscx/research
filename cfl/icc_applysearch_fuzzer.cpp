@@ -96,6 +96,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     bool use_bounds = (ctrl[2] & 0x02) != 0;
     bool use_pcc = (ctrl[2] & 0x04) != 0;
     uint8_t pixel_seed = ctrl[3];
+#ifdef ICC_APPLYSEARCH_FUZZ_WEIGHTS
+    static const icFloatNumber weight_cases[] = {
+        1.0f,
+        0.0f,
+        -1.0f,
+        0.5f,
+        2.0f,
+        static_cast<icFloatNumber>(0.0f / 0.0f)
+    };
+    icFloatNumber pcc_weight = weight_cases[(ctrl[2] >> 3) % (sizeof(weight_cases) / sizeof(weight_cases[0]))];
+#else
+    icFloatNumber pcc_weight = 1.0f;
+#endif
 
     // Gate 0c: validate both profiles' tag tables
     if (!fuzz_validate_icc_tags(prof1_data, prof1_len)) return 0;
@@ -151,7 +164,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         if (pPcc) {
             if (pPcc->ReadPccTags()) {
                 pPcc->Detach();
-                cmm.AttachPCC(pPcc, 1.0);
+                if (cmm.AttachPCC(pPcc, pcc_weight) != icCmmStatOk) {
+                    delete pPcc;
+                }
             } else {
                 delete pPcc;
             }

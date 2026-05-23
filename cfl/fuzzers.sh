@@ -4,7 +4,9 @@
 CFL_FUZZERS=(
   icc_applynamedcmm_fuzzer
   icc_applyprofiles_fuzzer
+  icc_applyprofiles_row_fuzzer
   icc_applysearch_fuzzer
+  icc_applysearch_weight_fuzzer
   icc_cfg_fuzzer
   icc_dump_fuzzer
   icc_fromcube_fuzzer
@@ -37,7 +39,9 @@ cfl_normalize_fuzzer() {
   case "$name" in
     namedcmm|applynamedcmm) name="icc_applynamedcmm_fuzzer" ;;
     profiles|applyprofiles) name="icc_applyprofiles_fuzzer" ;;
+    profiles-row|applyprofiles-row|rowprofiles|applyprofilesrow) name="icc_applyprofiles_row_fuzzer" ;;
     search|applysearch) name="icc_applysearch_fuzzer" ;;
+    search-weight|applysearch-weight|weightsearch|applysearchweight) name="icc_applysearch_weight_fuzzer" ;;
     cfg|config) name="icc_cfg_fuzzer" ;;
     dump) name="icc_dump_fuzzer" ;;
     cube|fromcube) name="icc_fromcube_fuzzer" ;;

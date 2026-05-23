@@ -50,7 +50,8 @@
 //   [profile_end+2]:   flags: bit0=BPC, bit1=luminance, bit2=useV5SubProfile,
 //                              bit3=embed_icc, bit4..5=bps_select, bit6..7=photo_select
 //   [profile_end+3]:   bit0=use_d2bx, bit1..2=width(1-4), bit3..4=height(1-4)
-//   [profile_end+4..]: pixel seed data
+//   [profile_end+4]:   bit0=row Apply path, bit1=dst compression, bit2=dst planar
+//   [profile_end+5..]: pixel seed data
 //
 
 #include <stdint.h>
@@ -114,6 +115,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   bool use_d2bx  = (control_data[3] & 0x01) != 0;
   unsigned int img_w = ((control_data[3] >> 1) & 0x03) + 1;  // 1-4 pixels wide
   unsigned int img_h = ((control_data[3] >> 3) & 0x03) + 1;  // 1-4 pixels tall
+  uint8_t option_flags = (control_size > 4) ? control_data[4] : 0;
+#ifdef ICC_APPLYPROFILES_FORCE_ROW
+  bool use_row_apply = true;
+#else
+  bool use_row_apply = (option_flags & 0x01) != 0;
+#endif
+  bool dst_compress = (option_flags & 0x02) != 0;
+  bool dst_planar = (option_flags & 0x04) != 0;
 
   // Map bps and photo selections
   unsigned int bps;
@@ -312,7 +321,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CTiffImg DstImg;
   if (!DstImg.Create(tmp_dst_tiff, SrcImg.GetWidth(), SrcImg.GetHeight(),
                      dbps, dphoto, nDestSamples, nExtraSamples,
-                     SrcImg.GetXRes(), SrcImg.GetYRes(), false, false)) {
+                     SrcImg.GetXRes(), SrcImg.GetYRes(), dst_compress, dst_planar)) {
     SrcImg.Close();
     unlink(tmp_profile);
     unlink(tmp_src_tiff);
@@ -350,6 +359,78 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (pSBuf && pDBuf) {
     CIccPixelBuf SrcPixelBuf(nSrcColorSamples + 16);
     CIccPixelBuf DestPixelBuf(nDestSamples + 16);
+    icFloatNumber *pSrcRowBuf = nullptr;
+    icFloatNumber *pDstRowBuf = nullptr;
+    if (use_row_apply) {
+      size_t srcRowCount = (size_t)read_width * (size_t)nSrcColorSamples;
+      size_t dstRowCount = (size_t)read_width * (size_t)nDestSamples;
+      if (srcRowCount <= 4096 && dstRowCount <= 4096) {
+        pSrcRowBuf = (icFloatNumber *)calloc(srcRowCount, sizeof(icFloatNumber));
+        pDstRowBuf = (icFloatNumber *)calloc(dstRowCount, sizeof(icFloatNumber));
+      }
+      if (!pSrcRowBuf || !pDstRowBuf) {
+        free(pSrcRowBuf);
+        free(pDstRowBuf);
+        pSrcRowBuf = nullptr;
+        pDstRowBuf = nullptr;
+        use_row_apply = false;
+      }
+    }
+
+    // Match iccApplyProfiles: TIFF boundary pixels are device encodings.
+    // Integers map linearly to [0, 1], floats pass through, and PCS/Lab
+    // bridging is handled by the CMM xforms rather than this boundary loop.
+    auto decodePixel = [&](icFloatNumber *pSrcPix, unsigned char *sptr) {
+      switch (read_bps) {
+        case 8:
+          for (int k = 0; k < nSrcColorSamples; k++)
+            pSrcPix[k] = (icFloatNumber)sptr[k] / 255.0f;
+          break;
+        case 16: {
+          unsigned short *pS16 = (unsigned short*)sptr;
+          for (int k = 0; k < nSrcColorSamples; k++)
+            pSrcPix[k] = (icFloatNumber)pS16[k] / 65535.0f;
+          break;
+        }
+        case 32:
+          if (sizeof(icFloatNumber) == sizeof(icFloat32Number)) {
+            memcpy(pSrcPix, sptr, nSrcColorSamples * sizeof(icFloat32Number));
+          } else {
+            icFloat32Number *pS32 = (icFloat32Number*)sptr;
+            for (int k = 0; k < nSrcColorSamples; k++)
+              pSrcPix[k] = (icFloatNumber)pS32[k];
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    auto encodePixel = [&](unsigned char *dptr, icFloatNumber *pDstPix) {
+      switch (dbps) {
+        case 8:
+          for (int k = 0; k < nDestSamples; k++)
+            dptr[k] = (icUInt8Number)(UnitClip(pDstPix[k]) * 255.0f + 0.5f);
+          break;
+        case 16: {
+          icUInt16Number *pD16 = (icUInt16Number*)dptr;
+          for (int k = 0; k < nDestSamples; k++)
+            pD16[k] = (icUInt16Number)(UnitClip(pDstPix[k]) * 65535.0f + 0.5f);
+          break;
+        }
+        case 32:
+          if (sizeof(icFloatNumber) == sizeof(icFloat32Number)) {
+            memcpy(dptr, pDstPix, dbpp);
+          } else {
+            icFloat32Number *pD32 = (icFloat32Number*)dptr;
+            for (int k = 0; k < nDestSamples; k++)
+              pD32[k] = (icFloat32Number)pDstPix[k];
+          }
+          break;
+        default:
+          break;
+      }
+    };
 
     for (unsigned int i = 0; i < read_height; i++) {
       if (!SrcImg.ReadLine(pSBuf))
@@ -358,109 +439,33 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       unsigned char *sptr = pSBuf;
       unsigned char *dptr = pDBuf;
 
+      if (use_row_apply && pSrcRowBuf && pDstRowBuf) {
+        for (unsigned int j = 0; j < read_width; j++, sptr += sbpp)
+          decodePixel(pSrcRowBuf + j * nSrcColorSamples, sptr);
+        theCmm.Apply(pDstRowBuf, pSrcRowBuf, read_width);
+        for (unsigned int j = 0; j < read_width; j++, dptr += dbpp)
+          encodePixel(dptr, pDstRowBuf + j * nDestSamples);
+        DstImg.WriteLine(pDBuf);
+        continue;
+      }
+
       for (unsigned int j = 0; j < read_width; j++, sptr += sbpp, dptr += dbpp) {
         icFloatNumber *pSrcPix = SrcPixelBuf;
         icFloatNumber *pDstPix = DestPixelBuf;
 
-        // Source pixel encoding (tool lines 481-538)
-        switch (read_bps) {
-          case 8:
-            if (read_sphoto == PHOTO_CIELAB) {
-              pSrcPix[0] = (icFloatNumber)sptr[0] / 255.0f;
-              pSrcPix[1] = (icFloatNumber)((int)sptr[1] - 128) / 255.0f;
-              pSrcPix[2] = (icFloatNumber)((int)sptr[2] - 128) / 255.0f;
-            } else {
-              for (int k = 0; k < nSrcColorSamples; k++)
-                pSrcPix[k] = (icFloatNumber)sptr[k] / 255.0f;
-            }
-            break;
-          case 16:
-            if (read_sphoto == PHOTO_CIELAB) {
-              unsigned short *pS16 = (unsigned short*)sptr;
-              pSrcPix[0] = (icFloatNumber)pS16[0] / 65535.0f;
-              pSrcPix[1] = (icFloatNumber)((int)pS16[1] - 0x8000) / 65535.0f;
-              pSrcPix[2] = (icFloatNumber)((int)pS16[2] - 0x8000) / 65535.0f;
-            } else {
-              unsigned short *pS16 = (unsigned short*)sptr;
-              for (int k = 0; k < nSrcColorSamples; k++)
-                pSrcPix[k] = (icFloatNumber)pS16[k] / 65535.0f;
-            }
-            break;
-          case 32:
-            if (sizeof(icFloatNumber) == sizeof(icFloat32Number)) {
-              memcpy(pSrcPix, sptr, sbpp);
-            } else {
-              icFloat32Number *pS32 = (icFloat32Number*)sptr;
-              for (int k = 0; k < nSrcColorSamples; k++)
-                pSrcPix[k] = (icFloatNumber)pS32[k];
-            }
-            if (read_sphoto == PHOTO_CIELAB || read_sphoto == PHOTO_ICCLAB)
-              icLabToPcs(pSrcPix);
-            break;
-          default:
-            break;
-        }
-
-        // Lab->XYZ PCS conversion (tool lines 539-543)
-        if (read_sphoto == PHOTO_CIELAB && SrcspaceSig == icSigXYZData) {
-          icLabFromPcs(pSrcPix);
-          icLabtoXYZ(pSrcPix);
-          icXyzToPcs(pSrcPix);
-        }
+        decodePixel(pSrcPix, sptr);
 
         // CMM Apply (tool line 546)
         theCmm.Apply(pDstPix, pSrcPix);
 
-        // XYZ->Lab PCS conversion (tool lines 549-553)
-        if (dphoto == PHOTO_CIELAB && DestSpaceSig == icSigXYZData) {
-          icXyzFromPcs(pDstPix);
-          icXYZtoLab(pDstPix);
-          icLabToPcs(pDstPix);
-        }
-
-        // Destination pixel encoding (tool lines 554-611)
-        switch (dbps) {
-          case 8:
-            if (dphoto == PHOTO_CIELAB) {
-              dptr[0] = (icUInt8Number)(UnitClip(pDstPix[0]) * 255.0f + 0.5f);
-              dptr[1] = (icUInt8Number)(UnitClip(pDstPix[1]) * 255.0f + 0.5f) + 128;
-              dptr[2] = (icUInt8Number)(UnitClip(pDstPix[2]) * 255.0f + 0.5f) + 128;
-            } else {
-              for (int k = 0; k < nDestSamples; k++)
-                dptr[k] = (icUInt8Number)(UnitClip(pDstPix[k]) * 255.0f + 0.5f);
-            }
-            break;
-          case 16:
-            if (dphoto == PHOTO_CIELAB) {
-              icUInt16Number *pD16 = (icUInt16Number*)dptr;
-              pD16[0] = (icUInt16Number)(UnitClip(pDstPix[0]) * 65535.0f + 0.5f);
-              pD16[1] = (icUInt16Number)(UnitClip(pDstPix[1]) * 65535.0f + 0.5f) + 0x8000;
-              pD16[2] = (icUInt16Number)(UnitClip(pDstPix[2]) * 65535.0f + 0.5f) + 0x8000;
-            } else {
-              icUInt16Number *pD16 = (icUInt16Number*)dptr;
-              for (int k = 0; k < nDestSamples; k++)
-                pD16[k] = (icUInt16Number)(UnitClip(pDstPix[k]) * 65535.0f + 0.5f);
-            }
-            break;
-          case 32:
-            if (dphoto == PHOTO_CIELAB || dphoto == PHOTO_ICCLAB)
-              icLabFromPcs(pDstPix);
-            if (sizeof(icFloatNumber) == sizeof(icFloat32Number)) {
-              memcpy(dptr, pDstPix, dbpp);
-            } else {
-              icFloat32Number *pD32 = (icFloat32Number*)dptr;
-              for (int k = 0; k < nDestSamples; k++)
-                pD32[k] = (icFloat32Number)pDstPix[k];
-            }
-            break;
-          default:
-            break;
-        }
+        encodePixel(dptr, pDstPix);
       }
 
       // Write converted line to destination (tool line 615)
       DstImg.WriteLine(pDBuf);
     }
+    free(pSrcRowBuf);
+    free(pDstRowBuf);
   }
 
   free(pSBuf);
