@@ -8,7 +8,9 @@ AFL_TARGETS=(
     applyprofiles-deep
     applyprofiles-row
     applysearch
+    applysearch-fast
     applysearch-weight-positive
+    applysearch-weight-positive-fast
     applysearch-weight-zero
     applysearch-weight-negative
     applysearch-weight-nan
@@ -21,13 +23,16 @@ AFL_TARGETS=(
     fromxml
     jpegdump
     pawgreport
+    pawgreport-fast
     pngdump
     profilevisualize
+    profilevisualize-fast
     roundtrip
     specseptotiff
     tiffdump
     tojson
     toxml
+    toxml-fast
     v5dspobs
 )
 
@@ -39,7 +44,9 @@ afl_print_targets() {
     echo "  applyprofiles-deep - iccApplyProfiles (large ICC profile lane)"
     echo "  applyprofiles-row - iccApplyProfiles (-threads row-apply lane)"
     echo "  applysearch      - iccApplySearch (fixed data, fuzz ICC profiles)"
+    echo "  applysearch-fast - iccApplySearch (small/no-trim search lane)"
     echo "  applysearch-weight-positive - iccApplySearch (fuzz PCC profile, fixed weight 1)"
+    echo "  applysearch-weight-positive-fast - iccApplySearch (small/no-trim weight 1 lane)"
     echo "  applysearch-weight-zero - iccApplySearch (fuzz PCC profile, fixed weight 0)"
     echo "  applysearch-weight-negative - iccApplySearch (fuzz PCC profile, fixed weight -1)"
     echo "  applysearch-weight-nan - iccApplySearch (fuzz PCC profile, fixed weight nan)"
@@ -52,13 +59,16 @@ afl_print_targets() {
     echo "  fromxml          - iccFromXml (ICC XML -> binary)"
     echo "  jpegdump         - iccJpegDump (JPEG -> ICC extraction)"
     echo "  pawgreport       - iccPawgReport (PAWG profile assessment)"
+    echo "  pawgreport-fast  - iccPawgReport (small/no-trim profile assessment lane)"
     echo "  pngdump          - iccPngDump (PNG -> ICC extraction)"
     echo "  profilevisualize - iccProfileVisualize (ICC profile visualization)"
+    echo "  profilevisualize-fast - iccProfileVisualize (small/no-trim visualization lane)"
     echo "  roundtrip        - iccRoundTrip (ICC binary round-trip)"
     echo "  specseptotiff    - iccSpecSepToTiff (fixed spectral TIFFs, fuzz embedded ICC)"
     echo "  tiffdump         - iccTiffDump (TIFF -> ICC extraction)"
     echo "  tojson           - iccToJson (ICC binary -> JSON)"
     echo "  toxml            - iccToXml (ICC binary -> XML)"
+    echo "  toxml-fast       - iccToXml (small/no-trim XML conversion lane)"
     echo "  v5dspobs         - iccV5DspObsToV4Dsp (fuzz v5 display profile)"
 }
 
@@ -100,6 +110,8 @@ afl_configure_target() {
     TARGET_NOTE=""
     SEED_MAX_BYTES=0
     SEED_LIMIT=200
+    AFL_DISABLE_TRIM_TARGET=0
+    AFL_FAST_CAL_TARGET=0
     REQUIRED_FILES=()
     SEED_DIRS=()
     AFL_ARGS=()
@@ -156,10 +168,16 @@ afl_configure_target() {
                     ;;
             esac
             ;;
-        applysearch|search|applysearch-weight|search-weight|applysearch-weight-positive|search-weight-positive|applysearch-weight-zero|search-weight-zero|applysearch-weight-negative|search-weight-negative|applysearch-weight-nan|search-weight-nan)
+        applysearch|search|applysearch-fast|search-fast|applysearch-weight|search-weight|applysearch-weight-positive|search-weight-positive|applysearch-weight-positive-fast|search-weight-positive-fast|applysearch-weight-zero|search-weight-zero|applysearch-weight-negative|search-weight-negative|applysearch-weight-nan|search-weight-nan)
             BINARY="$BIN_DIR/iccApplySearch"
             if [[ "$target" == "search" ]]; then
                 AFL_DIR="$AFL_BASE/afl-search"
+            elif [[ "$target" == applysearch-fast || "$target" == search-fast ]]; then
+                AFL_DIR="$AFL_BASE/afl-applysearch-fast"
+            elif [[ "$target" == applysearch-weight-positive-fast ]]; then
+                AFL_DIR="$AFL_BASE/afl-applysearch-weight-positive-fast"
+            elif [[ "$target" == search-weight-positive-fast ]]; then
+                AFL_DIR="$AFL_BASE/afl-applysearch-weight-positive-fast"
             elif [[ "$target" == applysearch-weight* ]]; then
                 AFL_DIR="$AFL_BASE/afl-$target"
             elif [[ "$target" == search-weight* ]]; then
@@ -181,9 +199,24 @@ afl_configure_target() {
                     *negative) weight_value="-1" ;;
                     *nan) weight_value="nan" ;;
                 esac
+                if [[ "$target" == *positive-fast ]]; then
+                    SEED_MAX_BYTES=8192
+                    SEED_LIMIT=96
+                    AFL_DISABLE_TRIM_TARGET=1
+                    AFL_FAST_CAL_TARGET=1
+                    TARGET_NOTE="Fast weight-positive apply-search lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                else
+                    TARGET_NOTE="Weight-focused apply-search target: @@ is the fuzzed PCC profile; fixed weight is $weight_value."
+                fi
                 AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
-                TARGET_NOTE="Weight-focused apply-search target: @@ is the fuzzed PCC profile; fixed weight is $weight_value."
             else
+                if [[ "$target" == applysearch-fast || "$target" == search-fast ]]; then
+                    SEED_MAX_BYTES=8192
+                    SEED_LIMIT=96
+                    AFL_DISABLE_TRIM_TARGET=1
+                    AFL_FAST_CAL_TARGET=1
+                    TARGET_NOTE="Fast apply-search lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                fi
                 AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "@@" "1" "-INIT" "1")
             fi
             ;;
@@ -265,14 +298,22 @@ afl_configure_target() {
             SEED_DIRS=("$REPO_ROOT/fuzz/graphics/jpg")
             AFL_ARGS=("@@")
             ;;
-        pawgreport)
+        pawgreport|pawgreport-fast)
             BINARY="$BIN_DIR/iccPawgReport"
+            [[ "$target" == "pawgreport-fast" ]] && AFL_DIR="$AFL_BASE/afl-pawgreport-fast"
             DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/extended-test-profiles"
             )
+            if [[ "$target" == "pawgreport-fast" ]]; then
+                SEED_MAX_BYTES=8192
+                SEED_LIMIT=96
+                AFL_DISABLE_TRIM_TARGET=1
+                AFL_FAST_CAL_TARGET=1
+                TARGET_NOTE="Fast PAWG report lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+            fi
             AFL_ARGS=("--json" "@@")
             ;;
         pngdump)
@@ -281,14 +322,22 @@ afl_configure_target() {
             SEED_DIRS=("$REPO_ROOT/fuzz/graphics/png")
             AFL_ARGS=("@@")
             ;;
-        profilevisualize)
+        profilevisualize|profilevisualize-fast)
             BINARY="$BIN_DIR/iccProfileVisualize"
+            [[ "$target" == "profilevisualize-fast" ]] && AFL_DIR="$AFL_BASE/afl-profilevisualize-fast"
             DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/extended-test-profiles"
             )
+            if [[ "$target" == "profilevisualize-fast" ]]; then
+                SEED_MAX_BYTES=8192
+                SEED_LIMIT=96
+                AFL_DISABLE_TRIM_TARGET=1
+                AFL_FAST_CAL_TARGET=1
+                TARGET_NOTE="Fast ProfileVisualize lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+            fi
             AFL_ARGS=("@@")
             ;;
         roundtrip)
@@ -340,14 +389,22 @@ afl_configure_target() {
             )
             AFL_ARGS=("@@" "${tmp_prefix}.json")
             ;;
-        toxml)
+        toxml|toxml-fast)
             BINARY="$BIN_DIR/iccToXml"
+            [[ "$target" == "toxml-fast" ]] && AFL_DIR="$AFL_BASE/afl-toxml-fast"
             DICT="$REPO_ROOT/cfl/icc_toxml_fuzzer.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/extended-test-profiles"
             )
+            if [[ "$target" == "toxml-fast" ]]; then
+                SEED_MAX_BYTES=8192
+                SEED_LIMIT=96
+                AFL_DISABLE_TRIM_TARGET=1
+                AFL_FAST_CAL_TARGET=1
+                TARGET_NOTE="Fast ToXml lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+            fi
             AFL_ARGS=("@@" "${tmp_prefix}.xml")
             ;;
         v5dspobs)

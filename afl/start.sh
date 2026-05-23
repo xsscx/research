@@ -106,9 +106,9 @@ if [[ $(find "$AFL_DIR/input" -mindepth 1 -maxdepth 1 -type f 2>/dev/null | wc -
                 echo "    $seed_dir ($count files)"
             fi
             if [[ "$count" -gt "${SEED_LIMIT:-200}" ]]; then
-                "${seed_find[@]}" | shuf -n "${SEED_LIMIT:-200}" | xargs -r -I{} cp -n {} "$AFL_DIR/input/"
+                "${seed_find[@]}" | shuf -n "${SEED_LIMIT:-200}" | xargs -r -I{} cp --update=none {} "$AFL_DIR/input/"
             else
-                "${seed_find[@]}" -exec cp -n {} "$AFL_DIR/input/" \;
+                "${seed_find[@]}" -exec cp --update=none {} "$AFL_DIR/input/" \;
             fi
         fi
     done
@@ -169,6 +169,16 @@ fi
 export AFL_MAP_SIZE="$AFL_MAP_SIZE_VAL"
 export AFL_SKIP_CPUFREQ=1
 export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+if [[ "${AFL_DISABLE_TRIM_TARGET:-0}" -eq 1 ]]; then
+    export AFL_DISABLE_TRIM=1
+else
+    unset AFL_DISABLE_TRIM
+fi
+if [[ "${AFL_FAST_CAL_TARGET:-0}" -eq 1 ]]; then
+    export AFL_FAST_CAL=1
+else
+    unset AFL_FAST_CAL
+fi
 export LD_LIBRARY_PATH="$BIN_DIR"
 export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0,allocator_may_return_null=1"
 unset MSAN_OPTIONS
