@@ -7,73 +7,71 @@
 # Memory safety vulnerabilities
 - queries: .
   from: codeql/cpp-queries
-  filters:
-    - include:
-        kind:
-          - problem
-          - path-problem
-        tags contain:
-          - security
+  include:
+    kind:
+      - problem
+      - path-problem
+    tags contain:
+      - security
 
 # Custom security research queries
-- queries: ./enum-undefined-behavior.ql
-- queries: ./buffer-overflow.ql
-- queries: ./type-confusion.ql
-- queries: ./use-after-free.ql
-- queries: ./integer-overflow-allocation.ql
-- queries: ./integer-overflow-multiply.ql
-- queries: ./alloc-dealloc-mismatch.ql
-- queries: ./unchecked-io-return.ql
-- queries: ./injection-attacks.ql
-- queries: ./xml-all-attacks.ql
-- queries: ./xml-external-entity-attacks.ql
-- queries: ./iccanalyzer-security.ql
-- queries: ./iccdumpprofile-enum-reachability.ql
-- queries: ./all-tools-enum-reachability.ql
-- queries: ./argv-output-path.ql
-- queries: ./null-pointer-deref.ql
-- queries: ./uninitialized-read.ql
-- queries: ./unsafe-array-new.ql
-- queries: ./unsafe-scalar-new.ql
-- queries: ./unaligned-pointer-cast.ql
-- queries: ./signed-shift-overflow.ql
-- queries: ./icc-tag-cstyle-cast.ql
+- query: ./enum-undefined-behavior.ql
+- query: ./buffer-overflow.ql
+- query: ./type-confusion.ql
+- query: ./use-after-free.ql
+- query: ./integer-overflow-allocation.ql
+- query: ./integer-overflow-multiply.ql
+- query: ./alloc-dealloc-mismatch.ql
+- query: ./unchecked-io-return.ql
+- query: ./injection-attacks.ql
+- query: ./xml-all-attacks.ql
+- query: ./xml-external-entity-attacks.ql
+- query: ./iccanalyzer-security.ql
+- query: ./iccdumpprofile-enum-reachability.ql
+- query: ./all-tools-enum-reachability.ql
+- query: ./argv-output-path.ql
+- query: ./null-pointer-deref.ql
+- query: ./uninitialized-read.ql
+- query: ./unsafe-array-new.ql
+- query: ./unsafe-scalar-new.ql
+- query: ./unaligned-pointer-cast.ql
+- query: ./signed-shift-overflow.ql
+- query: ./iccdev-division-by-zero-denominator.ql
+- query: ./icc-tag-cstyle-cast.ql
 
 # Built-in security queries
 - queries: .
   from: codeql/cpp-queries
-  filters:
-    - include:
-        id:
-          - cpp/integer-overflow
-          - cpp/signed-overflow
-          - cpp/uncontrolled-allocation-size
-          - cpp/unbounded-write
-          - cpp/pointer-overflow-check
-          - cpp/bad-allocation-size
-          - cpp/dangerous-function-overflow
-          - cpp/wrong-type-format-argument
-          - cpp/tainted-format-string
-          - cpp/unsafe-strcat
-          - cpp/unsafe-strncat
-          - cpp/potentially-dangerous-function
-          - cpp/memory-may-not-be-freed
-          - cpp/memory-never-freed
-          - cpp/double-free
-          - cpp/use-after-free
-          - cpp/delete-void-pointer
-          - cpp/incorrect-allocation-error-handling
-          - cpp/offset-use-before-range-check
-          - cpp/upcast-array-pointer-arithmetic
-          - cpp/unsafe-use-of-this
-          - cpp/return-stack-allocated-memory
-          - cpp/stack-address-escape
+  include:
+    id:
+      - cpp/integer-overflow
+      - cpp/signed-overflow
+      - cpp/uncontrolled-allocation-size
+      - cpp/unbounded-write
+      - cpp/pointer-overflow-check
+      - cpp/bad-allocation-size
+      - cpp/dangerous-function-overflow
+      - cpp/wrong-type-format-argument
+      - cpp/tainted-format-string
+      - cpp/unsafe-strcat
+      - cpp/unsafe-strncat
+      - cpp/potentially-dangerous-function
+      - cpp/memory-may-not-be-freed
+      - cpp/memory-never-freed
+      - cpp/double-free
+      - cpp/use-after-free
+      - cpp/delete-void-pointer
+      - cpp/incorrect-allocation-error-handling
+      - cpp/offset-use-before-range-check
+      - cpp/upcast-array-pointer-arithmetic
+      - cpp/unsafe-use-of-this
+      - cpp/return-stack-allocated-memory
+      - cpp/stack-address-escape
 
 # Experimental security queries
 - queries: .
   from: codeql/cpp-queries
-  filters:
-    - include:
-        tags contain:
-          - security
-          - experimental
+  include:
+    tags contain:
+      - security
+      - experimental
