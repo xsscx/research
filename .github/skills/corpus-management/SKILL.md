@@ -24,8 +24,13 @@ coverage, merge, dedup, and cleanup.
 ### 1. Setup Storage
 
 ```bash
-# Ramdisk (8GB tmpfs, short runs)
-.github/scripts/ramdisk-seed.sh --mount
+# Optional ramdisk (8GB tmpfs, short runs)
+sudo mkdir -p /tmp/fuzz-ramdisk
+sudo mount -t tmpfs -o size=8G,noatime,nodev,nosuid tmpfs /tmp/fuzz-ramdisk
+mkdir -p /tmp/fuzz-ramdisk/bin /tmp/fuzz-ramdisk/dict /tmp/fuzz-ramdisk/logs /tmp/fuzz-ramdisk/profraw
+cp cfl/bin/icc_*_fuzzer /tmp/fuzz-ramdisk/bin/
+cp cfl/*.dict /tmp/fuzz-ramdisk/dict/
+for d in cfl/corpus-*; do rsync -a --ignore-existing "$d/" "/tmp/fuzz-ramdisk/$(basename "$d")/"; done
 
 # Status check
 for d in cfl/corpus-*/; do

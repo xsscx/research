@@ -164,17 +164,52 @@ cfl_resolve_dict() {
 }
 
 cfl_option_timeout() {
+  cfl_option_value "$1" "$2" timeout 30
+}
+
+cfl_option_max_len() {
+  cfl_option_value "$1" "$2" max_len 5242880
+}
+
+cfl_option_rss_limit() {
+  cfl_option_value "$1" "$2" rss_limit_mb 4096
+}
+
+cfl_option_value() {
   local script_dir="$1"
   local fuzzer="$2"
+  local key="$3"
+  local default_value="$4"
   local opt_file="$script_dir/${fuzzer}.options"
   local value
 
   if [[ -f "$opt_file" ]]; then
-    value=$(grep -m1 '^timeout' "$opt_file" | sed 's/[^0-9]//g')
+    value=$(awk -F= -v key="$key" '
+      $1 ~ "^[[:space:]]*" key "[[:space:]]*$" {
+        value = $2
+        sub(/[[:space:]]*#.*/, "", value)
+        gsub(/[^0-9]/, "", value)
+        if (value != "" && value != "0") {
+          print value
+          exit
+        }
+      }
+    ' "$opt_file")
     [[ -n "$value" ]] && printf '%s\n' "$value" && return 0
   fi
 
-  printf '30\n'
+  printf '%s\n' "$default_value"
+}
+
+cfl_asan_options() {
+  local fuzzer="$1"
+  local options="detect_leaks=0,allocator_may_return_null=1"
+
+  if [[ "$fuzzer" == "icc_link_fuzzer" ]]; then
+    options+=",quarantine_size_mb=256"
+  fi
+
+  printf '%s\n' "$options"
 }
 
 cfl_pid_is_running() {

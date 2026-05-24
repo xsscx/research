@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# ramdisk-sync-to-disk.sh — Sync corpus from ramdisk to on-disk cfl/corpus-*
+# ramdisk-sync-to-disk.sh - Sync corpus from storage to on-disk cfl/corpus-*
 #
 # Usage:
 #   .github/scripts/ramdisk-sync-to-disk.sh              # sync all
 #   .github/scripts/ramdisk-sync-to-disk.sh --dry-run    # show what would sync
 #   .github/scripts/ramdisk-sync-to-disk.sh icc_dump_fuzzer icc_link_fuzzer
 #
-# Copies ramdisk corpus → cfl/corpus-<name>/ and saves crash artifacts
+# Copies storage corpus to cfl/corpus-<name>/ and saves crash artifacts
 # to cfl/findings/. Does NOT unmount the ramdisk.
 
 set -euo pipefail
@@ -19,22 +19,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CFL_DIR="$REPO_ROOT/cfl"
 DRY_RUN=false
+# shellcheck source=cfl/fuzzers.sh
+source "$CFL_DIR/fuzzers.sh"
 
-ALL_FUZZERS=(
-  icc_applynamedcmm_fuzzer
-  icc_applyprofiles_fuzzer
-  icc_dump_fuzzer
-  icc_fromcube_fuzzer
-  icc_fromxml_fuzzer
-  icc_link_fuzzer
-  icc_roundtrip_fuzzer
-  icc_specsep_fuzzer
-  icc_tiffdump_fuzzer
-  icc_toxml_fuzzer
-  icc_v5dspobs_fuzzer
-)
+mapfile -t ALL_FUZZERS < <(cfl_list_fuzzers)
 
-# ── Parse args ───────────────────────────────────────────────────────
+# -- Parse args -------------------------------------------------------
 SELECTED_FUZZERS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -52,15 +42,15 @@ FUZZERS=("${SELECTED_FUZZERS[@]:-${ALL_FUZZERS[@]}}")
 RSYNC_FLAGS="-a --quiet"
 $DRY_RUN && RSYNC_FLAGS="-a --dry-run --stats"
 
-echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║               Sync Ramdisk → Disk                             ║"
-echo "╚══════════════════════════════════════════════════════════════════╝"
+echo "=================================================================="
+echo "               Sync Storage to Disk"
+echo "=================================================================="
 echo ""
-$DRY_RUN && echo "  [INFO] DRY RUN — showing what would sync"
+$DRY_RUN && echo "  [INFO] DRY RUN - showing what would sync"
 echo ""
 
-# ── Sync corpus directories ─────────────────────────────────────────
-echo "── Corpus sync ──────────────────────────────────────────────────"
+# -- Sync corpus directories -----------------------------------------
+echo "-- Corpus sync ---------------------------------------------------"
 SYNCED=0
 TOTAL_FILES=0
 for f in "${FUZZERS[@]}"; do
@@ -77,7 +67,7 @@ for f in "${FUZZERS[@]}"; do
   size_h=$(du -sh "$ram_corpus" 2>/dev/null | cut -f1)
 
   if $DRY_RUN; then
-    echo "  [sync] corpus-${f}  ($count files, $size_h) → $disk_corpus"
+    echo "  [sync] corpus-${f}  ($count files, $size_h) -> $disk_corpus"
   else
     mkdir -p "$disk_corpus"
     rsync $RSYNC_FLAGS "$ram_corpus/" "$disk_corpus/"
@@ -88,8 +78,8 @@ for f in "${FUZZERS[@]}"; do
 done
 echo ""
 
-# ── Save crash artifacts ────────────────────────────────────────────
-echo "── Artifacts ────────────────────────────────────────────────────"
+# -- Save crash artifacts --------------------------------------------
+echo "-- Artifacts -----------------------------------------------------"
 ARTIFACTS=0
 for pattern in 'crash-*' 'oom-*' 'timeout-*' 'slow-unit-*' 'leak-*'; do
   while IFS= read -r -d '' file; do
@@ -103,7 +93,7 @@ done
 
 if [ "$ARTIFACTS" -gt 0 ]; then
   if $DRY_RUN; then
-    echo "  [save] $ARTIFACTS artifacts → cfl/findings/"
+    echo "  [save] $ARTIFACTS artifacts -> cfl/findings/"
   else
     echo "  [OK] $ARTIFACTS artifacts saved to cfl/findings/"
   fi
@@ -112,8 +102,8 @@ else
 fi
 echo ""
 
-# ── Summary ─────────────────────────────────────────────────────────
-echo "── Summary ──────────────────────────────────────────────────────"
+# -- Summary ---------------------------------------------------------
+echo "-- Summary -------------------------------------------------------"
 echo "  Synced:    $SYNCED corpus dirs ($TOTAL_FILES total files)"
 echo "  Artifacts: $ARTIFACTS"
 if $DRY_RUN; then

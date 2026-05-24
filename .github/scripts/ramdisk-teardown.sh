@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ramdisk-teardown.sh — Sync corpus to disk, clean stray items, unmount ramdisk
+# ramdisk-teardown.sh - Sync corpus to disk, clean stray items, unmount ramdisk
 #
 # Usage:
 #   sudo .github/scripts/ramdisk-teardown.sh          # full teardown
@@ -9,8 +9,8 @@
 #
 # Orchestrates the full shutdown sequence:
 #   1. (optional) Merge/deduplicate corpus on ramdisk
-#   2. Sync corpus from ramdisk → cfl/corpus-*
-#   3. Process profraw → coverage report, then clear profraw
+#   2. Sync corpus from ramdisk to cfl/corpus-*
+#   3. Process profraw to coverage report, then clear profraw
 #   4. Clean stray dirs/files from ramdisk
 #   5. Unmount the ramdisk
 
@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DO_MERGE=false
 DO_UNMOUNT=true
 
-# ── Parse args ───────────────────────────────────────────────────────
+# -- Parse args -------------------------------------------------------
 while [ $# -gt 0 ]; do
   case "$1" in
     --merge) DO_MERGE=true ;;
@@ -36,25 +36,25 @@ done
 
 [ -d "$RAMDISK" ] || die "Ramdisk not found: $RAMDISK"
 
-echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║                  Ramdisk Teardown                              ║"
-echo "╚══════════════════════════════════════════════════════════════════╝"
+echo "=================================================================="
+echo "                  Ramdisk Teardown"
+echo "=================================================================="
 echo ""
 
-# ── Step 1: Merge (optional) ────────────────────────────────────────
+# -- Step 1: Merge (optional) ----------------------------------------
 if $DO_MERGE; then
-  echo "━━ Step 1: Merge/deduplicate corpus ━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "-- Step 1: Merge/deduplicate corpus ----------------------------"
   "$SCRIPT_DIR/ramdisk-merge.sh" --ramdisk "$RAMDISK" || echo "  [WARN] Merge had failures (continuing with sync)"
   echo ""
 fi
 
-# ── Step 2: Sync to disk ────────────────────────────────────────────
-echo "━━ Step 2: Sync corpus → disk ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+# -- Step 2: Sync to disk --------------------------------------------
+echo "-- Step 2: Sync corpus to disk ----------------------------------"
 "$SCRIPT_DIR/ramdisk-sync-to-disk.sh" --ramdisk "$RAMDISK"
 echo ""
 
-# ── Step 3: Process profraw → coverage report ────────────────────────
-echo "━━ Step 3: Coverage report from profraw ━━━━━━━━━━━━━━━━━━━━━━━━"
+# -- Step 3: Process profraw to coverage report ----------------------
+echo "-- Step 3: Coverage report from profraw -------------------------"
 PROFRAW_DIR="$RAMDISK/profraw"
 PROFRAW_COUNT=$(find "$RAMDISK" -name '*.profraw' -type f 2>/dev/null | wc -l)
 if [ "$PROFRAW_COUNT" -gt 0 ]; then
@@ -82,17 +82,17 @@ else
 fi
 echo ""
 
-# ── Step 4: Clean stray items ───────────────────────────────────────
-echo "━━ Step 4: Clean stray items ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+# -- Step 4: Clean stray items ---------------------------------------
+echo "-- Step 4: Clean stray items ------------------------------------"
 "$SCRIPT_DIR/ramdisk-clean.sh" --execute "$RAMDISK"
 echo ""
 
-# ── Step 5: Unmount ─────────────────────────────────────────────────
+# -- Step 5: Unmount -------------------------------------------------
 if $DO_UNMOUNT; then
-  echo "━━ Step 5: Unmount ramdisk ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "-- Step 5: Unmount ramdisk -------------------------------------"
   if mountpoint -q "$RAMDISK" 2>/dev/null; then
     if [ "$(id -u)" -ne 0 ]; then
-      echo "  [WARN] Not root — cannot unmount. Run with sudo or use --no-unmount."
+      echo "  [WARN] Not root - cannot unmount. Run with sudo or use --no-unmount."
     else
       umount "$RAMDISK" 2>/dev/null || echo "  [WARN] umount failed (ramdisk may be busy)"
       rmdir "$RAMDISK" 2>/dev/null || true
@@ -103,7 +103,7 @@ if $DO_UNMOUNT; then
     rmdir "$RAMDISK" 2>/dev/null || true
   fi
 else
-  echo "━━ Step 5: Unmount skipped (--no-unmount) ━━━━━━━━━━━━━━━━━━━━━"
+  echo "-- Step 5: Unmount skipped (--no-unmount) ----------------------"
 fi
 echo ""
 

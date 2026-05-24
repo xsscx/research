@@ -22,8 +22,8 @@ cd cfl && ./build.sh --no-patches --refresh-iccdev
 cd cfl && ./build.sh --refresh-iccdev \
   --patch-file 053-formulacurve-describe-format-specifiers.patch
 
-# Smoke-test all fuzzers on tmpfs.
-cd cfl && sudo ./ramdisk-fuzz.sh 60
+# Smoke-test all fuzzers from local corpora.
+cd cfl && ./fuzz-local.sh -t 60 -w 1
 
 # Run longer fuzzing on mounted storage.
 cd cfl && ./fuzz-local.sh -t 14400 -w 4 -r /mnt/g/fuzz-ssd
@@ -126,19 +126,18 @@ commit that curated file.
 
 ## Runtime Workflows
 
-### Ramdisk Smoke Or Fuzz Run
+### Local Smoke Or Fuzz Run
 
 ```bash
 cd cfl
-sudo ./ramdisk-fuzz.sh          # default duration
-sudo ./ramdisk-fuzz.sh 60       # smoke test
-sudo ./ramdisk-fuzz.sh 120 dump # target alias accepted by helper scripts
+./fuzz-local.sh -t 60           # smoke test
+./fuzz-local.sh -t 120 dump     # target alias accepted by helper scripts
 ```
 
 ### Mounted Storage Run
 
 ```bash
-.github/scripts/ramdisk-seed.sh --ramdisk /mnt/g/fuzz-ssd
+# Prepare /mnt/g/fuzz-ssd with bin/, dict/, logs/, profraw/, and corpus-* dirs.
 cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd -w 8 -t 3600
 .github/scripts/ramdisk-merge.sh --ramdisk /mnt/g/fuzz-ssd
 .github/scripts/ramdisk-sync-to-disk.sh --ramdisk /mnt/g/fuzz-ssd

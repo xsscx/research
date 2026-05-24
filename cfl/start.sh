@@ -13,8 +13,8 @@
 #   --time SECONDS     max_total_time; 0 means run until stopped (default: 0)
 #   --workers N        LibFuzzer workers per fuzzer (default: 1)
 #   --jobs N           LibFuzzer jobs per fuzzer (default: workers)
-#   --rss MB           rss_limit_mb per worker (default: 4096)
-#   --max-len BYTES    max_len passed to LibFuzzer (default: 5242880)
+#   --rss MB           override rss_limit_mb per worker (default: fuzzer options)
+#   --max-len BYTES    override max_len passed to LibFuzzer (default: fuzzer options)
 #   --runs-dir DIR     run state directory (default: cfl/runs)
 #   --foreground       run a single fuzzer in the foreground
 #   -h, --help         show help
@@ -28,8 +28,8 @@ source "$SCRIPT_DIR/fuzzers.sh"
 FUZZ_SECONDS=0
 WORKERS=1
 JOBS=""
-RSS_LIMIT=4096
-MAX_LEN=5242880
+RSS_LIMIT=""
+MAX_LEN=""
 RUNS_DIR="$SCRIPT_DIR/runs"
 FOREGROUND=0
 TARGETS=()
@@ -84,6 +84,9 @@ start_fuzzer() {
   local log="$run_dir/current.log"
   local pid_file="$run_dir/fuzzer.pid"
   local timeout_value
+  local rss_limit
+  local max_len
+  local asan_options
   local cmd=()
   local pid
 
@@ -109,15 +112,18 @@ start_fuzzer() {
   fi
 
   timeout_value=$(cfl_option_timeout "$SCRIPT_DIR" "$fuzzer")
+  rss_limit="${RSS_LIMIT:-$(cfl_option_rss_limit "$SCRIPT_DIR" "$fuzzer")}"
+  max_len="${MAX_LEN:-$(cfl_option_max_len "$SCRIPT_DIR" "$fuzzer")}"
+  asan_options="$(cfl_asan_options "$fuzzer")"
 
   cmd=(
     "$bin"
     -print_final_stats=1
     -detect_leaks=0
     "-timeout=$timeout_value"
-    "-rss_limit_mb=$RSS_LIMIT"
+    "-rss_limit_mb=$rss_limit"
     -use_value_profile=1
-    "-max_len=$MAX_LEN"
+    "-max_len=$max_len"
     -create_missing_dirs=1
     "-artifact_prefix=$artifact_dir/"
     "-jobs=$JOBS"
@@ -137,23 +143,25 @@ start_fuzzer() {
   if [[ "$FOREGROUND" -eq 1 ]]; then
     echo "[*] Starting $fuzzer in foreground"
     echo "[*] Corpus: $corpus"
+    echo "[*] Options: timeout=$timeout_value rss_limit_mb=$rss_limit max_len=$max_len"
     echo "[*] Log: stdout/stderr"
     export FUZZ_TMPDIR="$run_dir"
     export LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw"
-    export ASAN_OPTIONS="detect_leaks=0,allocator_may_return_null=1"
+    export ASAN_OPTIONS="$asan_options"
     export UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1"
     exec "${cmd[@]}"
   fi
 
   echo "[*] Starting $fuzzer"
   echo "    Corpus: $corpus"
+  echo "    Options: timeout=$timeout_value rss_limit_mb=$rss_limit max_len=$max_len"
   echo "    Log:    $log"
   echo "    Runs:   $run_dir"
 
   setsid env \
     FUZZ_TMPDIR="$run_dir" \
     LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw" \
-    ASAN_OPTIONS="detect_leaks=0,allocator_may_return_null=1" \
+    ASAN_OPTIONS="$asan_options" \
     UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1" \
     "${cmd[@]}" > "$log" 2>&1 &
   pid=$!

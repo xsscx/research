@@ -104,7 +104,7 @@ These rules derive from real multi-agent failures. Source: xsscx/governance LLMC
 
 macOS generates images (xnuimagetools) -> fuzzes them (xnuimagefuzzer with ICC injection)
 -> CI extracts ICC seeds (extract-icc-seeds.py) -> Linux validates+distributes
-(seed-pipeline.sh) -> ramdisk-seed.sh populates fuzzer corpora.
+(seed-pipeline.sh) -> CFL corpora consumed by `cfl/fuzz-local.sh`.
 
 Quality gates: reject <64 bytes, reject <5 unique pixel values, validate TIFF magic,
 deduplicate by MD5, enforce 5MB max.

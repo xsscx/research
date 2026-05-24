@@ -1,17 +1,17 @@
 #!/bin/bash
 #
-# ramdisk-cheatsheet.sh — One-liner reference commands for ramdisk fuzzing
+# ramdisk-cheatsheet.sh - One-liner reference commands for ramdisk fuzzing
 #
 # Quick-reference commands you can copy/paste. Not meant to be run as a script.
-# For the full automated workflow, use: sudo ./ramdisk-fuzz.sh
+# Prepare storage manually; run fuzzers with cfl/fuzz-local.sh.
 #
 
 cat << 'EOF'
-╔══════════════════════════════════════════════════════════════════════╗
-║               ICC Fuzzer Ramdisk — Quick Reference                 ║
-╚══════════════════════════════════════════════════════════════════════╝
+======================================================================
+               ICC Fuzzer Ramdisk - Quick Reference
+======================================================================
 
-── 1. MOUNT A RAMDISK ─────────────────────────────────────────────────
+-- 1. MOUNT A RAMDISK ------------------------------------------------
 
   # Mount 4 GB tmpfs ramdisk
   sudo mkdir -p /tmp/fuzz-ramdisk && sudo mount -t tmpfs -o size=4G,noatime tmpfs /tmp/fuzz-ramdisk
@@ -22,10 +22,15 @@ cat << 'EOF'
   # Verify mount
   df -h /tmp/fuzz-ramdisk
 
-── 2. SEED CORPUS TO RAMDISK ──────────────────────────────────────────
+-- 2. SEED CORPUS TO RAMDISK -----------------------------------------
 
   # Copy all seed corpora to ramdisk
   for f in cfl/bin/icc_*_fuzzer; do name=$(basename "$f"); mkdir -p /tmp/fuzz-ramdisk/corpus-${name}; [ -d "cfl/${name}_seed_corpus" ] && cp cfl/${name}_seed_corpus/* /tmp/fuzz-ramdisk/corpus-${name}/; done
+
+  # Copy binaries and dictionaries
+  mkdir -p /tmp/fuzz-ramdisk/bin /tmp/fuzz-ramdisk/dict /tmp/fuzz-ramdisk/logs /tmp/fuzz-ramdisk/profraw
+  cp cfl/bin/icc_*_fuzzer /tmp/fuzz-ramdisk/bin/
+  cp cfl/*.dict /tmp/fuzz-ramdisk/dict/
 
   # Copy existing on-disk corpus too
   for d in cfl/corpus-*; do [ -d "$d" ] && cp -r "$d" /tmp/fuzz-ramdisk/; done
@@ -36,7 +41,7 @@ cat << 'EOF'
   # Seed xif/ TIFF files into tiffdump fuzzer (254 TIFFs)
   find xif/ -maxdepth 1 -type f -exec sh -c 'file -b "$1" | grep -qi tiff' _ {} \; -exec cp -n {} /tmp/fuzz-ramdisk/corpus-icc_tiffdump_fuzzer/ \;
 
-── 3. RUN A SINGLE FUZZER ─────────────────────────────────────────────
+-- 3. RUN A SINGLE FUZZER --------------------------------------------
 
   # Quick 60-second smoke test on ramdisk
   FUZZ_TMPDIR=/tmp/fuzz-ramdisk LLVM_PROFILE_FILE=/dev/null \
@@ -60,18 +65,18 @@ cat << 'EOF'
     -dict=/tmp/fuzz-ramdisk/dict/icc_toxml_fuzzer.dict \
     /tmp/fuzz-ramdisk/corpus-icc_toxml_fuzzer/
 
-── 4. RUN ALL FUZZERS IN PARALLEL ─────────────────────────────────────
+-- 4. RUN ALL FUZZERS ------------------------------------------------
 
-  # All 17 fuzzers, 300s each, parallel jobs per fuzzer
-  sudo ./cfl/ramdisk-fuzz.sh 300
+  # All fuzzers, 300s each, 4 workers per fuzzer
+  cd cfl && ./fuzz-local.sh -t 300 -w 4
 
-  # All 17 fuzzers, 60s smoke test
-  sudo ./cfl/ramdisk-fuzz.sh 60
+  # All fuzzers, 60s smoke test
+  cd cfl && ./fuzz-local.sh -t 60 -w 1
 
   # Only specific fuzzers
-  sudo ./cfl/ramdisk-fuzz.sh 120 icc_dump_fuzzer icc_link_fuzzer icc_fromxml_fuzzer
+  cd cfl && ./fuzz-local.sh -t 120 icc_dump_fuzzer icc_link_fuzzer icc_fromxml_fuzzer
 
-── 5. CORPUS MERGE / MINIMIZE ON RAMDISK ──────────────────────────────
+-- 5. CORPUS MERGE / MINIMIZE ON RAMDISK -----------------------------
 
   # Merge corpus (deduplicate, keep only coverage-increasing inputs)
   mkdir -p /tmp/fuzz-ramdisk/merged-icc_dump_fuzzer && cfl/bin/icc_dump_fuzzer -merge=1 -detect_leaks=0 /tmp/fuzz-ramdisk/merged-icc_dump_fuzzer /tmp/fuzz-ramdisk/corpus-icc_dump_fuzzer cfl/icc_dump_fuzzer_seed_corpus
@@ -79,7 +84,7 @@ cat << 'EOF'
   # Minimize a crashing input
   cfl/bin/icc_dump_fuzzer -minimize_crash=1 -detect_leaks=0 -max_total_time=120 -artifact_prefix=/tmp/fuzz-ramdisk/ /tmp/fuzz-ramdisk/crash-XXXX
 
-── 6. SYNC CORPUS BACK TO DISK ────────────────────────────────────────
+-- 6. SYNC CORPUS BACK TO DISK ---------------------------------------
 
   # Sync all ramdisk corpora back to cfl/
   for d in /tmp/fuzz-ramdisk/corpus-*; do name=$(basename "$d"); rsync -a "$d/" "cfl/$name/"; done
@@ -87,12 +92,12 @@ cat << 'EOF'
   # Copy any crash artifacts
   cp /tmp/fuzz-ramdisk/crash-* /tmp/fuzz-ramdisk/oom-* /tmp/fuzz-ramdisk/timeout-* cfl/findings/ 2>/dev/null; echo "Done"
 
-── 7. UNMOUNT RAMDISK ─────────────────────────────────────────────────
+-- 7. UNMOUNT RAMDISK ------------------------------------------------
 
   # Unmount (WARNING: all unsaved data is lost!)
   sudo umount /tmp/fuzz-ramdisk && sudo rmdir /tmp/fuzz-ramdisk
 
-── 8. macOS RAMDISK (alternative) ─────────────────────────────────────
+-- 8. macOS RAMDISK (alternative) ------------------------------------
 
   # Create 4 GB RAM disk on macOS (4GB = 4*1024*1024*1024/512 = 8388608 sectors)
   DISK=$(hdiutil attach -nomount ram://8388608) && diskutil erasevolume HFS+ FuzzRamdisk $DISK && export RAMDISK="/Volumes/FuzzRamdisk"
@@ -100,5 +105,5 @@ cat << 'EOF'
   # Eject macOS ramdisk
   hdiutil detach /Volumes/FuzzRamdisk
 
-══════════════════════════════════════════════════════════════════════
+======================================================================
 EOF

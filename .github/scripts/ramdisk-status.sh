@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ramdisk-status.sh — Report ramdisk state and identify stray vs legit directories
+# ramdisk-status.sh - Report storage state and identify stray vs legit directories
 #
 # Usage:
 #   .github/scripts/ramdisk-status.sh
@@ -15,29 +15,18 @@ RAMDISK="${1:-/tmp/fuzz-ramdisk}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CFL_DIR="$REPO_ROOT/cfl"
+# shellcheck source=cfl/fuzzers.sh
+source "$CFL_DIR/fuzzers.sh"
 
-# Canonical fuzzer names
-ALL_FUZZERS=(
-  icc_applynamedcmm_fuzzer
-  icc_applyprofiles_fuzzer
-  icc_dump_fuzzer
-  icc_fromcube_fuzzer
-  icc_fromxml_fuzzer
-  icc_link_fuzzer
-  icc_roundtrip_fuzzer
-  icc_specsep_fuzzer
-  icc_tiffdump_fuzzer
-  icc_toxml_fuzzer
-  icc_v5dspobs_fuzzer
-)
+mapfile -t ALL_FUZZERS < <(cfl_list_fuzzers)
 
-echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║                  Ramdisk Status Report                         ║"
-echo "╚══════════════════════════════════════════════════════════════════╝"
+echo "=================================================================="
+echo "                  Ramdisk Status Report"
+echo "=================================================================="
 echo ""
 
-# ── Mount status ─────────────────────────────────────────────────────
-echo "── 1. MOUNT STATUS ──────────────────────────────────────────────"
+# -- Mount status -----------------------------------------------------
+echo "-- 1. MOUNT STATUS ----------------------------------------------"
 if mountpoint -q "$RAMDISK" 2>/dev/null; then
   df -h "$RAMDISK"
   echo "  Status: MOUNTED (tmpfs)"
@@ -54,8 +43,8 @@ else
 fi
 echo ""
 
-# ── Legit corpus directories ────────────────────────────────────────
-echo "── 2. LEGITIMATE CORPUS DIRECTORIES ─────────────────────────────"
+# -- Legit corpus directories ----------------------------------------
+echo "-- 2. LEGITIMATE CORPUS DIRECTORIES -----------------------------"
 LEGIT_TOTAL_FILES=0
 LEGIT_TOTAL_SIZE=0
 for f in "${ALL_FUZZERS[@]}"; do
@@ -68,15 +57,15 @@ for f in "${ALL_FUZZERS[@]}"; do
     LEGIT_TOTAL_FILES=$((LEGIT_TOTAL_FILES + count))
     LEGIT_TOTAL_SIZE=$((LEGIT_TOTAL_SIZE + size))
   else
-    printf "  ○ %-45s (missing)\n" "corpus-${f}"
+    printf "  [MISS] %-43s (missing)\n" "corpus-${f}"
   fi
 done
 echo ""
 echo "  Total legit corpus: $LEGIT_TOTAL_FILES files, $(numfmt --to=iec $LEGIT_TOTAL_SIZE 2>/dev/null || echo "${LEGIT_TOTAL_SIZE} bytes")"
 echo ""
 
-# ── Stray corpus directories ────────────────────────────────────────
-echo "── 3. STRAY CORPUS DIRECTORIES (not matching any fuzzer) ────────"
+# -- Stray corpus directories ----------------------------------------
+echo "-- 3. STRAY CORPUS DIRECTORIES (not matching any fuzzer) --------"
 STRAY_CORPUS=0
 for d in "$RAMDISK"/corpus-*; do
   [ -d "$d" ] || continue
@@ -95,8 +84,8 @@ done
 [ "$STRAY_CORPUS" -eq 0 ] && echo "  (none)"
 echo ""
 
-# ── Stray directories (non-corpus) ──────────────────────────────────
-echo "── 4. STRAY DIRECTORIES (non-corpus) ────────────────────────────"
+# -- Stray directories (non-corpus) ----------------------------------
+echo "-- 4. STRAY DIRECTORIES (non-corpus) ----------------------------"
 STRAY_DIRS=0
 for d in "$RAMDISK"/*/; do
   [ -d "$d" ] || continue
@@ -112,8 +101,8 @@ done
 [ "$STRAY_DIRS" -eq 0 ] && echo "  (none)"
 echo ""
 
-# ── Loose artifacts ─────────────────────────────────────────────────
-echo "── 5. LOOSE ARTIFACTS (ramdisk root) ────────────────────────────"
+# -- Loose artifacts --------------------------------------------------
+echo "-- 5. LOOSE ARTIFACTS (ramdisk root) ----------------------------"
 CRASH_N=$(find "$RAMDISK" -maxdepth 1 -name 'crash-*' -type f 2>/dev/null | wc -l)
 OOM_N=$(find "$RAMDISK" -maxdepth 1 -name 'oom-*' -type f 2>/dev/null | wc -l)
 TIMEOUT_N=$(find "$RAMDISK" -maxdepth 1 -name 'timeout-*' -type f 2>/dev/null | wc -l)
@@ -131,8 +120,8 @@ printf "  latest*:     %4d  (stale libfuzzer prefixed artifacts)\n" "$LATEST_N"
 printf "  updated*:    %4d  (stale libfuzzer prefixed artifacts)\n" "$UPDATED_N"
 echo ""
 
-# ── Stray files (non-artifact, non-directory) ───────────────────────
-echo "── 6. OTHER STRAY FILES ─────────────────────────────────────────"
+# -- Stray files (non-artifact, non-directory) -----------------------
+echo "-- 6. OTHER STRAY FILES -----------------------------------------"
 STRAY_FILES=0
 while IFS= read -r -d '' file; do
   name=$(basename "$file")
@@ -146,8 +135,8 @@ done < <(find "$RAMDISK" -maxdepth 1 -type f -print0 2>/dev/null)
 [ "$STRAY_FILES" -eq 0 ] && echo "  (none)"
 echo ""
 
-# ── On-disk corpus state ────────────────────────────────────────────
-echo "── 7. ON-DISK CORPUS (cfl/corpus-*) ─────────────────────────────"
+# -- On-disk corpus state --------------------------------------------
+echo "-- 7. ON-DISK CORPUS (cfl/corpus-*) -----------------------------"
 DISK_ANY=false
 for d in "$CFL_DIR"/corpus-*; do
   [ -d "$d" ] || continue
@@ -156,11 +145,11 @@ for d in "$CFL_DIR"/corpus-*; do
   size_h=$(du -sh "$d" 2>/dev/null | cut -f1)
   printf "  %-45s %6d files  %s\n" "$(basename "$d")" "$count" "$size_h"
 done
-$DISK_ANY || echo "  (none — ramdisk corpus has NOT been synced to disk)"
+$DISK_ANY || echo "  (none - ramdisk corpus has NOT been synced to disk)"
 echo ""
 
-# ── Summary ─────────────────────────────────────────────────────────
-echo "── SUMMARY ──────────────────────────────────────────────────────"
+# -- Summary ---------------------------------------------------------
+echo "-- SUMMARY ------------------------------------------------------"
 TOTAL_ARTIFACTS=$((CRASH_N + OOM_N + TIMEOUT_N + SLOW_N + LEAK_N + LATEST_N + UPDATED_N))
 echo "  Legit corpus dirs:  ${#ALL_FUZZERS[@]} expected, $(ls -d "$RAMDISK"/corpus-icc_* 2>/dev/null | wc -l) found"
 echo "  Stray corpus dirs:  $STRAY_CORPUS"
@@ -170,10 +159,10 @@ echo "  Stray files:        $STRAY_FILES"
 echo ""
 
 if [ "$STRAY_CORPUS" -gt 0 ] || [ "$STRAY_DIRS" -gt 0 ] || [ "$TOTAL_ARTIFACTS" -gt 0 ] || [ "$STRAY_FILES" -gt 0 ]; then
-  echo "  → Run:  .github/scripts/ramdisk-clean.sh       # remove stray items"
+  echo "  -> Run:  .github/scripts/ramdisk-clean.sh       # remove stray items"
 fi
 if ! $DISK_ANY; then
-  echo "  → Run:  .github/scripts/ramdisk-sync-to-disk.sh # sync corpus to disk"
+  echo "  -> Run:  .github/scripts/ramdisk-sync-to-disk.sh # sync corpus to disk"
 fi
-echo "  → Run:  .github/scripts/ramdisk-merge.sh        # deduplicate corpus"
+echo "  -> Run:  .github/scripts/ramdisk-merge.sh        # deduplicate corpus"
 echo ""

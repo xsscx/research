@@ -23,7 +23,7 @@ scripts and filesystem in the current checkout.
 cd cfl && ./build.sh --patches --refresh-iccdev
 cd cfl && ./build.sh --no-patches --refresh-iccdev
 cd cfl && ./build.sh --refresh-iccdev --patch-file NAME.patch
-cd cfl && sudo ./ramdisk-fuzz.sh 60
+cd cfl && ./fuzz-local.sh -t 60 -w 1
 cd cfl && ./status.sh --detail
 cd cfl && ./status.sh --json | jq .
 ```

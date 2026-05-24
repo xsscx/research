@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ramdisk-clean.sh — Remove stray files/dirs from the fuzzing ramdisk
+# ramdisk-clean.sh - Remove stray files/dirs from fuzzing storage
 #
 # Usage:
 #   .github/scripts/ramdisk-clean.sh              # dry-run (default)
@@ -11,7 +11,7 @@
 #   - Stray corpus dirs not matching any of the 18 fuzzers
 #   - Stray non-corpus dirs (latest/, updated/, tmp/, etc.)
 #   - Loose artifacts (crash-*, oom-*, timeout-*, slow-unit-*, leak-*)
-#     → saved to cfl/findings/ before deletion
+#     saved to cfl/findings/ before deletion
 #   - Stray files (binaries, source, dicts left on ramdisk root)
 #
 # Safe by default: runs in dry-run mode unless --execute is passed.
@@ -20,7 +20,7 @@ set -euo pipefail
 
 die() { echo "[FAIL] ERROR: $*" >&2; exit 1; }
 
-# ── Parse args ───────────────────────────────────────────────────────
+# -- Parse args -------------------------------------------------------
 DRY_RUN=true
 RAMDISK="/tmp/fuzz-ramdisk"
 
@@ -36,30 +36,19 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CFL_DIR="$REPO_ROOT/cfl"
 FINDINGS_DIR="$CFL_DIR/findings"
+# shellcheck source=cfl/fuzzers.sh
+source "$CFL_DIR/fuzzers.sh"
 
 [ -d "$RAMDISK" ] || die "Ramdisk directory not found: $RAMDISK"
 
 if $DRY_RUN; then
-  echo "[INFO] DRY RUN — showing what would be removed (pass --execute to apply)"
+  echo "[INFO] DRY RUN - showing what would be removed (pass --execute to apply)"
 else
-  echo "[INFO] EXECUTING — removing stray items from $RAMDISK"
+  echo "[INFO] EXECUTING - removing stray items from $RAMDISK"
 fi
 echo ""
 
-# Canonical fuzzer names
-ALL_FUZZERS=(
-  icc_applynamedcmm_fuzzer
-  icc_applyprofiles_fuzzer
-  icc_dump_fuzzer
-  icc_fromcube_fuzzer
-  icc_fromxml_fuzzer
-  icc_link_fuzzer
-  icc_roundtrip_fuzzer
-  icc_specsep_fuzzer
-  icc_tiffdump_fuzzer
-  icc_toxml_fuzzer
-  icc_v5dspobs_fuzzer
-)
+mapfile -t ALL_FUZZERS < <(cfl_list_fuzzers)
 
 is_legit_corpus() {
   local name="$1"
@@ -73,8 +62,8 @@ REMOVED_DIRS=0
 REMOVED_FILES=0
 SAVED_ARTIFACTS=0
 
-# ── 1. Save loose artifacts to findings/ ─────────────────────────────
-echo "── Saving artifacts to cfl/findings/ ────────────────────────────"
+# -- 1. Save loose artifacts to findings/ ----------------------------
+echo "-- Saving artifacts to cfl/findings/ ----------------------------"
 ARTIFACT_PATTERNS=( 'crash-*' 'oom-*' 'timeout-*' 'slow-unit-*' 'leak-*' )
 for pattern in "${ARTIFACT_PATTERNS[@]}"; do
   while IFS= read -r -d '' file; do
@@ -105,8 +94,8 @@ done
 [ "$SAVED_ARTIFACTS" -eq 0 ] && echo "  (none)"
 echo ""
 
-# ── 2. Remove loose artifacts from ramdisk ───────────────────────────
-echo "── Removing loose artifacts from ramdisk root ───────────────────"
+# -- 2. Remove loose artifacts from ramdisk --------------------------
+echo "-- Removing loose artifacts from ramdisk root -------------------"
 ARTIFACT_COUNT=0
 for pattern in "${ARTIFACT_PATTERNS[@]}" 'latest*' 'updated*'; do
   while IFS= read -r -d '' file; do
@@ -124,8 +113,8 @@ done
 REMOVED_FILES=$((REMOVED_FILES + ARTIFACT_COUNT))
 echo ""
 
-# ── 3. Remove stray corpus directories ──────────────────────────────
-echo "── Removing stray corpus directories ────────────────────────────"
+# -- 3. Remove stray corpus directories ------------------------------
+echo "-- Removing stray corpus directories ----------------------------"
 for d in "$RAMDISK"/corpus-*; do
   [ -d "$d" ] || continue
   name=$(basename "$d")
@@ -144,8 +133,8 @@ done
 [ "$REMOVED_DIRS" -eq 0 ] && echo "  (none)"
 echo ""
 
-# ── 4. Remove stray non-corpus directories ──────────────────────────
-echo "── Removing stray non-corpus directories ────────────────────────"
+# -- 4. Remove stray non-corpus directories --------------------------
+echo "-- Removing stray non-corpus directories ------------------------"
 STRAY_DIR_COUNT=0
 for d in "$RAMDISK"/*/; do
   [ -d "$d" ] || continue
@@ -167,8 +156,8 @@ done
 REMOVED_DIRS=$((REMOVED_DIRS + STRAY_DIR_COUNT))
 echo ""
 
-# ── 5. Remove stray files (binaries, source, dicts on root) ─────────
-echo "── Removing stray files from ramdisk root ───────────────────────"
+# -- 5. Remove stray files (binaries, source, dicts on root) ---------
+echo "-- Removing stray files from ramdisk root -----------------------"
 STRAY_FILE_COUNT=0
 while IFS= read -r -d '' file; do
   name=$(basename "$file")
@@ -189,8 +178,8 @@ done < <(find "$RAMDISK" -maxdepth 1 -type f -print0 2>/dev/null)
 REMOVED_FILES=$((REMOVED_FILES + STRAY_FILE_COUNT))
 echo ""
 
-# ── Summary ─────────────────────────────────────────────────────────
-echo "── Summary ──────────────────────────────────────────────────────"
+# -- Summary ---------------------------------------------------------
+echo "-- Summary ------------------------------------------------------"
 if $DRY_RUN; then
   echo "  Would save:   $SAVED_ARTIFACTS artifacts to cfl/findings/"
   echo "  Would remove: $REMOVED_DIRS directories, $REMOVED_FILES files"
