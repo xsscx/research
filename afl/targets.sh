@@ -18,7 +18,6 @@ AFL_TARGETS=(
     applytolink
     describesink
     dump
-    dumpgui
     fromcube
     fromjson
     fromxml
@@ -55,7 +54,6 @@ afl_print_targets() {
     echo "  applytolink      - iccApplyToLink (DeviceLink/.cube generation)"
     echo "  describesink     - iccDescribeSinkTest (profile sink description)"
     echo "  dump             - iccDumpProfile (ICC binary -> text dump)"
-    echo "  dumpgui          - iccDumpProfileGui (GUI profile loader; may require DISPLAY)"
     echo "  fromcube         - iccFromCube (.cube LUT text -> ICC)"
     echo "  fromjson         - iccFromJson (ICC JSON -> binary)"
     echo "  fromxml          - iccFromXml (ICC XML -> binary)"
@@ -264,17 +262,6 @@ afl_configure_target() {
             )
             AFL_ARGS=("@@" "ALL")
             ;;
-        dumpgui)
-            BINARY="$BIN_DIR/iccDumpProfileGui"
-            DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
-            TARGET_NOTE="iccDumpProfileGui is a wx GUI binary and may require DISPLAY/headed execution."
-            SEED_DIRS=(
-                "$REPO_ROOT/test-profiles"
-                "$REPO_ROOT/fuzz/graphics/icc"
-                "$REPO_ROOT/extended-test-profiles"
-            )
-            AFL_ARGS=("@@")
-            ;;
         fromcube)
             BINARY="$BIN_DIR/iccFromCube"
             DICT="$REPO_ROOT/cfl/icc_fromcube_fuzzer.dict"
@@ -287,7 +274,7 @@ afl_configure_target() {
             ;;
         fromjson)
             BINARY="$BIN_DIR/iccFromJson"
-            DICT="$REPO_ROOT/cfl/icc_cfg_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_json.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/fuzz/graphics/json"
                 "$REPO_ROOT/cfl/corpus-icc_fromjson_fuzzer"
@@ -310,7 +297,7 @@ afl_configure_target() {
             BINARY="$BIN_DIR/iccJpegDump"
             DICT="$REPO_ROOT/cfl/icc.dict"
             SEED_DIRS=("$REPO_ROOT/fuzz/graphics/jpg")
-            AFL_ARGS=("@@")
+            AFL_ARGS=("@@" "${tmp_prefix}.icc")
             ;;
         pawgreport|pawgreport-fast)
             BINARY="$BIN_DIR/iccPawgReport"
@@ -377,8 +364,18 @@ afl_configure_target() {
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/extended-test-profiles"
             )
-            REQUIRED_FILES=("$REPO_ROOT/test-profiles/spectral/spec_001.tif")
-            AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$REPO_ROOT/test-profiles/spectral/spec_%03d.tif" "1" "10" "1" "@@")
+            REQUIRED_FILES=(
+                "$REPO_ROOT/test-profiles/spectral/spec_001.tif"
+                "$REPO_ROOT/test-profiles/spectral/spec_002.tif"
+                "$REPO_ROOT/test-profiles/spectral/spec_003.tif"
+                "$REPO_ROOT/test-profiles/spectral/spec_004.tif"
+                "$REPO_ROOT/test-profiles/spectral/spec_005.tif"
+                "$REPO_ROOT/test-profiles/spectral/spec_006.tif"
+                "$REPO_ROOT/test-profiles/spectral/spec_007.tif"
+                "$REPO_ROOT/test-profiles/spectral/spec_008.tif"
+                "$REPO_ROOT/test-profiles/spectral/spec_009.tif"
+            )
+            AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "${tmp_prefix}-spec_00" "1" "9" "1" "@@")
             ;;
         tiffdump|tiff)
             BINARY="$BIN_DIR/iccTiffDump"
@@ -395,7 +392,7 @@ afl_configure_target() {
             ;;
         tojson)
             BINARY="$BIN_DIR/iccToJson"
-            DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_core.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -430,6 +427,8 @@ afl_configure_target() {
                 "$REPO_ROOT/extended-test-profiles"
             )
             REQUIRED_FILES=("$fixed_observer")
+            SEED_MAX_BYTES=524288
+            TARGET_NOTE="v5 display/observer conversion lane: @@ should be a v5 spectral display profile such as Rec2020rgbSpectral.icc."
             AFL_ARGS=("@@" "$fixed_observer" "${tmp_prefix}.icc")
             ;;
         *)

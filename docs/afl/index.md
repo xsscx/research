@@ -8,7 +8,7 @@ Use `afl/targets.sh` as the source of truth for available targets.
 ## Fast Path
 
 ```bash
-# Build AFL-instrumented iccDEV tools.
+# Build AFL-instrumented upstream iccDEV tools without CFL patches.
 ./afl/build.sh
 
 # List targets and start a run.
@@ -31,6 +31,9 @@ Use `afl/targets.sh` as the source of truth for available targets.
 - seed directories
 - the dictionary copied into the per-target directory
 - any fixed arguments needed to drive multi-argument tools
+
+`./afl/build.sh` defaults to an unpatched upstream iccDEV checkout. Use
+`./afl/build.sh --patches` only for deliberate CFL patch A/B comparisons.
 
 The current target list includes tool-level coverage for profile dumping,
 XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile

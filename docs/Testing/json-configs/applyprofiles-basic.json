@@ -1,0 +1,20 @@
+{
+  "imageFiles": {
+    "srcImageFile": "test-profiles/tiff-codecs/seed-tiff-none-rgb-8x8.tif",
+    "dstImageFile": "/tmp/icc-applyprofiles-basic.tif",
+    "dstEncoding": "8Bit",
+    "dstCompression": false,
+    "dstPlanar": false,
+    "dstEmbedIcc": false
+  },
+  "profileSequence": [
+    {
+      "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+      "intent": 1,
+      "interpolation": "tetrahedral"
+    }
+  ],
+  "connect": {
+    "threads": 1
+  }
+}

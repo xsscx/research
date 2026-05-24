@@ -87,6 +87,17 @@ for required_file in "${REQUIRED_FILES[@]}"; do
     fi
 done
 
+if [[ "$TARGET" == "specseptotiff" || "$TARGET" == "spec" ]]; then
+    spectral_prefix="${AFL_ARGS[3]}"
+    for n in 1 2 3 4 5 6 7 8 9; do
+        src="$REPO_ROOT/test-profiles/spectral/spec_00${n}.tif"
+        dst="${spectral_prefix}${n}"
+        if [[ ! -e "$dst" ]]; then
+            cp "$src" "$dst"
+        fi
+    done
+fi
+
 # Set up AFL directories
 mkdir -p "$AFL_DIR"/{input,output}
 

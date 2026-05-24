@@ -7,7 +7,7 @@ Extracts ICC profiles from JPEG images (APP2 markers) or injects ICC profiles in
 ### Extract ICC profile
 
 ```
-iccJpegDump <input.jpg> [output.icc]
+iccJpegDump <input.jpg> <output.icc>
 ```
 
 ### Inject ICC profile
@@ -21,7 +21,7 @@ iccJpegDump <input.jpg> --write-icc <profile.icc> --output <output.jpg>
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `input.jpg` | **Required** | Path to input JPEG image |
-| `output.icc` | Optional | Path to save extracted ICC profile |
+| `output.icc` | Required for extraction | Path to save extracted ICC profile |
 | `--write-icc profile.icc` | Optional | ICC profile to inject |
 | `--output output.jpg` | Required with --write-icc | Path for output JPEG |
 
@@ -29,8 +29,8 @@ iccJpegDump <input.jpg> --write-icc <profile.icc> --output <output.jpg>
 
 | Code | Meaning |
 |------|---------|
-| 0 | Success — ICC profile found and extracted/injected |
-| 1 | No ICC profile found in JPEG (graceful — NOT a crash) |
+| 0 | Success - ICC profile found and extracted/injected |
+| 1 | No ICC profile found in JPEG (graceful - NOT a crash) |
 
 ## Examples
 
@@ -49,8 +49,8 @@ iccDumpProfile /tmp/extracted.icc
 ### Check for ICC profile (no extraction)
 
 ```bash
-# Just dump — exit 0 = has ICC, exit 1 = no ICC
-iccJpegDump input.jpg
+# Extracting requires an output path.
+iccJpegDump input.jpg /tmp/extracted.icc
 ```
 
 ### Inject ICC profile into JPEG
@@ -79,27 +79,27 @@ Large profiles (>64KB) are split across multiple APP2 segments with sequence num
 
 The extraction handles:
 - Single APP2 segment (profiles < 64KB)
-- Multi-segment reassembly (profiles ≥ 64KB)
+- Multi-segment reassembly (profiles >= 64KB)
 - EXIF-based ICC profile references
 
 ## Known Limitations
 
 - JPEGs without ICC profiles return exit 1 (this is expected, not an error)
-- Some fuzzed JPEGs may have corrupted APP2 markers — tool handles gracefully
+- Some fuzzed JPEGs may have corrupted APP2 markers - tool handles gracefully
 
 ## Tested Configurations
 
 | Test | Input | ICC Present | Status |
 |------|-------|-------------|--------|
-| CVE JPEG extraction | CVE-2022-26730 | Yes | ✅ PASS |
-| Gray JPEG | 2x2-gray--LCDDisplay.jpg | No | ✅ exit 1 (expected) |
-| Crash JPEG | LittleEndian-crash.jpg | No | ✅ exit 1 (expected) |
-| ICC injection | sRGB into JPEG | N/A | ✅ PASS |
+| CVE JPEG extraction | CVE-2022-26730 | Yes | PASS |
+| Gray JPEG | 2x2-gray--LCDDisplay.jpg | No | exit 1 (expected) |
+| Crash JPEG | LittleEndian-crash.jpg | No | exit 1 (expected) |
+| ICC injection | sRGB into JPEG | N/A | PASS |
 
 ## Related Tools
 
-- [iccPngDump](../iccPngDump/) — Extract/inject ICC from PNG files
-- [iccTiffDump](../iccTiffDump/) — Extract ICC from TIFF files
+- [iccPngDump](../iccPngDump/) - Extract/inject ICC from PNG files
+- [iccTiffDump](../iccTiffDump/) - Extract ICC from TIFF files
 - iccanalyzer-lite: JPEG ICC extraction via APP2 multi-segment reassembly
 
 ## Version

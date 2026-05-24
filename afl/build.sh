@@ -1,7 +1,7 @@
 #!/bin/bash
 # afl/build.sh - Build iccDEV with AFL++ instrumentation (ASAN+UBSAN)
 #
-# Usage: ./afl/build.sh [--clean] [--patches|--no-patches] [--refresh-iccdev]
+# Usage: ./afl/build.sh [--clean] [--no-patches|--patches] [--refresh-iccdev]
 #
 # Builds the full iccDEV library and tools using afl-clang-fast++ with
 # AddressSanitizer and UndefinedBehaviorSanitizer enabled.
@@ -16,7 +16,7 @@ CMAKE_DIR="$ICCDEV_DIR/Build/Cmake"
 BIN_DIR="$SCRIPT_DIR/bin"
 JOBS=$(nproc)
 PATCH_DIR="$REPO_ROOT/cfl/patches"
-APPLY_PATCHES="${AFL_APPLY_PATCHES:-1}"
+APPLY_PATCHES="${AFL_APPLY_PATCHES:-0}"
 REFRESH_ICCDEV="${AFL_REFRESH_ICCDEV:-0}"
 KEEP_ICCDEV="${AFL_KEEP_ICCDEV:-0}"
 SELECTED_PATCHES=()
@@ -26,8 +26,8 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --clean           remove Build-AFL before building"
-    echo "  --patches         apply cfl/patches before building (default)"
-    echo "  --no-patches      build against current afl/iccDEV state"
+    echo "  --no-patches      build upstream iccDEV without CFL patches (default)"
+    echo "  --patches         apply cfl/patches before building for A/B comparison"
     echo "  --patch-file FILE apply one patch file; may be repeated"
     echo "  --refresh-iccdev  fetch origin/master and reset the nested checkout"
     echo "  --keep-iccdev     preserve current afl/iccDEV source edits"
@@ -169,6 +169,13 @@ fi
 echo "[*] Configuring iccDEV with AFL++ instrumentation..."
 echo "    Compiler: afl-clang-fast++"
 echo "    Sanitizers: ASAN + UBSAN"
+if [[ "$APPLY_PATCHES" = "0" ]]; then
+    echo "    Patch mode: unpatched upstream"
+elif [[ "$APPLY_PATCHES" = "selected" ]]; then
+    echo "    Patch mode: selected CFL patch files"
+else
+    echo "    Patch mode: all CFL patches"
+fi
 echo "    Jobs: $JOBS"
 
 # Detect multiarch include/lib paths. Ubuntu puts some headers in /usr/include/<arch>/.
