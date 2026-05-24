@@ -1,6 +1,6 @@
 # CFL Patches -- Active Security Fixes
 
-Last Updated: 2026-05-23
+Last Updated: 2026-05-24
 
 This directory contains the active CFL patch stack for current
 `InternationalColorConsortium/iccDEV:master`.
@@ -11,8 +11,8 @@ should link here instead of duplicating the full patch table.
 Current upstream baseline:
 
 - Branch: `origin/master`
-- Commit: `5272011`
-- Active patches: 30
+- Commit: `6889cb6`
+- Active patches: 29
 
 ## Build Modes
 
@@ -62,7 +62,6 @@ Patch application failures are fatal in patched mode.
 | `075-xml-curve-setsize-guards.patch` | XML curve allocation guards |
 | `076-cmm-pcs-scale-divzero.patch` | PCS scale denominator guards |
 | `077-cmm-dest-space-sample-guard.patch` | CMM destination sample consistency |
-| `078-search-cost-weight-validation.patch` | Search cost weight validation |
 | `079-ndlut-channel-count-validation.patch` | NDLUT channel/color-space consistency |
 
 ## Drift Review
@@ -81,3 +80,7 @@ The 2026-05-21 review moved `022`, `067`, `084`, and `085` to
 `../patches-retired/` because current upstream master contains equivalent or
 stronger fixes. Patches `047` and `069` were refreshed against the current
 source after nearby upstream context drift.
+
+The 2026-05-24 review moved `078` to `../patches-retired/` because upstream
+commit `6889cb6` contains the search-cost weight validation and regression
+coverage.

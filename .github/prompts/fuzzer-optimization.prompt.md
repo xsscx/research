@@ -91,11 +91,13 @@ Targets: ICC profiles -> profile/dump/deep_dump/toxml fuzzers; TIFF files -> tif
 |--------|--------|
 | v5dspobs | `[4B BE size][display.icc][observer.icc]` |
 | link | `[50% profile1][50% profile2][4B control]` |
-| applyprofiles | `[75% profile][25% control (intent, interp, WxH, pixels)]` |
+| applyprofiles | `[75% profile][25% control (intent, interp, WxH, pixels)]`; unbundler emits `profile.icc`, generated `source.tiff`, `repro.json`, `control.txt`, and raw `control.bin` |
 | applynamedcmm | `[4B control header][ICC data]` |
 | specsep | `[1B nFiles][14B TIFF meta][TIFF+ICC data]` |
 
-Unbundle crash files: `.github/scripts/unbundle-fuzzer-input.sh <fuzzer> <crash_file>`
+Unbundle crash files: `.github/scripts/unbundle-fuzzer-input.sh <fuzzer> <crash_file>`.
+For applyprofiles, use the generated `source.tiff` and `repro.json`; `control.bin`
+is only the exact fuzzer control/pixel seed bytes.
 
 ### Key Per-Fuzzer Notes
 

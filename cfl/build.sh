@@ -19,6 +19,7 @@ ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
 BUILD_DIR="$ICCDEV_DIR/Build"
 OUTPUT_DIR="$SCRIPT_DIR/bin"
 PROFRAW_DIR="$SCRIPT_DIR/profraw"
+PATCH_DIR="$SCRIPT_DIR/patches"
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 CC="${CC:-clang}"
@@ -112,6 +113,7 @@ usage() {
   echo "  clean             remove build artifacts and nested iccDEV checkout"
   echo "  --no-patches      build against unpatched iccDEV even when cfl/patches exists"
   echo "  --patches         apply cfl/patches before building (default)"
+  echo "  --patch [DIR|FILE] apply all patches, a patch directory, or one patch file"
   echo "  --patch-file FILE apply one patch file; may be repeated"
   echo "  --keep-iccdev     preserve current cfl/iccDEV source edits"
   echo "  --refresh-iccdev  fetch origin/master and reset the nested checkout to it"
@@ -132,7 +134,7 @@ while [[ $# -gt 0 ]]; do
       APPLY_PATCHES=1
       shift
       ;;
-    --patch-file|--patch)
+    --patch-file)
       if [[ $# -lt 2 ]]; then
         echo "[FAIL] ERROR: $1 requires a patch path or cfl/patches filename"
         exit 1
@@ -140,6 +142,21 @@ while [[ $# -gt 0 ]]; do
       APPLY_PATCHES=selected
       SELECTED_PATCHES+=("$2")
       shift 2
+      ;;
+    --patch)
+      if [[ $# -ge 2 && "$2" != --* ]]; then
+        if [[ -d "$2" ]]; then
+          PATCH_DIR="$(cd "$2" && pwd)"
+          APPLY_PATCHES=1
+        else
+          APPLY_PATCHES=selected
+          SELECTED_PATCHES+=("$2")
+        fi
+        shift 2
+      else
+        APPLY_PATCHES=1
+        shift
+      fi
       ;;
     --keep-iccdev)
       KEEP_ICCDEV=1
@@ -239,7 +256,6 @@ else
   (cd "$ICCDEV_DIR" && git checkout -- . 2>/dev/null)
 fi
 
-PATCH_DIR="$SCRIPT_DIR/patches"
 if [ "$APPLY_PATCHES" = "0" ]; then
   echo "Patch application disabled (building current cfl/iccDEV state)"
 elif [ "$APPLY_PATCHES" = "selected" ]; then

@@ -121,6 +121,20 @@ serialization mismatch in upstream `toJson()` output. Use `srcImageFile` and
 - TIFF pixel values are treated as device encodings; integers map linearly to
   `[0, 1]`, and 32-bit float values pass through unchanged.
 
+## Fuzzer Crash Unbundling
+
+`icc_applyprofiles_fuzzer` inputs are compound fuzzing blobs, not direct CLI
+inputs. Use the repository helper to split a crash artifact into reusable files:
+
+```bash
+.github/scripts/unbundle-fuzzer-input.sh applyprofiles crash-file
+```
+
+The helper writes `profile.icc`, `source.tiff`, `repro.json`, `control.txt`, and
+`control.bin` under `tmp/icc_applyprofiles_fuzzer/`. Use `source.tiff` plus
+`repro.json` with `iccApplyProfiles -cfg repro.json`; `control.bin` is only the
+raw fuzzer control/pixel seed bytes and is not a standalone ICC or TIFF file.
+
 ## Notes
 
 - For metadata-only inspection or ICC extraction, use `../iccTiffDump/README.md`.

@@ -70,6 +70,7 @@ venv/
 docs/doxygen/html/
 
 # Scratch test artifacts in root
+/tmp/
 hbo-*.icc
 sbo-*.icc
 output*.xml

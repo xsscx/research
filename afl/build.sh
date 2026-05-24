@@ -28,6 +28,7 @@ usage() {
     echo "  --clean           remove Build-AFL before building"
     echo "  --no-patches      build upstream iccDEV without CFL patches (default)"
     echo "  --patches         apply cfl/patches before building for A/B comparison"
+    echo "  --patch [DIR|FILE] apply all patches, a patch directory, or one patch file"
     echo "  --patch-file FILE apply one patch file; may be repeated"
     echo "  --refresh-iccdev  fetch origin/master and reset the nested checkout"
     echo "  --keep-iccdev     preserve current afl/iccDEV source edits"
@@ -48,7 +49,7 @@ while [[ $# -gt 0 ]]; do
             APPLY_PATCHES=0
             shift
             ;;
-        --patch-file|--patch)
+        --patch-file)
             if [[ $# -lt 2 ]]; then
                 echo "ERROR: $1 requires a patch path or cfl/patches filename"
                 exit 1
@@ -56,6 +57,21 @@ while [[ $# -gt 0 ]]; do
             APPLY_PATCHES=selected
             SELECTED_PATCHES+=("$2")
             shift 2
+            ;;
+        --patch)
+            if [[ $# -ge 2 && "$2" != --* ]]; then
+                if [[ -d "$2" ]]; then
+                    PATCH_DIR="$(cd "$2" && pwd)"
+                    APPLY_PATCHES=1
+                else
+                    APPLY_PATCHES=selected
+                    SELECTED_PATCHES+=("$2")
+                fi
+                shift 2
+            else
+                APPLY_PATCHES=1
+                shift
+            fi
             ;;
         --refresh-iccdev)
             REFRESH_ICCDEV=1
