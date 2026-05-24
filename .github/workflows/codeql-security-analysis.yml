@@ -120,7 +120,7 @@ jobs:
           set -euo pipefail
           cd iccanalyzer-lite
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0 -DICCANALYZER_LITE"
-          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
+          export INCLUDES="-I../iccDEV/Build/IccProfLib -I../iccDEV/Build/IccXML -I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
           SRCS=$(grep '^SOURCES=' build.sh | head -1 | sed 's/^SOURCES=//' | tr -d '"')
           for src in $SRCS; do
             $CXX $CXXFLAGS $INCLUDES -c "$src" -o "${src%.cpp}.o"
@@ -152,7 +152,7 @@ jobs:
           set -euo pipefail
           cd colorbleed_tools
           export CXX="clang++" CXXFLAGS="-std=c++17 -g -O0"
-          export INCLUDES="-I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I../iccDEV/Build/IccXML -I../iccDEV/Build/IccProfLib -I/usr/include/libxml2"
+          export INCLUDES="-I../iccDEV/Build/IccProfLib -I../iccDEV/Build/IccXML -I../iccDEV/IccProfLib -I../iccDEV/IccXML/IccLibXML -I../iccDEV/IccJSON/IccLibJSON -I/usr/include/libxml2"
           $CXX $CXXFLAGS $INCLUDES IccFromXml_unsafe.cpp -c -o IccFromXml_unsafe.o
           $CXX $CXXFLAGS $INCLUDES IccToXml_unsafe.cpp -c -o IccToXml_unsafe.o
           $CXX IccFromXml_unsafe.o \

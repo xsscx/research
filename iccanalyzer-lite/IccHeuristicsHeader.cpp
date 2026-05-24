@@ -54,7 +54,7 @@ if (actualFileSize > 0 && profileSize > 0 && profileSize > actualFileSize) {
 // Appended data: file is larger than declared profile size
 if (actualFileSize > 0 && profileSize > 0 && actualFileSize > (uint64_t)profileSize + 3) {
   size_t extraBytes = actualFileSize - (size_t)profileSize;
-  hc.warn("HEURISTIC: %zu EXTRA BYTES appended past declared profile end", extraBytes);
+  hc.warn("HEURISTIC: %zu EXTRA BYTES appended past declared profile end; possible prefix-valid/compound ICC payload", extraBytes);
   hc.info("Risk: Data hiding / smuggling — parsers may ignore appended payload");
   hc.info("Note: Some parsers observed in the wild read past declared size");
 }

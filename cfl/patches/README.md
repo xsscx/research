@@ -12,7 +12,7 @@ Current upstream baseline:
 
 - Branch: `origin/master`
 - Commit: `5272011`
-- Active patches: 29
+- Active patches: 30
 
 ## Build Modes
 
@@ -63,6 +63,7 @@ Patch application failures are fatal in patched mode.
 | `076-cmm-pcs-scale-divzero.patch` | PCS scale denominator guards |
 | `077-cmm-dest-space-sample-guard.patch` | CMM destination sample consistency |
 | `078-search-cost-weight-validation.patch` | Search cost weight validation |
+| `079-ndlut-channel-count-validation.patch` | NDLUT channel/color-space consistency |
 
 ## Drift Review
 

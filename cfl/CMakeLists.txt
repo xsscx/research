@@ -14,6 +14,9 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccCommon
     ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccApplyProfiles
     ${CMAKE_SOURCE_DIR}/../../IccConnect/IccLibConnect
+    ${CMAKE_SOURCE_DIR}/../../IccJSON/IccLibJSON
+    ${CMAKE_BINARY_DIR}/IccConnect
+    ${CMAKE_BINARY_DIR}/IccJSON
   )
 
   # Full instrumentation flags: sanitizers, debug, profiling, coverage
@@ -85,14 +88,14 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_applyprofiles_fuzzer PRIVATE ${FUZZER_INCLUDES} ${TIFF_INCLUDE_DIRS})
-  target_link_libraries(icc_applyprofiles_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
+  target_link_libraries(icc_applyprofiles_fuzzer IccConnect2-static IccProfLib2 ${TIFF_LIBRARIES})
 
   # ApplyProfiles row-apply fuzzer (-threads path)
   add_executable(icc_applyprofiles_row_fuzzer icc_applyprofiles_row_fuzzer.cpp ${TIFF_FUZZER_COMMON})
   target_compile_options(icc_applyprofiles_row_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_applyprofiles_row_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_applyprofiles_row_fuzzer PRIVATE ${FUZZER_INCLUDES} ${TIFF_INCLUDE_DIRS})
-  target_link_libraries(icc_applyprofiles_row_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
+  target_link_libraries(icc_applyprofiles_row_fuzzer IccConnect2-static IccProfLib2 ${TIFF_LIBRARIES})
 
   # ApplySearch fuzzer
   add_executable(icc_applysearch_fuzzer icc_applysearch_fuzzer.cpp)
@@ -107,6 +110,30 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_link_options(icc_applysearch_weight_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_applysearch_weight_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_applysearch_weight_fuzzer IccProfLib2)
+
+  # IccConnect library fuzzer
+  if(TARGET IccConnect2-static)
+    add_executable(icc_connect_fuzzer icc_connect_fuzzer.cpp)
+    target_compile_options(icc_connect_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+    target_link_options(icc_connect_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+    target_include_directories(icc_connect_fuzzer PRIVATE ${FUZZER_INCLUDES})
+    target_link_libraries(icc_connect_fuzzer IccConnect2-static IccProfLib2)
+  endif()
+
+  # IccJSON library fuzzers
+  if(TARGET IccJSON2-static)
+    add_executable(icc_fromjson_fuzzer icc_fromjson_fuzzer.cpp)
+    target_compile_options(icc_fromjson_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+    target_link_options(icc_fromjson_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+    target_include_directories(icc_fromjson_fuzzer PRIVATE ${FUZZER_INCLUDES})
+    target_link_libraries(icc_fromjson_fuzzer IccJSON2-static IccProfLib2)
+
+    add_executable(icc_tojson_fuzzer icc_tojson_fuzzer.cpp)
+    target_compile_options(icc_tojson_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+    target_link_options(icc_tojson_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+    target_include_directories(icc_tojson_fuzzer PRIVATE ${FUZZER_INCLUDES})
+    target_link_libraries(icc_tojson_fuzzer IccJSON2-static IccProfLib2)
+  endif()
 
   # JSON Config fuzzer (IccCmmConfig.cpp + IccJsonUtil.cpp compiled in -- not in shared lib)
   set(CFG_FUZZER_SOURCES
@@ -155,7 +182,13 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   message(STATUS "Fuzzing harnesses configured:")
   message(STATUS "  Core: v5dspobs, roundtrip, dump, link, fromcube (5)")
   message(STATUS "  Apply: applynamedcmm, applyprofiles, applyprofiles-row, applysearch, applysearch-weight (5)")
+  if(TARGET IccConnect2-static)
+    message(STATUS "  Connect: connect (1)")
+  endif()
   message(STATUS "  Config: cfg (1)")
+  if(TARGET IccJSON2-static)
+    message(STATUS "  JSON: fromjson, tojson (2)")
+  endif()
   if(TARGET IccXML2)
     message(STATUS "  XML: fromxml, toxml (2)")
   endif()

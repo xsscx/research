@@ -7,14 +7,17 @@ CFL_FUZZERS=(
   icc_applyprofiles_row_fuzzer
   icc_applysearch_fuzzer
   icc_applysearch_weight_fuzzer
+  icc_connect_fuzzer
   icc_cfg_fuzzer
   icc_dump_fuzzer
   icc_fromcube_fuzzer
+  icc_fromjson_fuzzer
   icc_fromxml_fuzzer
   icc_link_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
   icc_tiffdump_fuzzer
+  icc_tojson_fuzzer
   icc_toxml_fuzzer
   icc_v5dspobs_fuzzer
 )
@@ -42,14 +45,17 @@ cfl_normalize_fuzzer() {
     profiles-row|applyprofiles-row|rowprofiles|applyprofilesrow) name="icc_applyprofiles_row_fuzzer" ;;
     search|applysearch) name="icc_applysearch_fuzzer" ;;
     search-weight|applysearch-weight|weightsearch|applysearchweight) name="icc_applysearch_weight_fuzzer" ;;
+    connect|iccconnect) name="icc_connect_fuzzer" ;;
     cfg|config) name="icc_cfg_fuzzer" ;;
     dump) name="icc_dump_fuzzer" ;;
     cube|fromcube) name="icc_fromcube_fuzzer" ;;
+    json|fromjson) name="icc_fromjson_fuzzer" ;;
     fromxml) name="icc_fromxml_fuzzer" ;;
     link) name="icc_link_fuzzer" ;;
     roundtrip) name="icc_roundtrip_fuzzer" ;;
     specsep) name="icc_specsep_fuzzer" ;;
     tiffdump) name="icc_tiffdump_fuzzer" ;;
+    tojson) name="icc_tojson_fuzzer" ;;
     toxml) name="icc_toxml_fuzzer" ;;
     v5|v5dspobs) name="icc_v5dspobs_fuzzer" ;;
   esac
@@ -101,6 +107,21 @@ cfl_corpus_dir() {
   local fuzzer="$2"
   local candidate
 
+  case "$fuzzer" in
+    icc_connect_fuzzer|icc_fromjson_fuzzer|icc_tojson_fuzzer)
+      for candidate in \
+        "$script_dir/corpus-$fuzzer" \
+        "$script_dir/${fuzzer}_seed_corpus"; do
+        if [[ -d "$candidate" ]]; then
+          printf '%s\n' "$candidate"
+          return 0
+        fi
+      done
+      printf '%s\n' "$script_dir/corpus-$fuzzer"
+      return 0
+      ;;
+  esac
+
   for candidate in \
     "$script_dir/corpus-$fuzzer" \
     "$script_dir/${fuzzer}_seed_corpus" \
@@ -121,7 +142,10 @@ cfl_resolve_dict() {
   local mapped=""
 
   case "$fuzzer" in
+    icc_connect_fuzzer) mapped="icc_cfg.dict" ;;
+    icc_fromjson_fuzzer) mapped="icc_json.dict" ;;
     icc_roundtrip_fuzzer) mapped="icc_core.dict" ;;
+    icc_tojson_fuzzer) mapped="icc_core.dict" ;;
     icc_toxml_fuzzer) mapped="icc_xml_consolidated.dict" ;;
   esac
 

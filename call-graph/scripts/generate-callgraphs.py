@@ -10,9 +10,9 @@ Generates LLVM-based call graphs and Clang AST dumps for all project components:
   - iccanalyzer-lite (24 source files)
 
 Uses:
-  - clang-18 -emit-llvm → opt-18 -dot-callgraph  (LLVM call graphs)
+  - clang-18 -emit-llvm -> opt-18 -dot-callgraph (LLVM call graphs)
   - clang-18 -ast-dump=json                        (Clang AST)
-  - Graphviz dot → SVG/PNG                          (visualization)
+  - Graphviz dot -> SVG/PNG                       (visualization)
 
 Usage:
   python3 generate-callgraphs.py                    # generate all
@@ -40,7 +40,7 @@ from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# ─── Configuration ───
+# --- Configuration ---
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 CALL_GRAPH_DIR = REPO_ROOT / "call-graph"
@@ -53,7 +53,10 @@ ICCDEV_ROOT = REPO_ROOT / "iccDEV"
 ICCPROFLIB = ICCDEV_ROOT / "IccProfLib"
 ICCXML_LIB = ICCDEV_ROOT / "IccXML" / "IccLibXML"
 ICCXML_TOOLS = ICCDEV_ROOT / "IccXML"
+ICCJSON_LIB = ICCDEV_ROOT / "IccJSON" / "IccLibJSON"
+ICCCONNECT_LIB = ICCDEV_ROOT / "IccConnect" / "IccLibConnect"
 ICCDEV_TOOLS = ICCDEV_ROOT / "Build" / "Cmake"
+ICCDEV_BUILD = ICCDEV_ROOT / "Build"
 CFL_DIR = REPO_ROOT / "cfl"
 COLORBLEED_DIR = REPO_ROOT / "colorbleed_tools"
 ANALYZER_DIR = REPO_ROOT / "iccanalyzer-lite"
@@ -62,12 +65,17 @@ COMMON_INCLUDES = [
     f"-I{ICCPROFLIB}",
     f"-I{ICCXML_LIB}",
     f"-I{ICCDEV_ROOT / 'IccXML' / 'IccLibXML'}",
+    f"-I{ICCJSON_LIB}",
+    f"-I{ICCCONNECT_LIB}",
+    f"-I{ICCDEV_BUILD / 'IccProfLib'}",
+    f"-I{ICCDEV_BUILD / 'IccJSON'}",
+    f"-I{ICCDEV_BUILD / 'IccConnect'}",
     "-I/usr/include/libxml2",
     "-std=c++17",
     "-DUSEREFICCMAXPATHLEN",
 ]
 
-# ─── Data Structures ───
+# --- Data Structures ---
 
 @dataclass
 class SourceTarget:
@@ -97,7 +105,7 @@ class ASTFunction:
     is_virtual: bool = False
     class_name: str = ""
 
-# ─── Tool Discovery ───
+# --- Tool Discovery ---
 
 def find_iccdev_tools() -> List[SourceTarget]:
     """Discover all iccDEV command-line tools and their source files."""
@@ -116,7 +124,7 @@ def find_iccdev_tools() -> List[SourceTarget]:
             continue
 
         extra_inc = [f"-I{tool_dir}"]
-        # TiffImg.h lives in IccApplyProfiles — TIFF tools need that path
+        # TiffImg.h lives in IccApplyProfiles - TIFF tools need that path
         tiff_tools = {"IccSpecSepToTiff", "IccTiffDump"}
         extra_flags = []
         if tool_dir.name in tiff_tools:
@@ -128,6 +136,32 @@ def find_iccdev_tools() -> List[SourceTarget]:
             includes=COMMON_INCLUDES + extra_inc,
             component="iccdev/tools",
             extra_flags=extra_flags,
+        ))
+
+    return targets
+
+
+def find_iccjson_tools() -> List[SourceTarget]:
+    """Discover IccJSON command-line tools."""
+    tools_base = ICCDEV_ROOT / "IccJSON" / "CmdLine"
+    targets = []
+
+    if not tools_base.exists():
+        print(f"  [WARN] {tools_base} not found, skipping IccJSON tools")
+        return targets
+
+    for tool_dir in sorted(tools_base.iterdir()):
+        if not tool_dir.is_dir():
+            continue
+        sources = sorted(str(s) for s in tool_dir.glob("*.cpp"))
+        if not sources:
+            continue
+
+        targets.append(SourceTarget(
+            name=tool_dir.name,
+            sources=sources,
+            includes=COMMON_INCLUDES + [f"-I{tool_dir}"],
+            component="iccdev/tools",
         ))
 
     return targets
@@ -157,6 +191,26 @@ def find_iccdev_libraries() -> List[SourceTarget]:
             component="iccdev/xml",
         ))
 
+    # IccLibJSON
+    json_sources = sorted(str(s) for s in ICCJSON_LIB.glob("*.cpp"))
+    if json_sources:
+        targets.append(SourceTarget(
+            name="IccLibJSON",
+            sources=json_sources,
+            includes=COMMON_INCLUDES,
+            component="iccdev/json",
+        ))
+
+    # IccLibConnect
+    connect_sources = sorted(str(s) for s in ICCCONNECT_LIB.glob("*.cpp"))
+    if connect_sources:
+        targets.append(SourceTarget(
+            name="IccLibConnect",
+            sources=connect_sources,
+            includes=COMMON_INCLUDES,
+            component="iccdev/connect",
+        ))
+
     return targets
 
 
@@ -170,6 +224,11 @@ def find_cfl_fuzzers() -> List[SourceTarget]:
     cfl_includes = [
         f"-I{cfl_iccdev / 'IccProfLib'}",
         f"-I{cfl_iccdev / 'IccXML' / 'IccLibXML'}",
+        f"-I{cfl_iccdev / 'IccJSON' / 'IccLibJSON'}",
+        f"-I{cfl_iccdev / 'IccConnect' / 'IccLibConnect'}",
+        f"-I{cfl_iccdev / 'Build' / 'IccProfLib'}",
+        f"-I{cfl_iccdev / 'Build' / 'IccJSON'}",
+        f"-I{cfl_iccdev / 'Build' / 'IccConnect'}",
         "-I/usr/include/libxml2",
         "-std=c++17",
         "-DUSEREFICCMAXPATHLEN",
@@ -236,7 +295,7 @@ def find_analyzer_sources() -> List[SourceTarget]:
     )]
 
 
-# ─── AST Generation ───
+# --- AST Generation ---
 
 def generate_ast_dump(target: SourceTarget, output_dir: Path) -> Dict:
     """Generate clang AST dump (JSON) for a compilation target."""
@@ -262,12 +321,13 @@ def generate_ast_dump(target: SourceTarget, output_dir: Path) -> Dict:
             if result.returncode == 0 and result.stdout.strip():
                 # Parse the AST JSON to extract function/class info
                 try:
+                    (output_dir / f"{src_name}-ast-errors.txt").unlink(missing_ok=True)
                     ast = json.loads(result.stdout)
                     funcs, classes = extract_ast_info(ast, src)
                     results["functions"].extend(funcs)
                     results["classes"].extend(classes)
 
-                    # Save compact summary (not full AST — too large)
+                    # Save compact summary (not full AST - too large)
                     summary = {
                         "source": src,
                         "functions": [asdict(f) for f in funcs],
@@ -279,7 +339,7 @@ def generate_ast_dump(target: SourceTarget, output_dir: Path) -> Dict:
                         json.dump(summary, f, indent=2)
                     results["files"].append(str(ast_file))
                 except json.JSONDecodeError:
-                    # AST output too large or malformed — save raw
+                    # AST output too large or malformed - save raw
                     with open(ast_file, "w") as f:
                         f.write(result.stdout[:500000])
                     results["files"].append(str(ast_file))
@@ -373,7 +433,7 @@ def _extract_recursive(node: dict, source_file: str, functions: list,
         _extract_recursive(child, source_file, functions, classes, current_class)
 
 
-# ─── Call Graph Generation ───
+# --- Call Graph Generation ---
 
 def generate_llvm_callgraph(target: SourceTarget, output_dir: Path) -> Dict:
     """Generate LLVM IR call graph using clang + opt."""
@@ -398,6 +458,7 @@ def generate_llvm_callgraph(target: SourceTarget, output_dir: Path) -> Dict:
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             if result.returncode == 0 and ir_file.exists():
+                (output_dir / f"{src_name}-ir-errors.txt").unlink(missing_ok=True)
                 ir_files.append(ir_file)
             else:
                 # If full compile fails, try syntax-only AST approach
@@ -633,7 +694,7 @@ def render_dot(dot_file: Path, output_file: Path, fmt: str = "svg"):
         print(f"    [WARN] Graphviz render failed: {e}")
 
 
-# ─── Combined Analysis ───
+# --- Combined Analysis ---
 
 def generate_combined_summary(target: SourceTarget, ast_results: Dict,
                                cg_results: Dict, output_dir: Path):
@@ -664,7 +725,7 @@ def generate_combined_summary(target: SourceTarget, ast_results: Dict,
     return summary_file
 
 
-# ─── Main Orchestrator ───
+# --- Main Orchestrator ---
 
 def process_target(target: SourceTarget, ast_only: bool = False,
                    cg_only: bool = False) -> Dict:
@@ -702,22 +763,29 @@ def process_target(target: SourceTarget, ast_only: bool = False,
     }
 
 
-def generate_master_index(all_results: List[Dict]):
+def generate_master_index(all_results: List[Dict], merge_existing: bool = False):
     """Generate a master index JSON of all generated artifacts."""
-    index = {
-        "generated_by": "generate-callgraphs.py",
-        "components": {},
-        "totals": {
-            "targets": len(all_results),
-            "total_functions": sum(r["ast_functions"] for r in all_results),
-            "total_edges": sum(r["cg_edges"] for r in all_results),
-        },
-    }
+    index_file = CALL_GRAPH_DIR / "index.json"
+    if merge_existing and index_file.exists():
+        with open(index_file) as f:
+            index = json.load(f)
+        index.setdefault("generated_by", "generate-callgraphs.py")
+        index.setdefault("components", {})
+    else:
+        index = {
+            "generated_by": "generate-callgraphs.py",
+            "components": {},
+        }
 
+    result_keys = {(r["component"], r["target"]) for r in all_results}
     for r in all_results:
         comp = r["component"]
         if comp not in index["components"]:
             index["components"][comp] = []
+        index["components"][comp] = [
+            existing for existing in index["components"][comp]
+            if (comp, existing.get("name")) not in result_keys
+        ]
         index["components"][comp].append({
             "name": r["target"],
             "ast_functions": r["ast_functions"],
@@ -725,7 +793,23 @@ def generate_master_index(all_results: List[Dict]):
             "cg_method": r["cg_method"],
         })
 
-    index_file = CALL_GRAPH_DIR / "index.json"
+    for targets in index["components"].values():
+        targets.sort(key=lambda t: t.get("name", ""))
+
+    index["totals"] = {
+        "targets": sum(len(targets) for targets in index["components"].values()),
+        "total_functions": sum(
+            t.get("ast_functions", 0)
+            for targets in index["components"].values()
+            for t in targets
+        ),
+        "total_edges": sum(
+            t.get("cg_edges", 0)
+            for targets in index["components"].values()
+            for t in targets
+        ),
+    }
+
     with open(index_file, "w") as f:
         json.dump(index, f, indent=2)
     print(f"\n  Master index: {index_file}")
@@ -742,7 +826,7 @@ def print_summary():
     with open(index_file) as f:
         index = json.load(f)
 
-    print("\n═══ Call Graph & AST Summary ═══\n")
+    print("\n=== Call Graph & AST Summary ===\n")
     print(f"  Targets: {index['totals']['targets']}")
     print(f"  Total functions: {index['totals']['total_functions']}")
     print(f"  Total call edges: {index['totals']['total_edges']}")
@@ -754,8 +838,9 @@ def print_summary():
                   f"{t['cg_edges']} edges ({t['cg_method']})")
 
     # Count files
-    for subdir in ["iccdev/tools", "iccdev/proflib", "iccdev/xml", "cfl",
-                    "colorbleed", "analyzer"]:
+    for subdir in ["iccdev/tools", "iccdev/proflib", "iccdev/xml",
+                    "iccdev/json", "iccdev/connect", "cfl", "colorbleed",
+                    "analyzer"]:
         d = CALL_GRAPH_DIR / subdir
         if d.exists():
             dots = list(d.glob("*.dot"))
@@ -768,6 +853,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate LLVM call graphs and ASTs")
     parser.add_argument("--component", choices=["iccdev", "cfl", "colorbleed", "analyzer"],
                         help="Generate for specific component only")
+    parser.add_argument("--target", help="Generate one target by exact name")
     parser.add_argument("--ast-only", action="store_true", help="AST dumps only")
     parser.add_argument("--callgraph-only", action="store_true", help="Call graphs only")
     parser.add_argument("--summary", action="store_true", help="Print summary")
@@ -779,13 +865,14 @@ def main():
         print_summary()
         return
 
-    print("═══ Call Graph & AST Generator ═══\n")
+    print("=== Call Graph & AST Generator ===\n")
 
     # Discover targets
     targets = []
     if args.component is None or args.component == "iccdev":
         print("[iccDEV] Discovering tools and libraries...")
         targets.extend(find_iccdev_tools())
+        targets.extend(find_iccjson_tools())
         targets.extend(find_iccdev_libraries())
 
     if args.component is None or args.component == "cfl":
@@ -804,6 +891,12 @@ def main():
         print("No targets found!")
         return
 
+    if args.target:
+        targets = [target for target in targets if target.name == args.target]
+        if not targets:
+            print(f"No target named {args.target!r} found!")
+            return
+
     print(f"\nFound {len(targets)} targets\n")
 
     # Process each target
@@ -813,9 +906,12 @@ def main():
         all_results.append(result)
 
     # Generate master index
-    index = generate_master_index(all_results)
+    index = generate_master_index(
+        all_results,
+        merge_existing=args.component is not None or args.target is not None,
+    )
 
-    print(f"\n═══ Complete: {len(all_results)} targets processed ═══")
+    print(f"\n=== Complete: {len(all_results)} targets processed ===")
     print(f"  Functions: {index['totals']['total_functions']}")
     print(f"  Call edges: {index['totals']['total_edges']}")
     print(f"  Output: {CALL_GRAPH_DIR}/")

@@ -75,6 +75,23 @@ static inline uint16_t ReadBE16(const uint8_t *p) {
   return ((uint16_t)p[0]<<8) | (uint16_t)p[1];
 }
 
+static inline const char *DetectTrailingPayloadMagic(const uint8_t *p, size_t len) {
+  if (!p || len < 3) return nullptr;
+  if (len >= 4 && p[0] == 0x49 && p[1] == 0x49 && p[2] == 0x2a && p[3] == 0x00)
+    return "TIFF little-endian";
+  if (len >= 4 && p[0] == 0x4d && p[1] == 0x4d && p[2] == 0x00 && p[3] == 0x2a)
+    return "TIFF big-endian";
+  if (len >= 4 && p[0] == 0x49 && p[1] == 0x49 && p[2] == 0x2b && p[3] == 0x00)
+    return "BigTIFF little-endian";
+  if (len >= 4 && p[0] == 0x4d && p[1] == 0x4d && p[2] == 0x00 && p[3] == 0x2b)
+    return "BigTIFF big-endian";
+  if (len >= 4 && p[0] == 0x89 && p[1] == 0x50 && p[2] == 0x4e && p[3] == 0x47)
+    return "PNG";
+  if (p[0] == 0xff && p[1] == 0xd8 && p[2] == 0xff)
+    return "JPEG";
+  return nullptr;
+}
+
 // -- Preflight result --
 enum class PreflightSeverity { CLEAN, WARNING, CRITICAL };
 
@@ -168,6 +185,34 @@ static PreflightResult PreflightValidateICC(const char* filename) {
     char buf[128];
     snprintf(buf, sizeof(buf), "Profile claims %u bytes (> 1 GiB limit)", profileSize);
     result.AddWarning("H1", buf, PreflightSeverity::CRITICAL);
+  }
+
+  if (profileSize > 0 && fileSize < profileSize) {
+    char buf[160];
+    snprintf(buf, sizeof(buf), "Profile TRUNCATED: header=%u, file=%zu (%zu bytes absent)",
+             profileSize, fileSize, (size_t)profileSize - fileSize);
+    result.AddWarning("H1", buf, PreflightSeverity::CRITICAL);
+  }
+
+  if (profileSize > 0 && fileSize > (size_t)profileSize + 3) {
+    char buf[192];
+    size_t extraBytes = fileSize - (size_t)profileSize;
+    snprintf(buf, sizeof(buf), "%zu EXTRA BYTES appended past declared profile end; possible prefix-valid/compound ICC payload",
+             extraBytes);
+    if ((size_t)profileSize + 3 < fileSize) {
+      long current = ftell(fp);
+      if (current >= 0 && fseek(fp, profileSize, SEEK_SET) == 0) {
+        uint8_t trailer[8] = {0};
+        size_t got = fread(trailer, 1, sizeof(trailer), fp);
+        const char *payload = DetectTrailingPayloadMagic(trailer, got);
+        if (payload) {
+          snprintf(buf, sizeof(buf), "%zu EXTRA BYTES appended past declared profile end; trailing payload starts with %s magic",
+                   extraBytes, payload);
+        }
+        fseek(fp, current, SEEK_SET);
+      }
+    }
+    result.AddWarning("H1", buf, PreflightSeverity::WARNING);
   }
 
   // Size inflation: header claims much more than actual file

@@ -1,13 +1,5 @@
 {
   "mcpServers": {
-    "icc-profile-mcp": {
-      "type": "stdio",
-      "command": "python",
-      "args": ["mcp-server/launch.py", "mcp"],
-      "env": {
-        "ICC_MCP_ROOT": "${workspaceFolder}"
-      }
-    },
     "chrome-devtools": {
       "type": "stdio",
       "command": "npx",

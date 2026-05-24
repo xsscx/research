@@ -39,6 +39,7 @@
 #include "IccUtil.h"
 #include "IccProfLibVer.h"
 #include "IccTagMPE.h"
+#include "ColorBleedKnownIssues.h"
 
 // Diagnostic mode global -- set by --diag flag
 static bool g_bDiagMode = false;
@@ -364,6 +365,7 @@ int main(int argc, char* argv[])
       }
     }
 
+    ColorBleedReportKnownIssues(argv[nArg], stderr, false);
     DIAG("API: ValidateIccProfile('%s')", argv[nArg]);
     pIcc = ValidateIccProfile(argv[nArg], sReport, nStatus);
     bDumpValidation = true;
@@ -378,6 +380,7 @@ int main(int argc, char* argv[])
       }
     }
 
+    ColorBleedReportKnownIssues(argv[nArg], stderr, false);
     if (bUseRead) {
       DIAG("API: ReadIccProfile('%s') -- eager load all tags", argv[nArg]);
       pIcc = ReadIccProfile(argv[nArg]);

@@ -66,14 +66,17 @@ Current harness areas:
 | Multi-profile row transforms | `icc_applyprofiles_row_fuzzer` |
 | Search optimization | `icc_applysearch_fuzzer` |
 | Search weight validation | `icc_applysearch_weight_fuzzer` |
+| IccConnect CMM factory | `icc_connect_fuzzer` |
 | JSON config parsing | `icc_cfg_fuzzer` |
 | Profile dump/validate/describe | `icc_dump_fuzzer` |
 | CUBE import | `icc_fromcube_fuzzer` |
+| JSON profile import | `icc_fromjson_fuzzer` |
 | XML import | `icc_fromxml_fuzzer` |
 | Profile linking | `icc_link_fuzzer` |
 | Read/write round trip | `icc_roundtrip_fuzzer` |
 | Spectral separation | `icc_specsep_fuzzer` |
 | TIFF ICC extraction | `icc_tiffdump_fuzzer` |
+| JSON profile export | `icc_tojson_fuzzer` |
 | XML export | `icc_toxml_fuzzer` |
 | v5 display observer conversion | `icc_v5dspobs_fuzzer` |
 
@@ -155,6 +158,12 @@ needed.
 ## Triage Rules
 
 - A finding is actionable only after reproducing against the intended baseline.
+- Bundled LibFuzzer inputs are canonical CFL artifacts. Treat unbundled ICC,
+  TIFF, XML, or control files as derived triage views only.
+- Do not promote ICC-like CFL artifacts by `acsp` magic alone. Compound inputs
+  often contain a prefix-valid ICC blob plus control bytes or another payload.
+- Do not create an upstream/bisect report unless iccDEV command-line tooling has
+  a one-line reproducer for a maintainer-actionable crash or finding.
 - Use `ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1` for clear
   sanitizer exits.
 - Record the exact build mode, patch set, input path, command line, and

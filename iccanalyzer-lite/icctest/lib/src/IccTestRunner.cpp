@@ -9,12 +9,14 @@
 
 #include "icctest/IccTest.h"
 #include "icctest/Logger.h"
+#include "IccProfLibVer.h"
 
 #include <chrono>
 
 namespace icctest {
 
-static constexpr const char* ICCTEST_VERSION = "2.0.1-alpha";
+static constexpr const char* ICCTEST_VERSION =
+    "2.0.1-alpha built with IccProfLib version " ICCPROFLIBVER;
 
 static bool isRawMlucAlignmentCheck(const RegisteredCheck& check) {
     return check.id.kind == CheckID::Kind::Conformance &&

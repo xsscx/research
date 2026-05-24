@@ -36,19 +36,25 @@ FUZZER_FLAGS="-fsanitize=fuzzer,address,undefined"
 COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
 
 CFLAGS_LIB="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
-CXXFLAGS_FUZZER="$COMMON_CFLAGS $FUZZER_FLAGS $COVERAGE_FLAGS -frtti"
+CXXFLAGS_FUZZER="$COMMON_CFLAGS $FUZZER_FLAGS $COVERAGE_FLAGS -std=c++17 -frtti"
 
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccCommon"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccConnect/IccLibConnect"
+INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccJSON/IccLibJSON"
+INCLUDE_FLAGS="$INCLUDE_FLAGS -I$BUILD_DIR/IccConnect -I$BUILD_DIR/IccJSON"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
 
 # Upstream cmake may set CMAKE_DEBUG_POSTFIX="d" for Debug builds.
 LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-static.a"
 LIB_XML="$BUILD_DIR/IccXML/libIccXML2-static.a"
+LIB_CONNECT="$BUILD_DIR/IccConnect/libIccConnect2-static.a"
+LIB_JSON="$BUILD_DIR/IccJSON/libIccJSON2-static.a"
 [ ! -f "$LIB_PROF" ] && LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-staticd.a"
 [ ! -f "$LIB_XML" ] && LIB_XML="$BUILD_DIR/IccXML/libIccXML2-staticd.a"
+[ ! -f "$LIB_CONNECT" ] && LIB_CONNECT="$BUILD_DIR/IccConnect/libIccConnect2-staticd.a"
+[ ! -f "$LIB_JSON" ] && LIB_JSON="$BUILD_DIR/IccJSON/libIccJSON2-staticd.a"
 
 # Core fuzzers (IccProfLib only), mapped to upstream iccDEV tools.
 CORE_FUZZERS=(
@@ -60,6 +66,17 @@ CORE_FUZZERS=(
   icc_fromcube_fuzzer
   icc_applysearch_fuzzer
   icc_applysearch_weight_fuzzer
+)
+
+# IccConnect library fuzzers.
+CONNECT_FUZZERS=(
+  icc_connect_fuzzer
+)
+
+# IccJSON library fuzzers.
+JSON_FUZZERS=(
+  icc_fromjson_fuzzer
+  icc_tojson_fuzzer
 )
 
 # XML fuzzers (IccProfLib + IccXML + libxml2)
@@ -298,41 +315,52 @@ fi
 banner "Step 3: Build IccProfLib2-static + IccXML2-static"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
-rm -f IccProfLib/libIccProfLib2-static*.a IccXML/libIccXML2-static*.a
+rm -f IccProfLib/libIccProfLib2-static*.a IccXML/libIccXML2-static*.a \
+  IccConnect/libIccConnect2-static*.a IccJSON/libIccJSON2-static*.a
 
 cmake Cmake/ \
   -DCMAKE_C_COMPILER="$CC" \
   -DCMAKE_CXX_COMPILER="$CXX" \
   -DCMAKE_C_FLAGS="$CFLAGS_LIB" \
-  -DCMAKE_CXX_FLAGS="$CFLAGS_LIB -frtti" \
+  -DCMAKE_CXX_FLAGS="$CFLAGS_LIB -std=c++17 -frtti" \
   -DCMAKE_BUILD_TYPE=Debug \
   -DENABLE_STATIC_LIBS=ON \
   -DENABLE_SHARED_LIBS=ON \
+  -DENABLE_ICCJSON=ON \
   -DENABLE_TOOLS=OFF \
   -DENABLE_FUZZING=ON \
   -Wno-dev 2>&1 | tail -5
 
-make -j"$NPROC" IccProfLib2-static IccXML2-static 2>&1 | tail -3
+make -j"$NPROC" IccProfLib2-static IccXML2-static IccConnect2-static IccJSON2-static 2>&1 | tail -3
 
 LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-staticd.a"
 LIB_XML="$BUILD_DIR/IccXML/libIccXML2-staticd.a"
+LIB_CONNECT="$BUILD_DIR/IccConnect/libIccConnect2-staticd.a"
+LIB_JSON="$BUILD_DIR/IccJSON/libIccJSON2-staticd.a"
 [ ! -f "$LIB_PROF" ] && LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-static.a"
 [ ! -f "$LIB_XML" ] && LIB_XML="$BUILD_DIR/IccXML/libIccXML2-static.a"
+[ ! -f "$LIB_CONNECT" ] && LIB_CONNECT="$BUILD_DIR/IccConnect/libIccConnect2-static.a"
+[ ! -f "$LIB_JSON" ] && LIB_JSON="$BUILD_DIR/IccJSON/libIccJSON2-static.a"
 
 echo ""
 echo "Libraries:"
-ls -lh "$LIB_PROF" "$LIB_XML"
+ls -lh "$LIB_PROF" "$LIB_XML" "$LIB_CONNECT" "$LIB_JSON"
 
 ASAN_SYM=$(nm "$LIB_PROF" | grep -c '__asan' || true)
 UBSAN_SYM=$(nm "$LIB_PROF" | grep -c '__ubsan' || true)
 COV_SYM=$(nm "$LIB_PROF" | grep -c '__profc_\|__llvm_prf' || true)
+CONNECT_COV_SYM=$(nm "$LIB_CONNECT" | grep -c '__profc_\|__llvm_prf' || true)
+JSON_COV_SYM=$(nm "$LIB_JSON" | grep -c '__profc_\|__llvm_prf' || true)
 echo ""
 echo "Instrumentation (IccProfLib2-static):"
 echo "  ASan symbols:     $ASAN_SYM"
 echo "  UBSan symbols:    $UBSAN_SYM"
 echo "  Coverage symbols: $COV_SYM"
+echo "  IccConnect cov:   $CONNECT_COV_SYM"
+echo "  IccJSON cov:      $JSON_COV_SYM"
 
-if [ "$ASAN_SYM" -eq 0 ] || [ "$UBSAN_SYM" -eq 0 ] || [ "$COV_SYM" -eq 0 ]; then
+if [ "$ASAN_SYM" -eq 0 ] || [ "$UBSAN_SYM" -eq 0 ] || [ "$COV_SYM" -eq 0 ] || \
+   [ "$CONNECT_COV_SYM" -eq 0 ] || [ "$JSON_COV_SYM" -eq 0 ]; then
   echo "[FAIL] ERROR: Missing instrumentation - aborting"
   exit 1
 fi
@@ -354,7 +382,7 @@ build_fuzzer() {
     return
   fi
 
-  local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS -fprofile-instr-generate -fcoverage-mapping -frtti"
+  local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS -fprofile-instr-generate -fcoverage-mapping -std=c++17 -frtti"
 
   # shellcheck disable=SC2086
   if $CXX $CXXFLAGS_THIS $INCLUDE_FLAGS \
@@ -378,6 +406,20 @@ done
 wait
 
 echo ""
+echo "IccConnect fuzzers:"
+for f in "${CONNECT_FUZZERS[@]}"; do
+  build_fuzzer "$f" -Wl,--whole-archive "$LIB_CONNECT" -Wl,--no-whole-archive &
+done
+wait
+
+echo ""
+echo "IccJSON fuzzers:"
+for f in "${JSON_FUZZERS[@]}"; do
+  build_fuzzer "$f" -Wl,--whole-archive "$LIB_JSON" -Wl,--no-whole-archive &
+done
+wait
+
+echo ""
 echo "XML fuzzers:"
 for f in "${XML_FUZZERS[@]}"; do
   build_fuzzer "$f" "$LIB_XML" -lxml2 -lz &
@@ -395,7 +437,14 @@ if [ -f "$TIFFIMG_SRC" ]; then
     -c "$TIFFIMG_SRC" -o "$TIFFIMG_OBJ" 2>&1
   for f in "${TIFF_FUZZERS[@]}"; do
     # shellcheck disable=SC2086
-    build_fuzzer "$f" "$TIFFIMG_OBJ" $TIFF_LIBS &
+    case "$f" in
+      icc_applyprofiles_fuzzer|icc_applyprofiles_row_fuzzer)
+        build_fuzzer "$f" "$TIFFIMG_OBJ" -Wl,--whole-archive "$LIB_CONNECT" -Wl,--no-whole-archive $TIFF_LIBS &
+        ;;
+      *)
+        build_fuzzer "$f" "$TIFFIMG_OBJ" $TIFF_LIBS &
+        ;;
+    esac
   done
   wait
   rm -rf "$SCRIPT_DIR/.build_tmp"

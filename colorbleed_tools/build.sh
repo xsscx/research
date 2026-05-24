@@ -76,7 +76,8 @@ if [ "${1:-}" = "clean" ]; then
   for d in release debug sanitizer; do
     rm -rf "$ICCDEV_DIR/Build-$d" "$BIN_DIR/$d"
   done
-  rm -f "$REPO_ROOT/iccToXml_unsafe" "$REPO_ROOT/iccFromXml_unsafe"
+  rm -f "$REPO_ROOT/iccToXml_unsafe" "$REPO_ROOT/iccFromXml_unsafe" \
+    "$REPO_ROOT/iccDumpAll" "$REPO_ROOT/iccDiagnosticLoad"
   rm -rf "$ICCDEV_DIR" "$BIN_DIR"
   echo "[OK] Clean complete"
   exit 0
@@ -182,7 +183,7 @@ build_config() {
   # via configure_file(). Add the per-config build dirs so the headers resolve
   # when compiling our sandboxed tools.
   local gen_includes="-I$build_dir/IccXML -I$build_dir/IccProfLib"
-  local config_includes="$INCLUDE_FLAGS $gen_includes"
+  local config_includes="$gen_includes $INCLUDE_FLAGS"
 
   banner "Building [$config]"
   echo "  Flags: $c_flags"
@@ -240,9 +241,11 @@ build_config() {
   local alloc_obj="$build_dir/ColorBleedAlloc.o"
   local compat_obj="$build_dir/ColorBleedCompat.o"
   local f16_obj="$build_dir/ColorBleedSafeF16.o"
+  local known_obj="$build_dir/ColorBleedKnownIssues.o"
   $CXX $tool_flags -c "$REPO_ROOT/ColorBleedAlloc.cpp" -o "$alloc_obj"
   $CXX $tool_flags $config_includes -c "$REPO_ROOT/ColorBleedCompat.cpp" -o "$compat_obj"
   $CXX $tool_flags $config_includes -c "$REPO_ROOT/ColorBleedSafeF16.cpp" -o "$f16_obj"
+  $CXX $tool_flags $config_includes -c "$REPO_ROOT/ColorBleedKnownIssues.cpp" -o "$known_obj"
 
   mkdir -p "$out_dir"
   cd "$REPO_ROOT"
@@ -261,6 +264,7 @@ build_config() {
       "$alloc_obj" \
       "$compat_obj" \
       "$f16_obj" \
+      "$known_obj" \
       "$lib_prof" "$lib_xml" \
       $LINK_LIBS \
       -o "$out_dir/$bin"
@@ -281,7 +285,7 @@ build_config() {
     for bin in "${TOOL_BINS[@]}"; do
       ln -sf "bin/$config/$bin" "$REPO_ROOT/$bin"
     done
-    echo "  Symlinked $config -> ./iccToXml_unsafe, ./iccFromXml_unsafe, ./iccDumpAll"
+    echo "  Symlinked $config -> ./iccToXml_unsafe, ./iccFromXml_unsafe, ./iccDumpAll, ./iccDiagnosticLoad"
   fi
 }
 

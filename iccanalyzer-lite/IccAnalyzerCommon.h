@@ -39,10 +39,11 @@
 #define ICCANALYZERCOMMON_H
 
 #include <cstdio>
+#include "IccProfLibVer.h"
 
 // --- Version ---
 #define ICCANALYZER_VERSION       "3.7.1"
-#define ICCANALYZER_VERSION_FULL  "iccAnalyzer-lite v" ICCANALYZER_VERSION
+#define ICCANALYZER_VERSION_FULL  "iccAnalyzer-lite v" ICCANALYZER_VERSION " built with IccProfLib version " ICCPROFLIBVER
 
 // --- Heuristic return codes ---
 #define HEURISTIC_PASS    0
@@ -71,7 +72,6 @@
 #include "IccMpeBasic.h"
 #include "IccUtil.h"
 #include "IccIO.h"
-#include "IccProfLibVer.h"
 
 // iccanalyzer-lite does NOT include IccSignatureUtils.h from iccDEV.
 // All signature validation is handled by our own hardened heuristics (H1-H170).

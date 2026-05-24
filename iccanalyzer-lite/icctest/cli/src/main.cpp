@@ -1,12 +1,12 @@
 /*
- * IccTest CLI — main.cpp
+ * IccTest CLI - main.cpp
  * Entry point for the icctest CLI tool.
  *
  * Copyright (c) 1994 - 2026 David H Hoyt LLC
  * All Rights Reserved.
  * [BSD 3-Clause License]
  *
- * Ties together: ArgParser → IccTestRunner → OutputFormatter → LinuxSandbox.
+ * Ties together: ArgParser -> IccTestRunner -> OutputFormatter -> LinuxSandbox.
  *
  * Exit codes:
  *   0 = No findings
@@ -48,8 +48,6 @@ extern "C" const char* __ubsan_default_options() {
     return "halt_on_error=0:print_stacktrace=1:silence_unsigned_overflow=1";
 }
 
-static constexpr const char* kVersion = "2.0.1";
-
 int main(int argc, char** argv) {
     using namespace icctest;
 
@@ -65,7 +63,7 @@ int main(int argc, char** argv) {
     }
 
     if (args->command == Command::Version) {
-        std::printf("IccTest v%s\n", kVersion);
+        std::printf("IccTest v%s\n", IccTestRunner::version());
         return 0;
     }
 
@@ -89,7 +87,7 @@ int main(int argc, char** argv) {
         default:
             formatter = createTextFormatter();
             break;
-        // Xml, Csv: not yet implemented — fall back to text
+        // Xml, Csv: not yet implemented - fall back to text
         case OutputFormat::Xml:
         case OutputFormat::Csv:
             ICCTEST_WARN("Output format not yet implemented, falling back to text");

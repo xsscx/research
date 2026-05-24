@@ -34,6 +34,7 @@
 #include "IccUtil.h"
 #include "IccIO.h"
 #include "IccProfLibVer.h"
+#include "ColorBleedKnownIssues.h"
 
 // ANSI color helpers
 #define C_RED    "\033[31m"
@@ -523,6 +524,8 @@ static void printUsage(void) {
     printf("  --raw      Raw binary analysis + hex dump (no library)\n");
     printf("  --compare  A/B: OpenIccProfile vs ReadIccProfile vs ValidateIccProfile\n");
     printf("  --trace    Manual LoadTag + Read() simulation with IO tracing\n");
+    printf("  --known-issues  Show shared raw known-issue preflight summary (default)\n");
+    printf("  --no-known-issues  Suppress shared known-issue preflight summary\n");
     printf("  --all      All of the above (default)\n");
     printf("  --dump     Also run iccDumpAll-style tag dump via library\n");
     printf("\nDesigned for CFL patch PoC development and A/B testing.\n");
@@ -535,12 +538,15 @@ int main(int argc, char *argv[]) {
     }
 
     bool doRaw = false, doCompare = false, doTrace = false, doDump = false;
+    bool doKnownIssues = true;
     const char *profilePath = nullptr;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--raw") == 0) doRaw = true;
         else if (strcmp(argv[i], "--compare") == 0) doCompare = true;
         else if (strcmp(argv[i], "--trace") == 0) doTrace = true;
+        else if (strcmp(argv[i], "--known-issues") == 0) doKnownIssues = true;
+        else if (strcmp(argv[i], "--no-known-issues") == 0) doKnownIssues = false;
         else if (strcmp(argv[i], "--dump") == 0) doDump = true;
         else if (strcmp(argv[i], "--all") == 0) { doRaw = doCompare = doTrace = true; }
         else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -561,6 +567,8 @@ int main(int argc, char *argv[]) {
 
     printf(C_BOLD "IccDiagnosticLoad v1.0.1 built with IccProfLib version " ICCPROFLIBVER C_RESET "\n");
     printf("Profile: %s\n", profilePath);
+    if (doKnownIssues)
+        ColorBleedReportKnownIssues(profilePath, stderr, false);
 
     if (doRaw) rawAnalyze(profilePath);
     if (doTrace) traceLoadTag(profilePath);

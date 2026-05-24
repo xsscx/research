@@ -1,4 +1,4 @@
-# IccTest Library — lib/CMakeLists.txt
+# IccTest Library - lib/CMakeLists.txt
 # Builds libIccTest.a (static library)
 #
 # Copyright (c) 1994 - 2026 David H Hoyt LLC
@@ -50,6 +50,8 @@ resolve_iccdev_static_lib(ICCTEST_LIB_XML "${ICCDEV_BUILD}/IccXML" "libIccXML2")
 
 target_include_directories(IccTest PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${ICCDEV_BUILD}/IccProfLib
+    ${ICCDEV_BUILD}/IccXML
     # iccDEV headers needed by ProfileView.h (public API)
     ${ICCDEV_ROOT}/IccProfLib
     ${ICCDEV_ROOT}/IccXML/IccLibXML
@@ -89,7 +91,7 @@ target_link_libraries(IccTest PUBLIC
     xml2 tiff png jpeg z lzma m ssl crypto
 )
 
-# ── Unit tests ──
+# -- Unit tests --
 option(BUILD_TESTS "Build unit tests" ON)
 if(BUILD_TESTS)
     add_subdirectory(tests)

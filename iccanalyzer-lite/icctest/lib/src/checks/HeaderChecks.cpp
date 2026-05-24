@@ -22,10 +22,14 @@ static CheckResult check_h1_size(const ProfileView& pv) {
         return cb.done("Profile size validated");
     }
 
-    if (hdr.size != pv.rawSize()) {
-        cb.high(sfmt("Header size (%u) != file size (%zu) — ICC.1-2022-05 §7.2.2",
+    if (hdr.size > pv.rawSize()) {
+        cb.high(sfmt("Header size (%u) exceeds file size (%zu) - truncated ICC payload; ICC.1-2022-05 7.2.2",
                       hdr.size, pv.rawSize()),
                 "CWE-131: Incorrect Calculation of Buffer Size");
+    } else if (static_cast<size_t>(hdr.size) + 3 < pv.rawSize()) {
+        cb.high(sfmt("Header size (%u) is smaller than file size (%zu) - extra trailing bytes, possible prefix-valid/compound ICC payload; ICC.1-2022-05 7.2.2",
+                      hdr.size, pv.rawSize()),
+                "CWE-707: Improper Neutralization");
     }
 
     if (hdr.size < 128) {

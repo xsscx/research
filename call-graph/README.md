@@ -4,16 +4,19 @@ LLVM-based call graphs and Clang AST dumps for all ICC security research compone
 
 ## Contents
 
-| Directory | Targets | Functions | Call Edges | Method |
-|-----------|---------|-----------|------------|--------|
-| `iccdev/tools/` | 13 iccDEV CLI tools | ~130K | ~14K | LLVM IR |
-| `iccdev/proflib/` | IccProfLib (36 files) | ~300K | ~30K | LLVM IR |
-| `iccdev/xml/` | IccLibXML (7 files) | ~20K | ~4K | LLVM IR |
-| `cfl/` | 12 CFL fuzzers | ~113K | ~2.3K | LLVM IR |
-| `colorbleed/` | 3 colorbleed tools | ~14K | ~735 | LLVM IR |
-| `analyzer/` | iccanalyzer-lite (24 files) | ~190K | ~21.5K | LLVM IR |
+| Directory | Scope | Method |
+|-----------|-------|--------|
+| `iccdev/tools/` | iccDEV and IccJSON CLI tools | LLVM IR |
+| `iccdev/proflib/` | IccProfLib library | LLVM IR |
+| `iccdev/xml/` | IccLibXML library | LLVM IR |
+| `iccdev/json/` | IccLibJSON library | LLVM IR |
+| `iccdev/connect/` | IccLibConnect library | LLVM IR |
+| `cfl/` | CFL fuzzers | LLVM IR |
+| `colorbleed/` | colorbleed tools | LLVM IR |
+| `analyzer/` | iccanalyzer-lite | LLVM IR |
 
-**Total: 37 targets, 729K+ AST functions, 57K+ call graph edges**
+Use `python3 call-graph/scripts/generate-callgraphs.py --summary` or
+`call-graph/index.json` for current target, function, and edge counts.
 
 ## Generated Artifacts
 
@@ -39,6 +42,10 @@ python3 call-graph/scripts/generate-callgraphs.py --component cfl
 python3 call-graph/scripts/generate-callgraphs.py --component colorbleed
 python3 call-graph/scripts/generate-callgraphs.py --component analyzer
 
+# Single target, preserving existing index entries
+python3 call-graph/scripts/generate-callgraphs.py --component cfl --target icc_fromjson_fuzzer
+python3 call-graph/scripts/generate-callgraphs.py --component iccdev --target IccLibConnect
+
 # AST or call graph only
 python3 call-graph/scripts/generate-callgraphs.py --ast-only
 python3 call-graph/scripts/generate-callgraphs.py --callgraph-only
@@ -52,7 +59,7 @@ python3 call-graph/scripts/generate-callgraphs.py --summary
 1. **AST**: `clang++-18 -Xclang -ast-dump=json -fsyntax-only` extracts function declarations,
    class hierarchies, and method signatures from each source file.
 2. **Call Graph**: `clang++-18 -S -emit-llvm` compiles to LLVM IR, then
-   `opt-18 -passes=dot-callgraph` extracts caller→callee edges as DOT.
+   `opt-18 -passes=dot-callgraph` extracts caller->callee edges as DOT.
 3. **Rendering**: Graphviz `dot -Tsvg` produces SVG visualizations.
 4. **Demangling**: `c++filt` converts LLVM mangled names to human-readable C++.
 
@@ -61,10 +68,10 @@ call sites from source directly.
 
 ## Requirements
 
-- `clang-18` / `clang++-18` — LLVM IR and AST generation
-- `opt-18` — LLVM call graph pass
-- `dot` (Graphviz) — SVG rendering
-- `c++filt` — name demangling
+- `clang-18` / `clang++-18` - LLVM IR and AST generation
+- `opt-18` - LLVM call graph pass
+- `dot` (Graphviz) - SVG rendering
+- `c++filt` - name demangling
 
 ## Relationship to Hand-Verified Call Graphs
 
@@ -78,8 +85,8 @@ machine-generated and cover the full codebase. The two approaches are complement
 
 | Aspect | Hand-Verified (`.github/scripts/`) | Automated (`call-graph/`) |
 |--------|-------------------------------------|---------------------------|
-| Scope | 11 iccDEV tools | All 37 targets |
+| Scope | 11 iccDEV tools | Current generated targets |
 | Method | Manual source reading | LLVM IR analysis |
 | Accuracy | Verified per-call-site | Complete but includes templates |
-| Annotations | Gates, fidelity, security | Raw caller→callee edges |
+| Annotations | Gates, fidelity, security | Raw caller->callee edges |
 | Maintenance | Manual updates required | Re-run script to refresh |

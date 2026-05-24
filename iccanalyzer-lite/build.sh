@@ -81,7 +81,7 @@ echo "CXXFLAGS: $CXXFLAGS"
 echo ""
 
 # Include paths
-INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
+INCLUDES="-I. -I${ICCDEV_BUILD}/IccProfLib -I${ICCDEV_BUILD}/IccXML -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I/usr/include/libxml2"
 
 # Libraries
 find_static_lib() {

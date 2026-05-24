@@ -119,11 +119,11 @@ jobs:
           )
 
           INCLUDES=(
+            -I../iccDEV/Build/IccProfLib
+            -I../iccDEV/Build/IccXML
             -I../iccDEV/IccProfLib
             -I../iccDEV/IccXML/IccLibXML
             -I../iccDEV/IccJSON/IccLibJSON
-            -I../iccDEV/Build/IccProfLib
-            -I../iccDEV/Build/IccXML
             -I/usr/include/libxml2
           )
 
@@ -190,11 +190,11 @@ jobs:
           )
 
           INCLUDES=(
+            -I../iccDEV/Build/IccProfLib
+            -I../iccDEV/Build/IccXML
             -I../iccDEV/IccProfLib
             -I../iccDEV/IccXML/IccLibXML
             -I../iccDEV/IccJSON/IccLibJSON
-            -I../iccDEV/Build/IccProfLib
-            -I../iccDEV/Build/IccXML
             -I/usr/include/libxml2
           )
 

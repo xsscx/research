@@ -187,6 +187,8 @@ jobs:
             clang++-18 -g -O1 -fno-omit-frame-pointer \
               -fsanitize=address,undefined \
               -fprofile-instr-generate -fcoverage-mapping \
+              -I "${ICCDEV_BUILD}/IccProfLib" \
+              -I "${ICCDEV_BUILD}/IccXML" \
               -I "${ICCDEV_DIR}/IccProfLib" \
               -I "${ICCDEV_DIR}/IccXML/IccLibXML" \
               -I /usr/include/libxml2 \

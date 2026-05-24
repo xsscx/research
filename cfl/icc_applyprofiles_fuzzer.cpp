@@ -61,7 +61,10 @@
 #include <cstring>
 #include <cstdlib>
 #include <algorithm>
+#include <memory>
+#include <string>
 #include <tiffio.h>
+#include "IccConnect.h"
 #include "IccCmm.h"
 #include "IccUtil.h"
 #include "IccDefs.h"
@@ -80,6 +83,36 @@ static icFloatNumber UnitClip(icFloatNumber v) {
 
 static void SilentTIFFErrorHandler(const char*, const char*, va_list) {}
 static void SilentTIFFWarningHandler(const char*, const char*, va_list) {}
+
+static bool GetFloatRowByteCount(unsigned int nWidth, int nSamples, size_t& nBytes) {
+  if (nSamples <= 0)
+    return false;
+
+#if defined(__SIZEOF_INT128__)
+  const unsigned __int128 nByteCount = (unsigned __int128)nWidth *
+                                      (unsigned __int128)(unsigned int)nSamples *
+                                      (unsigned __int128)sizeof(icFloatNumber);
+  if (nByteCount > (unsigned __int128)((size_t)-1))
+    return false;
+
+  nBytes = (size_t)nByteCount;
+  return true;
+#else
+  const size_t nMaxSize = (size_t)-1;
+  const size_t nWidthSize = (size_t)nWidth;
+  const size_t nSampleSize = (size_t)nSamples;
+
+  if (nWidthSize > nMaxSize / nSampleSize)
+    return false;
+
+  const size_t nValues = nWidthSize * nSampleSize;
+  if (nValues > nMaxSize / sizeof(icFloatNumber))
+    return false;
+
+  nBytes = nValues * sizeof(icFloatNumber);
+  return true;
+#endif
+}
 
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
   TIFFSetErrorHandler(SilentTIFFErrorHandler);
@@ -209,51 +242,52 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   unsigned int nSrcProfileLen = 0;
   bool bHasSrcProfile = SrcImg.GetIccProfile(pSrcProfile, nSrcProfileLen);
 
-  // --- Phase 4: Build CMM with hints (tool lines 262-346) ---
-  CIccCmm theCmm(icSigUnknownData, icSigUnknownData, true);
-
-  CIccCreateXformHintManager Hint;
-  if (use_bpc)
-    Hint.AddHint(new CIccApplyBPCHint());
-  if (use_luminance)
-    Hint.AddHint(new CIccLuminanceMatchingHint());
-
-  icStatusCMM stat;
-
-  // Try embedded profile path first (tool line 314), then file path (tool line 334)
-  if (bHasSrcProfile && pSrcProfile && nSrcProfileLen > 128) {
-    stat = theCmm.AddXform(pSrcProfile, (icUInt32Number)nSrcProfileLen,
-                           intent, interp, nullptr, icXformLutColor,
-                           use_d2bx, &Hint, use_v5sub);
-  } else {
-    stat = theCmm.AddXform(tmp_profile, intent, interp, nullptr,
-                           icXformLutColor, use_d2bx, &Hint, use_v5sub);
-  }
-
-  if (stat != icCmmStatOk) {
+  // --- Phase 4: Build CMM through the same connect factory used by the tool ---
+  CIccCfgProfileSequence cfgProfiles;
+  CIccCfgProfilePtr cfgProfile(new CIccCfgProfile());
+  if (!cfgProfile) {
     SrcImg.Close();
     unlink(tmp_profile);
     unlink(tmp_src_tiff);
     return 0;
   }
 
-  // --- Phase 5: Begin CMM (tool line 350) ---
-  stat = theCmm.Begin();
-  if (stat != icCmmStatOk) {
+  cfgProfile->reset();
+  cfgProfile->m_iccFile = (bHasSrcProfile && pSrcProfile && nSrcProfileLen > 128) ? "" : tmp_profile;
+  cfgProfile->m_intent = (int)intent;
+  cfgProfile->m_transform = icXformLutColor;
+  cfgProfile->m_useD2BxB2Dx = use_d2bx;
+  cfgProfile->m_adjustPcsLuminance = use_luminance;
+  cfgProfile->m_useBPC = use_bpc;
+  cfgProfile->m_useV5SubProfile = use_v5sub;
+  cfgProfile->m_interpolation = interp;
+  cfgProfiles.m_profiles.push_back(cfgProfile);
+
+  const int nThreads = use_row_apply ? 0 : 1;
+  std::string connectError;
+  std::unique_ptr<CIccConnectCmm> pConnect(CIccConnectCmm::CreateStandard(
+      cfgProfiles,
+      (bHasSrcProfile && pSrcProfile && nSrcProfileLen > 128) ? pSrcProfile : nullptr,
+      (bHasSrcProfile && pSrcProfile && nSrcProfileLen > 128) ? nSrcProfileLen : 0,
+      nThreads,
+      &connectError));
+  if (!pConnect || !pConnect->GetCmm()) {
     SrcImg.Close();
     unlink(tmp_profile);
     unlink(tmp_src_tiff);
     return 0;
   }
+
+  CIccCmm *pTheCmm = pConnect->GetCmm();
 
   // --- Phase 6: Validate color spaces (tool lines 364-397) ---
-  icColorSpaceSignature SrcspaceSig = theCmm.GetSourceSpace();
+  icColorSpaceSignature SrcspaceSig = pTheCmm->GetSourceSpace();
   int nSrcColorSamples = icGetSpaceSamples(SrcspaceSig);
 
-  icColorSpaceSignature DestSpaceSig = theCmm.GetDestSpace();
+  icColorSpaceSignature DestSpaceSig = pTheCmm->GetDestSpace();
   int nDestSamples = icGetSpaceSamples(DestSpaceSig);
 
-  icColorSpaceSignature DestParentSpaceSig = theCmm.GetLastParentSpace();
+  icColorSpaceSignature DestParentSpaceSig = pTheCmm->GetLastParentSpace();
   int nDestParentSamples = icGetSpaceSamples(DestParentSpaceSig);
 
   int nExtraSamples = 0;
@@ -362,18 +396,32 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     icFloatNumber *pSrcRowBuf = nullptr;
     icFloatNumber *pDstRowBuf = nullptr;
     if (use_row_apply) {
-      size_t srcRowCount = (size_t)read_width * (size_t)nSrcColorSamples;
-      size_t dstRowCount = (size_t)read_width * (size_t)nDestSamples;
-      if (srcRowCount <= 4096 && dstRowCount <= 4096) {
-        pSrcRowBuf = (icFloatNumber *)calloc(srcRowCount, sizeof(icFloatNumber));
-        pDstRowBuf = (icFloatNumber *)calloc(dstRowCount, sizeof(icFloatNumber));
+      size_t nSrcRowBytes = 0;
+      size_t nDstRowBytes = 0;
+      if (!GetFloatRowByteCount(read_width, nSrcColorSamples, nSrcRowBytes) ||
+          !GetFloatRowByteCount(read_width, nDestSamples, nDstRowBytes)) {
+        free(pSBuf);
+        free(pDBuf);
+        SrcImg.Close();
+        DstImg.Close();
+        unlink(tmp_profile);
+        unlink(tmp_src_tiff);
+        unlink(tmp_dst_tiff);
+        return 0;
       }
+      pSrcRowBuf = (icFloatNumber *)malloc(nSrcRowBytes);
+      pDstRowBuf = (icFloatNumber *)malloc(nDstRowBytes);
       if (!pSrcRowBuf || !pDstRowBuf) {
         free(pSrcRowBuf);
         free(pDstRowBuf);
-        pSrcRowBuf = nullptr;
-        pDstRowBuf = nullptr;
-        use_row_apply = false;
+        free(pSBuf);
+        free(pDBuf);
+        SrcImg.Close();
+        DstImg.Close();
+        unlink(tmp_profile);
+        unlink(tmp_src_tiff);
+        unlink(tmp_dst_tiff);
+        return 0;
       }
     }
 
@@ -442,7 +490,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       if (use_row_apply && pSrcRowBuf && pDstRowBuf) {
         for (unsigned int j = 0; j < read_width; j++, sptr += sbpp)
           decodePixel(pSrcRowBuf + j * nSrcColorSamples, sptr);
-        theCmm.Apply(pDstRowBuf, pSrcRowBuf, read_width);
+        pTheCmm->Apply(pDstRowBuf, pSrcRowBuf, read_width);
         for (unsigned int j = 0; j < read_width; j++, dptr += dbpp)
           encodePixel(dptr, pDstRowBuf + j * nDestSamples);
         DstImg.WriteLine(pDBuf);
@@ -456,7 +504,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         decodePixel(pSrcPix, sptr);
 
         // CMM Apply (tool line 546)
-        theCmm.Apply(pDstPix, pSrcPix);
+        pTheCmm->Apply(pDstPix, pSrcPix);
 
         encodePixel(dptr, pDstPix);
       }
@@ -475,10 +523,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   DstImg.Close();
 
   // --- Phase 9: CMM query methods ---
-  (void)theCmm.GetNumXforms();
-  (void)theCmm.Valid();
-  (void)theCmm.GetLastParentSpace();
-  (void)theCmm.GetLastSpace();
+  (void)pTheCmm->GetNumXforms();
+  (void)pTheCmm->Valid();
+  (void)pTheCmm->GetLastParentSpace();
+  (void)pTheCmm->GetLastSpace();
 
   unlink(tmp_profile);
   unlink(tmp_src_tiff);

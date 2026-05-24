@@ -156,7 +156,7 @@ jobs:
 
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"
-          INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I${ICCDEV_ROOT}/IccJSON/IccLibJSON -I/usr/include/libxml2"
+          INCLUDES="-I. -I${ICCDEV_BUILD}/IccProfLib -I${ICCDEV_BUILD}/IccXML -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I${ICCDEV_ROOT}/IccJSON/IccLibJSON -I/usr/include/libxml2"
           resolve_static_lib() {
             local dir="$1"
             local base="$2"

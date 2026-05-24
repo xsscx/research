@@ -28,7 +28,7 @@ endfunction()
 resolve_iccdev_static_lib(ICCDEV_LIB_PROF "${ICCDEV_BUILD}/IccProfLib" "libIccProfLib2")
 resolve_iccdev_static_lib(ICCDEV_LIB_XML "${ICCDEV_BUILD}/IccXML" "libIccXML2")
 
-# Source files (must match build.sh SOURCES — 23 files)
+# Source files (must match build.sh SOURCES - 23 files)
 set(SOURCES
     iccAnalyzer-lite.cpp
     IccDevSafeOverrides.cpp
@@ -79,6 +79,8 @@ add_executable(iccAnalyzer-lite ${SOURCES})
 # Include directories
 target_include_directories(iccAnalyzer-lite PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${ICCDEV_BUILD}/IccProfLib
+    ${ICCDEV_BUILD}/IccXML
     ${ICCDEV_ROOT}/IccProfLib
     ${ICCDEV_ROOT}/IccXML/IccLibXML
     ${LIBXML2_INCLUDE_DIR}

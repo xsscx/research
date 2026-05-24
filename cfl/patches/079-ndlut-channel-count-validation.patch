@@ -1,0 +1,22 @@
+diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
+index 82d5561..f612a6b 100644
+--- a/IccProfLib/IccCmm.cpp
++++ b/IccProfLib/IccCmm.cpp
+@@ -6454,10 +6454,17 @@ icStatusCMM CIccXformNDLut::Begin()
+
+   // catch cases where the LUT does not match the colorspace given
+   // this avoids segfaults and stack overflows when applying the LUT
++  icUInt16Number csInChannels = icGetSpaceSamples(m_pTag->GetCsInput());
++  if (csInChannels != m_pTag->InputChannels())
++    return icCmmStatInvalidLut;
++
+   icUInt16Number csOutChannels = icGetSpaceSamples( m_pTag->GetCsOutput() );
+   if (csOutChannels != m_pTag->OutputChannels())
+     return icCmmStatInvalidLut;
+
++  if (m_pTag->InputChannels() > 16 || m_pTag->OutputChannels() > 16)
++    return icCmmStatInvalidLut;
++
+   m_nNumInput = m_pTag->m_nInput;
+
+   m_ApplyCurvePtrA = m_ApplyCurvePtrB = m_ApplyCurvePtrM = NULL;

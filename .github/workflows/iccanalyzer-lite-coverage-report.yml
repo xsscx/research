@@ -151,7 +151,7 @@ jobs:
 
           ICCDEV_BUILD="iccDEV/Build"
           ICCDEV_ROOT="iccDEV"
-          INCLUDES="-I. -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I${ICCDEV_ROOT}/IccJSON/IccLibJSON -I/usr/include/libxml2"
+          INCLUDES="-I. -I${ICCDEV_BUILD}/IccProfLib -I${ICCDEV_BUILD}/IccXML -I${ICCDEV_ROOT}/IccProfLib -I${ICCDEV_ROOT}/IccXML/IccLibXML -I${ICCDEV_ROOT}/IccJSON/IccLibJSON -I/usr/include/libxml2"
           LIBS="${ICCDEV_BUILD}/IccProfLib/libIccProfLib2-static*.a ${ICCDEV_BUILD}/IccXML/libIccXML2-static*.a -lxml2 -ltiff -lpng -ljpeg -lz -llzma -lm -lssl -lcrypto -lgcov"
 
           # Extract SOURCES from build.sh (single source of truth)

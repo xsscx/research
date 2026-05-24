@@ -6,6 +6,7 @@ AFL_TARGETS=(
     applyprofiles
     applyprofiles-fast
     applyprofiles-deep
+    applyprofiles-cfg
     applyprofiles-row
     applysearch
     applysearch-fast
@@ -42,6 +43,7 @@ afl_print_targets() {
     echo "  applyprofiles    - iccApplyProfiles (fixed TIFF, fuzz ICC profile)"
     echo "  applyprofiles-fast - iccApplyProfiles (small ICC profile lane)"
     echo "  applyprofiles-deep - iccApplyProfiles (large ICC profile lane)"
+    echo "  applyprofiles-cfg - iccApplyProfiles (-cfg JSON config lane)"
     echo "  applyprofiles-row - iccApplyProfiles (-threads row-apply lane)"
     echo "  applysearch      - iccApplySearch (fixed data, fuzz ICC profiles)"
     echo "  applysearch-fast - iccApplySearch (small/no-trim search lane)"
@@ -128,7 +130,7 @@ afl_configure_target() {
             REQUIRED_FILES=("$rgb_data")
             AFL_ARGS=("$rgb_data" "0" "0" "@@" "1")
             ;;
-        applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-row|profiles-row)
+        applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-cfg|profiles-cfg|applyprofiles-row|profiles-row)
             BINARY="$BIN_DIR/iccApplyProfiles"
             DICT="$REPO_ROOT/cfl/icc_applyprofiles_fuzzer.dict"
             SEED_DIRS=(
@@ -151,6 +153,18 @@ afl_configure_target() {
                     SEED_LIMIT=200
                     TARGET_NOTE="Deep ApplyProfiles lane: includes large ICC profiles and may run much slower."
                     AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "1" "0" "0" "0" "0" "@@" "1")
+                    ;;
+                applyprofiles-cfg|profiles-cfg)
+                    AFL_DIR="$AFL_BASE/afl-applyprofiles-cfg"
+                    DICT="$REPO_ROOT/cfl/icc_cfg.dict"
+                    SEED_MAX_BYTES=262144
+                    SEED_LIMIT=300
+                    SEED_DIRS=(
+                        "$REPO_ROOT/docs/Testing/json-configs"
+                        "$REPO_ROOT/docs/Testing/malformed-json"
+                    )
+                    TARGET_NOTE="ApplyProfiles JSON config lane: fuzzes IccConnect config parsing through -cfg; threaded coverage stays in applyprofiles-row for reproducible AFL triage."
+                    AFL_ARGS=("-cfg" "@@")
                     ;;
                 applyprofiles-row|profiles-row)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-row"
@@ -275,9 +289,9 @@ afl_configure_target() {
             BINARY="$BIN_DIR/iccFromJson"
             DICT="$REPO_ROOT/cfl/icc_cfg_fuzzer.dict"
             SEED_DIRS=(
-                "$REPO_ROOT/docs/Testing/json-configs"
-                "$REPO_ROOT/docs/Testing/malformed-json"
                 "$REPO_ROOT/fuzz/graphics/json"
+                "$REPO_ROOT/cfl/corpus-icc_fromjson_fuzzer"
+                "$REPO_ROOT/docs/Testing/malformed-json"
                 "$REPO_ROOT/afl/iccDEV/Testing"
             )
             AFL_ARGS=("@@" "${tmp_prefix}.icc")
