@@ -102,6 +102,13 @@
 static void SilentTIFFErrorHandler(const char*, const char*, va_list) {}
 static void SilentTIFFWarningHandler(const char*, const char*, va_list) {}
 
+static bool checked_mul_size(size_t a, size_t b, size_t &out) {
+    if (a != 0 && b > ((size_t)-1) / a)
+        return false;
+    out = a * b;
+    return true;
+}
+
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
     TIFFSetErrorHandler(SilentTIFFErrorHandler);
     TIFFSetWarningHandler(SilentTIFFWarningHandler);
@@ -249,10 +256,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (bytePerLine <= 0 || bps_img <= 0)
         return 0;
 
-    // OOM guard: cap buffer allocation at 2MB
-    size_t inBufSize = (size_t)bytePerLine * nFiles;
-    size_t outBufSize = (size_t)f->GetWidth() * bps_img * nFiles;
+    // OOM guard: cap per-line buffers and total TIFF write work.
+    size_t inBufSize = 0;
+    size_t outBufSize = 0;
+    if (!checked_mul_size((size_t)bytePerLine, (size_t)nFiles, inBufSize) ||
+        !checked_mul_size((size_t)f->GetWidth(), (size_t)bps_img, outBufSize) ||
+        !checked_mul_size(outBufSize, (size_t)nFiles, outBufSize))
+        return 0;
     if (inBufSize > 2 * 1024 * 1024 || outBufSize > 2 * 1024 * 1024)
+        return 0;
+
+    size_t totalOutputBytes = 0;
+    if (!checked_mul_size(outBufSize, (size_t)f->GetHeight(), totalOutputBytes) ||
+        totalOutputBytes > 128 * 1024 * 1024)
         return 0;
 
     std::unique_ptr<icUInt8Number[]> inbuffer(

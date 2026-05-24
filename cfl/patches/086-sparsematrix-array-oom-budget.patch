@@ -1,0 +1,16 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -4933,0 +4934,6 @@ bool CIccTagSparseMatrixArray::Read(icUInt32Number size, CIccIO *pIO)
++  const icUInt64Number nMatrixBytes =
++      static_cast<icUInt64Number>(nNumMatrices) * nBytesPerMatrix;
++  static const icUInt64Number kMaxSparseMatrixArrayBytes =
++      16ULL * 1024 * 1024;
++  if (nMatrixBytes > kMaxSparseMatrixArrayBytes)
++    return false;
+@@ -5428 +5434 @@ bool CIccTagSparseMatrixArray::Reset(icUInt32Number nNumMatrices, icUInt16Number
+-  // library-wide 64 MB ceiling so a legitimately-sized tag can't
++  // per-tag 16 MB ceiling so a legitimately-sized tag can't
+@@ -5436 +5442 @@ bool CIccTagSparseMatrixArray::Reset(icUInt32Number nNumMatrices, icUInt16Number
+-      64ULL * 1024 * 1024;
++      16ULL * 1024 * 1024;

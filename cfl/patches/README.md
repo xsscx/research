@@ -12,7 +12,7 @@ Current upstream baseline:
 
 - Branch: `origin/master`
 - Commit: `6889cb6`
-- Active patches: 29
+- Active patches: 30
 
 ## Build Modes
 
@@ -63,6 +63,7 @@ Patch application failures are fatal in patched mode.
 | `076-cmm-pcs-scale-divzero.patch` | PCS scale denominator guards |
 | `077-cmm-dest-space-sample-guard.patch` | CMM destination sample consistency |
 | `079-ndlut-channel-count-validation.patch` | NDLUT channel/color-space consistency |
+| `086-sparsematrix-array-oom-budget.patch` | Sparse matrix array allocation budget |
 
 ## Drift Review
 
@@ -84,3 +85,6 @@ source after nearby upstream context drift.
 The 2026-05-24 review moved `078` to `../patches-retired/` because upstream
 commit `6889cb6` contains the search-cost weight validation and regression
 coverage.
+
+The 2026-05-24 OOM review added `086` to strengthen the upstream sparse matrix
+array cap for long-running CFL sessions.
