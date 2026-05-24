@@ -317,8 +317,10 @@ run_tool() {
   local tool_path="$1"
   shift
   local exit_code=0
+  local asan_log
   local tool_name
   tool_name=$(basename "$tool_path")
+  asan_log="$OUT_DIR/${tool_name}.asan.log"
 
   echo ""
   echo "Running $tool_name"
@@ -326,10 +328,16 @@ run_tool() {
   printf ' %q' "$@"
   echo ""
 
-  ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=1 \
-  UBSAN_OPTIONS=halt_on_error=1,print_stacktrace=1 \
-  LLVM_PROFILE_FILE=/dev/null \
-    timeout 30 "$tool_path" "$@" 2>&1 || exit_code=$?
+  {
+    set +e
+    ASAN_OPTIONS=print_scariness=1:detect_leaks=0:halt_on_error=1:abort_on_error=1 \
+    UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+    LLVM_PROFILE_FILE=/dev/null \
+      timeout 30 "$tool_path" "$@" >"$asan_log" 2>&1
+    exit_code=$?
+    set -e
+  } 2>/dev/null
+  cat "$asan_log"
 
   if [ "$exit_code" -eq 0 ]; then
     echo "Result: EXIT 0 (success)"
@@ -340,6 +348,7 @@ run_tool() {
   else
     echo "Result: SOFT FAILURE (exit $exit_code)"
   fi
+  echo "ASAN log: $asan_log"
   return "$exit_code"
 }
 

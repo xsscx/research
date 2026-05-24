@@ -76,6 +76,7 @@ echo "Upstream: $(cd iccDEV && git rev-parse --short HEAD)"
 ASAN_OPTIONS=print_scariness=1:halt_on_error=0:detect_leaks=0 \
   cfl/bin/<fuzzer> <crash-file> 2>&1
 ```
+Do not add ASAN symbolize options or post-process stacks unless requested.
 
 Verify upstream impact with unpatched tools at `iccDEV/Build/Tools/`.
 For multi-profile fuzzers, unbundle first:

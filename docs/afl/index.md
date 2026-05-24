@@ -78,7 +78,7 @@ against the intended upstream reference build under ASAN/UBSAN and record the
 exact command, input path, exit mode, and sanitizer summary.
 
 ```bash
-ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=1 \
+ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1 \
 UBSAN_OPTIONS=halt_on_error=1,print_stacktrace=1 \
 LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
   iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile path/to/input.icc ALL
