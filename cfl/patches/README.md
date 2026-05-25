@@ -12,7 +12,7 @@ Current upstream baseline:
 
 - Branch: `origin/master`
 - Commit: `6889cb6`
-- Active patches: 30
+- Active patches: 34
 
 ## Build Modes
 
@@ -64,6 +64,10 @@ Patch application failures are fatal in patched mode.
 | `077-cmm-dest-space-sample-guard.patch` | CMM destination sample consistency |
 | `079-ndlut-channel-count-validation.patch` | NDLUT channel/color-space consistency |
 | `086-sparsematrix-array-oom-budget.patch` | Sparse matrix array allocation budget |
+| `087-addxform-copyattach-shared-io.patch` | Borrowed profile IO ownership |
+| `088-applyprofiles-row-buffer-slack.patch` | Row Apply buffer guard slack |
+| `089-spectral-data-info-null-profile.patch` | Spectral data validation null profile guard |
+| `090-tiff-compressed-bps-guard.patch` | Compressed TIFF predictor bit-depth guard |
 
 ## Drift Review
 
@@ -88,3 +92,10 @@ coverage.
 
 The 2026-05-24 OOM review added `086` to strengthen the upstream sparse matrix
 array cap for long-running CFL sessions.
+
+The 2026-05-24 crash review added `087`, `088`, and `089` for cenc AddXform
+borrowed-IO ownership, row Apply guard slack, and SpectralDataInfo validation
+without profile context.
+
+The 2026-05-24 SpecSep OOM review added `090` to reject compressed TIFF output
+bit depths unsupported by libtiff predictor setup and to stop on write failure.

@@ -348,7 +348,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         }
 
         // Tool line 262: Write interleaved scanline
-        outimg.WriteLine(outbuf);
+        if (!outimg.WriteLine(outbuf))
+            break;
     }
 
     // Tool line 266: Close before buffer destruction

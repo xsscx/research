@@ -7,6 +7,7 @@
 #   v5dspobs          [display.icc declared size][observer.icc]
 #   link              [profile1 declared size][profile2][4B control]
 #   applysearch       [profile1 declared size][profile2][4B control]
+#   applysearch-weight same layout; weight bits apply only when PCC is enabled
 #   applyprofiles     [75% profile][25% control/pixel seed]
 #   applyprofiles-row [75% profile][25% control/pixel seed], forced row-apply harness
 #   specsep           [2B control][N TIFF chunks][optional ICC tail]
@@ -569,7 +570,7 @@ unbundle_applysearch() {
   extract_range "$data_size" 4 "$OUT_DIR/control.bin"
 
   local ctrl0=0 ctrl1=0 ctrl2=0 ctrl3=0 intent1 intent2 interp use_bounds use_pcc pixel_seed
-  local interp_arg interp_label weight_case pcc_weight sig data_file tool
+  local interp_arg interp_label weight_case pcc_weight pcc_weight_label sig data_file tool
   read -r ctrl0 ctrl1 ctrl2 ctrl3 < <(od -A n -t u1 -j "$data_size" -N 4 "$CRASH_FILE")
   intent1=$((ctrl0 % 4))
   intent2=$((ctrl1 % 4))
@@ -594,9 +595,16 @@ unbundle_applysearch() {
       *) pcc_weight="nan" ;;
     esac
   fi
+  if [ "$use_pcc" -ne 0 ]; then
+    pcc_weight_label="$pcc_weight"
+  elif [ "$weighted" -eq 1 ]; then
+    pcc_weight_label="inactive(control=$pcc_weight)"
+  else
+    pcc_weight_label="inactive"
+  fi
 
   echo "Extracted profile1=$profile1_size bytes profile2=$profile2_size bytes control=4 bytes"
-  echo "Control: intent1=$intent1 intent2=$intent2 interp=$interp_arg ($interp_label) use_bounds=$use_bounds use_pcc=$use_pcc pixel_seed=$pixel_seed pcc_weight=$pcc_weight"
+  echo "Control: intent1=$intent1 intent2=$intent2 interp=$interp_arg ($interp_label) use_bounds=$use_bounds use_pcc=$use_pcc pixel_seed=$pixel_seed pcc_weight=$pcc_weight_label"
   check_icc_magic "$OUT_DIR/profile_1.icc" "Profile 1"
   check_icc_magic "$OUT_DIR/profile_2.icc" "Profile 2"
   icc_header_summary "$OUT_DIR/profile_1.icc" "Profile 1"
@@ -612,6 +620,13 @@ unbundle_applysearch() {
     echo "  iccApplySearch $data_file 3 $interp_arg $OUT_DIR/profile_1.icc $intent1 $OUT_DIR/profile_2.icc $intent2 -INIT $intent2 $OUT_DIR/profile_1.icc $pcc_weight"
   else
     echo "  iccApplySearch $data_file 3 $interp_arg $OUT_DIR/profile_1.icc $intent1 $OUT_DIR/profile_2.icc $intent2 -INIT $intent2"
+    if [ "$weighted" -eq 1 ]; then
+      echo "  note: applysearch-weight control disables PCC; omitting weight args matches the harness."
+    fi
+  fi
+  if [ "$weighted" -eq 1 ]; then
+    echo "Exact fuzzer replay:"
+    echo "  cfl/bin/icc_applysearch_weight_fuzzer $CRASH_FILE -runs=1"
   fi
 
   tool="$(tool_bin IccApplySearch iccApplySearch)"

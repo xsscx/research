@@ -1,0 +1,28 @@
+diff --git a/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp b/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
+--- a/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
++++ b/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp
+@@ -178,6 +178,9 @@ bool CTiffImg::Create(const char *szFname, unsigned int nWidth, unsigned int nHe
+   Close();
+   m_bRead = false;
+ 
++  if (bCompress && nBPS != 8 && nBPS != 16 && nBPS != 32)
++    return false;
++
+   m_nWidth = nWidth;
+   m_nHeight = nHeight;
+   m_nBitsPerSample = (icUInt16Number)nBPS;
+diff --git a/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp b/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp
+--- a/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp
++++ b/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp
+@@ -260,7 +260,10 @@ int main(int argc, const char **argv)
+         tptr += bytesPerSample;
+       }
+     }
+-    outfile.WriteLine(outbuf);
++    if (!outfile.WriteLine(outbuf)) {
++      printf("Error writing line %d\n", i);
++      return -1;
++    }
+   }
+   
+   // We need to close output first, to use all pointer data before buffers are destructed.

@@ -114,6 +114,17 @@ static bool GetFloatRowByteCount(unsigned int nWidth, int nSamples, size_t& nByt
 #endif
 }
 
+static bool AddPixelBufSlack(size_t& nBytes) {
+  const size_t nMaxSize = (size_t)-1;
+  const size_t nSlackBytes = 16 * sizeof(icFloatNumber);
+
+  if (nBytes > nMaxSize - nSlackBytes)
+    return false;
+
+  nBytes += nSlackBytes;
+  return true;
+}
+
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
   TIFFSetErrorHandler(SilentTIFFErrorHandler);
   TIFFSetWarningHandler(SilentTIFFWarningHandler);
@@ -399,7 +410,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       size_t nSrcRowBytes = 0;
       size_t nDstRowBytes = 0;
       if (!GetFloatRowByteCount(read_width, nSrcColorSamples, nSrcRowBytes) ||
-          !GetFloatRowByteCount(read_width, nDestSamples, nDstRowBytes)) {
+          !GetFloatRowByteCount(read_width, nDestSamples, nDstRowBytes) ||
+          !AddPixelBufSlack(nSrcRowBytes) ||
+          !AddPixelBufSlack(nDstRowBytes)) {
         free(pSBuf);
         free(pDBuf);
         SrcImg.Close();
@@ -409,8 +422,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         unlink(tmp_dst_tiff);
         return 0;
       }
-      pSrcRowBuf = (icFloatNumber *)malloc(nSrcRowBytes);
-      pDstRowBuf = (icFloatNumber *)malloc(nDstRowBytes);
+      // Match the scalar path's CIccPixelBuf(samples + 16) guard slack.
+      pSrcRowBuf = (icFloatNumber *)calloc(1, nSrcRowBytes);
+      pDstRowBuf = (icFloatNumber *)calloc(1, nDstRowBytes);
       if (!pSrcRowBuf || !pDstRowBuf) {
         free(pSrcRowBuf);
         free(pDstRowBuf);
