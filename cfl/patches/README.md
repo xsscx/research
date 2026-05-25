@@ -1,6 +1,6 @@
 # CFL Patches -- Active Security Fixes
 
-Last Updated: 2026-05-24
+Last Updated: 2026-05-25
 
 This directory contains the active CFL patch stack for current
 `InternationalColorConsortium/iccDEV:master`.
@@ -11,8 +11,8 @@ should link here instead of duplicating the full patch table.
 Current upstream baseline:
 
 - Branch: `origin/master`
-- Commit: `6889cb6`
-- Active patches: 34
+- Commit: `5f679e3`
+- Active patches: 35
 
 ## Build Modes
 
@@ -68,6 +68,7 @@ Patch application failures are fatal in patched mode.
 | `088-applyprofiles-row-buffer-slack.patch` | Row Apply buffer guard slack |
 | `089-spectral-data-info-null-profile.patch` | Spectral data validation null profile guard |
 | `090-tiff-compressed-bps-guard.patch` | Compressed TIFF predictor bit-depth guard |
+| `091-fromcube-line-token-guards.patch` | FromCube line and token parsing guards |
 
 ## Drift Review
 
@@ -99,3 +100,6 @@ without profile context.
 
 The 2026-05-24 SpecSep OOM review added `090` to reject compressed TIFF output
 bit depths unsupported by libtiff predictor setup and to stop on write failure.
+
+The 2026-05-25 FromCube review added `091` to avoid signed EOF truncation in
+line reads, guard empty-line indexing, and reject incomplete 3D LUT rows.
