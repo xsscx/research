@@ -46,13 +46,12 @@
 //
 // Coverage target: IccCmmSearch.cpp (452 lines, previously 0%)
 //
-// Input format (2-profile split on ICC declared size):
-//   [0..prof1_size-1]:  First ICC profile (source)
-//   [prof1_size..N-5]:  Second ICC profile (destination)
-//   [N-4]: intent1 (0-3)
-//   [N-3]: intent2 (0-3)
-//   [N-2]: interp (bit 0), use_bounds (bit 1), use_pcc (bit 2)
-//   [N-1]: pixel seed byte
+// Input format:
+//   The complete LibFuzzer input is written as one ICC argv file. Baseline
+//   mode uses it as the destination profile with fixed sRGB source. The weight
+//   variant uses fixed source/destination profiles and the fuzzed file as PCC.
+//   Control values are sampled from input bytes without removing bytes from
+//   the argv file, so iccDEV sees the actual file length.
 //
 
 #include <stdint.h>
@@ -69,33 +68,20 @@
 #include "fuzz_utils.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-    // Gate 0a: minimum size for 2 profiles + 4 control bytes
-    if (size < 264 || size > 2 * 1024 * 1024) return 0;
+    if (size < 132 || size > 2 * 1024 * 1024) return 0;
 
-    // Gate 0b: read first profile's declared size to split input
-    uint32_t prof1_size = (static_cast<uint32_t>(data[0]) << 24) |
-                          (static_cast<uint32_t>(data[1]) << 16) |
-                          (static_cast<uint32_t>(data[2]) << 8)  |
-                          static_cast<uint32_t>(data[3]);
-
-    if (prof1_size < 132 || prof1_size > size - 136) return 0;
-
-    const uint8_t *prof1_data = data;
-    size_t prof1_len = prof1_size;
-
-    const uint8_t *prof2_data = data + prof1_size;
-    size_t prof2_len = size - prof1_size - 4;
-
-    if (prof2_len < 132) return 0;
-
-    // Control bytes are the last 4 bytes
-    const uint8_t *ctrl = data + size - 4;
+    const uint8_t *ctrl = data;
     icRenderingIntent intent1 = static_cast<icRenderingIntent>(ctrl[0] % 4);
-    icRenderingIntent intent2 = static_cast<icRenderingIntent>(ctrl[1] % 4);
-    icXformInterp interp = (ctrl[2] & 0x01) ? icInterpLinear : icInterpTetrahedral;
-    bool use_bounds = (ctrl[2] & 0x02) != 0;
-    bool use_pcc = (ctrl[2] & 0x04) != 0;
-    uint8_t pixel_seed = ctrl[3];
+    icRenderingIntent intent2 = static_cast<icRenderingIntent>((size > 1 ? ctrl[1] : 1) % 4);
+    uint8_t flags = (size > 2) ? ctrl[2] : 0;
+    icXformInterp interp = (flags & 0x01) ? icInterpLinear : icInterpTetrahedral;
+    bool use_bounds = (flags & 0x02) != 0;
+#ifdef ICC_APPLYSEARCH_FUZZ_WEIGHTS
+    bool use_pcc = true;
+#else
+    bool use_pcc = (flags & 0x04) != 0;
+#endif
+    uint8_t pixel_seed = (size > 3) ? ctrl[3] : 0;
 #ifdef ICC_APPLYSEARCH_FUZZ_WEIGHTS
     static const icFloatNumber weight_cases[] = {
         1.0f,
@@ -110,57 +96,55 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     icFloatNumber pcc_weight = 1.0f;
 #endif
 
-    // Gate 0c: validate both profiles' tag tables
-    if (!fuzz_validate_icc_tags(prof1_data, prof1_len)) return 0;
-    if (!fuzz_validate_icc_tags(prof2_data, prof2_len)) return 0;
+    if (!fuzz_validate_icc_tags(data, size)) return 0;
 
     const char *tmpdir = fuzz_tmpdir();
-
-    // Write profile 1 to temp file
-    char tmp_prof1[512];
-    if (!fuzz_build_path(tmp_prof1, sizeof(tmp_prof1), tmpdir, "/fuzz_search1_XXXXXX.icc"))
+    char fixed_srgb[512];
+    if (!fuzz_find_repo_file(fixed_srgb, sizeof(fixed_srgb), __FILE__,
+                             "test-profiles/sRGB_D65_MAT.icc"))
         return 0;
-    int fd = mkstemps(tmp_prof1, 4);
-    if (fd == -1) return 0;
-    write(fd, prof1_data, prof1_len);
-    close(fd);
 
-    // Write profile 2 to temp file
-    char tmp_prof2[512];
-    if (!fuzz_build_path(tmp_prof2, sizeof(tmp_prof2), tmpdir, "/fuzz_search2_XXXXXX.icc")) {
-        unlink(tmp_prof1);
+    char tmp_profile[512];
+    if (!fuzz_build_path(tmp_profile, sizeof(tmp_profile), tmpdir, "/fuzz_search_XXXXXX.icc"))
+        return 0;
+    int fd = mkstemps(tmp_profile, 4);
+    if (fd == -1) return 0;
+    if (write(fd, data, size) != (ssize_t)size) {
+        close(fd);
+        unlink(tmp_profile);
         return 0;
     }
-    fd = mkstemps(tmp_prof2, 4);
-    if (fd == -1) { unlink(tmp_prof1); return 0; }
-    write(fd, prof2_data, prof2_len);
     close(fd);
 
     // Construct CIccCmmSearch (exercises constructor with bounds config)
     CIccCmmSearch cmm(use_bounds);
 
+    const char *src_profile = fixed_srgb;
+    const char *dst_profile = tmp_profile;
+#ifdef ICC_APPLYSEARCH_FUZZ_WEIGHTS
+    dst_profile = fixed_srgb;
+#endif
+
     // AddXform for source profile (matches tool line 367)
-    icStatusCMM stat = cmm.CIccCmm::AddXform(tmp_prof1, intent1, interp,
+    icStatusCMM stat = cmm.CIccCmm::AddXform(src_profile, intent1, interp,
                                                nullptr, icXformLutColor, true, nullptr);
     if (stat != icCmmStatOk) {
-        unlink(tmp_prof1);
-        unlink(tmp_prof2);
+        unlink(tmp_profile);
         return 0;
     }
 
     // AddXform for destination profile (matches tool line 367)
-    stat = cmm.CIccCmm::AddXform(tmp_prof2, intent2, interp,
+    stat = cmm.CIccCmm::AddXform(dst_profile, intent2, interp,
                                   nullptr, icXformLutColor, true, nullptr);
     if (stat != icCmmStatOk) {
-        unlink(tmp_prof1);
-        unlink(tmp_prof2);
+        unlink(tmp_profile);
         return 0;
     }
 
-    // Optional: AttachPCC - use profile 1 as PCC source
+    // Optional: AttachPCC - use the fuzzed argv file as PCC source.
     // Exercises IccPcc.cpp code paths
     if (use_pcc) {
-        CIccProfile *pPcc = OpenIccProfile(tmp_prof1);
+        CIccProfile *pPcc = OpenIccProfile(tmp_profile);
         if (pPcc) {
             if (pPcc->ReadPccTags()) {
                 pPcc->Detach();
@@ -176,8 +160,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // Begin - builds internal CMM pipeline (the complex part of IccCmmSearch.cpp)
     stat = cmm.Begin();
     if (stat != icCmmStatOk) {
-        unlink(tmp_prof1);
-        unlink(tmp_prof2);
+        unlink(tmp_profile);
         return 0;
     }
 
@@ -189,8 +172,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     if (nSrc <= 0 || nSrc > 16 || nDst <= 0 || nDst > 16) {
         cmm.RemoveAllIO();
-        unlink(tmp_prof1);
-        unlink(tmp_prof2);
+        unlink(tmp_profile);
         return 0;
     }
 
@@ -218,7 +200,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // Cleanup (exercises RemoveAllIO)
     cmm.RemoveAllIO();
 
-    unlink(tmp_prof1);
-    unlink(tmp_prof2);
+    unlink(tmp_profile);
     return 0;
 }

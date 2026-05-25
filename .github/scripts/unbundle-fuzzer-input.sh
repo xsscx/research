@@ -4,10 +4,10 @@
 # Supported layouts:
 #   single-file tools  raw input copied as profile.icc, input.xml, input.json,
 #                      input.cube, or input.tiff as appropriate
-#   v5dspobs          [display.icc declared size][observer.icc]
-#   link              [profile1 declared size][profile2][4B control]
-#   applysearch       [profile1 declared size][profile2][4B control]
-#   applysearch-weight same layout; weight bits apply only when PCC is enabled
+#   v5dspobs          raw fuzzed display ICC; fixed observer companion
+#   link              raw fuzzed ICC; fixed sRGB companion
+#   applysearch       raw fuzzed ICC; fixed sRGB companion
+#   applysearch-weight raw fuzzed PCC ICC; fixed source/destination
 #   applyprofiles     [75% profile][25% control/pixel seed]
 #   applyprofiles-row [75% profile][25% control/pixel seed], forced row-apply harness
 #   specsep           [2B control][N TIFF chunks][optional ICC tail]
@@ -22,7 +22,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") <fuzzer_name> <crash_file> [tool_root]
+Usage: $(basename "$0") <fuzzer_name> <crash_file> [--legacy] [tool_root]
 
 Fuzzer names are normalized with cfl/fuzzers.sh aliases when available.
 Examples: dump, toxml, fromxml, tojson, fromjson, cfg, connect, link,
@@ -35,6 +35,8 @@ Notes:
   Generated files are triage aids. Fuzzer-only control.bin files are not
   standalone maintainer inputs. Verify any printed CLI candidate end-to-end
   before using it in a maintainer report.
+  Use --legacy to unbundle pre-2026-05 multi-profile CFL artifacts that split
+  on the first profile's ICC header-declared size.
 EOF
   exit 1
 }
@@ -43,7 +45,14 @@ EOF
 
 FUZZER_INPUT="$1"
 CRASH_FILE="$2"
-TOOL_ROOT="${3:-}"
+LEGACY_FORMAT=0
+TOOL_ROOT=""
+if [ "${3:-}" = "--legacy" ]; then
+  LEGACY_FORMAT=1
+  TOOL_ROOT="${4:-}"
+else
+  TOOL_ROOT="${3:-}"
+fi
 
 if [ ! -f "$CRASH_FILE" ]; then
   echo "ERROR: crash file not found: $CRASH_FILE" >&2
@@ -472,6 +481,24 @@ run_if_available() {
 }
 
 unbundle_v5dspobs() {
+  if [ "$LEGACY_FORMAT" -eq 0 ]; then
+    echo "Format: [fuzzed display ICC], fixed observer companion"
+    extract_range 0 "$FILE_SIZE" "$OUT_DIR/profile_display.icc"
+    check_icc_magic "$OUT_DIR/profile_display.icc" "Display"
+    icc_header_summary "$OUT_DIR/profile_display.icc" "Display"
+
+    local observer="$REPO_ROOT/test-profiles/XYZ_float-D65_2deg-Part1.icc"
+    local tool="$TOOL_ROOT/IccV5DspObsToV4Dsp/iccV5DspObsToV4Dsp"
+    echo "Fixed observer candidate: $observer"
+    if [ -n "$TOOL_ROOT" ] && [ -x "$tool" ] && [ -f "$observer" ]; then
+      run_tool "$tool" "$OUT_DIR/profile_display.icc" "$observer" "$OUT_DIR/output.icc" || true
+    else
+      echo "Manual CLI candidate:"
+      echo "  iccV5DspObsToV4Dsp $OUT_DIR/profile_display.icc $observer $OUT_DIR/output.icc"
+    fi
+    return 0
+  fi
+
   echo "Format: [display.icc declared size][observer.icc]"
   if [ "$FILE_SIZE" -lt 256 ]; then
     echo "ERROR: file too small for two ICC headers" >&2
@@ -508,6 +535,35 @@ unbundle_v5dspobs() {
 }
 
 unbundle_link() {
+  if [ "$LEGACY_FORMAT" -eq 0 ]; then
+    echo "Format: [fuzzed ICC], fixed sRGB companion"
+    if [ "$FILE_SIZE" -lt 132 ]; then
+      echo "ERROR: file too small for ICC profile" >&2
+      return 1
+    fi
+    extract_range 0 "$FILE_SIZE" "$OUT_DIR/profile_fuzzed.icc"
+
+    local ctrl0 ctrl1 ctrl2 ctrl3 intent interp first_transform use_d2bx use_bpc use_luminance use_subprofile
+    read -r ctrl0 ctrl1 ctrl2 ctrl3 < <(od -A n -t u1 -j 0 -N 4 "$CRASH_FILE")
+    intent=$((ctrl3 % 4))
+    interp=$(( (ctrl2 & 1) ? 0 : 1 ))
+    first_transform=$((ctrl0 & 1))
+    use_d2bx=$(( (ctrl0 & 2) ? 0 : 1 ))
+    use_bpc=$(( (ctrl0 & 4) ? 1 : 0 ))
+    use_luminance=$(( (ctrl0 & 8) ? 1 : 0 ))
+    use_subprofile=$(( (ctrl0 & 16) ? 1 : 0 ))
+
+    echo "Extracted fuzzed profile=$FILE_SIZE bytes"
+    echo "Control: intent=$intent interp=$interp first_transform=$first_transform use_d2bx=$use_d2bx bpc=$use_bpc luminance=$use_luminance subprofile=$use_subprofile"
+    check_icc_magic "$OUT_DIR/profile_fuzzed.icc" "Fuzzed profile"
+    icc_header_summary "$OUT_DIR/profile_fuzzed.icc" "Fuzzed profile"
+
+    local fixed="$REPO_ROOT/test-profiles/sRGB_D65_MAT.icc"
+    echo "Manual CLI candidate (verify before using in maintainer reports):"
+    echo "  iccApplyToLink $OUT_DIR/output.icc 0 2 0 fuzz-link 0 1 $first_transform $interp $OUT_DIR/profile_fuzzed.icc $intent $fixed $intent"
+    return 0
+  fi
+
   echo "Format: [profile1 declared size][profile2][4-byte trailing control]"
   if [ "$FILE_SIZE" -lt 260 ]; then
     echo "ERROR: file too small for two ICC headers plus control" >&2
@@ -550,6 +606,82 @@ unbundle_link() {
 
 unbundle_applysearch() {
   local weighted="$1"
+  if [ "$LEGACY_FORMAT" -eq 0 ]; then
+    echo "Format: [fuzzed ICC], fixed sRGB companion"
+    if [ "$FILE_SIZE" -lt 132 ]; then
+      echo "ERROR: file too small for ICC profile" >&2
+      return 1
+    fi
+    extract_range 0 "$FILE_SIZE" "$OUT_DIR/profile_fuzzed.icc"
+
+    local ctrl0=0 ctrl1=1 ctrl2=0 ctrl3=0 intent1 intent2 interp_arg interp_label use_bounds use_pcc pixel_seed
+    local weight_case pcc_weight pcc_weight_label sig data_file tool fixed
+    read -r ctrl0 ctrl1 ctrl2 ctrl3 < <(od -A n -t u1 -j 0 -N 4 "$CRASH_FILE")
+    intent1=$((ctrl0 % 4))
+    intent2=$((ctrl1 % 4))
+    if [ $((ctrl2 & 1)) -ne 0 ]; then
+      interp_arg=0
+    else
+      interp_arg=1
+    fi
+    interp_label=$(interp_name "$interp_arg")
+    use_bounds=$(( (ctrl2 & 2) ? 1 : 0 ))
+    use_pcc=$(( (ctrl2 & 4) ? 1 : 0 ))
+    [ "$weighted" -eq 1 ] && use_pcc=1
+    pixel_seed=$ctrl3
+    pcc_weight="1.0"
+    if [ "$weighted" -eq 1 ]; then
+      weight_case=$(((ctrl2 >> 3) % 6))
+      case "$weight_case" in
+        0) pcc_weight="1.0" ;;
+        1) pcc_weight="0.0" ;;
+        2) pcc_weight="-1.0" ;;
+        3) pcc_weight="0.5" ;;
+        4) pcc_weight="2.0" ;;
+        *) pcc_weight="nan" ;;
+      esac
+    fi
+    if [ "$use_pcc" -ne 0 ]; then
+      pcc_weight_label="$pcc_weight"
+    else
+      pcc_weight_label="inactive"
+    fi
+
+    echo "Extracted fuzzed profile=$FILE_SIZE bytes"
+    echo "Control: intent1=$intent1 intent2=$intent2 interp=$interp_arg ($interp_label) use_bounds=$use_bounds use_pcc=$use_pcc pixel_seed=$pixel_seed pcc_weight=$pcc_weight_label"
+    check_icc_magic "$OUT_DIR/profile_fuzzed.icc" "Fuzzed profile"
+    icc_header_summary "$OUT_DIR/profile_fuzzed.icc" "Fuzzed profile"
+
+    sig=$(read_sig "$OUT_DIR/profile_fuzzed.icc" 16)
+    data_file="$OUT_DIR/search-data.txt"
+    write_legacy_data "$data_file" "$sig" 3 5 "$pixel_seed"
+    echo "  [OK] Search data: $data_file"
+
+    fixed="$REPO_ROOT/test-profiles/sRGB_D65_MAT.icc"
+    echo "CLI reproduction candidate:"
+    if [ "$weighted" -eq 1 ]; then
+      echo "  iccApplySearch $data_file 3 $interp_arg $fixed $intent1 $fixed $intent2 -INIT $intent2 $OUT_DIR/profile_fuzzed.icc $pcc_weight"
+    elif [ "$use_pcc" -ne 0 ]; then
+      echo "  iccApplySearch $data_file 3 $interp_arg $fixed $intent1 $OUT_DIR/profile_fuzzed.icc $intent2 -INIT $intent2 $OUT_DIR/profile_fuzzed.icc $pcc_weight"
+    else
+      echo "  iccApplySearch $data_file 3 $interp_arg $fixed $intent1 $OUT_DIR/profile_fuzzed.icc $intent2 -INIT $intent2"
+    fi
+    if [ "$weighted" -eq 1 ]; then
+      echo "Exact fuzzer replay:"
+      echo "  cfl/bin/icc_applysearch_weight_fuzzer $CRASH_FILE -runs=1"
+    fi
+
+    tool="$(tool_bin IccApplySearch iccApplySearch)"
+    if [ "$weighted" -eq 1 ]; then
+      run_if_available "$tool" "$data_file" 3 "$interp_arg" "$fixed" "$intent1" "$fixed" "$intent2" -INIT "$intent2" "$OUT_DIR/profile_fuzzed.icc" "$pcc_weight"
+    elif [ "$use_pcc" -ne 0 ]; then
+      run_if_available "$tool" "$data_file" 3 "$interp_arg" "$fixed" "$intent1" "$OUT_DIR/profile_fuzzed.icc" "$intent2" -INIT "$intent2" "$OUT_DIR/profile_fuzzed.icc" "$pcc_weight"
+    else
+      run_if_available "$tool" "$data_file" 3 "$interp_arg" "$fixed" "$intent1" "$OUT_DIR/profile_fuzzed.icc" "$intent2" -INIT "$intent2"
+    fi
+    return 0
+  fi
+
   echo "Format: [profile1 declared size][profile2][4-byte trailing control]"
   if [ "$FILE_SIZE" -lt 264 ]; then
     echo "ERROR: file too small for two ICC headers plus control" >&2

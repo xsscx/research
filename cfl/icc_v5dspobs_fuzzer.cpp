@@ -11,10 +11,9 @@
     with the same API calls. NO pre-validation beyond what the tool performs.
     The library is the system under test - let it see every input.
 
-    Input format: Two argv inputs concatenated as [display.icc][observer.icc].
-    The split point is determined by the display profile's own ICC size field
-    (bytes 0-3, big-endian uint32), then the harness writes temp files for
-    argv[1], argv[2], and argv[3].
+    Input format: One complete display ICC profile. The harness writes the
+    exact LibFuzzer input bytes as argv[1], uses a fixed observer profile for
+    argv[2], and writes a temp output path for argv[3].
 */
 
 /*
@@ -50,53 +49,35 @@
 #include "fuzz_utils.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  // Minimum: two 128-byte ICC headers
-  if (size < 256 || size > 5 * 1024 * 1024)
+  // Minimum: one 128-byte ICC header.
+  if (size < 128 || size > 5 * 1024 * 1024)
     return 0;
 
-  // Split using the first profile's declared size (bytes 0-3).
-  // This is how the ICC library itself determines profile length.
-  uint32_t dspSize = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) |
-                     ((uint32_t)data[2] << 8) | data[3];
-
-  if (dspSize < 128 || dspSize >= size - 127)
+  if (!fuzz_validate_icc_tags(data, size))
     return 0;
 
-  // OOM guard: reject declared sizes that would cause icRealloc bombs.
-  // The tool itself doesn't check this, but LibFuzzer -rss_limit_mb only
-  // catches OOM AFTER allocation - we avoid the cost of fork+write+read.
-  if (dspSize > 2 * 1024 * 1024)
-    return 0;
-  size_t obsSize = size - dspSize;
-  if (obsSize > 2 * 1024 * 1024)
-    return 0;
-
-  const uint8_t *dspData = data;
-  const uint8_t *obsData = data + dspSize;
-
-  // Write both halves to temp files - tool uses file-based ReadIccProfile()
+  // Write the fuzzed display profile to a temp file. The observer is a fixed
+  // argv companion so ICC header size mismatches are seen by iccDEV, not by
+  // harness framing.
   const char *tmpdir = fuzz_tmpdir();
   char dspPath[PATH_MAX], obsPath[PATH_MAX], outPath[PATH_MAX];
   if (!fuzz_build_path(dspPath, sizeof(dspPath), tmpdir, "/fuzz_v5dsp_XXXXXX"))
     return 0;
-  if (!fuzz_build_path(obsPath, sizeof(obsPath), tmpdir, "/fuzz_v5obs_XXXXXX"))
+  if (!fuzz_find_repo_file(obsPath, sizeof(obsPath), __FILE__,
+                           "test-profiles/XYZ_float-D65_2deg-Part1.icc"))
     return 0;
 
   int fd1 = mkstemp(dspPath);
   if (fd1 < 0) return 0;
-  int fd2 = mkstemp(obsPath);
-  if (fd2 < 0) { close(fd1); unlink(dspPath); return 0; }
 
-  bool ok = (write(fd1, dspData, dspSize) == (ssize_t)dspSize) &&
-            (write(fd2, obsData, obsSize) == (ssize_t)obsSize);
+  bool ok = (write(fd1, data, size) == (ssize_t)size);
   close(fd1);
-  close(fd2);
-  if (!ok) { unlink(dspPath); unlink(obsPath); return 0; }
+  if (!ok) { unlink(dspPath); return 0; }
 
   // === TOOL LINE 108: ReadIccProfile(argv[1], true) ===
   CIccProfile *dspRaw = ReadIccProfile(dspPath, true);
   if (!dspRaw) {
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
   std::shared_ptr<CIccProfile> dspIcc(dspRaw);
@@ -104,7 +85,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // === TOOL LINES 115-119: Version and class check ===
   if (dspIcc->m_Header.version < icVersionNumberV5 ||
       dspIcc->m_Header.deviceClass != icSigDisplayClass) {
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
 
@@ -113,7 +94,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       static_cast<CIccTagMultiProcessElement *>(dspIcc->FindTagOfType(
           icSigAToB1Tag, icSigMultiProcessElementType));
   if (!pTagIn) {
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
 
@@ -126,21 +107,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       curveMpe->GetType() != icSigCurveSetElemType ||
       ((matrixMpe = pTagIn->GetElement(1)) == nullptr) ||
       matrixMpe->GetType() != icSigEmissionMatrixElemType) {
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
 
   // === TOOL LINE 141: ReadIccProfile(argv[2]) ===
   CIccProfile *pccRaw = ReadIccProfile(obsPath, false);
   if (!pccRaw) {
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
   std::shared_ptr<CIccProfile> pccIcc(pccRaw);
 
   // === TOOL LINES 148-150: Version check ===
   if (pccIcc->m_Header.version < icVersionNumberV5) {
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
 
@@ -155,27 +136,27 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!pTagSvcn || !pTagC2S ||
       pTagC2S->NumInputChannels() != 3 ||
       pTagC2S->NumOutputChannels() != 3) {
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
 
   // === TOOL LINE 164: pTagIn->Begin() ===
   if (!pTagIn->Begin(icElemInterpLinear, dspIcc.get(), pccIcc.get())) {
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
 
   // === TOOL LINES 169-175: GetNewApply + iterator ===
   CIccApplyTagMpe *pApplyMpe = pTagIn->GetNewApply();
   if (!pApplyMpe) {
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
 
   auto applyList = pApplyMpe->GetList();
   if (!applyList || applyList->size() < 2) {
     delete pApplyMpe;
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
   auto applyIter = applyList->begin();
@@ -186,14 +167,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // === TOOL LINE 177: pTagC2S->Begin() ===
   if (!pTagC2S->Begin(icElemInterpLinear, pccIcc.get())) {
     delete pApplyMpe;
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
 
   CIccApplyTagMpe *pApplyC2S = pTagC2S->GetNewApply();
   if (!pApplyC2S) {
     delete pApplyMpe;
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
 
@@ -201,7 +182,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccProfile *pIcc = new (std::nothrow) CIccProfile();
   if (!pIcc) {
     delete pApplyC2S; delete pApplyMpe;
-    unlink(dspPath); unlink(obsPath);
+    unlink(dspPath);
     return 0;
   }
   pIcc->InitHeader();
@@ -210,7 +191,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   CIccTag *pDesc = dspIcc->FindTag(icSigProfileDescriptionTag);
   CIccTagMultiLocalizedUnicode *pDspText = new(std::nothrow) CIccTagMultiLocalizedUnicode();
-  if (!pDspText) { delete pApplyC2S; delete pApplyMpe; unlink(dspPath); unlink(obsPath); return 0; }
+  if (!pDspText) { delete pApplyC2S; delete pApplyMpe; unlink(dspPath); return 0; }
   std::string text;
   if (!icGetTagText(pDesc, text))
     text = "Fuzzed V5 to V4 display conversion";
@@ -218,7 +199,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   pIcc->AttachTag(icSigProfileDescriptionTag, pDspText);
 
   pDspText = new(std::nothrow) CIccTagMultiLocalizedUnicode();
-  if (!pDspText) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); unlink(obsPath); return 0; }
+  if (!pDspText) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); return 0; }
   pDspText->SetText("Copyright (C) 2026 International Color Consortium");
   pIcc->AttachTag(icSigCopyrightTag, pDspText);
 
@@ -229,7 +210,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!pTrcR || !pTrcG || !pTrcB) {
     delete pTrcR; delete pTrcG; delete pTrcB;
     delete pApplyC2S; delete pApplyMpe; delete pIcc;
-    unlink(dspPath); unlink(obsPath); return 0;
+    unlink(dspPath); return 0;
   }
 
   icFloatNumber in[3], out[3];
@@ -252,7 +233,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   matrixMpe->Apply(mtxApply, in, rRGB);
   pTagC2S->Apply(pApplyC2S, out, in);
   CIccTagS15Fixed16 *primaryXYZ = new(std::nothrow) CIccTagS15Fixed16(3);
-  if (!primaryXYZ) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); unlink(obsPath); return 0; }
+  if (!primaryXYZ) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); return 0; }
   (*primaryXYZ)[0] = icDtoF(out[0]);
   (*primaryXYZ)[1] = icDtoF(out[1]);
   (*primaryXYZ)[2] = icDtoF(out[2]);
@@ -261,7 +242,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   matrixMpe->Apply(mtxApply, in, gRGB);
   pTagC2S->Apply(pApplyC2S, out, in);
   primaryXYZ = new(std::nothrow) CIccTagS15Fixed16(3);
-  if (!primaryXYZ) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); unlink(obsPath); return 0; }
+  if (!primaryXYZ) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); return 0; }
   (*primaryXYZ)[0] = icDtoF(out[0]);
   (*primaryXYZ)[1] = icDtoF(out[1]);
   (*primaryXYZ)[2] = icDtoF(out[2]);
@@ -270,7 +251,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   matrixMpe->Apply(mtxApply, in, bRGB);
   pTagC2S->Apply(pApplyC2S, out, in);
   primaryXYZ = new(std::nothrow) CIccTagS15Fixed16(3);
-  if (!primaryXYZ) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); unlink(obsPath); return 0; }
+  if (!primaryXYZ) { delete pApplyC2S; delete pApplyMpe; delete pIcc; unlink(dspPath); return 0; }
   (*primaryXYZ)[0] = icDtoF(out[0]);
   (*primaryXYZ)[1] = icDtoF(out[1]);
   (*primaryXYZ)[2] = icDtoF(out[2]);
@@ -293,6 +274,5 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // dspIcc and pccIcc freed by shared_ptr
 
   unlink(dspPath);
-  unlink(obsPath);
   return 0;
 }

@@ -9,6 +9,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
 
 // Get FUZZ_TMPDIR with /tmp fallback
 static inline const char *fuzz_tmpdir(void) {
@@ -28,9 +29,46 @@ static inline size_t fuzz_build_path(char *buf, size_t bufsize,
     return dlen + slen;
 }
 
+// Find a repository file from either the current working directory or a source
+// file under cfl/. This keeps harnesses tool-shaped without parsing fuzzer
+// inputs to synthesize companion argv files.
+static inline bool fuzz_find_repo_file(char *buf, size_t bufsize,
+                                       const char *source_file,
+                                       const char *repo_relative) {
+    size_t rlen = strlen(repo_relative);
+    if (rlen < bufsize) {
+        memcpy(buf, repo_relative, rlen + 1);
+        if (access(buf, R_OK) == 0)
+            return true;
+    }
+
+    static const char up[] = "../";
+    if (sizeof(up) - 1 + rlen < bufsize) {
+        memcpy(buf, up, sizeof(up) - 1);
+        memcpy(buf + sizeof(up) - 1, repo_relative, rlen + 1);
+        if (access(buf, R_OK) == 0)
+            return true;
+    }
+
+    const char *slash = strrchr(source_file, '/');
+    if (slash) {
+        size_t dlen = (size_t)(slash - source_file + 1);
+        if (dlen + sizeof(up) - 1 + rlen < bufsize) {
+            memcpy(buf, source_file, dlen);
+            memcpy(buf + dlen, up, sizeof(up) - 1);
+            memcpy(buf + dlen + sizeof(up) - 1, repo_relative, rlen + 1);
+            if (access(buf, R_OK) == 0)
+                return true;
+        }
+    }
+
+    return false;
+}
+
 // Validate ICC profile tag table integrity (Gate 0b/0c).
-// Rejects profiles where tag offsets, tag sizes, or header-declared size
-// exceed actual file size. Prevents CWE-789 amplification OOMs.
+// Rejects profiles where tag offsets or tag sizes exceed actual file size.
+// Header-declared file size mismatches are intentionally allowed up to a hard
+// cap because they are a target bug class for these harnesses.
 // Returns true if profile passes validation, false to reject.
 static inline bool fuzz_validate_icc_tags(const uint8_t *data, size_t size) {
     if (size < 132) return false;
@@ -49,7 +87,7 @@ static inline bool fuzz_validate_icc_tags(const uint8_t *data, size_t size) {
     }
     uint32_t hdrSize = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) |
                        ((uint32_t)data[2] << 8) | (uint32_t)data[3];
-    if (hdrSize > size) return false;
+    if (hdrSize > 16U * 1024U * 1024U) return false;
     return true;
 }
 

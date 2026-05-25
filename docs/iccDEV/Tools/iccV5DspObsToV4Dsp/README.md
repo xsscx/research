@@ -23,7 +23,7 @@ iccV5DspObsToV4Dsp inputV5.icc inputObserverV5.icc outputV4.icc
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 254 (-2) | "bad transform matrix" — incompatible display/observer pairing |
+| 254 (-2) | "bad transform matrix" - incompatible display/observer pairing |
 
 ## Profile Requirements
 
@@ -39,18 +39,18 @@ iccV5DspObsToV4Dsp inputV5.icc inputObserverV5.icc outputV4.icc
 
 | Observer File | PCS | Description |
 |---------------|-----|-------------|
-| `XYZ_float-D65_2deg-Part1.icc` | XYZ Float | CIE 1931 2° observer, D65 |
-| `Lab_float-D65_2deg-Part1.icc` | Lab Float | CIE 1931 2° observer, D65, Lab |
-| `Spec400_10_700-D50_2deg-Part1.icc` | Spectral | 400–700nm, 10nm steps, D50 |
+| `XYZ_float-D65_2deg-Part1.icc` | XYZ Float | CIE 1931 2 degree observer, D65 |
+| `Lab_float-D65_2deg-Part1.icc` | Lab Float | CIE 1931 2 degree observer, D65, Lab |
+| `Spec400_10_700-D50_2deg-Part1.icc` | Spectral | 400-700nm, 10nm steps, D50 |
 
 ## Examples
 
-### Basic v5 → v4 conversion
+### Basic v5 -> v4 conversion
 
 ```bash
 export LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML
 
-# v5 Display + XYZ observer → v4 Display
+# v5 Display + XYZ observer -> v4 Display
 iccV5DspObsToV4Dsp \
   iccDEV/Testing/Display/LCDDisplay.icc \
   iccDEV/Testing/ICS/XYZ_float-D65_2deg-Part1.icc \
@@ -90,9 +90,9 @@ iccDumpProfile /tmp/v4_display.icc
 
 ## Security Notes
 
-The CFL fuzzer `icc_v5dspobs_fuzzer` uses a concatenated input format:
-`[4B BE size][display.icc][observer.icc]`. Use `.github/scripts/unbundle-fuzzer-input.sh`
-to extract profiles from crash files:
+The CFL fuzzer `icc_v5dspobs_fuzzer` writes the complete fuzzer input as the
+display profile argv file and pairs it with a fixed observer profile. Use
+`.github/scripts/unbundle-fuzzer-input.sh` to extract crash files:
 
 ```bash
 .github/scripts/unbundle-fuzzer-input.sh v5dspobs crash-file
@@ -100,9 +100,9 @@ to extract profiles from crash files:
 
 ## Related Tools
 
-- [iccDumpProfile](../iccDumpProfile/) — Inspect v5 and v4 profiles
-- [iccRoundTrip](../iccRoundTrip/) — Test v4 output accuracy
-- CFL fuzzer: `icc_v5dspobs_fuzzer` — Fuzz the v5→v4 conversion
+- [iccDumpProfile](../iccDumpProfile/) - Inspect v5 and v4 profiles
+- [iccRoundTrip](../iccRoundTrip/) - Test v4 output accuracy
+- CFL fuzzer: `icc_v5dspobs_fuzzer` - Fuzz the v5->v4 conversion
 
 ## Version
 

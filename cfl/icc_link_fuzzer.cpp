@@ -12,9 +12,10 @@
       ReadIccProfile -> AddXform (xN) -> Begin -> grid Apply -> IterateXforms
     NO pre-validation beyond what the tool performs.
 
-    Input format: Two ICC profiles concatenated. The first profile's declared
-    size (bytes 0-3) determines the split point. Fuzz parameters derived from
-    trailing bytes to preserve ICC header structure.
+    Input format: One complete ICC profile. The harness writes the exact
+    LibFuzzer input bytes as one argv profile and uses a fixed sRGB companion
+    profile for the second transform, preserving chain coverage without
+    parsing ICC header bytes for harness framing.
 
     Ownership: AddXform -> CIccXform::Create takes ownership of the profile.
     On icCmmStatBadXform, Create already freed it. On other errors, it did not.
@@ -72,17 +73,19 @@ public:
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  // Minimum: two 128-byte ICC headers + 4 control bytes
-  if (size < 260 || size > 2 * 1024 * 1024)
+  // Minimum: one ICC header.
+  if (size < 132 || size > 2 * 1024 * 1024)
     return 0;
 
-  // Derive fuzz parameters from trailing 4 bytes (preserve ICC header structure)
+  if (!fuzz_validate_icc_tags(data, size))
+    return 0;
+
+  // Derive fuzz parameters from bytes that remain part of the profile file.
   // Matches iccApplyToLink intent/type/interp parsing (lines 726-746)
-  uint8_t ctrl0 = data[size - 4];
-  uint8_t ctrl1 = data[size - 3];
-  uint8_t ctrl2 = data[size - 2];
-  uint8_t ctrl3 = data[size - 1];
-  size_t profileData = size - 4;
+  uint8_t ctrl0 = data[0];
+  uint8_t ctrl1 = data[1];
+  uint8_t ctrl2 = data[2];
+  uint8_t ctrl3 = data[3];
 
   icRenderingIntent intent = (icRenderingIntent)(ctrl3 % 4);
   icXformInterp interp = (ctrl2 & 1) ? icInterpLinear : icInterpTetrahedral;
@@ -102,32 +105,22 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   bool bSaveLink = (ctrl1 & 0x01);
 
-  // Split input using first profile's declared size (bytes 0-3)
-  uint32_t prof1Size = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) |
-                       ((uint32_t)data[2] << 8) | data[3];
-
-  if (prof1Size < 128 || prof1Size >= profileData - 127)
-    return 0;
-
-  // Write both profiles to temp files
+  // Write the fuzzed profile to a temp file; use a fixed sRGB companion for
+  // the second AddXform so actual file size, not bytes 0-3, frames argv[1].
   const char *tmpdir = fuzz_tmpdir();
   char path1[PATH_MAX], path2[PATH_MAX];
   if (!fuzz_build_path(path1, sizeof(path1), tmpdir, "/fuzz_lnk1_XXXXXX"))
     return 0;
-  if (!fuzz_build_path(path2, sizeof(path2), tmpdir, "/fuzz_lnk2_XXXXXX"))
+  if (!fuzz_find_repo_file(path2, sizeof(path2), __FILE__,
+                           "test-profiles/sRGB_D65_MAT.icc"))
     return 0;
 
   int fd1 = mkstemp(path1);
   if (fd1 < 0) return 0;
-  int fd2 = mkstemp(path2);
-  if (fd2 < 0) { close(fd1); unlink(path1); return 0; }
 
-  bool ok = (write(fd1, data, prof1Size) == (ssize_t)prof1Size) &&
-            (write(fd2, data + prof1Size, profileData - prof1Size) ==
-             (ssize_t)(profileData - prof1Size));
+  bool ok = (write(fd1, data, size) == (ssize_t)size);
   close(fd1);
-  close(fd2);
-  if (!ok) { unlink(path1); unlink(path2); return 0; }
+  if (!ok) { unlink(path1); return 0; }
 
   // === TOOL LINE 770: ReadIccProfile ===
   CIccProfile *pProf1 = ReadIccProfile(path1, bUseSubProfile);
@@ -136,7 +129,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!pProf1 || !pProf2) {
     delete pProf1;
     delete pProf2;
-    unlink(path1); unlink(path2);
+    unlink(path1);
     return 0;
   }
 
@@ -167,7 +160,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (stat1 != icCmmStatBadXform)
       delete pProf1;
     delete pProf2;
-    unlink(path1); unlink(path2);
+    unlink(path1);
     return 0;
   }
 
@@ -177,13 +170,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (stat2 != icCmmStatOk) {
     if (stat2 != icCmmStatBadXform)
       delete pProf2;
-    unlink(path1); unlink(path2);
+    unlink(path1);
     return 0;
   }
 
   // === TOOL LINE 783: Begin() ===
   if (cmm.Begin() != icCmmStatOk) {
-    unlink(path1); unlink(path2);
+    unlink(path1);
     return 0;
   }
 
@@ -191,7 +184,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   int nSrc = icGetSpaceSamples(cmm.GetSourceSpace());
   int nDst = icGetSpaceSamples(cmm.GetDestSpace());
   if (nSrc <= 0 || nSrc > 16 || nDst <= 0 || nDst > 16) {
-    unlink(path1); unlink(path2);
+    unlink(path1);
     return 0;
   }
 
@@ -269,6 +262,5 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   unlink(path1);
-  unlink(path2);
   return 0;
 }
