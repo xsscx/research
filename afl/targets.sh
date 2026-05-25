@@ -113,6 +113,7 @@ afl_configure_target() {
     AFL_DISABLE_TRIM_TARGET=0
     AFL_FAST_CAL_TARGET=0
     REQUIRED_FILES=()
+    SEED_FILES=()
     SEED_DIRS=()
     AFL_ARGS=()
 
@@ -260,7 +261,7 @@ afl_configure_target() {
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/extended-test-profiles"
             )
-            AFL_ARGS=("@@" "ALL")
+            AFL_ARGS=("-v" "100" "@@" "ALL")
             ;;
         fromcube)
             BINARY="$BIN_DIR/iccFromCube"
@@ -421,14 +422,24 @@ afl_configure_target() {
         v5dspobs)
             BINARY="$BIN_DIR/iccV5DspObsToV4Dsp"
             DICT="$REPO_ROOT/cfl/icc_v5dspobs_fuzzer.dict"
+            SEED_FILES=(
+                "$REPO_ROOT/test-profiles/LCDDisplay.icc"
+                "$REPO_ROOT/test-profiles/Rec2020rgbSpectral.icc"
+                "$REPO_ROOT/test-profiles/sRGBDisplaySpectral.icc"
+                "$REPO_ROOT/test-profiles/P3DisplaySpectral.icc"
+                "$REPO_ROOT/test-profiles/OLEDDisplaySpectral.icc"
+                "$REPO_ROOT/test-profiles/MicroLEDSpectral.icc"
+                "$REPO_ROOT/test-profiles/WideGamutSpectral.icc"
+                "$REPO_ROOT/test-profiles/RGBWProjectorSpectral.icc"
+            )
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/extended-test-profiles"
             )
-            REQUIRED_FILES=("$fixed_observer")
+            REQUIRED_FILES=("$fixed_observer" "${SEED_FILES[@]}")
             SEED_MAX_BYTES=524288
-            TARGET_NOTE="v5 display/observer conversion lane: @@ should be a v5 spectral display profile such as Rec2020rgbSpectral.icc."
+            TARGET_NOTE="v5 display/observer conversion lane: iccV5DspObsToV4Dsp @@ $fixed_observer <output>; curated v5 display seeds are always copied."
             AFL_ARGS=("@@" "$fixed_observer" "${tmp_prefix}.icc")
             ;;
         *)

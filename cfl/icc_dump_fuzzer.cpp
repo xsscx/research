@@ -41,6 +41,7 @@
     Version:    V4 - File-based I/O matching upstream iccDumpProfile.cpp
 
     Upstream tool: Tools/CmdLine/IccDumpProfile/iccDumpProfile.cpp
+    Modeled command: iccDumpProfile -v 100 <input> ALL
     AST gates match tool lines:
       Gate 0: argc/size check (tool line 155)
       Gate 0b: Tag table size validation (CWE-789 guard)
@@ -87,24 +88,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   close(fd);
   if (written != (ssize_t)size) { unlink(fuzzTmp); return 0; }
 
-  // Derive control from trailing bytes
-  uint8_t verbByte = data[size - 1];
-  uint8_t modeByte = (size >= 133) ? data[size - 2] : 0;
-  int verboseness = (verbByte % 100) + 1;
-  bool useValidatePath = (modeByte & 0x01);
+  // Match the AFL dump lane and maximum-coverage CLI shape:
+  // iccDumpProfile -v 100 <input> ALL
+  const int verboseness = 100;
 
-  // Gate 1: Parse profile via two paths matching upstream tool
+  // Gate 1: Parse profile via ValidateIccProfile(path) - tool line 198 (-v flag)
   CIccProfile *pIcc = nullptr;
 
-  if (useValidatePath) {
-    // Validating path: ValidateIccProfile(path) - tool line 198 (-v flag)
-    std::string report;
-    icValidateStatus nStatus = icValidateOK;
-    pIcc = ValidateIccProfile(fuzzTmp, report, nStatus);
-  } else {
-    // Non-validating path: OpenIccProfile(path) - tool line 218
-    pIcc = OpenIccProfile(fuzzTmp);
-  }
+  std::string report;
+  icValidateStatus nStatus = icValidateOK;
+  pIcc = ValidateIccProfile(fuzzTmp, report, nStatus);
 
   unlink(fuzzTmp);
   if (!pIcc) return 0;

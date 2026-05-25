@@ -104,6 +104,12 @@ mkdir -p "$AFL_DIR"/{input,output}
 # Seed corpus - copy from all seed sources if input dir is empty
 if [[ $(find "$AFL_DIR/input" -mindepth 1 -maxdepth 1 -type f 2>/dev/null | wc -l) -eq 0 ]]; then
     echo "[*] Seeding input corpus..."
+    for seed_file in "${SEED_FILES[@]}"; do
+        if [[ -f "$seed_file" ]]; then
+            echo "    $(dirname "$seed_file")/$(basename "$seed_file")"
+            cp --update=none "$seed_file" "$AFL_DIR/input/"
+        fi
+    done
     for seed_dir in "${SEED_DIRS[@]}"; do
         if [[ -d "$seed_dir" ]]; then
             seed_find=(find "$seed_dir" -maxdepth 1 -type f)

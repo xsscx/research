@@ -4,15 +4,17 @@
     Version:    V4
 
     Tool:       iccDEV/Tools/CmdLine/IccV5DspObsToV4Dsp/iccV5DspObsToV4Dsp.cpp
-    Usage:      iccV5DspObsToV4Dsp inputV5.icc inputObserverV5.icc outputV4.icc
+    Modeled command:
+      iccV5DspObsToV4Dsp inputV5.icc inputObserverV5.icc outputV4.icc
 
     FIDELITY RULE: This fuzzer does EXACTLY what the tool does, in the same order,
     with the same API calls. NO pre-validation beyond what the tool performs.
     The library is the system under test - let it see every input.
 
-    Input format: Two ICC profiles concatenated. The split point is determined by
-    the first profile's own size field (bytes 0-3, big-endian uint32), which is how
-    CIccFileIO::Read() determines profile boundaries. No artificial size prefix.
+    Input format: Two argv inputs concatenated as [display.icc][observer.icc].
+    The split point is determined by the display profile's own ICC size field
+    (bytes 0-3, big-endian uint32), then the harness writes temp files for
+    argv[1], argv[2], and argv[3].
 */
 
 /*
