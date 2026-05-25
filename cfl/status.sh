@@ -171,6 +171,8 @@ collect_status() {
     action="$SCRIPT_DIR/status.sh $fuzzer --detail"
   elif [[ "$oom_count" -gt 0 || "$timeout_count" -gt 0 ]]; then
     action="find $artifact_dir -maxdepth 1 -type f \\( -name 'oom-*' -o -name 'timeout-*' \\) -print"
+  elif [[ "$slow_count" -gt 0 ]]; then
+    action="find $artifact_dir -maxdepth 1 -type f -name 'slow-unit-*' -print"
   elif [[ "$status" == "STALE" ]]; then
     action="$SCRIPT_DIR/stop.sh $fuzzer --reap"
   elif [[ "$status" == "STOPPED" ]]; then
@@ -225,7 +227,7 @@ done
 echo ""
 for row in "${STATUSES[@]}"; do
   IFS=$'\t' read -r fuzzer status pid runtime corpus_count artifact_count crash_count leak_count oom_count timeout_count slow_count other_count profraw_count corpus run_dir event action warn <<< "$row"
-  if [[ "$status" == "STALE" || "$crash_count" -gt 0 || "$leak_count" -gt 0 || "$oom_count" -gt 0 || "$timeout_count" -gt 0 || -n "$warn" ]]; then
+  if [[ "$status" == "STALE" || "$crash_count" -gt 0 || "$leak_count" -gt 0 || "$oom_count" -gt 0 || "$timeout_count" -gt 0 || "$slow_count" -gt 0 || -n "$warn" ]]; then
     echo "[$fuzzer] $status"
     [[ -n "$warn" ]] && echo "  [WARN] $warn"
     echo "  Artifacts: crash=$crash_count leak=$leak_count oom=$oom_count timeout=$timeout_count slow-unit=$slow_count other=$other_count"
