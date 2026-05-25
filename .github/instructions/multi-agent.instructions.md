@@ -22,8 +22,8 @@ cd colorbleed_tools && make setup && make
 cd mcp-server && pip install -e .
 ```
 
-Performance: use `/home/` paths (NOT `/mnt/c/`), ramdisk for fuzzing
-(`sudo mount -t tmpfs -o size=4G tmpfs /tmp/fuzz-ramdisk`).
+Performance: use `/home/` paths (NOT `/mnt/c/`) and local SSD/scratch storage
+for fuzzing corpora.
 
 ### macOS
 

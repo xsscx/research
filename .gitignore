@@ -150,7 +150,7 @@ doxygen-warnings.log
 # Source-of-truth build
 source-of-truth/
 
-# Fuzz corpus (ephemeral, synced from ramdisk)
+# Fuzz corpus (ephemeral, synced from scratch storage)
 cfl/corpus-*/
 cfl/*_seed_corpus/
 cfl/consolidated-seed/

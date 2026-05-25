@@ -1,7 +1,7 @@
 ---
 name: corpus-management
 description: >
-  Manage fuzzing corpus lifecycle: ramdisk/SSD setup, fuzzer execution,
+  Manage fuzzing corpus lifecycle: SSD/scratch setup, fuzzer execution,
   coverage collection, corpus merge and dedup, and artifact preservation.
 allowed-tools:
   - bash
@@ -15,22 +15,18 @@ allowed-tools:
 
 ## Overview
 
-Manage fuzzing corpus across storage tiers: permanent (`cfl/corpus-*/`),
-ramdisk (`/tmp/fuzz-ramdisk`), and local disk. Covers setup, fuzzing,
-coverage, merge, dedup, and cleanup.
+Manage fuzzing corpus across permanent (`cfl/corpus-*/`) and scratch/SSD
+storage. Covers setup, fuzzing, coverage, merge, dedup, and cleanup.
 
 ## Workflow
 
-### 1. Setup Storage
+### 1. Setup Scratch Storage
 
 ```bash
-# Optional ramdisk (8GB tmpfs, short runs)
-sudo mkdir -p /tmp/fuzz-ramdisk
-sudo mount -t tmpfs -o size=8G,noatime,nodev,nosuid tmpfs /tmp/fuzz-ramdisk
-mkdir -p /tmp/fuzz-ramdisk/bin /tmp/fuzz-ramdisk/dict /tmp/fuzz-ramdisk/logs /tmp/fuzz-ramdisk/profraw
-cp cfl/bin/icc_*_fuzzer /tmp/fuzz-ramdisk/bin/
-cp cfl/*.dict /tmp/fuzz-ramdisk/dict/
-for d in cfl/corpus-*; do rsync -a --ignore-existing "$d/" "/tmp/fuzz-ramdisk/$(basename "$d")/"; done
+# Optional SSD/scratch root for corpus pruning or long runs.
+SCRATCH=/mnt/fuzz-ssd
+mkdir -p "$SCRATCH"/logs "$SCRATCH"/profraw
+for d in cfl/corpus-*; do rsync -a --ignore-existing "$d/" "$SCRATCH/$(basename "$d")/"; done
 
 # Status check
 for d in cfl/corpus-*/; do
@@ -57,7 +53,7 @@ Special flags: `icc_link_fuzzer` needs `quarantine_size_mb=256`.
 
 ```bash
 # Clear stale profraw (invalidated by rebuild)
-find . /tmp/fuzz-ramdisk -name '*.profraw' -type f -delete
+find . /mnt/fuzz-ssd -name '*.profraw' -type f -delete
 
 # Merge and report
 llvm-profdata-18 merge -sparse /path/profraw/*.profraw -o merged.profdata
@@ -69,8 +65,8 @@ llvm-cov-18 report $OBJS -instr-profile=merged.profdata
 
 Copy crash/oom/timeout files BEFORE cleaning storage:
 ```bash
-rsync -a --ignore-existing /tmp/fuzz-ramdisk/crash-* ./ 2>/dev/null
-rsync -a --ignore-existing /tmp/fuzz-ramdisk/timeout-* ./test-profiles/cwe-400/ 2>/dev/null
+rsync -a --ignore-existing cfl/runs/*/artifacts/crash-* ./ 2>/dev/null
+rsync -a --ignore-existing cfl/runs/*/artifacts/timeout-* ./test-profiles/cwe-400/ 2>/dev/null
 ```
 
 ### 5. Corpus Merge (Tournament Bracket)
@@ -101,8 +97,8 @@ Compare file counts (local must be >= source) before swapping directories.
 - After rebuilding fuzzers, ALL old profraw is invalid (binary hash mismatch)
 - Use `${fuzzer_name}_%m_%p.profraw` naming (not just `%m.profraw`)
 - ALL batch operations MUST use all available CPU cores
-- Use existing `.github/scripts/ramdisk-merge.sh` -- do NOT create custom scripts
-- Only 11 corpus dirs have matching binaries; `corpus-xml` is a staging area
+- Use existing `.github/scripts/corpus-merge.sh` -- do NOT create custom scripts
+- Only corpus dirs matching `cfl/fuzzers.sh` are runnable; `corpus-xml` is a staging area
 
 ## References
 

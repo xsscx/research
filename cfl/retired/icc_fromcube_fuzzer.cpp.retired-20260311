@@ -335,7 +335,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 10 || size > 2 * 1024 * 1024) return 0;
 
   // Write fuzzer data to temp file (CubeFile reads from file)
-  // Use FUZZ_TMPDIR env var to redirect temp I/O to ramdisk
+  // Use FUZZ_TMPDIR env var to redirect temp I/O to scratch storage
   const char *tmpdir = fuzz_tmpdir();
   char temp_input[PATH_MAX];
   if (!fuzz_build_path(temp_input, sizeof(temp_input), tmpdir, "/fuzz_fromcube_XXXXXX")) return 0;

@@ -11,7 +11,6 @@
 # Usage:
 #   .github/scripts/harvest-xnu-seeds.sh              # scan both repos
 #   .github/scripts/harvest-xnu-seeds.sh --dry-run     # report only
-#   .github/scripts/harvest-xnu-seeds.sh --ramdisk /tmp/fuzz-ramdisk
 #
 # Prerequisites:
 #   - xnuimagetools/fuzzed-images/ must contain committed images
@@ -29,22 +28,19 @@ CFL_DIR="$REPO_ROOT/cfl"
 EXTRACT_SCRIPT="$REPO_ROOT/xnuimagetools/contrib/scripts/extract-icc-seeds.py"
 OUTPUT_DIR="/tmp/harvest-xnu-seeds"
 DRY_RUN=false
-RAMDISK=""
 
 # Parse args
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=true; shift ;;
-    --ramdisk) RAMDISK="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 [--dry-run] [--ramdisk PATH]"
+      echo "Usage: $0 [--dry-run]"
       echo ""
       echo "Harvests fuzzed images from xnuimagetools and xnuimagefuzzer"
       echo "into CFL fuzzer corpora for continued fuzzing."
       echo ""
       echo "Options:"
       echo "  --dry-run         Report what would be harvested without copying"
-      echo "  --ramdisk PATH    Also copy seeds to ramdisk corpus directories"
       exit 0
       ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
@@ -139,20 +135,6 @@ for src in "${SOURCES[@]}"; do
     TOTAL_TIFF=$((TOTAL_TIFF + TIFF))
   fi
 done
-
-# ── Phase 2: Copy to ramdisk if specified ────────────────────
-if [ -n "$RAMDISK" ] && [ -d "$RAMDISK" ]; then
-  banner "Phase 2: Distributing to Ramdisk ($RAMDISK)"
-
-  for d in "${CORPUS_DIRS[@]}"; do
-    SRC="$CFL_DIR/$d"
-    DST="$RAMDISK/$d"
-    if [ -d "$SRC" ] && [ -d "$DST" ]; then
-      NEW=$(rsync -av --ignore-existing "$SRC/" "$DST/" 2>/dev/null | grep -c "\.icc\|\.tiff\|\.tif" || true)
-      echo "  $d: +$NEW new files → ramdisk"
-    fi
-  done
-fi
 
 # ── Post-harvest corpus counts ───────────────────────────────
 banner "Post-Harvest Corpus State"

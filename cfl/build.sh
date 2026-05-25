@@ -511,8 +511,8 @@ if [ "$BUILT" -gt 0 ]; then
   echo "SHA256 fingerprints:"
   sha256sum "$OUTPUT_DIR"/icc_* 2>/dev/null || shasum -a 256 "$OUTPUT_DIR"/icc_* 2>/dev/null
   echo ""
-  echo "Profraw: set LLVM_PROFILE_FILE to control output, for example /tmp/fuzz-ramdisk/profraw/\${fuzzer}_%m_%p.profraw"
-  echo "  Merge:  llvm-profdata merge -sparse /tmp/fuzz-ramdisk/profraw/*.profraw -o merged.profdata"
+  echo "Profraw: set LLVM_PROFILE_FILE to control output, for example /mnt/fuzz-ssd/profraw/\${fuzzer}_%m_%p.profraw"
+  echo "  Merge:  llvm-profdata merge -sparse /mnt/fuzz-ssd/profraw/*.profraw -o merged.profdata"
   echo "  Report: llvm-cov report \$(printf ' -object %s' $OUTPUT_DIR/icc_*) -instr-profile=merged.profdata"
 fi
 

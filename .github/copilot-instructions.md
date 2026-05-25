@@ -9,7 +9,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 
 | Skill | Use When |
 |-------|----------|
-| `corpus-management` | Manage fuzzing corpus lifecycle, ramdisk/SSD setup, merges, dedup, and artifact preservation |
+| `corpus-management` | Manage fuzzing corpus lifecycle, SSD/scratch setup, merges, dedup, and artifact preservation |
 | `icc-crash-triage` | Triage ASAN/UBSAN fuzzer crashes, classify exit codes, attribute stack traces, and map CWE ownership |
 | `icc-security-analysis` | Run full ICC/TIFF/PNG/JPEG security analysis with structural, registry, round-trip, and report steps |
 | `iccdev-linear-stack` | Rebase an iccDEV feature branch onto upstream master and stack commits without merge commits |

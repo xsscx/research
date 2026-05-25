@@ -8,11 +8,10 @@ set -euo pipefail
 # fuzzer seed corpuses.
 #
 # Usage:
-#   .github/scripts/seed-pipeline.sh <image-dir> [--distribute] [--ramdisk]
+#   .github/scripts/seed-pipeline.sh <image-dir> [--distribute]
 #
 # Options:
 #   --distribute  Copy seeds to cfl/*_seed_corpus/ directories
-#   --ramdisk     Also copy to /tmp/fuzz-ramdisk/corpus-*
 #
 # Prerequisites: exiftool, python3, tifffile, Pillow
 
@@ -48,14 +47,12 @@ ICC_PROFILES=(
 # ── Argument parsing ──
 IMAGE_DIR=""
 DISTRIBUTE=0
-RAMDISK=0
 
 for arg in "$@"; do
   case "$arg" in
     --distribute) DISTRIBUTE=1 ;;
-    --ramdisk)    RAMDISK=1 ;;
     --help|-h)
-      echo "Usage: $0 <image-dir> [--distribute] [--ramdisk]"
+      echo "Usage: $0 <image-dir> [--distribute]"
       exit 0
       ;;
     *)
@@ -71,7 +68,7 @@ done
 
 if [ -z "$IMAGE_DIR" ]; then
   echo "Error: image directory required" >&2
-  echo "Usage: $0 <image-dir> [--distribute] [--ramdisk]" >&2
+  echo "Usage: $0 <image-dir> [--distribute]" >&2
   exit 1
 fi
 
@@ -106,7 +103,6 @@ echo "  Source:      $IMAGE_DIR"
 echo "  Profiles:    ${#ICC_PROFILES[@]} ICC profiles"
 echo "  Max size:    $MAX_SIZE bytes"
 echo "  Distribute:  $([ $DISTRIBUTE -eq 1 ] && echo YES || echo NO)"
-echo "  Ramdisk:     $([ $RAMDISK -eq 1 ] && echo YES || echo NO)"
 echo ""
 
 # ── Phase 1: Validate images ──
@@ -264,20 +260,6 @@ if [ $DISTRIBUTE -eq 1 ]; then
   done
   echo "  ICC fuzzers: +$icc_added extracted profiles"
 
-  # Ramdisk
-  if [ $RAMDISK -eq 1 ] && [ -d /tmp/fuzz-ramdisk ]; then
-    rd_added=0
-    for f in "$STAGING/embedded"/*.tiff "$STAGING/embedded"/*.tif; do
-      [ -f "$f" ] || continue
-      bn=$(basename "$f")
-      target="/tmp/fuzz-ramdisk/corpus-icc_tiffdump_fuzzer/$bn"
-      if [ ! -f "$target" ]; then
-        cp "$f" "$target"
-        rd_added=$((rd_added + 1))
-      fi
-    done
-    echo "  ramdisk: +$rd_added"
-  fi
 fi
 
 echo ""

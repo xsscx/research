@@ -139,16 +139,16 @@ cd cfl
 ```bash
 # Prepare /mnt/g/fuzz-ssd with bin/, dict/, logs/, profraw/, and corpus-* dirs.
 cd cfl && ./fuzz-local.sh -r /mnt/g/fuzz-ssd -w 8 -t 3600
-.github/scripts/ramdisk-merge.sh --ramdisk /mnt/g/fuzz-ssd
-.github/scripts/ramdisk-sync-to-disk.sh --ramdisk /mnt/g/fuzz-ssd
+../.github/scripts/corpus-merge.sh --scratch /mnt/g/fuzz-ssd
+rsync -a /mnt/g/fuzz-ssd/corpus-* ./
 ```
 
 ### Coverage
 
 ```bash
-.github/scripts/merge-profdata.sh /tmp/fuzz-ramdisk/profraw
+.github/scripts/merge-profdata.sh /mnt/g/fuzz-ssd/profraw
 .github/scripts/generate-coverage-report.sh \
-  /tmp/fuzz-ramdisk/merged.profdata /tmp/fuzz-ramdisk/coverage-report
+  /mnt/g/fuzz-ssd/merged.profdata /mnt/g/fuzz-ssd/coverage-report
 ```
 
 Set `LLVM_PROFILE_FILE=/dev/null` for fuzzing runs where coverage files are not
