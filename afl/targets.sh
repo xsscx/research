@@ -115,6 +115,7 @@ afl_configure_target() {
     REQUIRED_FILES=()
     SEED_FILES=()
     SEED_DIRS=()
+    SEED_FILE_TYPE_REGEX=""
     AFL_ARGS=()
 
     case "$target" in
@@ -382,6 +383,7 @@ afl_configure_target() {
             BINARY="$BIN_DIR/iccTiffDump"
             AFL_DIR="$AFL_BASE/afl-tiffdump"
             DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
+            SEED_FILE_TYPE_REGEX='^(TIFF image data|Big TIFF image data)'
             SEED_DIRS=(
                 "$AFL_BASE/afl-tiffdump/input"
                 "$REPO_ROOT/fuzz/graphics/tif"
@@ -389,6 +391,7 @@ afl_configure_target() {
                 "$REPO_ROOT/test-profiles/tiff-codecs"
                 "$REPO_ROOT/test-profiles"
             )
+            TARGET_NOTE="TIFF dump lane: seed corpus is filtered by file(1) to TIFF/BigTIFF inputs."
             AFL_ARGS=("@@")
             ;;
         tojson)

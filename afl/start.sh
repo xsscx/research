@@ -101,13 +101,41 @@ fi
 # Set up AFL directories
 mkdir -p "$AFL_DIR"/{input,output}
 
+seed_file_allowed() {
+    local seed_file="$1"
+    local seed_type
+
+    if [[ -z "${SEED_FILE_TYPE_REGEX:-}" ]]; then
+        return 0
+    fi
+
+    if ! command -v file >/dev/null 2>&1; then
+        echo "ERROR: file(1) is required for target seed filtering" >&2
+        exit 1
+    fi
+
+    seed_type=$(file -b -- "$seed_file" 2>/dev/null || true)
+    [[ "$seed_type" =~ $SEED_FILE_TYPE_REGEX ]]
+}
+
+copy_seed_file() {
+    local seed_file="$1"
+
+    if ! seed_file_allowed "$seed_file"; then
+        return 1
+    fi
+
+    cp --update=none -- "$seed_file" "$AFL_DIR/input/"
+}
+
 # Seed corpus - copy from all seed sources if input dir is empty
 if [[ $(find "$AFL_DIR/input" -mindepth 1 -maxdepth 1 -type f 2>/dev/null | wc -l) -eq 0 ]]; then
     echo "[*] Seeding input corpus..."
     for seed_file in "${SEED_FILES[@]}"; do
         if [[ -f "$seed_file" ]]; then
-            echo "    $(dirname "$seed_file")/$(basename "$seed_file")"
-            cp --update=none "$seed_file" "$AFL_DIR/input/"
+            if copy_seed_file "$seed_file"; then
+                echo "    $(dirname "$seed_file")/$(basename "$seed_file")"
+            fi
         fi
     done
     for seed_dir in "${SEED_DIRS[@]}"; do
@@ -116,16 +144,26 @@ if [[ $(find "$AFL_DIR/input" -mindepth 1 -maxdepth 1 -type f 2>/dev/null | wc -
             if [[ "${SEED_MAX_BYTES:-0}" -gt 0 ]]; then
                 seed_find+=( -size "-${SEED_MAX_BYTES}c" )
             fi
-            count=$("${seed_find[@]}" 2>/dev/null | wc -l)
+            seed_candidates=()
+            while IFS= read -r -d '' seed_candidate; do
+                if seed_file_allowed "$seed_candidate"; then
+                    seed_candidates+=("$seed_candidate")
+                fi
+            done < <("${seed_find[@]}" -print0 2>/dev/null)
+            count=${#seed_candidates[@]}
             if [[ "${SEED_MAX_BYTES:-0}" -gt 0 ]]; then
-                echo "    $seed_dir ($count files <= ${SEED_MAX_BYTES} bytes)"
+                echo "    $seed_dir ($count eligible files <= ${SEED_MAX_BYTES} bytes)"
             else
-                echo "    $seed_dir ($count files)"
+                echo "    $seed_dir ($count eligible files)"
             fi
             if [[ "$count" -gt "${SEED_LIMIT:-200}" ]]; then
-                "${seed_find[@]}" | shuf -n "${SEED_LIMIT:-200}" | xargs -r -I{} cp --update=none {} "$AFL_DIR/input/"
+                while IFS= read -r -d '' seed_candidate; do
+                    copy_seed_file "$seed_candidate"
+                done < <(printf '%s\0' "${seed_candidates[@]}" | shuf -z -n "${SEED_LIMIT:-200}")
             else
-                "${seed_find[@]}" -exec cp --update=none {} "$AFL_DIR/input/" \;
+                for seed_candidate in "${seed_candidates[@]}"; do
+                    copy_seed_file "$seed_candidate"
+                done
             fi
         fi
     done
@@ -152,6 +190,11 @@ if [[ -n "$TARGET_NOTE" ]]; then
     echo "[WARN] $TARGET_NOTE"
 fi
 echo ""
+
+if [[ "${AFL_SEED_ONLY:-0}" == "1" ]]; then
+    echo "[OK] Seed-only mode complete"
+    exit 0
+fi
 
 # Build AFL command
 DICT_ARG=""
