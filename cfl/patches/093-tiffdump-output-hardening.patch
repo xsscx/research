@@ -1,0 +1,347 @@
+From db2f6e79b43a4a40fe561b16c19edb45bba7e25c Mon Sep 17 00:00:00 2001
+From: D Hoyt <xss@xss.cx>
+Date: Tue, 26 May 2026 08:48:18 -0400
+Subject: [PATCH] Fix: harden iccTiffDump output
+
+---
+ .../iccdev-tiffdump-output-hardening-tests.sh |  85 +++++++++++++++
+ .../scripts/iccdev-tool-coverage-baseline.sh  |  34 +++++-
+ Build/Cmake/Testing/CMakeLists.txt            |  11 ++
+ Tools/CmdLine/IccTiffDump/iccTiffDump.cpp     | 102 ++++++++++++++----
+ 4 files changed, 209 insertions(+), 23 deletions(-)
+ create mode 100755 .github/scripts/iccdev-tiffdump-output-hardening-tests.sh
+
+diff --git a/.github/scripts/iccdev-tiffdump-output-hardening-tests.sh b/.github/scripts/iccdev-tiffdump-output-hardening-tests.sh
+new file mode 100755
+index 0000000..68b3b49
+--- /dev/null
++++ b/.github/scripts/iccdev-tiffdump-output-hardening-tests.sh
+@@ -0,0 +1,85 @@
++#!/bin/bash
++# Regression tests for iccTiffDump attacker-controlled console output.
++
++set -euo pipefail
++
++REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
++TOOLS="${ICCDEV_TOOLS_DIR:-$REPO_ROOT/Build/Tools}"
++ICCDEV_TESTING="${ICCDEV_TESTING_DIR:-$REPO_ROOT/Testing}"
++OUTDIR="${ICCDEV_TEST_OUTDIR:-/tmp/iccdev-tiffdump-output-hardening}"
++TIFFDUMP="$TOOLS/IccTiffDump/iccTiffDump"
++
++mkdir -p "$OUTDIR"
++
++if [ ! -x "$TIFFDUMP" ]; then
++  echo "[FAIL] missing executable: $TIFFDUMP"
++  exit 1
++fi
++
++SAMPLE_TIFF="$ICCDEV_TESTING/hybrid/Data/TShirtDesignKW.tif"
++if [ ! -f "$SAMPLE_TIFF" ]; then
++  echo "[FAIL] missing sample TIFF: $SAMPLE_TIFF"
++  exit 1
++fi
++
++pass=0
++fail=0
++
++run_ok() {
++  local name="$1"
++  shift
++
++  if "$@"; then
++    echo "  [PASS] $name"
++    pass=$((pass + 1))
++  else
++    echo "  [FAIL] $name"
++    fail=$((fail + 1))
++  fi
++}
++
++test_profile_description_escaping() {
++  local mutated="$OUTDIR/tiffdump-mutated-desc.tif"
++  local log="$OUTDIR/tiffdump-mutated-desc.log"
++
++  cp "$SAMPLE_TIFF" "$mutated"
++  perl -0pi -e 's/Dot Gain 20%/bad\n\e[31mX!!/g' "$mutated"
++  "$TIFFDUMP" "$mutated" > "$log" 2>&1
++
++  grep -Fq 'Description:      bad\n\x1B[31mX!!' "$log" || return 1
++  ! grep -q "$(printf '\033')" "$log"
++}
++
++test_input_path_escaping() {
++  local odd="$OUTDIR/name_with_
++newline.tif"
++  local log="$OUTDIR/tiffdump-path-escape.log"
++
++  cp "$SAMPLE_TIFF" "$odd"
++  "$TIFFDUMP" "$odd" > "$log" 2>&1
++
++  grep -Fq 'Filename:          '"$OUTDIR"'/name_with_\nnewline.tif' "$log" || return 1
++  ! grep -q "$(printf '\033')" "$log"
++}
++
++test_export_path_escaping() {
++  local dst="$OUTDIR/export_with_
++newline.icc"
++  local log="$OUTDIR/tiffdump-export-escape.log"
++
++  "$TIFFDUMP" "$SAMPLE_TIFF" "$dst" > "$log" 2>&1
++
++  [ -s "$dst" ] || return 1
++  grep -Fq 'Profile extracted to: '"$OUTDIR"'/export_with_\nnewline.icc' "$log"
++}
++
++echo "=== iccTiffDump output hardening regression ==="
++run_ok "tiffdump-profile-description-escape" test_profile_description_escaping
++run_ok "tiffdump-input-path-escape" test_input_path_escaping
++run_ok "tiffdump-export-path-escape" test_export_path_escaping
++
++echo "iccTiffDump output hardening regression: $pass passed, $fail failed, $((pass + fail)) total"
++
++if [ "$fail" -ne 0 ]; then
++  exit 1
++fi
+diff --git a/.github/scripts/iccdev-tool-coverage-baseline.sh b/.github/scripts/iccdev-tool-coverage-baseline.sh
+index fed6b43..19cb27b 100755
+--- a/.github/scripts/iccdev-tool-coverage-baseline.sh
++++ b/.github/scripts/iccdev-tool-coverage-baseline.sh
+@@ -937,7 +937,7 @@ fi
+ echo ""
+ 
+ # =============================================================================
+-# 10. iccTiffDump (6 tests)
++# 10. iccTiffDump (9 tests)
+ # =============================================================================
+ echo "--- 10. iccTiffDump ---"
+ TIFFDUMP="$TOOLS/IccTiffDump/iccTiffDump"
+@@ -986,6 +986,38 @@ if [ -f "$SPECTRAL_TIFF" ]; then
+     "$TIFFDUMP" "$SPECTRAL_TIFF"
+ fi
+ 
++if [ -f "$ICCDEV_TESTING/hybrid/Data/TShirtDesignKW.tif" ]; then
++  run_test "tdump-08" "Escape controlled ICC description text" \
++    bash -c 'set -euo pipefail
++      sample="$1"; tool="$2"; outdir="$3"
++      mutated="$outdir/tiffdump-mutated-desc.tif"
++      log="$outdir/tiffdump-mutated-desc.out"
++      cp "$sample" "$mutated"
++      perl -0pi -e '"'"'s/Dot Gain 20%/bad\n\e[31mX!!/g'"'"' "$mutated"
++      "$tool" "$mutated" > "$log" 2>&1
++      grep -Fq "Description:      bad\\n\\x1B[31mX!!" "$log"
++      ! grep -q "$(printf '"'"'\033'"'"')" "$log"
++    ' _ "$ICCDEV_TESTING/hybrid/Data/TShirtDesignKW.tif" "$TIFFDUMP" "$OUTDIR"
++
++  run_test "tdump-09" "Escape controlled TIFF input/output paths" \
++    bash -c 'set -euo pipefail
++      sample="$1"; tool="$2"; outdir="$3"
++      odd="$outdir/name_with_
++newline.tif"
++      dst="$outdir/export_with_
++newline.icc"
++      log="$outdir/tiffdump-paths.out"
++      cp "$sample" "$odd"
++      "$tool" "$odd" "$dst" > "$log" 2>&1
++      [ -s "$dst" ]
++      grep -Fq "Filename:          $outdir/name_with_\\nnewline.tif" "$log"
++      grep -Fq "Profile extracted to: $outdir/export_with_\\nnewline.icc" "$log"
++    ' _ "$ICCDEV_TESTING/hybrid/Data/TShirtDesignKW.tif" "$TIFFDUMP" "$OUTDIR"
++else
++  skip_test "tdump-08" "Escape controlled ICC description text" "TShirtDesignKW TIFF fixture unavailable"
++  skip_test "tdump-09" "Escape controlled TIFF input/output paths" "TShirtDesignKW TIFF fixture unavailable"
++fi
++
+ echo ""
+ 
+ # =============================================================================
+diff --git a/Build/Cmake/Testing/CMakeLists.txt b/Build/Cmake/Testing/CMakeLists.txt
+index 45e872a..2677400 100644
+--- a/Build/Cmake/Testing/CMakeLists.txt
++++ b/Build/Cmake/Testing/CMakeLists.txt
+@@ -484,6 +484,17 @@ set_tests_properties(iccdev.dump-profile-header-regression PROPERTIES
+   FIXTURES_REQUIRED iccdev_profiles
+ )
+ 
++iccdev_add_script_test(
++  iccdev.tiffdump-output-hardening
++  120
++  "iccdev;tiffdump;output;regression;asan"
++  "${ICCDEV_REPO_ROOT}"
++  "${ICCDEV_REPO_ROOT}/.github/scripts/iccdev-tiffdump-output-hardening-tests.sh"
++)
++set_tests_properties(iccdev.tiffdump-output-hardening PROPERTIES
++  FIXTURES_REQUIRED iccdev_profiles
++)
++
+ iccdev_add_script_test(
+   iccdev.basic-string-regressions
+   120
+diff --git a/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp b/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp
+index f86fab8..ebc69e1 100644
+--- a/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp
++++ b/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp
+@@ -70,6 +70,7 @@
+ 
+ 
+ #include <cstdio>
++#include <string>
+ #include "IccCmm.h"
+ #include "IccUtil.h"
+ #include "IccDefs.h"
+@@ -119,6 +120,65 @@ const char* GetId(unsigned long nId, IdList* pIdList)
+   return pIdList->szName;
+ }
+ 
++static FILE* icOpenWriteBinaryFile(const char* szFname);
++
++static std::string SanitizeConsoleText(const char* szText)
++{
++  static const char hex[] = "0123456789ABCDEF";
++  std::string result;
++
++  if (!szText)
++    return result;
++
++  for (const unsigned char *p = (const unsigned char*)szText; *p; p++) {
++    unsigned char ch = *p;
++
++    switch (ch) {
++    case '\n':
++      result += "\\n";
++      break;
++    case '\r':
++      result += "\\r";
++      break;
++    case '\t':
++      result += "\\t";
++      break;
++    default:
++      if (ch < 0x20 || ch == 0x7f || (ch >= 0x80 && ch <= 0x9f)) {
++        result += "\\x";
++        result += hex[(ch >> 4) & 0xf];
++        result += hex[ch & 0xf];
++      }
++      else {
++        result += (char)ch;
++      }
++      break;
++    }
++  }
++
++  return result;
++}
++
++static std::string SanitizeConsoleText(const std::string& text)
++{
++  return SanitizeConsoleText(text.c_str());
++}
++
++static bool WriteEmbeddedIccProfile(const char* szFname, const unsigned char *pProfMem, unsigned int nLen)
++{
++  if (!pProfMem || !nLen)
++    return false;
++
++  FILE *fp = icOpenWriteBinaryFile(szFname);
++  if (!fp)
++    return false;
++
++  bool failed = (fwrite(pProfMem, 1, nLen, fp) != nLen);
++  (void)fclose(fp);
++
++  return !failed;
++}
++
+ void Usage() 
+ {
+   printf("iccTiffDump built with IccProfLib version " ICCPROFLIBVER "\n\n");
+@@ -156,7 +216,8 @@ void DumpProfileInfo(CIccProfile* pProfile, std::string prefix)
+   if (pDesc) {
+     if (pDesc->GetType() == icSigTextDescriptionType) {
+       CIccTagTextDescription* pText = (CIccTagTextDescription*)pDesc;
+-      printf("%sDescription:      %s\n", prefix.c_str(), pText->GetText());
++      std::string desc = SanitizeConsoleText(pText->GetText());
++      printf("%sDescription:      %s\n", prefix.c_str(), desc.c_str());
+     }
+     else if (pDesc->GetType() == icSigMultiLocalizedUnicodeType) {
+       CIccTagMultiLocalizedUnicode* pStrs = (CIccTagMultiLocalizedUnicode*)pDesc;
+@@ -165,7 +226,8 @@ void DumpProfileInfo(CIccProfile* pProfile, std::string prefix)
+         if (text != pStrs->m_Strings->end()) {
+           std::string line;
+           text->GetText(line);
+-          printf("%sDescription:      %s\n", prefix.c_str(), line.c_str());
++          std::string desc = SanitizeConsoleText(line);
++          printf("%sDescription:      %s\n", prefix.c_str(), desc.c_str());
+         }
+       }
+     }
+@@ -217,14 +279,16 @@ int main(int argc, icChar* argv[])
+     return 0;
+   }
+ 
++  std::string srcName = SanitizeConsoleText(argv[1]);
++
+   CTiffImg SrcImg;
+   if (!SrcImg.Open(argv[1])) {
+-    printf("\nFile [%s] cannot be opened.\n", argv[1]);
++    printf("\nFile [%s] cannot be opened.\n", srcName.c_str());
+     return -1;
+   }
+ 
+   printf("-------------------->Tiff Image Dump<---------------------------\n");
+-  printf("Filename:          %s\n", argv[1]);
++  printf("Filename:          %s\n", srcName.c_str());
+   printf("Size:              (%d x %d) pixels, (%.2lf\" x %.2lf\")\n",
+     SrcImg.GetWidth(), SrcImg.GetHeight(),
+     SrcImg.GetWidthIn(), SrcImg.GetHeightIn());
+@@ -244,29 +308,14 @@ int main(int argc, icChar* argv[])
+   if (SrcImg.GetIccProfile(pProfMem, nLen)) {
+     printf("Profile:           Embedded\n");
+ 
+-    // Optional profile export
+-    if (argc > 2 && pProfMem && nLen > 0) {
+-      FILE *fp = icOpenWriteBinaryFile(argv[2]);
+-      if (fp) {
+-        bool failed = (fwrite(pProfMem, 1, nLen, fp) != nLen);
+-        (void)fclose(fp);   // errors don't matter at this point
+-        if (failed)
+-          fprintf(stderr, "Failed to write ICC profile to %s\n", argv[2]);
+-        else
+-          printf("ICC profile saved to: %s\n", argv[2]);
+-      } else {
+-        fprintf(stderr, "Failed to write ICC profile to %s\n", argv[2]);
+-      }
+-    }
+-
+     // Profile description and metadata
+     CIccProfile *pProfile = OpenIccProfile(pProfMem, nLen);
+     if (pProfile) {
+       DumpProfileInfo(pProfile, " ");
+       if (argc > 2) {
+-        pProfile->ReadTags(pProfile);
+-        if (SaveIccProfile(argv[2], pProfile)) {
+-          printf("\nProfile extracted to: %s\n", argv[2]);
++        std::string dstName = SanitizeConsoleText(argv[2]);
++        if (pProfile->ReadTags(pProfile) && SaveIccProfile(argv[2], pProfile)) {
++          printf("\nProfile extracted to: %s\n", dstName.c_str());
+         }
+         else {
+           printf("\nUnable to extract profile\n");
+@@ -274,6 +323,15 @@ int main(int argc, icChar* argv[])
+       }
+       delete pProfile;
+     }
++    else if (argc > 2) {
++      std::string dstName = SanitizeConsoleText(argv[2]);
++      if (WriteEmbeddedIccProfile(argv[2], pProfMem, nLen)) {
++        printf("ICC profile bytes saved to: %s\n", dstName.c_str());
++      }
++      else {
++        fprintf(stderr, "Failed to write ICC profile to %s\n", dstName.c_str());
++      }
++    }
+   } else {
+     printf("Profile:           None\n");
+   }
+-- 
+2.43.0
+

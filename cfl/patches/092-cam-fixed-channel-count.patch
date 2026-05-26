@@ -1,0 +1,47 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index b8bf4f7..5c868a0 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -6295,10 +6324,15 @@ bool CIccMpeCAM::Read(icUInt32Number size, CIccIO *pIO)
+   if (!pIO->Read32(&m_nReserved))
+     return false;
+ 
+-  if (!pIO->Read16(&m_nInputChannels))
++  icUInt16Number nInputChannels, nOutputChannels;
++
++  if (!pIO->Read16(&nInputChannels))
+     return false;
+ 
+-  if (!pIO->Read16(&m_nOutputChannels))
++  if (!pIO->Read16(&nOutputChannels))
++    return false;
++
++  if (nInputChannels != 3 || nOutputChannels != 3)
+     return false;
+ 
+   icFloatNumber param[8];
+@@ -6308,11 +6342,15 @@ bool CIccMpeCAM::Read(icUInt32Number size, CIccIO *pIO)
+ 
+   if (m_pCAM)
+     delete m_pCAM;
++  m_pCAM = NULL;
+ 
+   m_pCAM = new (std::nothrow) CIccCamConverter;
+   if (!m_pCAM)
+     return false;
+ 
++  m_nInputChannels = nInputChannels;
++  m_nOutputChannels = nOutputChannels;
++
+   m_pCAM->SetParameter_WhitePoint(&param[0]);
+   m_pCAM->SetParameter_La(param[3]);
+   m_pCAM->SetParameter_Yb(param[4]);
+@@ -6363,7 +6401,7 @@ bool CIccMpeCAM::Write(CIccIO *pIO)
+ 
+ bool CIccMpeCAM::Begin(icElemInterp /* nInterp */, CIccTagMultiProcessElement * /* pMPE */ )
+ {
+-  if (m_pCAM) {
++  if (m_pCAM && m_nInputChannels == 3 && m_nOutputChannels == 3) {
+     return true;
+   }
+   return false;

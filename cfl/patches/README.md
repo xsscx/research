@@ -1,6 +1,6 @@
 # CFL Patches -- Active Security Fixes
 
-Last Updated: 2026-05-25
+Last Updated: 2026-05-26
 
 This directory contains the active CFL patch stack for current
 `InternationalColorConsortium/iccDEV:master`.
@@ -11,8 +11,8 @@ should link here instead of duplicating the full patch table.
 Current upstream baseline:
 
 - Branch: `origin/master`
-- Commit: `5f679e3`
-- Active patches: 35
+- Commit: `64a73f9`
+- Active patches: 37
 
 ## Build Modes
 
@@ -69,6 +69,8 @@ Patch application failures are fatal in patched mode.
 | `089-spectral-data-info-null-profile.patch` | Spectral data validation null profile guard |
 | `090-tiff-compressed-bps-guard.patch` | Compressed TIFF predictor bit-depth guard |
 | `091-fromcube-line-token-guards.patch` | FromCube line and token parsing guards |
+| `092-cam-fixed-channel-count.patch` | CAM MPE fixed channel-count validation |
+| `093-tiffdump-output-hardening.patch` | TiffDump attacker-controlled output escaping |
 
 ## Drift Review
 
@@ -103,3 +105,8 @@ bit depths unsupported by libtiff predictor setup and to stop on write failure.
 
 The 2026-05-25 FromCube review added `091` to avoid signed EOF truncation in
 line reads, guard empty-line indexing, and reject incomplete 3D LUT rows.
+
+The 2026-05-26 CAM and TiffDump review added `092` to require fixed 3-channel
+CAM MPE inputs/outputs before converter allocation and `093` to escape
+attacker-controlled profile descriptions and input/output paths in console
+output and to avoid double-writing extracted ICC profiles.
