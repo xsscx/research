@@ -1,0 +1,136 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -3416,7 +3416,11 @@ bool CIccMpeCurveSet::Write(CIccIO *pIO)
+   if (!pIO)
+     return false;
+ 
+-  size_t elemStart = pIO->Tell();
++  int64_t elemStartPos = pIO->Tell();
++  if (elemStartPos < 0)
++    return false;
++
++  size_t elemStart = (size_t)elemStartPos;
+ 
+   if (!pIO->Write32(&sig))
+     return false;
+@@ -3432,7 +3436,11 @@ bool CIccMpeCurveSet::Write(CIccIO *pIO)
+     icUInt32Number zeros[2] = { 0, 0};
+     icPositionNumber position;
+ 
+-    size_t startTable = pIO->Tell();
++    int64_t startTablePos = pIO->Tell();
++    if (startTablePos < 0)
++      return false;
++
++    size_t startTable = (size_t)startTablePos;
+ 
+     //First write empty position table
+     for (i=0; i<m_nInputChannels; i++) {
+@@ -3447,10 +3455,25 @@ bool CIccMpeCurveSet::Write(CIccIO *pIO)
+     for (i=0; i<m_nInputChannels; i++) {
+       if (m_curve[i]) {
+         if (map.find(m_curve[i])==map.end()) {
+-          start = pIO->Tell();
+-          m_curve[i]->Write(pIO);
+-          end = pIO->Tell();
+-          pIO->Align32();
++          int64_t startPos = pIO->Tell();
++          if (startPos < 0)
++            return false;
++
++          start = (size_t)startPos;
++
++          if (!m_curve[i]->Write(pIO))
++            return false;
++
++          int64_t endPos = pIO->Tell();
++          if (endPos < 0)
++            return false;
++
++          end = (size_t)endPos;
++
++          if (!pIO->Align32())
++            return false;
++          if (start < elemStart || end < start || start - elemStart > (size_t)0xffffffffu || end - start > (size_t)0xffffffffu)
++            return false;
+           position.offset = (icUInt32Number)(start - elemStart);
+           position.size = (icUInt32Number)(end - start);
+           map[m_curve[i]] = position;
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -7758,7 +7758,7 @@ bool CIccLocalizedUnicode::SetText(const icChar *szText,
+   {
+     unsigned long uni;
+     size_t todo;
+-    unsigned char ch = szText[i++];
++    unsigned char ch = static_cast<unsigned char>(szText[i++]);
+     if (ch <= 0x7F)
+     {
+       uni = ch;
+@@ -7798,7 +7798,7 @@ bool CIccLocalizedUnicode::SetText(const icChar *szText,
+         break;
+       }
+       else {
+-        unsigned char ch2 = szText[i];
++        unsigned char ch2 = static_cast<unsigned char>(szText[i]);
+         if (ch2 < 0x80 || ch2 > 0xBF) {
+           //not a UTF-8 string so use question mark
+           uni = '?';
+diff --git a/IccProfLib/IccTagMPE.cpp b/IccProfLib/IccTagMPE.cpp
+--- a/IccProfLib/IccTagMPE.cpp
++++ b/IccProfLib/IccTagMPE.cpp
+@@ -1097,7 +1097,11 @@ bool CIccTagMultiProcessElement::Write(CIccIO *pIO)
+   if (!pIO)
+     return false;
+ 
+-  size_t tagStart = pIO->Tell();
++  int64_t tagStartPos = pIO->Tell();
++  if (tagStartPos < 0)
++    return false;
++
++  size_t tagStart = (size_t)tagStartPos;
+ 
+   if (!pIO->Write32(&sig))
+     return false;
+@@ -1125,4 +1129,8 @@ bool CIccTagMultiProcessElement::Write(CIccIO *pIO)
+-    size_t offsetPos = pIO->Tell();
++    int64_t offsetPosValue = pIO->Tell();
++    if (offsetPosValue < 0)
++      return false;
++
++    size_t offsetPos = (size_t)offsetPosValue;
+ 
+     free(m_position);
+     m_position = (icPositionNumber*)calloc(m_nProcElements, sizeof(icPositionNumber));
+@@ -1144,16 +1152,27 @@ bool CIccTagMultiProcessElement::Write(CIccIO *pIO)
+     for (j=0, i=m_list->begin(); i!=m_list->end(); i++, j++) {
+       if (map.find(i->ptr)==map.end()) {
+-        size_t start = pIO->Tell();
++        int64_t startPos = pIO->Tell();
++        if (startPos < 0)
++          return false;
++
++        size_t start = (size_t)startPos;
+ 
+         if (!i->ptr->Write(pIO))
+           return false;
+ 
+-        size_t end = pIO->Tell();
++        int64_t endPos = pIO->Tell();
++        if (endPos < 0)
++          return false;
++
++        size_t end = (size_t)endPos;
+ 
+         if (!pIO->Align32())
+           return false;
+ 
++        if (start < tagStart || end < start || start - tagStart > (size_t)0xffffffffu || end - start > (size_t)0xffffffffu)
++          return false;
++
+         position.offset = (icUInt32Number)(start - tagStart);
+         position.size = (icUInt32Number)(end - start);
+ 
+         map[i->ptr] = position;

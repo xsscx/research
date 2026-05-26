@@ -12,7 +12,7 @@ Current upstream baseline:
 
 - Branch: `origin/master`
 - Commit: `64a73f9`
-- Active patches: 37
+- Active patches: 38
 
 ## Build Modes
 
@@ -71,6 +71,7 @@ Patch application failures are fatal in patched mode.
 | `091-fromcube-line-token-guards.patch` | FromCube line and token parsing guards |
 | `092-cam-fixed-channel-count.patch` | CAM MPE fixed channel-count validation |
 | `093-tiffdump-output-hardening.patch` | TiffDump attacker-controlled output escaping |
+| `094-fromcube-write-position-guards.patch` | FromCube Unicode byte conversion and write-position guards |
 
 ## Drift Review
 
@@ -110,3 +111,7 @@ The 2026-05-26 CAM and TiffDump review added `092` to require fixed 3-channel
 CAM MPE inputs/outputs before converter allocation and `093` to escape
 attacker-controlled profile descriptions and input/output paths in console
 output and to avoid double-writing extracted ICC profiles.
+
+The 2026-05-26 FromCube write review added `094` to avoid signed-byte Unicode
+conversion UB for first and continuation UTF-8 bytes and to reject non-monotonic
+profile writer positions before offset/size backfill arithmetic.

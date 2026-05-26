@@ -1,8 +1,16 @@
 diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
-index bf22ca3..3cb53b3 100644
 --- a/IccProfLib/IccCmm.cpp
 +++ b/IccProfLib/IccCmm.cpp
-@@ -3107,0 +3108,3 @@ void CIccPcsXform::pushXYZNormalize(IIccProfileConnectionConditions *pPcc, const
+@@ -3116,7 +3116,12 @@ void CIccPcsXform::pushXYZNormalize(IIccProfileConnectionConditions *pPcc, const
+ 
+ void CIccPcsXform::pushXYZNormalize(IIccProfileConnectionConditions *pPcc, const icSpectralRange &srcRange, const icSpectralRange &dstRange)
+ {
++  if (!pPcc)
++    return;
 +
+   const CIccTagSpectralViewingConditions *pView = pPcc->getPccViewingConditions();
 +  if (!pView)
 +    return;
+ 
+   CIccPcsXform tmp;
+ 
