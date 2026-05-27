@@ -11,8 +11,8 @@ should link here instead of duplicating the full patch table.
 Current upstream baseline:
 
 - Branch: `origin/master`
-- Commit: `64a73f9`
-- Active patches: 38
+- Commit: `e4a8bd9`
+- Active patches: 39
 
 ## Build Modes
 
@@ -73,6 +73,7 @@ Patch application failures are fatal in patched mode.
 | `093-tiffdump-output-hardening.patch` | TiffDump attacker-controlled output escaping |
 | `094-fromcube-write-position-guards.patch` | FromCube Unicode byte conversion and write-position guards |
 | `095-xml-spectraldata-range-float-cast.patch` | XML SpectralDataInfo range float parsing |
+| `096-cmm-rendering-intent-range-guard.patch` | CMM rendering intent range validation |
 
 ## Drift Review
 
@@ -119,3 +120,6 @@ profile writer positions before offset/size backfill arithmetic.
 
 The 2026-05-26 XML spectral review added `095` to parse SpectralDataInfo
 wavelength bounds as floats before half-float conversion.
+
+The 2026-05-26 CMM intent review added `096` to reject invalid rendering
+intents before deriving transform tag signatures.
