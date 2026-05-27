@@ -72,6 +72,7 @@ Patch application failures are fatal in patched mode.
 | `092-cam-fixed-channel-count.patch` | CAM MPE fixed channel-count validation |
 | `093-tiffdump-output-hardening.patch` | TiffDump attacker-controlled output escaping |
 | `094-fromcube-write-position-guards.patch` | FromCube Unicode byte conversion and write-position guards |
+| `095-xml-spectraldata-range-float-cast.patch` | XML SpectralDataInfo range float parsing |
 
 ## Drift Review
 
@@ -115,3 +116,6 @@ output and to avoid double-writing extracted ICC profiles.
 The 2026-05-26 FromCube write review added `094` to avoid signed-byte Unicode
 conversion UB for first and continuation UTF-8 bytes and to reject non-monotonic
 profile writer positions before offset/size backfill arithmetic.
+
+The 2026-05-26 XML spectral review added `095` to parse SpectralDataInfo
+wavelength bounds as floats before half-float conversion.
