@@ -14,8 +14,6 @@ permissions:
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '30 7 * * 1'  # Monday 07:30 UTC
 
 concurrency:
   group: scan-build-${{ github.ref }}
