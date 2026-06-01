@@ -39,8 +39,6 @@ on:
         description: 'iccDEV ref to test (branch, tag, SHA)'
         required: false
         default: 'master'
-  schedule:
-    - cron: '0 5 * * 1,4'  # Monday + Thursday 05:00 UTC
 
 env:
   CC: clang-18
