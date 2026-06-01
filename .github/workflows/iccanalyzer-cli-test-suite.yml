@@ -12,8 +12,6 @@ permissions:
   security-events: write
 
 on:
-  schedule:
-    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       test_profile_count:
