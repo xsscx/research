@@ -109,7 +109,7 @@ jobs:
           make -j$(nproc) IccProfLib2 IccXML2 IccJSON2 IccProfLib2-static IccXML2-static IccJSON2-static
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
         with:
           languages: cpp
           config-file: ${{ matrix.target == 'icctest' && 'iccanalyzer-lite/codeql-config.yml' || format('{0}/codeql-config.yml', matrix.target) }}
@@ -163,7 +163,7 @@ jobs:
             -lIccProfLib2 -lIccXML2 -lxml2 -lz -lm -o iccToXml_unsafe
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
         with:
           category: "/language:cpp/${{ matrix.target }}"
           output: codeql-results
@@ -252,14 +252,14 @@ jobs:
           preset: 'codeql'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
         with:
           languages: python
           config-file: mcp-server/codeql-config.yml
           source-root: .
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
         with:
           category: "/language:python/all"
           output: codeql-results-python
