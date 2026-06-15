@@ -84,7 +84,7 @@ jobs:
           output-file: sbom.spdx.json
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@10334b5f1e684784025c3fc0a277c88c19089275 # v3
+        uses: actions/attest-build-provenance@f14352a605c57b0a66e0d49bba5825967f1dbedf # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/iccdev-instrumented
           subject-digest: ${{ steps.build-push.outputs.digest }}
