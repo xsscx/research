@@ -179,7 +179,7 @@ jobs:
           docker run --rm "$IMAGE" /app/iccanalyzer-lite/icctest/build/cli/icctest --registry >/dev/null
 
       - name: Generate SBOM
-        uses: anchore/sbom-action@4a83e1fa8a49c8b54b2478e3dfafcc2d1417b432 # v0.22.2
+        uses: anchore/sbom-action@52585ffac92ba32c717677c870223d2aba163db6 # v0.22.2
         with:
           image: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp@${{ steps.build-push.outputs.digest }}
           format: spdx-json
