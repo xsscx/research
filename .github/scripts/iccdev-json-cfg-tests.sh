@@ -9,16 +9,16 @@
 #   - iccApplyProfiles
 #
 # Environment variables (set by CI workflow):
-#   ICCDEV_TOOLS_DIR   — path to Build/Tools/ (contains tool subdirs)
-#   ICCDEV_TESTING_DIR — path to Testing/ (contains generated profiles)
-#   LD_LIBRARY_PATH    — must include IccProfLib + IccXML shared libs
+#   ICCDEV_TOOLS_DIR   - path to Build/Tools/ (contains tool subdirs)
+#   ICCDEV_TESTING_DIR - path to Testing/ (contains generated profiles)
+#   LD_LIBRARY_PATH    - must include IccProfLib + IccXML shared libs
 #
 # Exit code: 0 = all pass, 1 = test failure, 2 = ASAN/UBSAN finding
 ###############################################################################
 
 set -uo pipefail
 
-# ── Path resolution ──────────────────────────────────────────────────────────
+# -- Path resolution ----------------------------------------------------------
 
 TOOLS_DIR="${ICCDEV_TOOLS_DIR:?Set ICCDEV_TOOLS_DIR to iccDEV Build/Tools path}"
 TESTING_DIR="${ICCDEV_TESTING_DIR:?Set ICCDEV_TESTING_DIR to iccDEV Testing path}"
@@ -29,12 +29,12 @@ APPLY_NAMED_CMM="$TOOLS_DIR/IccApplyNamedCmm/iccApplyNamedCmm"
 APPLY_SEARCH="$TOOLS_DIR/IccApplySearch/iccApplySearch"
 APPLY_PROFILES="$TOOLS_DIR/IccApplyProfiles/iccApplyProfiles"
 
-# ── Sanitizer env ────────────────────────────────────────────────────────────
+# -- Sanitizer env ------------------------------------------------------------
 
 export ASAN_OPTIONS="${ASAN_OPTIONS:-halt_on_error=0,detect_leaks=0}"
 export UBSAN_OPTIONS="${UBSAN_OPTIONS:-halt_on_error=0,print_stacktrace=1}"
 
-# ── Find a test profile ─────────────────────────────────────────────────────
+# -- Find a test profile ------------------------------------------------------
 
 PROFILE=""
 for candidate in \
@@ -63,7 +63,7 @@ echo "Tools dir: $TOOLS_DIR"
 echo "Testing dir: $TESTING_DIR"
 echo ""
 
-# ── Test framework ───────────────────────────────────────────────────────────
+# -- Test framework -----------------------------------------------------------
 
 PASS=0
 FAIL=0
@@ -79,7 +79,7 @@ run_test() {
   TOTAL=$((TOTAL + 1))
 
   if [ ! -x "$tool" ]; then
-    echo "  [SKIP] $name — tool not found: $tool"
+    echo "  [SKIP] $name - tool not found: $tool"
     PASS=$((PASS + 1))
     return
   fi
@@ -90,13 +90,13 @@ run_test() {
 
   # Check ASAN/UBSAN
   if grep -q "ERROR: AddressSanitizer" "$logfile" 2>/dev/null; then
-    echo "  [ASAN] $name — AddressSanitizer finding"
+    echo "  [ASAN] $name - AddressSanitizer finding"
     ASAN_FINDINGS=$((ASAN_FINDINGS + 1))
     FAIL=$((FAIL + 1))
     return
   fi
   if grep -q "runtime error:" "$logfile" 2>/dev/null; then
-    echo "  [UBSAN] $name — undefined behavior"
+    echo "  [UBSAN] $name - undefined behavior"
     UBSAN_FINDINGS=$((UBSAN_FINDINGS + 1))
     FAIL=$((FAIL + 1))
     return
@@ -121,11 +121,11 @@ run_test() {
   fi
 }
 
-# ── Generate JSON configs dynamically (using discovered profile path) ────────
+# -- Generate JSON configs dynamically (using discovered profile path) --------
 
 TMPDIR="$(mktemp -d)"
 
-# 1. ApplyNamedCmm — basic sRGB identity
+# 1. ApplyNamedCmm - basic sRGB identity
 cat > "$TMPDIR/named-basic.json" <<EOF
 {
   "dataFiles": {
@@ -162,7 +162,7 @@ cat > "$TMPDIR/named-basic.json" <<EOF
 }
 EOF
 
-# 2. ApplyNamedCmm — 8-bit encoding
+# 2. ApplyNamedCmm - 8-bit encoding
 cat > "$TMPDIR/named-8bit.json" <<EOF
 {
   "dataFiles": {
@@ -195,7 +195,7 @@ cat > "$TMPDIR/named-8bit.json" <<EOF
 }
 EOF
 
-# 3. ApplyNamedCmm — 16-bit encoding
+# 3. ApplyNamedCmm - 16-bit encoding
 cat > "$TMPDIR/named-16bit.json" <<EOF
 {
   "dataFiles": {
@@ -227,7 +227,7 @@ cat > "$TMPDIR/named-16bit.json" <<EOF
 }
 EOF
 
-# 4. ApplyNamedCmm — output to file
+# 4. ApplyNamedCmm - output to file
 cat > "$TMPDIR/named-output-file.json" <<EOF
 {
   "dataFiles": {
@@ -256,7 +256,7 @@ cat > "$TMPDIR/named-output-file.json" <<EOF
 }
 EOF
 
-# 5. ApplyNamedCmm — debugCalc + BPC
+# 5. ApplyNamedCmm - debugCalc + BPC
 cat > "$TMPDIR/named-debug-bpc.json" <<EOF
 {
   "dataFiles": {
@@ -293,7 +293,7 @@ cat > "$TMPDIR/named-debug-bpc.json" <<EOF
 }
 EOF
 
-# 6. ApplySearch — basic
+# 6. ApplySearch - basic
 cat > "$TMPDIR/search-basic.json" <<EOF
 {
   "dataFiles": {
@@ -330,7 +330,7 @@ cat > "$TMPDIR/search-basic.json" <<EOF
 }
 EOF
 
-# 7–10: Malformed configs (expect failure)
+# 7-10: Malformed configs (expect failure)
 echo '{}' > "$TMPDIR/empty-object.json"
 echo '[1,2,3]' > "$TMPDIR/array-not-object.json"
 echo '{"broken":' > "$TMPDIR/invalid-syntax.json"
@@ -437,7 +437,7 @@ cat > "$TMPDIR/path-traversal.json" <<EOF
 }
 EOF
 
-# 16–20: Encoding variations
+# 16-20: Encoding variations
 for enc in "float" "unitFloat" "percent" "16BitV2" "value"; do
   cat > "$TMPDIR/named-enc-${enc}.json" <<EOF
 {
@@ -463,7 +463,7 @@ for enc in "float" "unitFloat" "percent" "16BitV2" "value"; do
 EOF
 done
 
-# 21–24: Intent variations (0-3)
+# 21-24: Intent variations (0-3)
 for intent in 0 1 2 3; do
   cat > "$TMPDIR/named-intent-${intent}.json" <<EOF
 {
@@ -551,14 +551,14 @@ cat > "$TMPDIR/named-booleans.json" <<EOF
 }
 EOF
 
-# ── Run tests ────────────────────────────────────────────────────────────────
+# -- Run tests ---------------------------------------------------------------
 
 echo "=========================================="
 echo " iccDEV JSON Configuration Tests"
 echo "=========================================="
 echo ""
 
-echo "── Section 1: iccApplyNamedCmm — Valid configs ──"
+echo "-- Section 1: iccApplyNamedCmm - Valid configs --"
 run_test "named-basic"       "$APPLY_NAMED_CMM" "$TMPDIR/named-basic.json"
 run_test "named-8bit"        "$APPLY_NAMED_CMM" "$TMPDIR/named-8bit.json"
 run_test "named-16bit"       "$APPLY_NAMED_CMM" "$TMPDIR/named-16bit.json"
@@ -568,11 +568,11 @@ run_test "named-chain"       "$APPLY_NAMED_CMM" "$TMPDIR/named-chain.json"
 run_test "named-booleans"    "$APPLY_NAMED_CMM" "$TMPDIR/named-booleans.json"
 echo ""
 
-echo "── Section 2: iccApplySearch — Valid config ──"
+echo "-- Section 2: iccApplySearch - Valid config --"
 run_test "search-basic"      "$APPLY_SEARCH" "$TMPDIR/search-basic.json" true  # search may reject non-search profiles
 echo ""
 
-echo "── Section 3: Encoding variations ──"
+echo "-- Section 3: Encoding variations --"
 for enc in float unitFloat percent 16BitV2 value; do
   # percent and value encodings may fail with range mismatch on some profiles
   if [ "$enc" = "percent" ] || [ "$enc" = "value" ]; then
@@ -583,36 +583,36 @@ for enc in float unitFloat percent 16BitV2 value; do
 done
 echo ""
 
-echo "── Section 4: Intent variations (0-3) ──"
+echo "-- Section 4: Intent variations (0-3) --"
 for intent in 0 1 2 3; do
   run_test "named-intent-${intent}" "$APPLY_NAMED_CMM" "$TMPDIR/named-intent-${intent}.json"
 done
 echo ""
 
-echo "── Section 5: Malformed JSON (expect graceful failure) ──"
+echo "-- Section 5: Malformed JSON (expect graceful failure) --"
 run_test "empty-object"         "$APPLY_NAMED_CMM" "$TMPDIR/empty-object.json"         true
 run_test "array-not-object"     "$APPLY_NAMED_CMM" "$TMPDIR/array-not-object.json"     true
 run_test "invalid-syntax"       "$APPLY_NAMED_CMM" "$TMPDIR/invalid-syntax.json"       true
 run_test "null-value"           "$APPLY_NAMED_CMM" "$TMPDIR/null-value.json"           true
 run_test "missing-profileseq"   "$APPLY_NAMED_CMM" "$TMPDIR/missing-profileseq.json"   true
 run_test "nonexistent-profile"  "$APPLY_NAMED_CMM" "$TMPDIR/nonexistent-profile.json"  true
-run_test "wrong-types"          "$APPLY_NAMED_CMM" "$TMPDIR/wrong-types.json"
+run_test "wrong-types"          "$APPLY_NAMED_CMM" "$TMPDIR/wrong-types.json"          true
 run_test "extreme-values"       "$APPLY_NAMED_CMM" "$TMPDIR/extreme-values.json"
 run_test "path-traversal"       "$APPLY_NAMED_CMM" "$TMPDIR/path-traversal.json"       true
 echo ""
 
-echo "── Section 6: Cross-tool malformed (ApplySearch) ──"
+echo "-- Section 6: Cross-tool malformed (ApplySearch) --"
 run_test "search-empty"         "$APPLY_SEARCH" "$TMPDIR/empty-object.json"           true
 run_test "search-invalid"       "$APPLY_SEARCH" "$TMPDIR/invalid-syntax.json"         true
 run_test "search-nonexistent"   "$APPLY_SEARCH" "$TMPDIR/nonexistent-profile.json"    true
 echo ""
 
-echo "── Section 7: Cross-tool malformed (ApplyProfiles) ──"
+echo "-- Section 7: Cross-tool malformed (ApplyProfiles) --"
 run_test "profiles-empty"       "$APPLY_PROFILES" "$TMPDIR/empty-object.json"         true
 run_test "profiles-invalid"     "$APPLY_PROFILES" "$TMPDIR/invalid-syntax.json"       true
 echo ""
 
-# ── Summary ──────────────────────────────────────────────────────────────────
+# -- Summary -----------------------------------------------------------------
 
 echo "=========================================="
 echo " RESULTS: $PASS/$TOTAL pass, $FAIL fail"
