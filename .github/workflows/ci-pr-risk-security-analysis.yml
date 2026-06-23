@@ -75,7 +75,7 @@ jobs:
 
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v5.0.0 (node24)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           ref: ${{ inputs.analysis_target == 'Specific git ref' && inputs.git_ref || github.ref }}
           fetch-depth: 0
@@ -83,7 +83,7 @@ jobs:
 
       - name: "Checkout PR head (if PR mode)"
         if: inputs.analysis_target == 'Specific PR number' && inputs.pr_number != ''
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v5.0.0 (node24)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           ref: refs/pull/${{ inputs.pr_number }}/head
           fetch-depth: 0
@@ -1496,7 +1496,7 @@ jobs:
 
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v5.0.0 (node24)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           ref: ${{ inputs.analysis_target == 'Specific git ref' && inputs.git_ref || github.ref }}
           fetch-depth: 0
@@ -1504,7 +1504,7 @@ jobs:
 
       - name: "Checkout PR head (if PR mode)"
         if: inputs.analysis_target == 'Specific PR number' && inputs.pr_number != ''
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v5.0.0 (node24)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           ref: refs/pull/${{ inputs.pr_number }}/head
           fetch-depth: 0
