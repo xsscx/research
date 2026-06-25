@@ -36,6 +36,9 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 | `cfl/iccDEV/` | CFL fuzzer build (security patches applied) | Yes |
 
 For crash fidelity, ALWAYS use `iccDEV/Build/Tools/` (unpatched).
+Do NOT create standalone `.cpp` PoCs or custom test programs for reproductions.
+Use existing project tools with durable input artifacts (`.icc`, XML, TIFF, PNG,
+JPEG, JSON config, `.cube`) and exact one-line replay commands.
 
 **Unpatched analyzer policy:** `iccanalyzer-lite/`, `iccanalyzer-lite/icctest/`,
 and `colorbleed_tools/` link unpatched upstream iccDEV. Harden those components

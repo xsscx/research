@@ -52,6 +52,9 @@ ALWAYS verify after writing.
 2. **Claims**: VERIFY -> CITE -> CLAIM. No success without command output evidence.
 3. **The loop**: If fixing the same thing twice, stop and switch approach.
 4. **Tool convergence**: Use proven winners -- do not re-evaluate each session.
+5. **PoC policy**: Do not create standalone `.cpp` PoCs. Reproduce bugs with
+   existing project tools and durable input artifacts (`.icc`, XML, TIFF, PNG,
+   JPEG, JSON config, `.cube`) plus exact one-line commands.
 
 ## Testing
 Update tests in nearest suite for behavior changes. Do not commit `.profraw`,
