@@ -58,7 +58,7 @@ jobs:
           extra-packages: 'lcov'
 
       - name: Cache iccDEV repository
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v5.0.0 (node24)
         id: cache-iccdev
         with:
           path: iccanalyzer-lite/iccDEV
@@ -93,7 +93,7 @@ jobs:
           fi
 
       - name: Cache iccDEV build
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0  # v5.0.0 (node24)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v5.0.0 (node24)
         id: cache-iccdev-build
         with:
           path: |
