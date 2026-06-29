@@ -186,7 +186,7 @@ jobs:
           output-file: sbom.spdx.json
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@f14352a605c57b0a66e0d49bba5825967f1dbedf # v3
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp
           subject-digest: ${{ steps.build-push.outputs.digest }}
