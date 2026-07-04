@@ -9,6 +9,7 @@ ICC and TIFF-related validation work in this repository.
 - JSON config fixtures: `docs/Testing/json-configs/`
 - Malformed JSON fixtures: `docs/Testing/malformed-json/`
 - Saved parity artifact: `docs/Testing/results/icctest-verify-parity-summary-2026-03-29.json`
+- CFL manual command runbook: `docs/Testing/CFL_MANUAL_FUZZER_COMMANDS.md`
 - Fuzz and CFL snapshot: `docs/Testing/FUZZ_CFL_INVENTORY.md`
 - TIFF-focused investigations: `docs/Testing/TIFF_FUZZER_COMPREHENSIVE_ANALYSIS.md`
 

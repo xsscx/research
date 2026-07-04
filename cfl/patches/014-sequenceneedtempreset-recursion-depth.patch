@@ -1,6 +1,7 @@
+diff --git a/IccProfLib/IccMpeCalc.cpp b/IccProfLib/IccMpeCalc.cpp
 --- a/IccProfLib/IccMpeCalc.cpp
 +++ b/IccProfLib/IccMpeCalc.cpp
-@@ -4000,8 +4000,12 @@
+@@ -4132,8 +4132,12 @@
  * 
  * Return: 
  ******************************************************************************/
@@ -11,30 +12,31 @@
 +  if (nDepth > 64)
 +    return true;
 +
-   icUInt32Number i, j;
+   icUInt32Number pc = 0, j;
  
-   for (i=0; i<nOps; i++) {
-@@ -4039,7 +4043,7 @@
+   while (pc < nOps) {
+@@ -4185,7 +4189,7 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number n
          free(ifTemps);
          return true;
        }
--      rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i].data.size), ifTemps, nMaxTemp);
-+      rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i].data.size), ifTemps, nMaxTemp, nDepth + 1);
+-      rv = rv || SequenceNeedTempReset(&op[p], op[i].data.size, ifTemps, nMaxTemp);
++      rv = rv || SequenceNeedTempReset(&op[p], op[i].data.size, ifTemps, nMaxTemp, nDepth + 1);
  
-       if (i<nOps && op[i+1].sig==icSigElseOp) {
-         icUInt8Number *elseTemps = (icUInt8Number *)malloc(nMaxTemp);
-@@ -4056,7 +4060,7 @@
+       icUInt32Number elseIndex = 0;
+       bool hasElse = icCalcAddUInt32(i, 1, elseIndex) &&
+@@ -4216,7 +4220,7 @@ bool CIccCalculatorFunc::SequenceNeedTempReset(SIccCalcOp *op, icUInt32Number n
            free(elseTemps);
            return true;
          }
--        rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i+1].data.size), elseTemps, nMaxTemp);
-+        rv = rv || SequenceNeedTempReset(&op[p], icIntMin(nOps-p, op[i+1].data.size), elseTemps, nMaxTemp, nDepth + 1);
+-        rv = rv || SequenceNeedTempReset(&op[p], op[elseIndex].data.size, elseTemps, nMaxTemp);
++        rv = rv || SequenceNeedTempReset(&op[p], op[elseIndex].data.size, elseTemps, nMaxTemp, nDepth + 1);
  
          if (!rv) {
            for (j=0; j<nMaxTemp; j++) {
+diff --git a/IccProfLib/IccMpeCalc.h b/IccProfLib/IccMpeCalc.h
 --- a/IccProfLib/IccMpeCalc.h
 +++ b/IccProfLib/IccMpeCalc.h
-@@ -402,7 +402,7 @@
+@@ -423,7 +423,7 @@ protected:
    bool InitSelectOps();
    bool InitSelectOp(SIccCalcOp *ops, icUInt32Number nOps);
  

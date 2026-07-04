@@ -10,10 +10,10 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
-BIN_DIR="$AFL_BASE/bin"
+BIN_DIR="${AFL_BIN_DIR:-$REPO_ROOT/afl/bin}"
 TARGET="${1:-}"
 
-source "$AFL_BASE/targets.sh"
+source "$REPO_ROOT/afl/targets.sh"
 
 if [[ "$TARGET" == "--help" || "$TARGET" == "-h" ]]; then
     echo "Usage: $0 <target>"
@@ -34,8 +34,83 @@ if ! afl_configure_target "$TARGET"; then
     exit 1
 fi
 
-UPSTREAM_LIB="$AFL_BASE/bin"
-UPSTREAM_BIN="$BINARY"
+canonical_tool_dir() {
+    local tool_name="$1"
+
+    case "$tool_name" in
+        iccApplyNamedCmm) echo "IccApplyNamedCmm" ;;
+        iccApplyProfiles) echo "IccApplyProfiles" ;;
+        iccApplySearch) echo "IccApplySearch" ;;
+        iccApplyToLink) echo "IccApplyToLink" ;;
+        iccDumpProfile) echo "IccDumpProfile" ;;
+        iccFromCube) echo "IccFromCube" ;;
+        iccFromJson) echo "IccFromJson" ;;
+        iccFromXml) echo "IccFromXml" ;;
+        iccJpegDump) echo "IccJpegDump" ;;
+        iccPawgReport) echo "IccPawgReport" ;;
+        iccPngDump) echo "IccPngDump" ;;
+        iccProfileVisualize) echo "IccProfileVisualize" ;;
+        iccRoundTrip) echo "IccRoundTrip" ;;
+        iccSpecSepToTiff) echo "IccSpecSepToTiff" ;;
+        iccTiffDump) echo "IccTiffDump" ;;
+        iccToJson) echo "IccToJson" ;;
+        iccToXml) echo "IccToXml" ;;
+        iccV5DspObsToV4Dsp) echo "IccV5DspObsToV4Dsp" ;;
+        *) return 1 ;;
+    esac
+}
+
+join_existing_paths() {
+    local out=""
+    local sep=""
+    local path
+
+    for path in "$@"; do
+        [[ -d "$path" ]] || continue
+        out="${out}${sep}${path}"
+        sep=":"
+    done
+
+    printf '%s' "$out"
+}
+
+select_replay_binary() {
+    local tool_name
+    local tool_dir
+    local canonical_bin
+
+    tool_name="$(basename "$BINARY")"
+    if tool_dir="$(canonical_tool_dir "$tool_name")"; then
+        canonical_bin="$REPO_ROOT/iccDEV/Build/Tools/$tool_dir/$tool_name"
+        if [[ -x "$canonical_bin" ]]; then
+            UPSTREAM_BIN="$canonical_bin"
+            REPLAY_SOURCE="canonical"
+            if command -v readelf >/dev/null 2>&1 && readelf -d "$canonical_bin" 2>/dev/null | grep -q 'Shared library: \[libIcc'; then
+                REPLAY_LIB="$(join_existing_paths \
+                    "$REPO_ROOT/iccDEV/Build/IccProfLib" \
+                    "$REPO_ROOT/iccDEV/Build/IccXML" \
+                    "$REPO_ROOT/iccDEV/Build/IccJSON" \
+                    "$REPO_ROOT/iccDEV/Build/IccConnect")"
+            else
+                REPLAY_LIB=""
+            fi
+            return
+        fi
+    fi
+
+    UPSTREAM_BIN="$BINARY"
+    REPLAY_SOURCE="afl-bin"
+    if command -v readelf >/dev/null 2>&1 && readelf -d "$BINARY" 2>/dev/null | grep -q 'Shared library: \[libIcc'; then
+        REPLAY_LIB="$AFL_BASE/bin"
+    else
+        REPLAY_LIB=""
+    fi
+}
+
+UPSTREAM_BIN=""
+REPLAY_SOURCE=""
+REPLAY_LIB=""
+select_replay_binary
 AFL_OUTPUT_DIR="$AFL_DIR/output"
 
 if [[ ! -x "$UPSTREAM_BIN" ]]; then
@@ -44,7 +119,20 @@ if [[ ! -x "$UPSTREAM_BIN" ]]; then
     exit 1
 fi
 
-export LD_LIBRARY_PATH="$UPSTREAM_LIB"
+for required_file in "${REQUIRED_FILES[@]}"; do
+    if [[ ! -e "$required_file" ]]; then
+        echo "ERROR: Required support file not found: $required_file"
+        exit 1
+    fi
+done
+
+afl_prepare_target_support_files "$TARGET"
+
+if [[ -n "$REPLAY_LIB" ]]; then
+    export LD_LIBRARY_PATH="$REPLAY_LIB"
+else
+    unset LD_LIBRARY_PATH
+fi
 export ASAN_OPTIONS="halt_on_error=1,abort_on_error=1,detect_leaks=0,symbolize=1,allocator_may_return_null=1"
 export UBSAN_OPTIONS="halt_on_error=1,print_stacktrace=1"
 
@@ -76,6 +164,8 @@ classify_exit() {
         echo "TIMEOUT"
     elif printf '%s\n' "$output" | grep -Eaiq 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)'; then
         echo "SANITIZER"
+    elif [[ "$exit_code" -eq 255 ]]; then
+        echo "SOFT_FAIL"
     elif [[ "$exit_code" -ge 128 ]]; then
         echo "SIGNAL"
     elif [[ "$exit_code" -eq 0 ]]; then
@@ -170,6 +260,8 @@ triage_dir() {
 echo "=== AFL Triage: $TARGET ==="
 echo ""
 echo "Upstream binary: $UPSTREAM_BIN"
+echo "Replay source:   $REPLAY_SOURCE"
+echo "Library path:    ${REPLAY_LIB:-<tool runpath>}"
 echo ""
 
 echo "--- Crashes ---"

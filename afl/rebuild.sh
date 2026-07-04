@@ -10,18 +10,13 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ICCDEV_DIR="$REPO_ROOT/afl/iccDEV"
-BUILD_DIR="$ICCDEV_DIR/Build-AFL"
+BUILD_DIR="${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL}"
 
 echo "[*] Full AFL rebuild requested"
 echo ""
 
-# Stop any running fuzzers first
-PIDS=$(pgrep -f "afl-fuzz" 2>/dev/null || true)
-if [[ -n "$PIDS" ]]; then
-    echo "[!] Active AFL fuzzers detected - stopping first..."
-    "$REPO_ROOT/afl/stop.sh"
-    sleep 2
-fi
+echo "[*] Stopping any AFL fuzzers recorded under AFL output directories..."
+"$REPO_ROOT/afl/stop.sh" all
 
 # Clean build directory
 if [[ -d "$BUILD_DIR" ]]; then

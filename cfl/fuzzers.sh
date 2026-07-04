@@ -13,7 +13,11 @@ CFL_FUZZERS=(
   icc_fromcube_fuzzer
   icc_fromjson_fuzzer
   icc_fromxml_fuzzer
+  icc_jpegdump_fuzzer
   icc_link_fuzzer
+  icc_pawgreport_fuzzer
+  icc_pngdump_fuzzer
+  icc_profilevisualize_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
   icc_tiffdump_fuzzer
@@ -51,7 +55,11 @@ cfl_normalize_fuzzer() {
     cube|fromcube) name="icc_fromcube_fuzzer" ;;
     json|fromjson) name="icc_fromjson_fuzzer" ;;
     fromxml) name="icc_fromxml_fuzzer" ;;
+    jpeg|jpegdump) name="icc_jpegdump_fuzzer" ;;
     link) name="icc_link_fuzzer" ;;
+    pawg|pawgreport) name="icc_pawgreport_fuzzer" ;;
+    png|pngdump) name="icc_pngdump_fuzzer" ;;
+    visualize|profilevisualize) name="icc_profilevisualize_fuzzer" ;;
     roundtrip) name="icc_roundtrip_fuzzer" ;;
     specsep) name="icc_specsep_fuzzer" ;;
     tiffdump) name="icc_tiffdump_fuzzer" ;;

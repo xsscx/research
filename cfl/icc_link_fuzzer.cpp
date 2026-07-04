@@ -17,8 +17,8 @@
     profile for the second transform, preserving chain coverage without
     parsing ICC header bytes for harness framing.
 
-    Ownership: AddXform -> CIccXform::Create takes ownership of the profile.
-    On icCmmStatBadXform, Create already freed it. On other errors, it did not.
+    Ownership: The harness uses CIccCmm::AddXform(CIccProfile&) so iccDEV
+    copies/attaches the profile internally and the harness keeps cleanup local.
 */
 
 /*
@@ -152,30 +152,29 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   // === TOOL LINE 771: AddXform (profile 1) ===
-  // Ownership: AddXform -> CIccXform::Create takes ownership.
-  // On icCmmStatBadXform, profile already freed by Create.
-  icStatusCMM stat1 = cmm.AddXform(pProf1, intent, interp, NULL,
+  icStatusCMM stat1 = cmm.AddXform(*pProf1, intent, interp, NULL,
                                     nLutType, bUseD2BxB2DxTags, &hint1);
   if (stat1 != icCmmStatOk) {
-    if (stat1 != icCmmStatBadXform)
-      delete pProf1;
+    delete pProf1;
     delete pProf2;
     unlink(path1);
     return 0;
   }
 
   // === AddXform (profile 2) ===
-  icStatusCMM stat2 = cmm.AddXform(pProf2, intent, interp, NULL,
+  icStatusCMM stat2 = cmm.AddXform(*pProf2, intent, interp, NULL,
                                     nLutType, bUseD2BxB2DxTags, &hint2);
   if (stat2 != icCmmStatOk) {
-    if (stat2 != icCmmStatBadXform)
-      delete pProf2;
+    delete pProf1;
+    delete pProf2;
     unlink(path1);
     return 0;
   }
 
   // === TOOL LINE 783: Begin() ===
   if (cmm.Begin() != icCmmStatOk) {
+    delete pProf1;
+    delete pProf2;
     unlink(path1);
     return 0;
   }
@@ -184,6 +183,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   int nSrc = icGetSpaceSamples(cmm.GetSourceSpace());
   int nDst = icGetSpaceSamples(cmm.GetDestSpace());
   if (nSrc <= 0 || nSrc > 16 || nDst <= 0 || nDst > 16) {
+    delete pProf1;
+    delete pProf2;
     unlink(path1);
     return 0;
   }
@@ -261,6 +262,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
   }
 
+  delete pProf1;
+  delete pProf2;
   unlink(path1);
   return 0;
 }

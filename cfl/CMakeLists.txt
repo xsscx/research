@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.15)
 # Only build fuzzers with Clang and when explicitly enabled
 if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   message(STATUS "Fuzzing harnesses enabled with full instrumentation")
+  find_package(ZLIB REQUIRED)
 
   # Common include directories
   set(FUZZER_INCLUDES
@@ -36,6 +37,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   )
 
   # No additional link libraries needed - Clang provides runtime automatically
+  link_libraries(ZLIB::ZLIB)
 
   # V5 DSP/OBS fuzzer
   add_executable(icc_v5dspobs_fuzzer icc_v5dspobs_fuzzer.cpp)

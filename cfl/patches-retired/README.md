@@ -1,6 +1,6 @@
 # CFL Patches - Retired Archive
 
-Last updated: 2026-05-24
+Last updated: 2026-07-04
 
 This directory archives CFL patch files that are not part of the active
 `cfl/build.sh --patches` stack. The active stack is documented in
@@ -30,6 +30,12 @@ fixes. Patches `047` and `069` remained active after context refreshes.
 The 2026-05-24 drift review moved `078` out of the active stack because
 current iccDEV master commit `6889cb6` contains the search-cost weight
 validation and regression coverage.
+
+The 2026-07-04 WSL-2 baseline reset moved `047`, `071`, `076`, `087`, `090`,
+`091`, `092`, `093`, `094`, `095`, and `096` out of the active stack after
+comparing against iccDEV commit `4155c6f`. Current upstream source contains
+equivalent or stronger fixes for those areas, or the original patch context is
+superseded by upstream restructuring.
 
 Do not use this README as an active patch inventory. Use
 `../patches/README.md` for current A/B builds.

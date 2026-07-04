@@ -40,6 +40,41 @@ XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile
 visualization, profile linking, and CMM apply flows. Run `./afl/start.sh --list`
 for the exact list in the active checkout.
 
+## Coverage and Reachability Toolchain
+
+`afl/build.sh` requires `clang-22`/`clang++-22` and AFL++ wrappers rebuilt
+against LLVM 22. On Ubuntu 26.04 this means installing `clang-22`,
+`llvm-22-tools`, `llvm-22-dev`, and `libclang-rt-22-dev`, then rebuilding AFL++
+with `llvm-config-22`.
+
+For source coverage, `afl/coverage.sh` selects `clang-22`/`clang++-22` when
+available and `cov-analysis` then uses the matching `llvm-profdata-22` and
+`llvm-cov-22`. Override with `AFL_COVERAGE_CC` and `AFL_COVERAGE_CXX` only when
+reproducing older LLVM reports.
+
+For static reachability, rebuild the local analyzer after changing LLVM major:
+
+```bash
+LLVM_MAJOR=22 bash "$HOME/work/copilot/tools/fuzz-reachability/scripts/setup.sh"
+reachability check-toolchain
+```
+
+## Reports
+
+`./afl/report.sh all` processes targets in the order reported by
+`./afl/start.sh --list`. Targets without AFL output are recorded as
+`not_started` and skipped quickly; targets with output run map, triage, source
+coverage, and reachability steps unless disabled. The default whole-target
+coverage timeout is 3600 seconds, so a full all-target report can run for hours
+when several active targets need coverage replay.
+
+For quick status, use `./afl/report.sh all --stats-only` or
+`./afl/report.sh all --no-coverage`. For focused reachability, prefer a single
+target command such as `./afl/report.sh fromcube --jobs 2 --target-timeout 3600`.
+During long runs, monitor `afl/reports/generated/latest/targets.tsv`, the
+per-target logs under `afl/reports/generated/latest/logs/`, and
+`./afl/status.sh --json`.
+
 ## A/B Role
 
 | AFL++ | CFL |

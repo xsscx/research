@@ -1,0 +1,25 @@
+diff --git a/IccProfLib/IccMpeSpectral.cpp b/IccProfLib/IccMpeSpectral.cpp
+--- a/IccProfLib/IccMpeSpectral.cpp
++++ b/IccProfLib/IccMpeSpectral.cpp
+@@ -1552,9 +1552,9 @@ bool CIccMpeReflectanceCLUT::Begin(icElemInterp nInterp, CIccTagMultiProcessElem
+   if (!pSVC)
+     return false;
+
+-  CIccMatrixMath observer(3, m_Range.steps);
+   icSpectralRange illumRange;
+   const icFloatNumber *illum = pSVC->getIlluminant(illumRange);
++  CIccMatrixMath observer(3, illumRange.steps);
+
+   if (!pAppliedPCC->getEmissiveObserver(illumRange, illum, observer.entry(0)))
+     return false;
+@@ -2099,9 +2099,9 @@ bool CIccMpeReflectanceObserver::Begin(icElemInterp /* nInterp */, CIccTagMultiP
+   if (!pSVC)
+     return false;
+
+-  CIccMatrixMath observer(3, m_Range.steps);
+   icSpectralRange illumRange;
+   const icFloatNumber *illum = pSVC->getIlluminant(illumRange);
++  CIccMatrixMath observer(3, illumRange.steps);
+
+   if (!pAppliedPCC->getEmissiveObserver(illumRange, illum, observer.entry(0)))
+     return false;

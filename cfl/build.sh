@@ -40,8 +40,11 @@ CFLAGS_LIB="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
 CXXFLAGS_FUZZER="$COMMON_CFLAGS $FUZZER_FLAGS $COVERAGE_FLAGS -std=c++17 -frtti"
 
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
+INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccCommon"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles"
+INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccPawgReport"
+INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccProfileVisualize"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccConnect/IccLibConnect"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccJSON/IccLibJSON"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$BUILD_DIR/IccConnect -I$BUILD_DIR/IccJSON"
@@ -94,10 +97,39 @@ TIFF_FUZZERS=(
   icc_tiffdump_fuzzer
 )
 
+# Media/report fuzzers for ICC-bearing image/report tool surfaces.
+JPEG_FUZZERS=(
+  icc_jpegdump_fuzzer
+)
+
+PNG_FUZZERS=(
+  icc_pngdump_fuzzer
+)
+
+REPORT_FUZZERS=(
+  icc_pawgreport_fuzzer
+)
+
+VISUAL_FUZZERS=(
+  icc_profilevisualize_fuzzer
+)
+
 TIFFIMG_SRC="$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp"
 TIFFIMG_OBJ="$SCRIPT_DIR/.build_tmp/TiffImg.o"
 TIFF_CFLAGS="$(pkg-config --cflags libtiff-4 2>/dev/null || true)"
 TIFF_LIBS="$(pkg-config --libs libtiff-4 2>/dev/null || echo '-ltiff')"
+PNG_CFLAGS="$(pkg-config --cflags libpng 2>/dev/null || true)"
+PNG_LIBS="$(pkg-config --libs libpng 2>/dev/null || echo '-lpng')"
+ZLIB_LIBS="$(pkg-config --libs zlib 2>/dev/null || echo '-lz')"
+PAWG_SRC="$ICCDEV_DIR/Tools/CmdLine/IccPawgReport/PawgReport.cpp"
+PAWG_OBJ="$SCRIPT_DIR/.build_tmp/PawgReport.o"
+VISUAL_SRC_DIR="$ICCDEV_DIR/Tools/CmdLine/IccProfileVisualize"
+VISUAL_OBJS=(
+  "$SCRIPT_DIR/.build_tmp/MiniTIFF.o"
+  "$SCRIPT_DIR/.build_tmp/MiniSVG.o"
+  "$SCRIPT_DIR/.build_tmp/MiniPDF.o"
+)
+INCLUDE_FLAGS="$INCLUDE_FLAGS $PNG_CFLAGS"
 
 banner() {
   echo ""
@@ -405,6 +437,7 @@ build_fuzzer() {
     "$SCRIPT_DIR/${name}.cpp" \
     -Wl,--whole-archive "$LIB_PROF" -Wl,--no-whole-archive \
     "${extra_libs[@]}" \
+    $ZLIB_LIBS \
     -o "$OUTPUT_DIR/$name" 2>&1; then
     SIZE=$(du -h "$OUTPUT_DIR/$name" | cut -f1)
     echo "  [OK] $name ($SIZE)"
@@ -467,6 +500,62 @@ if [ -f "$TIFFIMG_SRC" ]; then
 else
   echo "  SKIP (TiffImg.cpp not found)"
   echo "SKIP" >> "$BUILD_RESULTS"
+  echo "SKIP" >> "$BUILD_RESULTS"
+fi
+
+echo ""
+echo "JPEG fuzzers:"
+for f in "${JPEG_FUZZERS[@]}"; do
+  build_fuzzer "$f" &
+done
+wait
+
+echo ""
+echo "PNG fuzzers:"
+for f in "${PNG_FUZZERS[@]}"; do
+  # shellcheck disable=SC2086
+  build_fuzzer "$f" $PNG_LIBS &
+done
+wait
+
+echo ""
+echo "PAWG report fuzzers:"
+if [ -f "$PAWG_SRC" ]; then
+  mkdir -p "$(dirname "$PAWG_OBJ")"
+  echo "  Compiling PawgReport.o..."
+  # shellcheck disable=SC2086
+  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+    -c "$PAWG_SRC" -o "$PAWG_OBJ" 2>&1
+  for f in "${REPORT_FUZZERS[@]}"; do
+    build_fuzzer "$f" "$PAWG_OBJ" &
+  done
+  wait
+else
+  echo "  SKIP (PawgReport.cpp not found)"
+  echo "SKIP" >> "$BUILD_RESULTS"
+fi
+
+echo ""
+echo "Profile visualization fuzzers:"
+if [ -f "$VISUAL_SRC_DIR/MiniTIFF.cpp" ] && [ -f "$VISUAL_SRC_DIR/MiniSVG.cpp" ] && \
+   [ -f "$VISUAL_SRC_DIR/MiniPDF.cpp" ]; then
+  mkdir -p "$SCRIPT_DIR/.build_tmp"
+  echo "  Compiling MiniTIFF.o + MiniSVG.o + MiniPDF.o..."
+  # shellcheck disable=SC2086
+  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+    -c "$VISUAL_SRC_DIR/MiniTIFF.cpp" -o "${VISUAL_OBJS[0]}" 2>&1
+  # shellcheck disable=SC2086
+  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+    -c "$VISUAL_SRC_DIR/MiniSVG.cpp" -o "${VISUAL_OBJS[1]}" 2>&1
+  # shellcheck disable=SC2086
+  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+    -c "$VISUAL_SRC_DIR/MiniPDF.cpp" -o "${VISUAL_OBJS[2]}" 2>&1
+  for f in "${VISUAL_FUZZERS[@]}"; do
+    build_fuzzer "$f" "${VISUAL_OBJS[@]}" -lm &
+  done
+  wait
+else
+  echo "  SKIP (profile visualization support sources not found)"
   echo "SKIP" >> "$BUILD_RESULTS"
 fi
 

@@ -54,6 +54,15 @@ static void suppressXmlErrors(void *ctx, const char *msg, ...) {
   // Silent
 }
 
+static xmlParserInputPtr blockExternalEntity(const char *URL,
+                                             const char *ID,
+                                             xmlParserCtxtPtr ctxt) {
+  (void)URL;
+  (void)ID;
+  (void)ctxt;
+  return nullptr;
+}
+
 // Initialize factories once
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
   auto *tagFactory = new (std::nothrow) CIccTagXmlFactory();
@@ -62,10 +71,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
   CIccTagCreator::PushFactory(tagFactory);
   CIccMpeCreator::PushFactory(mpeFactory);
   xmlSetGenericErrorFunc(nullptr, suppressXmlErrors);
-
-  // XXE protection: disable external entity loading and substitution
-  xmlSubstituteEntitiesDefault(0);
-  xmlLoadExtDtdDefaultValue = 0;
+  xmlSetExternalEntityLoader(blockExternalEntity);
 
   return 0;
 }
@@ -101,10 +107,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // NOTE: Schema validation and -noid flag skipped (fuzzer doesn't use args)
   // This matches tool behavior when called without optional flags
-
-  // Disable XXE: prevent external entity loading in untrusted XML
-  xmlSubstituteEntitiesDefault(0);
-  xmlLoadExtDtdDefaultValue = 0;
 
   if (!profile.LoadXml(temp_input, szRelaxNGDir.c_str(), &reason)) {
     unlink(temp_input);

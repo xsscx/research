@@ -1,6 +1,6 @@
 # CFL Patches -- Active Security Fixes
 
-Last Updated: 2026-05-26
+Last Updated: 2026-07-05
 
 This directory contains the active CFL patch stack for current
 `InternationalColorConsortium/iccDEV:master`.
@@ -11,8 +11,8 @@ should link here instead of duplicating the full patch table.
 Current upstream baseline:
 
 - Branch: `origin/master`
-- Commit: `e4a8bd9`
-- Active patches: 39
+- Commit: `4155c6f`
+- Active patches: 31
 
 ## Build Modes
 
@@ -44,7 +44,6 @@ Patch application failures are fatal in patched mode.
 | `041-fromit8-lab-xyz-val4-oob.patch` | IT8 LAB/XYZ indexing |
 | `043-tool-tojson-is-object-vs-is-array.patch` | JSON type checks |
 | `044-ndlut-apply-missing-interp-dispatch.patch` | NDLut interpolation dispatch |
-| `047-pushXYZNormalize-null-pcc-guard.patch` | PCC normalization null guard |
 | `050-formulacurve-describe-param-bounds.patch` | Formula curve Describe bounds |
 | `051-parametriccurve-describe-param-bounds.patch` | Parametric curve Describe bounds |
 | `052-fromit8-wrong-index-variable.patch` | IT8 index variable |
@@ -55,25 +54,17 @@ Patch application failures are fatal in patched mode.
 | `068-MpeCurveSet-operator-eq-self-assignment.patch` | Curve set self-assignment |
 | `069-operator-eq-self-assignment-guards.patch` | Additional self-assignment guards |
 | `070-missing-member-copies-operator-eq-copyctor.patch` | Missing member copies |
-| `071-json-language-code-unsigned-shift.patch` | JSON language/country code shifts |
 | `072-json-curve-setsize-guards.patch` | JSON curve allocation guards |
 | `073-cam-divzero-guards.patch` | CAM division-by-zero guards |
 | `074-calculator-describe-window-underflow.patch` | Calculator report window underflow |
 | `075-xml-curve-setsize-guards.patch` | XML curve allocation guards |
-| `076-cmm-pcs-scale-divzero.patch` | PCS scale denominator guards |
 | `077-cmm-dest-space-sample-guard.patch` | CMM destination sample consistency |
 | `079-ndlut-channel-count-validation.patch` | NDLUT channel/color-space consistency |
 | `086-sparsematrix-array-oom-budget.patch` | Sparse matrix array allocation budget |
-| `087-addxform-copyattach-shared-io.patch` | Borrowed profile IO ownership |
 | `088-applyprofiles-row-buffer-slack.patch` | Row Apply buffer guard slack |
 | `089-spectral-data-info-null-profile.patch` | Spectral data validation null profile guard |
-| `090-tiff-compressed-bps-guard.patch` | Compressed TIFF predictor bit-depth guard |
-| `091-fromcube-line-token-guards.patch` | FromCube line and token parsing guards |
-| `092-cam-fixed-channel-count.patch` | CAM MPE fixed channel-count validation |
-| `093-tiffdump-output-hardening.patch` | TiffDump attacker-controlled output escaping |
-| `094-fromcube-write-position-guards.patch` | FromCube Unicode byte conversion and write-position guards |
-| `095-xml-spectraldata-range-float-cast.patch` | XML SpectralDataInfo range float parsing |
-| `096-cmm-rendering-intent-range-guard.patch` | CMM rendering intent range validation |
+| `097-applyprofiles-observer-range.patch` | ApplyProfiles spectral observer allocation range |
+| `098-cmm-xform-sample-link-guard.patch` | CMM adjacent xform sample-count validation |
 
 ## Drift Review
 
@@ -123,3 +114,29 @@ wavelength bounds as floats before half-float conversion.
 
 The 2026-05-26 CMM intent review added `096` to reject invalid rendering
 intents before deriving transform tag signatures.
+
+## Session Handoff -- 2026-07-04 WSL-2 Baseline
+
+Baseline was reset on the GCC 15.2 / clang 21 WSL-2 VM to iccDEV commit
+`4155c6f`. Patches `009` and `014` were refreshed against the current
+calculator source. Patches `047`, `071`, `076`, `087`, `090`, `091`, `092`,
+`093`, `094`, `095`, and `096` were moved to `../patches-retired/` because
+the current upstream source already contains equivalent or stronger hardening,
+or the original context is superseded by upstream restructuring.
+
+Default patched build status for this baseline:
+
+```bash
+cd cfl && ./build.sh --patches
+```
+
+The active stack should apply cleanly from a clean nested `cfl/iccDEV`
+checkout at `4155c6f`.
+
+The 2026-07-04 ApplyProfiles review added `097` to allocate reflectance observer
+matrices with the illuminant range passed to `getEmissiveObserver()`, covering
+the AFL `applyprofiles-fast` ReflectanceCLUT and ReflectanceObserver HBO PoCs.
+
+The 2026-07-05 ApplyProfiles review added `098` to reject CMM xform chains whose
+adjacent output/input sample counts disagree after PCS conversion insertion,
+covering the AFL `applyprofiles-hybrid-embedded` matrix Apply HBO PoC.

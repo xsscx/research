@@ -7,6 +7,7 @@
 #ifndef FUZZ_UTILS_H
 #define FUZZ_UTILS_H
 
+#include <stdint.h>
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>

@@ -176,6 +176,12 @@ afl/iccDEV/
 afl/afl-*/input/
 afl/afl-*/output*/
 afl/afl-*/cmin*/
+afl/afl-*/pruned-seeds-*/
+afl/afl-*/showmap-*.txt
+afl/reports/generated/*
+!afl/reports/generated/.gitignore
+!afl/reports/generated/README.md
+afl/support/
 lutdumper/
 beyondrgb/
 

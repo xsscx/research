@@ -1,0 +1,61 @@
+diff --git a/IccProfLib/IccCmm.cpp b/IccProfLib/IccCmm.cpp
+index 5dadfa2..2018f29 100644
+--- a/IccProfLib/IccCmm.cpp
++++ b/IccProfLib/IccCmm.cpp
+@@ -2778,6 +2778,23 @@ icStatusCMM CIccPcsXform::Optimize()
+
+   *m_list = steps;
+
++  if (!m_list->empty()) {
++    CIccPcsStepList::const_iterator step = m_list->begin();
++    if (step->ptr->GetSrcChannels() != m_nSrcSamples)
++      return icCmmStatBadSpaceLink;
++
++    icUInt16Number lastDst = step->ptr->GetDstChannels();
++    step++;
++    for (; step != m_list->end(); step++) {
++      if (lastDst != step->ptr->GetSrcChannels())
++        return icCmmStatBadSpaceLink;
++      lastDst = step->ptr->GetDstChannels();
++    }
++
++    if (lastDst != m_nDstSamples)
++      return icCmmStatBadSpaceLink;
++  }
++
+   return icCmmStatOk;
+ }
+
+@@ -2835,11 +2852,9 @@ icUInt16Number CIccPcsXform::MaxChannels()
+ {
+   icUInt16Number nMax = 0;
+   CIccPcsStepList::const_iterator s = m_list->begin();
+-  if (s==m_list->end())
+-    return nMax;
+-  nMax = s->ptr->GetDstChannels();
+-  s++;
+   for (; s!= m_list->end(); s++) {
++    if (s->ptr->GetDstChannels()>nMax)
++      nMax = s->ptr->GetDstChannels();
+     if (s->ptr->GetSrcChannels()>nMax)
+       nMax = s->ptr->GetSrcChannels();
+   }
+@@ -9371,6 +9386,18 @@ icStatusCMM CIccCmm::Begin(bool bAllocApplyCmm/*=true*/, bool bUsePCSConversions
+   if (rv != icCmmStatOk && rv!=icCmmStatIdentityXform)
+     return rv;
+
++  // CheckPCSConnections can insert PCS conversion xforms.  Every adjacent
++  // xform pair must agree on the number of samples handed through Apply().
++  CIccXformList::iterator prev = m_Xforms->begin();
++  if (prev != m_Xforms->end()) {
++    CIccXformList::iterator curr = prev;
++    curr++;
++    for (; curr != m_Xforms->end(); prev = curr, curr++) {
++      if (prev->ptr->GetNumDstSamples() != curr->ptr->GetNumSrcSamples())
++        return icCmmStatBadSpaceLink;
++    }
++  }
++
+   // Make sure the output channel and last transform output counts match.
+   // Otherwise we'll have a heap overflow during Apply.
+   // Check here because CheckPCSConnections can add a transform to the end!

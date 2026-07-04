@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iccDEV Fuzzer Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --text: #1b2430;
+      --muted: #5c6777;
+      --line: #d9dee8;
+      --accent: #0b6b6f;
+      --accent-strong: #084e52;
+      --warn: #9b4b00;
+      --bad: #9b1c31;
+      --good: #1f6f43;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .wrap {
+      width: min(1240px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+    header .wrap {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 72px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+    main { padding: 22px 0 42px; }
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+    input, button {
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+    }
+    input {
+      width: 100%;
+      padding: 0 11px;
+      background: #fff;
+      color: var(--text);
+    }
+    button {
+      padding: 0 14px;
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      cursor: pointer;
+      font-weight: 650;
+    }
+    button:hover { background: var(--accent-strong); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 10px;
+      margin: 18px 0;
+    }
+    .metric, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .metric {
+      padding: 12px;
+      min-height: 74px;
+    }
+    .metric b {
+      display: block;
+      font-size: 24px;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .panel {
+      margin-top: 14px;
+      overflow: hidden;
+    }
+    .plot-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(360px, 1fr));
+      gap: 16px;
+      padding: 12px;
+    }
+    .plot-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+    }
+    .plot-card h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+    }
+    .plot-card .raw-link {
+      float: right;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .bar-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 240px) 1fr minmax(72px, auto);
+      gap: 10px;
+      align-items: center;
+      min-height: 26px;
+      padding: 3px 0;
+      font-size: 13px;
+    }
+    .bar-name {
+      overflow-wrap: anywhere;
+      line-height: 1.2;
+    }
+    .bar-track {
+      height: 12px;
+      background: #eef2f7;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      min-width: 2px;
+      background: var(--accent);
+    }
+    .bar-value {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: #334155;
+    }
+    .target-plot {
+      display: none;
+    }
+    .target-plot.active {
+      display: block;
+    }
+    .target-plot-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding: 12px;
+    }
+    .target-plot-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+    }
+    .target-plot-card h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+    }
+    .target-plot-card img {
+      display: block;
+      width: min(100%, 1400px);
+      height: auto;
+      margin: 0 auto;
+    }
+    .panel-head {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head h2 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    th {
+      background: #f1f4f8;
+      color: #334155;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    tr:last-child td { border-bottom: 0; }
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    a:hover { text-decoration: underline; }
+    .state {
+      display: inline-block;
+      min-width: 82px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #eef2f7;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .state.running { color: var(--good); background: #e8f5ed; }
+    .state.stopped { color: var(--bad); background: #fdecef; }
+    .state.not_started { color: var(--warn); background: #fff3df; }
+    .muted { color: var(--muted); }
+    pre {
+      margin: 0;
+      padding: 14px;
+      overflow: auto;
+      max-height: 360px;
+      background: #101828;
+      color: #f8fafc;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .error {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid #f1b6c0;
+      background: #fff1f3;
+      color: var(--bad);
+      border-radius: 8px;
+      display: none;
+    }
+    @media (max-width: 860px) {
+      header .wrap { display: block; padding: 14px 0; }
+      .controls { grid-template-columns: 1fr; margin-top: 12px; }
+      .grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .plot-grid { grid-template-columns: 1fr; }
+      .bar-row { grid-template-columns: 1fr; gap: 4px; }
+      .bar-value { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>iccDEV Fuzzer Dashboard</h1>
+      <form class="controls" id="controls">
+        <input id="reportPath" name="report" autocomplete="off" spellcheck="false" aria-label="Report path">
+        <button type="submit">Load</button>
+      </form>
+    </div>
+  </header>
+  <main class="wrap">
+    <div class="error" id="error"></div>
+    <section class="grid" id="metrics"></section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Plots</h2>
+        <a id="plotsLink" href="#">plots/</a>
+      </div>
+      <div class="plot-grid" id="plots"></div>
+    </section>
+    <section class="panel target-plot" id="targetPlotPanel">
+      <div class="panel-head">
+        <h2 id="targetPlotTitle">Target Plot</h2>
+        <a id="targetPlotRawLink" href="#">raw afl-plot</a>
+      </div>
+      <div class="target-plot-grid" id="targetPlot"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Targets</h2>
+        <input id="filter" placeholder="Filter targets" aria-label="Filter targets">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Target</th>
+              <th>State</th>
+              <th>Execs</th>
+              <th>Corpus</th>
+              <th>Crashes</th>
+              <th>Hangs</th>
+              <th>Coverage</th>
+              <th>Static Reachability</th>
+              <th>Runtime Lists</th>
+              <th>Artifacts</th>
+            </tr>
+          </thead>
+          <tbody id="targets"></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Findings</h2>
+        <a id="indexLink" href="#">index.md</a>
+      </div>
+      <pre id="findings">Loading...</pre>
+    </section>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const controls = document.getElementById("controls");
+    const reportPath = document.getElementById("reportPath");
+    const metricsEl = document.getElementById("metrics");
+    const targetsEl = document.getElementById("targets");
+    const findingsEl = document.getElementById("findings");
+    const filterEl = document.getElementById("filter");
+    const errorEl = document.getElementById("error");
+    const indexLink = document.getElementById("indexLink");
+    const plotsEl = document.getElementById("plots");
+    const plotsLink = document.getElementById("plotsLink");
+    const targetPlotPanel = document.getElementById("targetPlotPanel");
+    const targetPlotTitle = document.getElementById("targetPlotTitle");
+    const targetPlotRawLink = document.getElementById("targetPlotRawLink");
+    const targetPlotEl = document.getElementById("targetPlot");
+    let rows = [];
+    let plotLinks = new Map();
+    let currentReport = params.get("report") || "reports/generated/latest";
+    let selectedPlotTarget = params.get("plotTarget") || "";
+
+    function cleanReportPath(value) {
+      return value.replace(/^\/+/, "").replace(/\/+$/, "");
+    }
+
+    function reportFile(name) {
+      return "/" + cleanReportPath(currentReport) + "/" + name;
+    }
+
+    async function fetchText(name, required) {
+      if (location.protocol === "file:") {
+        throw new Error("browser fetch is blocked from file URLs; run ./afl/report-ui.sh and open the printed http:// URL");
+      }
+      const response = await fetch(reportFile(name), { cache: "no-store" });
+      if (!response.ok) {
+        if (required) {
+          throw new Error(name + " returned HTTP " + response.status);
+        }
+        return "";
+      }
+      return response.text();
+    }
+
+    function parseTsv(text) {
+      const lines = text.trim().split(/\r?\n/).filter(Boolean);
+      if (!lines.length) return [];
+      const keys = lines.shift().split("\t");
+      return lines.map((line) => {
+        const values = line.split("\t");
+        const row = {};
+        keys.forEach((key, index) => {
+          row[key] = values[index] || "";
+        });
+        return row;
+      });
+    }
+
+    function asNumber(value) {
+      const number = Number(value || 0);
+      return Number.isFinite(number) ? number : 0;
+    }
+
+    function fmt(value) {
+      return asNumber(value).toLocaleString();
+    }
+
+    function field(item, names) {
+      for (const name of names) {
+        if (item[name] !== undefined && item[name] !== "") return item[name];
+      }
+      return 0;
+    }
+
+    function stateClass(value) {
+      return String(value || "unknown").toLowerCase();
+    }
+
+    function metric(label, value) {
+      return "<div class=\"metric\"><b>" + value + "</b><span>" + label + "</span></div>";
+    }
+
+    function link(label, href) {
+      return "<a href=\"" + href + "\" target=\"_blank\" rel=\"noreferrer\">" + label + "</a>";
+    }
+
+    function localLink(label, href) {
+      return "<a href=\"" + href + "\">" + label + "</a>";
+    }
+
+    function renderMetrics(status) {
+      const targets = status.targets || [];
+      const totalExecs = targets.reduce((sum, item) => sum + asNumber(field(item, ["execs_done", "execs"])), 0);
+      const totalCorpus = targets.reduce((sum, item) => sum + asNumber(field(item, ["corpus_count", "corpus"])), 0);
+      const totalCrashes = targets.reduce((sum, item) => sum + asNumber(field(item, ["saved_crashes", "crashes"])), 0);
+      const totalHangs = targets.reduce((sum, item) => sum + asNumber(field(item, ["saved_hangs", "hangs"])), 0);
+      const running = targets.filter((item) => stateClass(item.state) === "running").length;
+      metricsEl.innerHTML = [
+        metric("Targets", fmt(targets.length)),
+        metric("Running", fmt(running)),
+        metric("Execs", fmt(totalExecs)),
+        metric("Corpus", fmt(totalCorpus)),
+        metric("Crashes", fmt(totalCrashes)),
+        metric("Hangs", fmt(totalHangs))
+      ].join("");
+    }
+
+    function parsePlotStatus(text) {
+      return text.trim().split(/\r?\n/).filter(Boolean).map((line) => {
+        const parts = line.split("\t");
+        return {
+          target: parts[0] || "",
+          instance: parts[1] || "",
+          state: parts[2] || "",
+          execSpeed: asNumber(parts[3]),
+          edgeDensity: asNumber(parts[4]),
+          corpus: asNumber(parts[5]),
+          pending: asNumber(parts[6]),
+          issues: asNumber(parts[7]) + asNumber(parts[8])
+        };
+      }).filter((row) => row.instance === "default");
+    }
+
+    function chartCard(title, rawPath, rawLabel, rows, valueLabel) {
+      const max = rows.reduce((largest, row) => Math.max(largest, row.value), 0) || 1;
+      const body = rows.map((row) => {
+        const width = Math.max(1, Math.round((row.value / max) * 100));
+        return "<div class=\"bar-row\">"
+          + "<div class=\"bar-name\">" + row.target + "</div>"
+          + "<div class=\"bar-track\"><div class=\"bar-fill\" style=\"width:" + width + "%\"></div></div>"
+          + "<div class=\"bar-value\">" + valueLabel(row.value) + "</div>"
+          + "</div>";
+      }).join("") || "<div class=\"muted\">No rows</div>";
+      return "<div class=\"plot-card\"><a class=\"raw-link\" href=\"" + reportFile(rawPath) + "\" target=\"_blank\" rel=\"noreferrer\">" + rawLabel + "</a><h3>" + title + "</h3>" + body + "</div>";
+    }
+
+    function renderPlots(plotStatusText) {
+      const data = parsePlotStatus(plotStatusText || "");
+      plotsLink.href = reportFile("plots/");
+      const slowest = data.filter((row) => row.execSpeed > 0)
+        .sort((a, b) => a.execSpeed - b.execSpeed)
+        .slice(0, 18)
+        .map((row) => ({ target: row.target, value: row.execSpeed }));
+      const coverage = data.slice()
+        .sort((a, b) => b.edgeDensity - a.edgeDensity)
+        .slice(0, 18)
+        .map((row) => ({ target: row.target, value: row.edgeDensity }));
+      const pending = data.filter((row) => row.pending > 0)
+        .sort((a, b) => b.pending - a.pending)
+        .slice(0, 18)
+        .map((row) => ({ target: row.target, value: row.pending }));
+      const issues = data.filter((row) => row.issues > 0)
+        .sort((a, b) => b.issues - a.issues)
+        .map((row) => ({ target: row.target, value: row.issues }));
+      plotsEl.innerHTML = [
+        chartCard("Slowest Exec Speed", "plots/summary/exec_speed.png", "Exec speed PNG", slowest, (value) => value.toFixed(value < 10 ? 2 : 1)),
+        chartCard("Highest Edge Density", "plots/summary/edge_density.png", "Edge density PNG", coverage, (value) => value.toFixed(2) + "%"),
+        chartCard("Largest Pending Queues", "plots/summary/pending.png", "Pending PNG", pending, (value) => fmt(value)),
+        chartCard("Crashes + Hangs", "plots/summary/crashes_hangs.png", "Issues PNG", issues, (value) => fmt(value))
+      ].join("");
+    }
+
+    function renderTargetPlot() {
+      const target = selectedPlotTarget;
+      const plot = target ? plotLinks.get(target) : null;
+      if (!target || !plot || !plot.plot) {
+        targetPlotPanel.classList.remove("active");
+        targetPlotEl.innerHTML = "";
+        return;
+      }
+      const base = "plots/afl-" + target + "/";
+      targetPlotTitle.textContent = target + " AFL Plot";
+      targetPlotRawLink.href = reportFile(plot.plot);
+      targetPlotEl.innerHTML = [
+        ["Edges Over Time", "edges.png"],
+        ["Corpus and Pending", "high_freq.png"],
+        ["Crashes and Hangs", "low_freq.png"],
+        ["Exec Speed", "exec_speed.png"]
+      ].map(([title, image]) => {
+        const href = reportFile(base + image);
+        return "<div class=\"target-plot-card\"><h3>" + title + "</h3><a href=\"" + href + "\" target=\"_blank\" rel=\"noreferrer\"><img src=\"" + href + "\" alt=\"" + target + " " + title + "\"></a></div>";
+      }).join("");
+      targetPlotPanel.classList.add("active");
+    }
+
+    function coverageLink(row) {
+      if (!row.coverage || row.coverage.indexOf("/") === -1) return "<span class=\"muted\">none</span>";
+      const path = reportFile("coverage/cov-" + row.target + "-static/html/index.html");
+      return link("HTML", path);
+    }
+
+    function artifactLinks(row) {
+      const items = [];
+      items.push(link("map", reportFile("maps/" + row.target + "-showmap.txt")));
+      items.push(link("triage", reportFile("triage/" + row.target + "-triage.txt")));
+      const plot = plotLinks.get(row.target);
+      if (plot && plot.plot) {
+        const href = "?report=" + encodeURIComponent(currentReport) + "&plotTarget=" + encodeURIComponent(row.target);
+        items.push(localLink("plot", href));
+      }
+      if (plot && plot.log) {
+        items.push(link("plot log", reportFile(plot.log)));
+      }
+      if (row.reachability) {
+        const base = row.reachability.split("/").pop();
+        items.push(link("json", reportFile("coverage/" + base)));
+      }
+      return items.join(" ");
+    }
+
+    function staticReachabilityLinks(row) {
+      const items = [];
+      if (row.static_reachable) {
+        items.push(link("reachable", reportFile("coverage/" + row.static_reachable.split("/").pop())));
+      }
+      if (row.static_unreachable) {
+        items.push(link("unreachable", reportFile("coverage/" + row.static_unreachable.split("/").pop())));
+      }
+      return items.length ? items.join(" ") : "<span class=\"muted\">none</span>";
+    }
+
+    function runtimeListLinks(row) {
+      const items = [];
+      if (row.covered) {
+        items.push(link("covered", reportFile("coverage/" + row.covered.split("/").pop())));
+      }
+      if (row.not_covered_reachable) {
+        items.push(link("not covered reachable", reportFile("coverage/" + row.not_covered_reachable.split("/").pop())));
+      }
+      if (row.covered_unreachable) {
+        items.push(link("covered unreachable", reportFile("coverage/" + row.covered_unreachable.split("/").pop())));
+      }
+      return items.length ? items.join(" ") : "<span class=\"muted\">none</span>";
+    }
+
+    function renderTargets() {
+      const needle = filterEl.value.trim().toLowerCase();
+      const visible = rows.filter((row) => !needle || row.target.toLowerCase().includes(needle));
+      targetsEl.innerHTML = visible.map((row) => {
+        const state = stateClass(row.state || "unknown");
+        return "<tr>"
+          + "<td><b>" + row.target + "</b></td>"
+          + "<td><span class=\"state " + state + "\">" + state + "</span></td>"
+          + "<td>" + fmt(field(row, ["execs_done", "execs"])) + "</td>"
+          + "<td>" + fmt(field(row, ["corpus_count", "corpus"])) + "</td>"
+          + "<td>" + fmt(field(row, ["saved_crashes", "crashes"])) + "</td>"
+          + "<td>" + fmt(field(row, ["saved_hangs", "hangs"])) + "</td>"
+          + "<td>" + coverageLink(row) + "</td>"
+          + "<td>" + staticReachabilityLinks(row) + "</td>"
+          + "<td>" + runtimeListLinks(row) + "</td>"
+          + "<td>" + artifactLinks(row) + "</td>"
+          + "</tr>";
+      }).join("");
+    }
+
+    function mergeRows(statusRows, tsvRows) {
+      const byTarget = new Map();
+      tsvRows.forEach((row) => byTarget.set(row.target, row));
+      return statusRows.map((item) => {
+        const merged = Object.assign({}, item, byTarget.get(item.target) || {});
+        merged.state = item.state;
+        return merged;
+      });
+    }
+
+    function parsePlotLinks(text) {
+      const links = new Map();
+      parseTsv(text).forEach((row) => {
+        links.set(row.target, row);
+      });
+      return links;
+    }
+
+    async function loadReport(value) {
+      currentReport = cleanReportPath(value || currentReport);
+      reportPath.value = currentReport;
+      errorEl.style.display = "none";
+      findingsEl.textContent = "Loading...";
+      indexLink.href = reportFile("index.md");
+      try {
+        const status = JSON.parse(await fetchText("status.json", true));
+        const tsv = parseTsv(await fetchText("targets.tsv", false));
+        plotLinks = parsePlotLinks(await fetchText("plots/plot-targets.tsv", false));
+        const plotStatus = await fetchText("plots/current-status.tsv", false);
+        rows = mergeRows(status.targets || [], tsv);
+        renderMetrics(status);
+        renderPlots(plotStatus);
+        renderTargetPlot();
+        renderTargets();
+        const findings = await fetchText("index.md", false);
+        const plotFindings = await fetchText("plots/CURRENT_FINDINGS.md", false);
+        findingsEl.textContent = [findings, plotFindings].filter(Boolean).join("\n\n") || "No report notes found in this report.";
+        params.set("report", currentReport);
+        history.replaceState(null, "", "?" + params.toString());
+      } catch (error) {
+        rows = [];
+        metricsEl.innerHTML = "";
+        targetsEl.innerHTML = "";
+        findingsEl.textContent = "";
+        errorEl.textContent = "Unable to load " + currentReport + ": " + error.message + ". Run ./afl/report.sh all, then open this viewer with ?report=reports/generated/latest or ?report=reports/generated/<report-dir>.";
+        errorEl.style.display = "block";
+      }
+    }
+
+    controls.addEventListener("submit", (event) => {
+      event.preventDefault();
+      loadReport(reportPath.value);
+    });
+    filterEl.addEventListener("input", renderTargets);
+    loadReport(currentReport);
+  </script>
+</body>
+</html>

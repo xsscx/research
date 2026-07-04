@@ -9,7 +9,7 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 |------|------------|
 | Build or run repo tools | `../README.md`, `iccDEV/shell-helpers/README.md`, `iccDEV/Tools/README.md` |
 | Run AFL++ tool fuzzing | `afl/index.md` |
-| Run CFL LibFuzzer harnesses | `../cfl/README.md` |
+| Run CFL LibFuzzer harnesses | `../cfl/README.md`, `Testing/CFL_MANUAL_FUZZER_COMMANDS.md` |
 | Review fuzzing assets and A/B tracking policy | `Testing/FUZZ_CFL_INVENTORY.md` |
 | Investigate a bug or security issue | `pocs/`, `analysis/`, `cve/iccDEV-CVE-Report.md` |
 | File an upstream issue | `../.github/prompts/upstream-issue-filing.prompt.md` |

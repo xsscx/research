@@ -1,6 +1,6 @@
 # CFL - LibFuzzer Harnesses for iccDEV
 
-Last updated: 2026-05-19
+Last updated: 2026-07-04
 
 `cfl/` contains the LibFuzzer side of the iccDEV fuzzing workflow: active
 harnesses, sanitizer builds, dictionaries, seed material, and the active patch
@@ -72,7 +72,11 @@ Current harness areas:
 | CUBE import | `icc_fromcube_fuzzer` |
 | JSON profile import | `icc_fromjson_fuzzer` |
 | XML import | `icc_fromxml_fuzzer` |
+| JPEG ICC extraction | `icc_jpegdump_fuzzer` |
 | Profile linking | `icc_link_fuzzer` |
+| PAWG report generation | `icc_pawgreport_fuzzer` |
+| PNG ICC extraction | `icc_pngdump_fuzzer` |
+| Profile visualization | `icc_profilevisualize_fuzzer` |
 | Read/write round trip | `icc_roundtrip_fuzzer` |
 | Spectral separation | `icc_specsep_fuzzer` |
 | TIFF ICC extraction | `icc_tiffdump_fuzzer` |
@@ -134,6 +138,10 @@ cd cfl
 ./fuzz-local.sh -t 120 dump     # target alias accepted by helper scripts
 ```
 
+For maintainer one-liners covering every active fuzzer, including smoke,
+explore, rare-path, and sanitizer reproduction modes, use
+`docs/Testing/CFL_MANUAL_FUZZER_COMMANDS.md`.
+
 ### Mounted Storage Run
 
 ```bash
@@ -174,6 +182,7 @@ needed.
 | Doc | Use |
 |-----|-----|
 | `cfl/patches/README.md` | Current active patch stack |
+| `docs/Testing/CFL_MANUAL_FUZZER_COMMANDS.md` | Per-fuzzer maintainer one-liners |
 | `docs/afl/index.md` | AFL++ tool-level fuzzing |
 | `docs/Testing/FUZZ_CFL_INVENTORY.md` | Fuzzing asset and tracking policy |
 | `.github/instructions/cfl.instructions.md` | Agent maintenance rules for this path |

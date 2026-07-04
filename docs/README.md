@@ -14,6 +14,7 @@ compact map of the major subtrees.
 | `iccDEV/specifications/` | ICC specifications, technotes, overlays, and posters |
 | `icc-format/` | ICC binary format notes and CWE mapping |
 | `afl/` | AFL++ tool-level fuzzing reference |
+| `Testing/CFL_MANUAL_FUZZER_COMMANDS.md` | Per-fuzzer CFL maintainer command one-liners |
 | `Testing/FUZZ_CFL_INVENTORY.md` | Fuzzing asset map and tracking policy |
 
 ## Research And Evidence
