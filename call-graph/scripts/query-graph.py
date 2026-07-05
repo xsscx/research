@@ -112,7 +112,7 @@ def cmd_cwes(graph: dict):
 
 
 def cmd_attack(graph: dict):
-    """Attack surface analysis — components by exposure."""
+    """Attack surface analysis by component exposure."""
     nmap = node_map(graph)
     out_adj, in_adj = build_adjacency(graph)
 
@@ -126,7 +126,7 @@ def cmd_attack(graph: dict):
     print(f"{'Component':<45} {'AST Funcs':>10} {'CG Edges':>10} {'Fuzzed?'}")
     print("-" * 80)
     for c in sorted(components, key=lambda x: x.get("ast_functions", 0), reverse=True):
-        is_fuzzed = "✓" if c["id"] in fuzzed else ""
+        is_fuzzed = "yes" if c["id"] in fuzzed else ""
         print(f"{c['id']:<45} {c.get('ast_functions',0):>10,} "
               f"{c.get('cg_edges',0):>10,} {is_fuzzed:>7}")
 

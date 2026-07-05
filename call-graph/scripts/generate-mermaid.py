@@ -2,9 +2,9 @@
 """Generate Mermaid diagrams from the ICC security knowledge graph.
 
 Usage:
-  generate-mermaid.py cve-flow       # CVE → Heuristic → CWE flow
+  generate-mermaid.py cve-flow       # CVE -> Heuristic -> CWE flow
   generate-mermaid.py patch-impact   # Patch impact diagram
-  generate-mermaid.py fuzzer-map     # Fuzzer → Tool mapping
+  generate-mermaid.py fuzzer-map     # Fuzzer -> Tool mapping
   generate-mermaid.py severity       # Severity pie chart
   generate-mermaid.py all            # All diagrams to call-graph/mermaid/
 """
@@ -39,13 +39,13 @@ def sanitize_label(s: str) -> str:
 
 
 def diagram_cve_flow(graph: dict) -> str:
-    """Generate CVE → Heuristic → CWE flow diagram."""
+    """Generate CVE -> Heuristic -> CWE flow diagram."""
     lines = ["graph LR"]
     nmap = node_map(graph)
 
     # Collect DETECTS and CLASSIFIES edges
-    detects = defaultdict(list)  # heuristic → [cve/ghsa]
-    classifies = {}  # heuristic → cwe
+    detects = defaultdict(list)  # heuristic -> [cve/ghsa]
+    classifies = {}  # heuristic -> cwe
 
     for e in graph["edges"]:
         if e["relationship"] == "DETECTS":
@@ -131,7 +131,7 @@ def diagram_patch_impact(graph: dict) -> str:
 
 
 def diagram_fuzzer_map(graph: dict) -> str:
-    """Generate fuzzer → tool mapping diagram."""
+    """Generate fuzzer -> tool mapping diagram."""
     lines = ["graph LR"]
     nmap = node_map(graph)
 

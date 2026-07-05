@@ -17,6 +17,8 @@ LLVM-based call graphs and Clang AST dumps for all ICC security research compone
 
 Use `python3 call-graph/scripts/generate-callgraphs.py --summary` or
 `call-graph/index.json` for current target, function, and edge counts.
+When `index.json` is absent, `--summary` scans generated `*-summary.json`
+files so partial local runs are still reportable.
 
 ## Generated Artifacts
 
@@ -52,7 +54,33 @@ python3 call-graph/scripts/generate-callgraphs.py --callgraph-only
 
 # Print summary of existing outputs
 python3 call-graph/scripts/generate-callgraphs.py --summary
+
+# Rebuild the unified security graph and derived Mermaid diagrams
+python3 call-graph/scripts/build-knowledge-graph.py
+python3 call-graph/scripts/query-graph.py stats
+python3 call-graph/scripts/generate-mermaid.py all
 ```
+
+## Current Local Report
+
+The latest local rebuild did not have `iccanalyzer-lite/iccanalyzer-lite`
+available, so `build-knowledge-graph.py` reused the existing committed
+registry-derived heuristic nodes and refreshed the call-graph component layer
+from generated `*-summary.json` files.
+
+Observed command results:
+
+| Command | Result |
+|---------|--------|
+| `python3 call-graph/scripts/generate-callgraphs.py --summary` | 9 targets, 109796 AST functions, 10015 call edges |
+| `python3 call-graph/scripts/build-knowledge-graph.py` | 525 nodes, 585 edges |
+| `python3 call-graph/scripts/query-graph.py stats` | 181 heuristics, 98 CVEs, 106 GHSAs, 57 CWEs, 61 patches, 9 components, 13 fuzzers |
+| `python3 call-graph/scripts/query-graph.py attack` | 6/9 generated components have fuzzer target edges |
+
+The function counts above come from summaries generated before the AST source
+filter was tightened to avoid system-header declarations with missing file
+locations. Regenerate affected targets before using those counts as coverage
+denominators.
 
 ## Method
 

@@ -9,6 +9,8 @@ and code navigation.
 
 Use `python3 call-graph/scripts/generate-callgraphs.py --summary` or
 `call-graph/index.json` for current target, function, and edge counts.
+If `index.json` is not present, `--summary` now scans generated
+`*-summary.json` files and prints the partial local artifact set.
 
 ## Directory Structure
 
@@ -151,7 +153,8 @@ compilation issue and re-run. Common causes:
 2. Create the output subdirectory under `call-graph/`
 3. Run `generate-callgraphs.py --component <name>`
 4. Run `improve-callgraphs.py --component <name>`
-5. Update `README.md` and this instructions file with new counts
+5. Run `build-knowledge-graph.py`, `query-graph.py stats`, and
+   `generate-mermaid.py all` to refresh the report layer
 6. Commit DOT + SVG + AST + summary files
 
 ## Common Pitfalls
@@ -160,6 +163,13 @@ compilation issue and re-run. Common causes:
   Raw `opt-18` output uses LLVM IR mangled names that are unreadable.
 - **Stale graphs** - After upstream sync, regenerate to pick up new/changed functions.
   Old call graphs may show deleted functions or miss new call edges.
+- **Missing index.json** - `index.json` is generated and ignored. Summary/report
+  commands fall back to generated `*-summary.json` files, but a full generation
+  run is still required before treating totals as authoritative.
+- **Missing analyzer binary** - `build-knowledge-graph.py` reuses the existing
+  committed registry-derived heuristic layer when `iccanalyzer-lite/iccanalyzer-lite`
+  is unavailable, then refreshes patches, advisories, components, and fuzzer
+  mappings from local sources.
 - **Large SVGs** - IccCmmConfig has 1800+ nodes. These are correct but complex.
   Noise filtering is default; use `--keep-noise` only when debugging raw output.
 - **c++filt failures** - ~7% of mangled symbols use LLVM-internal conventions that

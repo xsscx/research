@@ -376,8 +376,15 @@ def _extract_recursive(node: dict, source_file: str, functions: list,
     loc = node.get("loc", {})
     file_in_loc = loc.get("file", loc.get("expansionLoc", {}).get("file", ""))
 
-    # Only process nodes from our source file (not system headers)
-    is_our_file = (not file_in_loc) or (Path(source_file).name in file_in_loc)
+    # Only process nodes from our source file. Clang often omits the file for
+    # declarations inherited from the main file context, but system-header
+    # declarations usually have neither file nor line in the compact location.
+    source_name = Path(source_file).name
+    if file_in_loc:
+        is_our_file = source_name in file_in_loc
+    else:
+        line = loc.get("line", node.get("range", {}).get("begin", {}).get("line", 0))
+        is_our_file = bool(line)
 
     if kind == "FunctionDecl" and is_our_file:
         name = node.get("name", "")
@@ -816,15 +823,82 @@ def generate_master_index(all_results: List[Dict], merge_existing: bool = False)
     return index
 
 
+def index_from_summary_files() -> Optional[Dict]:
+    """Build an index from generated *-summary.json files when index.json is absent."""
+    summaries = sorted(CALL_GRAPH_DIR.rglob("*-summary.json"))
+    if not summaries:
+        return None
+
+    all_results = []
+    for summary_file in summaries:
+        try:
+            with open(summary_file) as f:
+                summary = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        component = summary.get("component")
+        target = summary.get("target")
+        if not component or not target:
+            continue
+
+        ast = summary.get("ast", {})
+        callgraph = summary.get("callgraph", {})
+        all_results.append({
+            "target": target,
+            "component": component,
+            "ast_functions": ast.get("function_count", 0),
+            "cg_edges": callgraph.get("edge_count", 0),
+            "cg_method": callgraph.get("method", "unknown"),
+        })
+
+    if not all_results:
+        return None
+
+    components = {}
+    for r in all_results:
+        components.setdefault(r["component"], []).append({
+            "name": r["target"],
+            "ast_functions": r["ast_functions"],
+            "cg_edges": r["cg_edges"],
+            "cg_method": r["cg_method"],
+        })
+
+    for targets in components.values():
+        targets.sort(key=lambda t: t.get("name", ""))
+
+    return {
+        "generated_by": "generate-callgraphs.py",
+        "source": "summary-files",
+        "components": components,
+        "totals": {
+            "targets": sum(len(targets) for targets in components.values()),
+            "total_functions": sum(
+                t.get("ast_functions", 0)
+                for targets in components.values()
+                for t in targets
+            ),
+            "total_edges": sum(
+                t.get("cg_edges", 0)
+                for targets in components.values()
+                for t in targets
+            ),
+        },
+    }
+
+
 def print_summary():
     """Print summary of existing call-graph artifacts."""
     index_file = CALL_GRAPH_DIR / "index.json"
-    if not index_file.exists():
-        print("No index.json found. Run generation first.")
-        return
-
-    with open(index_file) as f:
-        index = json.load(f)
+    if index_file.exists():
+        with open(index_file) as f:
+            index = json.load(f)
+    else:
+        index = index_from_summary_files()
+        if index is None:
+            print("No index.json or *-summary.json files found. Run generation first.")
+            return
+        print("No index.json found; summarizing generated *-summary.json files.")
 
     print("\n=== Call Graph & AST Summary ===\n")
     print(f"  Targets: {index['totals']['targets']}")

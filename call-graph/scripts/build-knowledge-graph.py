@@ -2,11 +2,11 @@
 """Build a unified knowledge graph from all ICC security research data sources.
 
 Parses:
-  1. iccanalyzer-lite --registry JSON → heuristic, CVE, CWE nodes
-  2. Patch coverage CSV → patch nodes + coverage edges
-  3. call-graph/index.json → component nodes + edge counts
-  4. CVE report markdown → advisory nodes with severity/CVSS
-  5. Fuzzer-tool mappings → fuzzer nodes + target edges
+  1. iccanalyzer-lite --registry JSON -> heuristic, CVE, CWE nodes
+  2. Patch coverage CSV -> patch nodes + coverage edges
+  3. call-graph/index.json -> component nodes + edge counts
+  4. CVE report markdown -> advisory nodes with severity/CVSS
+  5. Fuzzer-tool mappings -> fuzzer nodes + target edges
 
 Output: call-graph/knowledge-graph.json
 """
@@ -29,7 +29,7 @@ CALLGRAPH_INDEX = REPO_ROOT / "call-graph" / "index.json"
 CVE_REPORT = REPO_ROOT / "docs" / "cve" / "iccDEV-CVE-Report.md"
 OUTPUT = REPO_ROOT / "call-graph" / "knowledge-graph.json"
 
-# Fuzzer → upstream tool mapping (from CFL instructions)
+# Fuzzer to upstream tool mapping (from CFL instructions)
 FUZZER_TOOL_MAP = {
     "icc_dump_fuzzer": "IccDumpProfile",
     "icc_toxml_fuzzer": "IccToXml",
@@ -60,8 +60,8 @@ FUZZER_FIDELITY = {
 def parse_registry(bin_path: Path) -> dict:
     """Run --registry and parse JSON output."""
     if not bin_path.exists():
-        print(f"  WARN: {bin_path} not found, using fallback", file=sys.stderr)
-        return {"heuristics": [], "totalHeuristics": 0}
+        print(f"  WARN: {bin_path} not found, reusing existing graph registry", file=sys.stderr)
+        return parse_existing_registry(OUTPUT)
     try:
         result = subprocess.run(
             [str(bin_path), "--registry"],
@@ -69,8 +69,60 @@ def parse_registry(bin_path: Path) -> dict:
         )
         return json.loads(result.stdout)
     except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as e:
-        print(f"  WARN: --registry failed: {e}", file=sys.stderr)
-        return {"heuristics": [], "totalHeuristics": 0}
+        print(f"  WARN: --registry failed: {e}; reusing existing graph registry", file=sys.stderr)
+        return parse_existing_registry(OUTPUT)
+
+
+def parse_existing_registry(graph_path: Path) -> dict:
+    """Recover registry-shaped data from an existing knowledge graph."""
+    if not graph_path.exists():
+        return {"heuristics": [], "totalHeuristics": 0, "severity": {}}
+
+    try:
+        with open(graph_path) as f:
+            graph = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"heuristics": [], "totalHeuristics": 0, "severity": {}}
+
+    node_by_id = {n.get("id"): n for n in graph.get("nodes", [])}
+    heuristic_nodes = [n for n in graph.get("nodes", []) if n.get("type") == "heuristic"]
+
+    refs_by_heuristic = {}
+    cwe_by_heuristic = {}
+    for edge in graph.get("edges", []):
+        source = edge.get("source")
+        target = edge.get("target")
+        rel = edge.get("relationship")
+        if source not in node_by_id:
+            continue
+        if rel == "DETECTS":
+            refs_by_heuristic.setdefault(source, []).append(target)
+        elif rel == "CLASSIFIES":
+            cwe_by_heuristic[source] = target
+
+    severity = {}
+    heuristics = []
+    for node in heuristic_nodes:
+        hid = str(node.get("id", "H0"))
+        numeric_id = int(hid[1:]) if hid.startswith("H") and hid[1:].isdigit() else 0
+        sev = node.get("severity", "INFO")
+        severity[sev] = severity.get(sev, 0) + 1
+        heuristics.append({
+            "id": numeric_id,
+            "name": node.get("name", ""),
+            "specRef": node.get("specRef", ""),
+            "phase": node.get("phase", ""),
+            "severity": sev,
+            "cwe": cwe_by_heuristic.get(hid, ""),
+            "cveRefs": ", ".join(refs_by_heuristic.get(hid, [])),
+        })
+
+    heuristics.sort(key=lambda h: h["id"])
+    return {
+        "heuristics": heuristics,
+        "totalHeuristics": len(heuristics),
+        "severity": severity,
+    }
 
 
 def parse_patch_csv(csv_path: Path) -> list[dict]:
@@ -88,11 +140,37 @@ def parse_patch_csv(csv_path: Path) -> list[dict]:
 
 def parse_callgraph_index(idx_path: Path) -> dict:
     """Parse call-graph/index.json."""
-    if not idx_path.exists():
-        print(f"  WARN: {idx_path} not found", file=sys.stderr)
-        return {"components": {}}
-    with open(idx_path) as f:
-        return json.load(f)
+    if idx_path.exists():
+        with open(idx_path) as f:
+            return json.load(f)
+
+    print(f"  WARN: {idx_path} not found; scanning summary files", file=sys.stderr)
+    components = {}
+    for summary_path in sorted(idx_path.parent.rglob("*-summary.json")):
+        try:
+            with open(summary_path) as f:
+                summary = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        component = summary.get("component")
+        target = summary.get("target")
+        if not component or not target:
+            continue
+
+        ast = summary.get("ast", {})
+        callgraph = summary.get("callgraph", {})
+        components.setdefault(component, []).append({
+            "name": target,
+            "ast_functions": ast.get("function_count", 0),
+            "cg_edges": callgraph.get("edge_count", 0),
+            "cg_method": callgraph.get("method", "unknown"),
+        })
+
+    for targets in components.values():
+        targets.sort(key=lambda t: t.get("name", ""))
+
+    return {"generated_by": "summary-files", "components": components}
 
 
 def parse_cve_report(md_path: Path) -> list[dict]:
@@ -142,8 +220,8 @@ def parse_cwe_distribution(md_path: Path) -> dict[str, int]:
         return cwe_dist
     with open(md_path) as f:
         content = f.read()
-    # Pattern: - **CWE-NNN: Description** — N advisory(ies)
-    for m in re.finditer(r"- \*\*CWE-(\d+):[^*]+\*\*\s*[—–-]+\s*(\d+)\s*advisory", content):
+    # Pattern: - **CWE-NNN: Description** - N advisory(ies)
+    for m in re.finditer(r"- \*\*CWE-(\d+):[^*]+\*\*\s*[-\u2013\u2014]+\s*(\d+)\s*advisory", content):
         cwe_dist[f"CWE-{m.group(1)}"] = int(m.group(2))
     return cwe_dist
 
@@ -261,7 +339,12 @@ def build_graph(registry: dict, patches: list, cg_index: dict,
             add_edge(fid, cfl_id, "IMPLEMENTED_BY")
 
     # --- Severity distribution summary ---
-    severity_dist = registry.get("severity", {})
+    severity_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
+    severity_dist = {
+        level: registry.get("severity", {}).get(level, 0)
+        for level in severity_order
+        if registry.get("severity", {}).get(level, 0)
+    }
 
     return {
         "version": "1.0.0",

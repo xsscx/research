@@ -2,14 +2,14 @@
   "version": "1.0.0",
   "generated_by": "build-knowledge-graph.py",
   "stats": {
-    "nodes": 519,
-    "edges": 578,
+    "nodes": 525,
+    "edges": 585,
     "heuristics": 181,
     "cves": 98,
     "ghsas": 106,
     "cwes": 57,
     "patches": 61,
-    "components": 3,
+    "components": 9,
     "fuzzers": 13,
     "severity_distribution": {
       "CRITICAL": 62,
@@ -98,40 +98,6 @@
       "id": "CWE-682",
       "type": "cwe",
       "name": "CWE-682"
-    },
-    {
-      "id": "H15",
-      "type": "heuristic",
-      "name": "Date Validation",
-      "specRef": "Sec.7.2.4",
-      "phase": "HEADER",
-      "severity": "LOW"
-    },
-    {
-      "id": "H16",
-      "type": "heuristic",
-      "name": "Signature Patterns",
-      "specRef": "Sec.7.2",
-      "phase": "HEADER",
-      "severity": "INFO"
-    },
-    {
-      "id": "CWE-506",
-      "type": "cwe",
-      "name": "CWE-506"
-    },
-    {
-      "id": "H17",
-      "type": "heuristic",
-      "name": "Spectral Range",
-      "specRef": "Sec.7.2.22",
-      "phase": "HEADER",
-      "severity": "MEDIUM"
-    },
-    {
-      "id": "CWE-843",
-      "type": "cwe",
-      "name": "CWE-843"
     },
     {
       "id": "H9",
@@ -293,6 +259,40 @@
     {
       "id": "GHSA-965q-9pp6-6vw5",
       "type": "ghsa"
+    },
+    {
+      "id": "H15",
+      "type": "heuristic",
+      "name": "Date Validation",
+      "specRef": "Sec.7.2.4",
+      "phase": "HEADER",
+      "severity": "LOW"
+    },
+    {
+      "id": "H16",
+      "type": "heuristic",
+      "name": "Signature Patterns",
+      "specRef": "Sec.7.2",
+      "phase": "HEADER",
+      "severity": "INFO"
+    },
+    {
+      "id": "CWE-506",
+      "type": "cwe",
+      "name": "CWE-506"
+    },
+    {
+      "id": "H17",
+      "type": "heuristic",
+      "name": "Spectral Range",
+      "specRef": "Sec.7.2.22",
+      "phase": "HEADER",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "CWE-843",
+      "type": "cwe",
+      "name": "CWE-843"
     },
     {
       "id": "H18",
@@ -835,48 +835,19 @@
       "severity": "HIGH"
     },
     {
-      "id": "H57",
-      "type": "heuristic",
-      "name": "Embedded Profile Recursion Depth",
-      "specRef": null,
-      "phase": "RAW_POST",
-      "severity": "HIGH"
-    },
-    {
-      "id": "H59",
-      "type": "heuristic",
-      "name": "Spectral Wavelength Range Consistency",
-      "specRef": null,
-      "phase": "RAW_POST",
-      "severity": "MEDIUM"
-    },
-    {
-      "id": "H68",
-      "type": "heuristic",
-      "name": "GamutBoundaryDesc Triangle Vertex Overflow",
-      "specRef": null,
-      "phase": "RAW_POST",
-      "severity": "CRITICAL"
-    },
-    {
-      "id": "H69",
-      "type": "heuristic",
-      "name": "Profile ID MD5 Consistency",
-      "specRef": null,
-      "phase": "RAW_POST",
-      "severity": "MEDIUM"
-    },
-    {
-      "id": "CWE-345",
-      "type": "cwe",
-      "name": "CWE-345"
-    },
-    {
       "id": "H56",
       "type": "heuristic",
       "name": "Calculator Stack Depth",
       "specRef": null,
       "phase": "DATA_VALIDATION",
+      "severity": "HIGH"
+    },
+    {
+      "id": "H57",
+      "type": "heuristic",
+      "name": "Embedded Profile Recursion Depth",
+      "specRef": null,
+      "phase": "RAW_POST",
       "severity": "HIGH"
     },
     {
@@ -899,6 +870,14 @@
     {
       "id": "GHSA-h554-qrfh-53gx",
       "type": "ghsa"
+    },
+    {
+      "id": "H59",
+      "type": "heuristic",
+      "name": "Spectral Wavelength Range Consistency",
+      "specRef": null,
+      "phase": "RAW_POST",
+      "severity": "MEDIUM"
     },
     {
       "id": "H60",
@@ -1000,6 +979,27 @@
     {
       "id": "GHSA-q8g2-mp32-3j7f",
       "type": "ghsa"
+    },
+    {
+      "id": "H68",
+      "type": "heuristic",
+      "name": "GamutBoundaryDesc Triangle Vertex Overflow",
+      "specRef": null,
+      "phase": "RAW_POST",
+      "severity": "CRITICAL"
+    },
+    {
+      "id": "H69",
+      "type": "heuristic",
+      "name": "Profile ID MD5 Consistency",
+      "specRef": null,
+      "phase": "RAW_POST",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "CWE-345",
+      "type": "cwe",
+      "name": "CWE-345"
     },
     {
       "id": "H70",
@@ -3050,30 +3050,84 @@
       "review_state": "verified"
     },
     {
-      "id": "comp:colorbleed/IccToXml_unsafe",
+      "id": "comp:iccdev/tools/IccApplyNamedCmm",
       "type": "component",
-      "component": "colorbleed",
-      "name": "IccToXml_unsafe",
-      "ast_functions": 0,
-      "cg_edges": 39,
-      "cg_method": "regex-fallback"
+      "component": "iccdev/tools",
+      "name": "IccApplyNamedCmm",
+      "ast_functions": 19814,
+      "cg_edges": 2060,
+      "cg_method": "llvm-ir"
     },
     {
-      "id": "comp:colorbleed/IccFromXml_unsafe",
+      "id": "comp:iccdev/tools/IccApplyProfiles",
       "type": "component",
-      "component": "colorbleed",
-      "name": "IccFromXml_unsafe",
-      "ast_functions": 0,
-      "cg_edges": 11,
-      "cg_method": "regex-fallback"
+      "component": "iccdev/tools",
+      "name": "IccApplyProfiles",
+      "ast_functions": 21220,
+      "cg_edges": 1696,
+      "cg_method": "llvm-ir"
     },
     {
-      "id": "comp:colorbleed/ColorBleedAlloc",
+      "id": "comp:iccdev/tools/IccApplySearch",
       "type": "component",
-      "component": "colorbleed",
-      "name": "ColorBleedAlloc",
-      "ast_functions": 272,
-      "cg_edges": 4,
+      "component": "iccdev/tools",
+      "name": "IccApplySearch",
+      "ast_functions": 19809,
+      "cg_edges": 2066,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccApplyToLink",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccApplyToLink",
+      "ast_functions": 8494,
+      "cg_edges": 643,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccDumpProfile",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccDumpProfile",
+      "ast_functions": 7754,
+      "cg_edges": 497,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccFromCube",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccFromCube",
+      "ast_functions": 6110,
+      "cg_edges": 311,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccJpegDump",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccJpegDump",
+      "ast_functions": 4958,
+      "cg_edges": 419,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccPawgReport",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccPawgReport",
+      "ast_functions": 13232,
+      "cg_edges": 2066,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccPngDump",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccPngDump",
+      "ast_functions": 8405,
+      "cg_edges": 257,
       "cg_method": "llvm-ir"
     },
     {
@@ -3340,21 +3394,6 @@
       "relationship": "CLASSIFIES"
     },
     {
-      "source": "H15",
-      "target": "CWE-20",
-      "relationship": "CLASSIFIES"
-    },
-    {
-      "source": "H16",
-      "target": "CWE-506",
-      "relationship": "CLASSIFIES"
-    },
-    {
-      "source": "H17",
-      "target": "CWE-843",
-      "relationship": "CLASSIFIES"
-    },
-    {
       "source": "H9",
       "target": "CWE-476",
       "relationship": "CLASSIFIES"
@@ -3493,6 +3532,21 @@
       "source": "H14",
       "target": "GHSA-965q-9pp6-6vw5",
       "relationship": "DETECTS"
+    },
+    {
+      "source": "H15",
+      "target": "CWE-20",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H16",
+      "target": "CWE-506",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H17",
+      "target": "CWE-843",
+      "relationship": "CLASSIFIES"
     },
     {
       "source": "H18",
@@ -3945,26 +3999,6 @@
       "relationship": "CLASSIFIES"
     },
     {
-      "source": "H57",
-      "target": "CWE-674",
-      "relationship": "CLASSIFIES"
-    },
-    {
-      "source": "H59",
-      "target": "CWE-682",
-      "relationship": "CLASSIFIES"
-    },
-    {
-      "source": "H68",
-      "target": "CWE-190",
-      "relationship": "CLASSIFIES"
-    },
-    {
-      "source": "H69",
-      "target": "CWE-345",
-      "relationship": "CLASSIFIES"
-    },
-    {
       "source": "H56",
       "target": "CWE-400",
       "relationship": "CLASSIFIES"
@@ -3980,6 +4014,11 @@
       "relationship": "DETECTS"
     },
     {
+      "source": "H57",
+      "target": "CWE-674",
+      "relationship": "CLASSIFIES"
+    },
+    {
       "source": "H58",
       "target": "CWE-126",
       "relationship": "CLASSIFIES"
@@ -3993,6 +4032,11 @@
       "source": "H58",
       "target": "GHSA-h554-qrfh-53gx",
       "relationship": "DETECTS"
+    },
+    {
+      "source": "H59",
+      "target": "CWE-682",
+      "relationship": "CLASSIFIES"
     },
     {
       "source": "H60",
@@ -4083,6 +4127,16 @@
       "source": "H67",
       "target": "GHSA-q8g2-mp32-3j7f",
       "relationship": "DETECTS"
+    },
+    {
+      "source": "H68",
+      "target": "CWE-190",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H69",
+      "target": "CWE-345",
+      "relationship": "CLASSIFIES"
     },
     {
       "source": "H70",
@@ -6188,6 +6242,45 @@
       "source": "CVE-2026-21507",
       "target": "GHSA-hgp5-r8m9-8qpj",
       "relationship": "ALIAS"
+    },
+    {
+      "source": "fuzzer:icc_dump_fuzzer",
+      "target": "comp:iccdev/tools/IccDumpProfile",
+      "relationship": "TARGETS",
+      "fidelity_pct": 100
+    },
+    {
+      "source": "fuzzer:icc_fromcube_fuzzer",
+      "target": "comp:iccdev/tools/IccFromCube",
+      "relationship": "TARGETS",
+      "fidelity_pct": 100
+    },
+    {
+      "source": "fuzzer:icc_applynamedcmm_fuzzer",
+      "target": "comp:iccdev/tools/IccApplyNamedCmm",
+      "relationship": "TARGETS",
+      "fidelity_pct": 75
+    },
+    {
+      "source": "fuzzer:icc_applyprofiles_fuzzer",
+      "target": "comp:iccdev/tools/IccApplyProfiles",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "fuzzer:icc_link_fuzzer",
+      "target": "comp:iccdev/tools/IccApplyToLink",
+      "relationship": "TARGETS",
+      "fidelity_pct": 65
+    },
+    {
+      "source": "fuzzer:icc_applysearch_fuzzer",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "fuzzer:icc_cfg_fuzzer",
+      "target": "comp:iccdev/tools/IccApplyNamedCmm",
+      "relationship": "TARGETS"
     }
   ]
 }
