@@ -1,6 +1,6 @@
 #!/bin/bash
 # shellcheck source=iccdev-test-common.sh
-# test-iccFromCube.sh — iccFromCube envelope tests
+# test-iccFromCube.sh - iccFromCube envelope tests
 # Usage: ./test-iccFromCube.sh [--asan] [--quick]
 source "$(dirname "$0")/iccdev-test-common.sh"
 
@@ -25,9 +25,10 @@ for cube_file in "$REPO_ROOT"/cfl/corpus-icc_fromcube_fuzzer/warm_film_2x2x2.cub
   fi
 done
 
-# Batch remaining .cube files from CFL corpus (parallel)
+# Batch remaining CFL corpus files (parallel). The corpus commonly uses
+# hash-only filenames without a .cube suffix.
 BATCH_CUBES=()
-for cube_file in "$REPO_ROOT"/cfl/corpus-icc_fromcube_fuzzer/*.cube; do
+for cube_file in "$REPO_ROOT"/cfl/corpus-icc_fromcube_fuzzer/*; do
   if [ -f "$cube_file" ]; then
     base=$(basename "$cube_file" .cube)
     case "$base" in
@@ -44,7 +45,26 @@ if [ "${#BATCH_CUBES[@]}" -gt 0 ]; then
     logfile="$OUTDIR/${tid}.log"
     (
       ec=0; timeout 60 "$FROMCUBE" "$cube_file" "$OUTDIR/cube_b_${base}.icc" > "$logfile" 2>&1 || ec=$?
-      _classify_result "$tid" "Batch cube: $base" "$ec" "$logfile"
+      has_asan=0
+      has_ubsan=0
+      status="PASS"
+      note=""
+      sanitizer_note=""
+      if grep -q "ERROR: AddressSanitizer" "$logfile" 2>/dev/null; then has_asan=1; fi
+      if grep -q "runtime error:" "$logfile" 2>/dev/null; then has_ubsan=1; fi
+      if [ "$has_asan" -eq 1 ] || [ "$has_ubsan" -eq 1 ]; then
+        status="CRASH"; note=" [SANITIZER exit=$ec]"
+      elif [ "$ec" -eq 134 ] || [ "$ec" -eq 136 ] || [ "$ec" -eq 137 ] || [ "$ec" -eq 139 ]; then
+        status="CRASH"; note=" [signal $((ec - 128))]"
+      elif [ "$ec" -eq 124 ]; then
+        status="TIMEOUT"; note=" [>60s]"
+      elif [ "$ec" -ne 0 ]; then
+        note=" [rejected exit=$ec]"
+      fi
+      [ "$has_asan" -eq 1 ] && sanitizer_note="$sanitizer_note ASAN!"
+      [ "$has_ubsan" -eq 1 ] && sanitizer_note="$sanitizer_note UBSAN!"
+      printf "%s\t%d\t%d\t%d\t%s\t%s\t%s\n" "$status" "$ec" "$has_asan" "$has_ubsan" "Batch cube: $base" "$note" "$sanitizer_note" \
+        > "$_PARALLEL_DIR/$tid.result"
     ) &
     _pids+=($!); _tids+=("$tid")
     [ "${#_pids[@]}" -ge "$NCPU" ] && { wait "${_pids[0]}" 2>/dev/null || true; _pids=("${_pids[@]:1}"); }

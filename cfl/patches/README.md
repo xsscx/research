@@ -12,7 +12,7 @@ Current upstream baseline:
 
 - Branch: `origin/master`
 - Commit: `4155c6f`
-- Active patches: 31
+- Active patches: 32
 
 ## Build Modes
 
@@ -65,6 +65,7 @@ Patch application failures are fatal in patched mode.
 | `089-spectral-data-info-null-profile.patch` | Spectral data validation null profile guard |
 | `097-applyprofiles-observer-range.patch` | ApplyProfiles spectral observer allocation range |
 | `098-cmm-xform-sample-link-guard.patch` | CMM adjacent xform sample-count validation |
+| `099-fromcube-checked-cube-parsing.patch` | FromCube checked numeric parsing and exact 3D table length |
 
 ## Drift Review
 
@@ -140,3 +141,7 @@ the AFL `applyprofiles-fast` ReflectanceCLUT and ReflectanceObserver HBO PoCs.
 The 2026-07-05 ApplyProfiles review added `098` to reject CMM xform chains whose
 adjacent output/input sample counts disagree after PCS conversion insertion,
 covering the AFL `applyprofiles-hybrid-embedded` matrix Apply HBO PoC.
+
+The 2026-07-05 FromCube QA review added `099` to reject malformed `.cube`
+numeric fields, non-finite LUT values, incomplete tables, and trailing 3D LUT
+rows before `iccFromCube` serializes a DeviceLink profile.
