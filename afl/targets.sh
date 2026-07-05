@@ -215,10 +215,11 @@ afl_configure_target() {
                 AFL_DIR="$AFL_BASE/afl-applynamedcmm-cfg"
                 DICT="$REPO_ROOT/cfl/icc_cfg.dict"
                 SEED_MAX_BYTES=262144
-                SEED_FILE_TYPE_REGEX=""
+                SEED_FILE_TYPE_REGEX='^(JSON text data|ASCII text)'
                 SEED_LIMIT=300
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
+                SEED_DRY_RUN_TARGET=1
                 [[ -z "${AFL_INPUT_FORMAT:-}" ]] && AFL_INPUT_FORMAT="text"
                 [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=65536
                 SEED_EXCLUDE_REGEX='output-to-file\.json$'
@@ -282,10 +283,11 @@ afl_configure_target() {
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-cfg"
                     DICT="$REPO_ROOT/cfl/icc_cfg.dict"
                     SEED_MAX_BYTES=262144
-                    SEED_FILE_TYPE_REGEX=""
+                    SEED_FILE_TYPE_REGEX='^(JSON text data|ASCII text)'
                     SEED_LIMIT=300
                     AFL_DISABLE_TRIM_TARGET=1
                     AFL_FAST_CAL_TARGET=1
+                    SEED_DRY_RUN_TARGET=1
                     [[ -z "${AFL_INPUT_FORMAT:-}" ]] && AFL_INPUT_FORMAT="text"
                     [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=65536
                     SEED_EXCLUDE_REGEX='output-to-file\.json$'
@@ -381,9 +383,11 @@ afl_configure_target() {
             if [[ "$target" == applysearch-cfg || "$target" == search-cfg ]]; then
                 DICT="$REPO_ROOT/cfl/icc_cfg.dict"
                 SEED_MAX_BYTES=262144
+                SEED_FILE_TYPE_REGEX='^(JSON text data|ASCII text)'
                 SEED_LIMIT=300
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
+                SEED_DRY_RUN_TARGET=1
                 [[ -z "${AFL_INPUT_FORMAT:-}" ]] && AFL_INPUT_FORMAT="text"
                 [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=65536
                 SEED_EXCLUDE_REGEX='output-to-file\.json$'

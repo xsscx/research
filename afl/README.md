@@ -230,6 +230,7 @@ For slow or nearly converged targets, prefer a fresh lane over repeatedly
 resuming a stale queue:
 
 ```bash
+./afl/start.sh applysearch-cfg --fresh --reseed --power-schedule rare --mopt-secs 0
 ./afl/start.sh pawgreport-fast --fresh --map-size 131072
 ./afl/start.sh applysearch-fast --fresh --reseed
 ./afl/start.sh applysearch-hybrid-pcc --fresh --reseed
