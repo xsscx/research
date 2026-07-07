@@ -468,6 +468,10 @@ seed_file_dry_run_ok() {
         return 1
     fi
 
+    if [[ "${SEED_DRY_RUN_REQUIRE_ZERO_TARGET:-0}" -eq 1 && "$exit_code" -ne 0 ]]; then
+        return 1
+    fi
+
     return 0
 }
 

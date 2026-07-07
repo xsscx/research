@@ -166,6 +166,7 @@ afl_configure_target() {
     AFL_DISABLE_TRIM_TARGET=0
     AFL_FAST_CAL_TARGET=0
     SEED_DRY_RUN_TARGET=0
+    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=0
     SEED_DRY_RUN_TIMEOUT=5
     SEED_EXCLUDE_REGEX=""
     REQUIRED_FILES=()
@@ -373,6 +374,7 @@ afl_configure_target() {
             fi
             DICT="$REPO_ROOT/cfl/icc_applysearch_fuzzer.dict"
             SEED_DIRS=(
+                "$REPO_ROOT/cfl/corpus-icc_applysearch_fuzzer"
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/extended-test-profiles"
@@ -405,6 +407,7 @@ afl_configure_target() {
                 SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
                 SEED_LIMIT=64
                 SEED_DRY_RUN_TARGET=1
+                SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 SEED_FILES=(
@@ -415,11 +418,10 @@ afl_configure_target() {
                 )
                 SEED_DIRS=(
                     "$HYBRID_ICC_DIR"
-                    "$REPO_ROOT/test-profiles"
                 )
                 REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
-                TARGET_NOTE="Hybrid ApplySearch lane: fuzzes the PCC profile in the issue-1316 CopyAttach command-line shape with generated hybrid ICC seeds, fast calibration, and trim disabled."
-                AFL_ARGS=("-exportcfganddata" "$HYBRID_CONFIG_DIR/afl-applysearch-hybrid.json" "$HYBRID_CMYK_REF" "0" "0" "-ENV:bkgX" "0.0985" "$HYBRID_SPEC_D50" "10090" "-ENV:bkgX" "0" "-ENV:bkgY" "0" "-ENV:bkgZ" "0" "$HYBRID_LAB_D50" "100" "-ENV:0ni?" "1" "@@" "10010" "-INIT" "40" "$HYBRID_LAB_D50" "1" "$HYBRID_LAB_D93" "1" "$HYBRID_LAB_F11" "1" "$HYBRID_LAB_ILLUMA" "1")
+                TARGET_NOTE="Hybrid ApplySearch lane: fuzzes the first PCC weight profile in the known-good spectral search command-line shape, with fast calibration and trim disabled."
+                AFL_ARGS=("-exportcfganddata" "$HYBRID_CONFIG_DIR/afl-applysearch-hybrid.json" "$HYBRID_CMYK_REF" "0" "1" "$HYBRID_SPEC_D50" "3" "$HYBRID_LAB_D50" "3" "$HYBRID_CMYK_PROFILE" "10003" "-INIT" "3" "@@" "1" "$HYBRID_LAB_D93" "1" "$HYBRID_LAB_F11" "1" "$HYBRID_LAB_ILLUMA" "1")
             elif [[ "$target" == applysearch-weight* || "$target" == search-weight* ]]; then
                 local weight_value="1"
                 case "$target" in
@@ -434,26 +436,44 @@ afl_configure_target() {
                     "$REPO_ROOT/test-profiles/sRgbEncodingOverrides.icc"
                     "$REPO_ROOT/test-profiles/issue-809-vendor-flags-cwe681.icc"
                 )
-                SEED_DIRS=()
+                SEED_DIRS=(
+                    "$REPO_ROOT/cfl/corpus-icc_applysearch_weight_fuzzer"
+                )
                 REQUIRED_FILES=("$rgb_data" "$srgb_profile" "${SEED_FILES[@]}")
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 if [[ "$target" == *positive-fast ]]; then
                     SEED_MAX_BYTES=512
+                    SEED_LIMIT=96
+                    SEED_DRY_RUN_TARGET=1
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     REQUIRED_FILES=("$rgb_float_data" "$srgb_profile" "${SEED_FILES[@]}")
-                    TARGET_NOTE="Fast weight-positive apply-search lane: tiny valid PCC seeds, shorter float data, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                    TARGET_NOTE="Fast weight-positive apply-search lane: tiny valid PCC seeds plus screened CFL weight corpus entries, shorter float data, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                     AFL_ARGS=("$rgb_float_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
                 elif [[ "$target" == *nan ]]; then
-                    TARGET_NOTE="Extreme-weight apply-search target: @@ is the fuzzed PCC profile; fixed finite max-float weight is $weight_value because iccApplySearch rejects nan/inf at argument parsing; three tiny valid PCC seeds keep calibration tractable."
+                    SEED_LIMIT=96
+                    SEED_DRY_RUN_TARGET=1
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                    TARGET_NOTE="Extreme-weight apply-search target: @@ is the fuzzed PCC profile; fixed finite max-float weight is $weight_value because iccApplySearch rejects nan/inf at argument parsing; screened positive-result seeds keep calibration tractable."
                     AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
                 else
-                    TARGET_NOTE="Weight-focused apply-search target: @@ is the fuzzed PCC profile; fixed weight is $weight_value; three tiny valid PCC seeds keep calibration tractable."
+                    if [[ "$weight_value" == "1" ]]; then
+                        SEED_LIMIT=96
+                        SEED_DRY_RUN_TARGET=1
+                        SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                        TARGET_NOTE="Weight-focused apply-search target: @@ is the fuzzed PCC profile; fixed weight is $weight_value; screened CFL weight corpus entries keep calibration tractable."
+                    else
+                        SEED_DIRS=()
+                        TARGET_NOTE="Weight-validation apply-search target: @@ is the fuzzed PCC profile; fixed invalid weight is $weight_value, so this lane intentionally stops at AttachPCC validation and is not a deep coverage lane."
+                    fi
                     AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
                 fi
             else
                 if [[ "$target" == applysearch-fast || "$target" == search-fast ]]; then
                     SEED_MAX_BYTES=8192
                     SEED_LIMIT=96
+                    SEED_DRY_RUN_TARGET=1
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     AFL_DISABLE_TRIM_TARGET=1
                     AFL_FAST_CAL_TARGET=1
                     TARGET_NOTE="Fast apply-search lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
@@ -461,6 +481,7 @@ afl_configure_target() {
                     SEED_MAX_BYTES=262144
                     SEED_LIMIT=32
                     SEED_DRY_RUN_TARGET=1
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     AFL_DISABLE_TRIM_TARGET=1
                     AFL_FAST_CAL_TARGET=1
                     TARGET_NOTE="ApplySearch ICC lane: fuzzes the destination profile with a small screened ICC sample <= 256 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
@@ -541,6 +562,7 @@ afl_configure_target() {
             SEED_MAX_BYTES=131072
             SEED_LIMIT=256
             SEED_DRY_RUN_TARGET=1
+            SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
             AFL_DISABLE_TRIM_TARGET=1
             AFL_FAST_CAL_TARGET=1
             [[ -z "${AFL_INPUT_FORMAT:-}" ]] && AFL_INPUT_FORMAT="text"
