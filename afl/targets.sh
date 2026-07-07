@@ -73,7 +73,7 @@ afl_print_targets() {
     echo "  applysearch-weight-positive-fast - iccApplySearch (small/no-trim weight 1 lane)"
     echo "  applysearch-weight-zero - iccApplySearch (fuzz PCC profile, fixed weight 0)"
     echo "  applysearch-weight-negative - iccApplySearch (fuzz PCC profile, fixed weight -1)"
-    echo "  applysearch-weight-nan - iccApplySearch (fuzz PCC profile, fixed weight nan)"
+    echo "  applysearch-weight-nan - iccApplySearch (fuzz PCC profile, fixed finite max-float weight)"
     echo "  applytolink      - iccApplyToLink (DeviceLink/.cube generation)"
     echo "  applytolink-cube - iccApplyToLink (.cube text generation)"
     echo "  dump             - iccDumpProfile (ICC binary -> text dump)"
@@ -425,7 +425,7 @@ afl_configure_target() {
                 case "$target" in
                     *zero) weight_value="0" ;;
                     *negative) weight_value="-1" ;;
-                    *nan) weight_value="nan" ;;
+                    *nan) weight_value="3.402823e+38" ;;
                 esac
                 SEED_MAX_BYTES=8192
                 SEED_LIMIT=0
@@ -443,6 +443,9 @@ afl_configure_target() {
                     REQUIRED_FILES=("$rgb_float_data" "$srgb_profile" "${SEED_FILES[@]}")
                     TARGET_NOTE="Fast weight-positive apply-search lane: tiny valid PCC seeds, shorter float data, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                     AFL_ARGS=("$rgb_float_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
+                elif [[ "$target" == *nan ]]; then
+                    TARGET_NOTE="Extreme-weight apply-search target: @@ is the fuzzed PCC profile; fixed finite max-float weight is $weight_value because iccApplySearch rejects nan/inf at argument parsing; three tiny valid PCC seeds keep calibration tractable."
+                    AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
                 else
                     TARGET_NOTE="Weight-focused apply-search target: @@ is the fuzzed PCC profile; fixed weight is $weight_value; three tiny valid PCC seeds keep calibration tractable."
                     AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")

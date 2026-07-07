@@ -12,15 +12,37 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
 BIN_DIR="${AFL_BIN_DIR:-$REPO_ROOT/afl/bin}"
 TARGET="${1:-}"
+TRIAGE_JOBS="${AFL_TRIAGE_JOBS:-$(nproc 2>/dev/null || echo 1)}"
 
 source "$REPO_ROOT/afl/targets.sh"
 
 if [[ "$TARGET" == "--help" || "$TARGET" == "-h" ]]; then
     echo "Usage: $0 <target>"
+    echo "       $0 <target> --jobs N"
     echo ""
     afl_print_targets
     exit 0
 fi
+
+if [[ $# -gt 0 ]]; then
+    TARGET="$1"
+    shift
+fi
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --jobs)
+            if [[ $# -lt 2 || ! "$2" =~ ^[0-9]+$ || "$2" -lt 1 ]]; then
+                echo "ERROR: --jobs requires a positive integer" >&2
+                exit 1
+            fi
+            TRIAGE_JOBS="$2"
+            shift 2
+            ;;
+        -*) echo "ERROR: Unknown option: $1" >&2; exit 1 ;;
+        *) echo "ERROR: Unexpected argument: $1" >&2; exit 1 ;;
+    esac
+done
 
 if [[ -z "$TARGET" ]]; then
     echo "Usage: $0 <target>"
@@ -202,15 +224,19 @@ triage_dir() {
         return
     fi
 
-    echo "  Triaging ${#files[@]} $kind..."
+    echo "  Triaging ${#files[@]} $kind with ${TRIAGE_JOBS} job(s)..."
     echo ""
 
-    for f in "${files[@]}"; do
-        total=$((total + 1))
-        local fname
-        fname=$(basename "$f")
+    local tmp_dir
+    tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/afl-triage-${TARGET}-${kind}.XXXXXX")"
+
+    triage_one() {
+        local idx="$1"
+        local f="$2"
         local exit_code=0
         local output
+        local fname
+        fname=$(basename "$f")
 
         local triage_args=()
         local arg
@@ -228,6 +254,41 @@ triage_dir() {
         local owner
         classification=$(classify_exit "$exit_code" "$output")
         owner=$(classify_owner "$output")
+
+        {
+            printf 'classification=%s\n' "$classification"
+            printf 'owner=%s\n' "$owner"
+            printf 'exit_code=%s\n' "$exit_code"
+            printf 'fname=%s\n' "$fname"
+            printf 'output<<EOF\n%s\nEOF\n' "$output"
+        } > "$tmp_dir/$idx.result"
+    }
+
+    local active=0
+    local idx=0
+    for f in "${files[@]}"; do
+        triage_one "$idx" "$f" &
+        active=$((active + 1))
+        idx=$((idx + 1))
+        if [[ "$active" -ge "$TRIAGE_JOBS" ]]; then
+            wait -n
+            active=$((active - 1))
+        fi
+    done
+    while [[ "$active" -gt 0 ]]; do
+        wait -n
+        active=$((active - 1))
+    done
+
+    for ((idx = 0; idx < ${#files[@]}; idx++)); do
+        total=$((total + 1))
+        local result="$tmp_dir/$idx.result"
+        local classification owner exit_code fname output
+        classification="$(sed -n 's/^classification=//p' "$result")"
+        owner="$(sed -n 's/^owner=//p' "$result")"
+        exit_code="$(sed -n 's/^exit_code=//p' "$result")"
+        fname="$(sed -n 's/^fname=//p' "$result")"
+        output="$(sed -n '/^output<<EOF$/,/^EOF$/p' "$result" | sed '1d;$d')"
 
         if [[ "$classification" == "SIGNAL" ]]; then
             local sig=$((exit_code - 128))
@@ -252,6 +313,7 @@ triage_dir() {
             fuzzer_only=$((fuzzer_only + 1))
         fi
     done
+    rm -rf "$tmp_dir"
 
     echo ""
     echo "  $kind summary: $total total, $upstream_bug actionable, $fuzzer_only clean, $soft_fail soft-fail, $sanitizer sanitizer, $signal signal, $timeout_count timeout"

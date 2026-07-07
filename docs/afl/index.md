@@ -61,16 +61,19 @@ reachability check-toolchain
 
 ## Reports
 
-`./afl/report.sh all` processes targets in the order reported by
+`./afl/report.sh all` emits the final `targets.tsv` in the order reported by
 `./afl/start.sh --list`. Targets without AFL output are recorded as
 `not_started` and skipped quickly; targets with output run map, triage, source
-coverage, and reachability steps unless disabled. The default whole-target
-coverage timeout is 3600 seconds, so a full all-target report can run for hours
-when several active targets need coverage replay.
+coverage, and reachability steps unless disabled. Use `--target-jobs N` to run
+independent targets concurrently; choose `--jobs * --target-jobs` near the
+available CPU count. The default whole-target coverage timeout is 3600 seconds,
+so a full all-target report can still run for hours when several active targets
+need coverage replay.
 
-For quick status, use `./afl/report.sh all --stats-only` or
-`./afl/report.sh all --no-coverage`. For focused reachability, prefer a single
-target command such as `./afl/report.sh fromcube --jobs 2 --target-timeout 3600`.
+For quick status, use `./afl/report.sh all --stats-only --target-jobs 8` or
+`./afl/report.sh all --no-coverage --target-jobs 8`. For focused reachability,
+prefer a single target command such as
+`./afl/report.sh fromcube --jobs 2 --target-timeout 3600`.
 During long runs, monitor `afl/reports/generated/latest/targets.tsv`, the
 per-target logs under `afl/reports/generated/latest/logs/`, and
 `./afl/status.sh --json`.

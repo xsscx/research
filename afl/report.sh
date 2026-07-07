@@ -1,7 +1,7 @@
 #!/bin/bash
 # afl/report.sh - Generate stats, maps, triage, coverage, and reachability reports
 #
-# Usage: ./afl/report.sh [target|all] [--report-root DIR] [--jobs N] [--target-timeout N]
+# Usage: ./afl/report.sh [target|all] [--report-root DIR] [--jobs N] [--target-jobs N] [--target-timeout N]
 
 set -euo pipefail
 
@@ -9,6 +9,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
 REPORT_ROOT="${AFL_REPORT_ROOT:-$AFL_BASE/reports/generated/afl-report-$(date -u +%Y%m%dT%H%M%SZ)}"
 JOBS="${AFL_REPORT_JOBS:-2}"
+TARGET_JOBS="${AFL_REPORT_TARGET_JOBS:-1}"
 RUN_COVERAGE=1
 RUN_REACHABILITY=1
 RUN_MAPS=1
@@ -31,6 +32,7 @@ usage() {
     echo "Options:"
     echo "  --report-root DIR  write generated reports under DIR"
     echo "  --jobs N           replay/build jobs for coverage"
+    echo "  --target-jobs N    run up to N targets concurrently; default ${TARGET_JOBS}"
     echo "  --stats-only       collect status/index files without map, triage, or coverage replay"
     echo "  --no-coverage      collect stats/maps/triage only"
     echo "  --no-reachability  run coverage without reachability annotation"
@@ -42,6 +44,7 @@ usage() {
     echo ""
     echo "Runtime notes:"
     echo "  all-target coverage runs targets in afl/targets.sh order and can take hours."
+    echo "  use --target-jobs to run independent tool targets concurrently."
     echo "  each started target is bounded by --target-timeout; targets without AFL output"
     echo "  are recorded as not_started and skipped quickly."
     echo "  monitor with targets.tsv, logs/<target>-coverage.log, and ./afl/status.sh --json."
@@ -95,6 +98,14 @@ while [[ $# -gt 0 ]]; do
             JOBS="$2"
             shift 2
             ;;
+        --target-jobs)
+            if [[ $# -lt 2 || ! "$2" =~ ^[0-9]+$ || "$2" -lt 1 ]]; then
+                echo "ERROR: --target-jobs requires a positive integer" >&2
+                exit 1
+            fi
+            TARGET_JOBS="$2"
+            shift 2
+            ;;
         --no-coverage) RUN_COVERAGE=0; shift ;;
         --stats-only)
             RUN_COVERAGE=0
@@ -133,13 +144,14 @@ if [[ -n "$TARGET_FILTER" ]] && ! target_known "$TARGET_FILTER"; then
     exit 1
 fi
 
-mkdir -p "$REPORT_ROOT"/{maps,triage,coverage,logs}
+mkdir -p "$REPORT_ROOT"/{maps,triage,coverage,logs,target-rows}
 mkdir -p "$AFL_BASE/reports/generated"
 update_latest_report_link
 
 STATUS_JSON="$REPORT_ROOT/status.json"
 INDEX_MD="$REPORT_ROOT/index.md"
 TARGETS_TSV="$REPORT_ROOT/targets.tsv"
+TARGET_ROWS_DIR="$REPORT_ROOT/target-rows"
 
 if [[ -n "$TARGET_FILTER" ]]; then
     "$REPO_ROOT/afl/status.sh" "$TARGET_FILTER" --json > "$STATUS_JSON"
@@ -156,13 +168,24 @@ else
     targets=("${AFL_TARGETS[@]}")
 fi
 
-for target in "${targets[@]}"; do
+process_target() {
+    local target="$1"
+    local row_file="$2"
+    echo "[INFO] Reporting target: $target" >&2
+
     set +eu
     afl_configure_target "$target" >/dev/null 2>&1
     set -eu
     if [[ -z "${AFL_DIR:-}" || -z "${BINARY:-}" ]]; then
-        continue
+        printf '%s\tnot_configured\t\t\t\t\t\t\t\t\t\t\t\n' "$target" > "$row_file"
+        echo "[WARN] Target not configured: $target" >&2
+        return 0
     fi
+
+    local output_dir tool_bin_name coverage_cache_key instance child
+    local queue_dir stats_file map_file triage_file coverage_dir reachability_file
+    local static_reachable_file static_unreachable_file covered_file
+    local not_covered_reachable_file covered_unreachable_file profdata_file
 
     output_dir="$AFL_DIR/output"
     tool_bin_name="$(basename "$BINARY")"
@@ -195,8 +218,9 @@ for target in "${targets[@]}"; do
     profdata_file=""
 
     if [[ ! -d "$queue_dir" || ! -f "$stats_file" ]]; then
-        printf '%s\tnot_started\t\t\t\t\t\t\t\t\t\t\t\n' "$target" >> "$TARGETS_TSV"
-        continue
+        printf '%s\tnot_started\t\t\t\t\t\t\t\t\t\t\t\n' "$target" > "$row_file"
+        echo "[INFO] Target has no AFL output: $target" >&2
+        return 0
     fi
 
     map_file="$REPORT_ROOT/maps/$target-showmap.txt"
@@ -223,6 +247,7 @@ for target in "${targets[@]}"; do
     fi
 
     if [[ "$RUN_COVERAGE" -eq 1 ]]; then
+        local coverage_args coverage_log coverage_exit
         coverage_args=("$target" "--report-root" "$REPORT_ROOT/coverage" "--report-name" "$target" "--instance" "$instance" "--jobs" "$JOBS")
         coverage_log="$REPORT_ROOT/logs/$target-coverage.log"
         coverage_exit=0
@@ -259,8 +284,48 @@ for target in "${targets[@]}"; do
         "$target" "$queue_dir" "$stats_file" "$map_file" "$triage_file" \
         "$coverage_dir" "$reachability_file" "$static_reachable_file" \
         "$static_unreachable_file" "$covered_file" "$not_covered_reachable_file" \
-        "$covered_unreachable_file" "$profdata_file" >> "$TARGETS_TSV"
+        "$covered_unreachable_file" "$profdata_file" > "$row_file"
+    echo "[INFO] Finished target: $target" >&2
+}
+
+active_jobs=0
+target_failures=0
+
+for i in "${!targets[@]}"; do
+    target="${targets[$i]}"
+    row_file="$TARGET_ROWS_DIR/$(printf '%04d' "$i")-$(sanitize_key "$target").tsv"
+
+    if [[ "$TARGET_JOBS" -le 1 ]]; then
+        if ! process_target "$target" "$row_file"; then
+            target_failures=1
+        fi
+        continue
+    fi
+
+    process_target "$target" "$row_file" &
+    active_jobs=$((active_jobs + 1))
+    if [[ "$active_jobs" -ge "$TARGET_JOBS" ]]; then
+        if ! wait -n; then
+            target_failures=1
+        fi
+        active_jobs=$((active_jobs - 1))
+    fi
 done
+
+while [[ "$active_jobs" -gt 0 ]]; do
+    if ! wait -n; then
+        target_failures=1
+    fi
+    active_jobs=$((active_jobs - 1))
+done
+
+while IFS= read -r row_file; do
+    cat "$row_file" >> "$TARGETS_TSV"
+done < <(find "$TARGET_ROWS_DIR" -maxdepth 1 -type f -name '*.tsv' | sort)
+
+if [[ "$target_failures" -ne 0 ]]; then
+    echo "WARN: one or more target report jobs failed; see logs under $REPORT_ROOT/logs" >&2
+fi
 
 {
     echo "# AFL Report"
@@ -276,6 +341,8 @@ done
     fi
     if [[ "$RUN_COVERAGE" -eq 1 ]]; then
         echo "- Coverage build reuse: $([[ "$REUSE_BUILD" -eq 1 ]] && printf 'enabled' || printf 'disabled')"
+        echo "- Per-target coverage jobs: $JOBS"
+        echo "- Concurrent target jobs: $TARGET_JOBS"
         echo "- Coverage timeout: ${COVERAGE_TIMEOUT}s"
         echo "- Target timeout: $([[ "$TARGET_TIMEOUT" -gt 0 ]] && printf '%ss' "$TARGET_TIMEOUT" || printf 'disabled')"
     fi

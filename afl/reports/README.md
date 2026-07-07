@@ -15,7 +15,7 @@ AFL_RUN_TIME=300 ./afl/start.sh dump
 ./afl/triage.sh dump
 ./afl/minimize.sh dump --queue
 ./afl/coverage.sh dump --jobs 2
-./afl/report.sh all --jobs 2 --target-timeout 3600
+./afl/report.sh all --jobs 4 --target-jobs 8 --target-timeout 3600
 ./afl/report-ui.sh
 ```
 
@@ -27,12 +27,13 @@ reports. A timed-out target is recorded in its coverage log and the report
 continues with the remaining targets.
 
 Expect `./afl/report.sh all` to take hours when many targets have live AFL
-output. The script writes `targets.tsv` as it goes, runs targets in
-`afl/targets.sh` order, skips `not_started` targets quickly, and bounds each
-coverage/reachability target with `--target-timeout` by default. Use
-`./afl/report.sh all --stats-only` for a fast inventory or target-specific
-commands such as `./afl/report.sh fromcube --jobs 2` for focused reachability
-updates.
+output. The script writes per-target rows as jobs finish, then emits
+`targets.tsv` in `afl/targets.sh` order, skips `not_started` targets quickly,
+and bounds each coverage/reachability target with `--target-timeout` by default.
+Use `--target-jobs` for concurrent target reports and keep `--jobs *
+--target-jobs` near the available CPU count. Use `./afl/report.sh all
+--stats-only` for a fast inventory or target-specific commands such as
+`./afl/report.sh fromcube --jobs 2` for focused reachability updates.
 
 Coverage reports should record the LLVM major used for both source coverage and
 static reachability. On this VM the expected path is Clang/LLVM 22:

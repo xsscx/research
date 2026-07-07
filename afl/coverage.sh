@@ -289,7 +289,7 @@ if [[ "$instance_count" -gt 1 ]]; then
 fi
 
 COVERAGE_CACHE_KEY="$(sanitize_key "${AFL_COVERAGE_CACHE_KEY:-$TOOL_BIN_NAME}")"
-COV_BUILD_DIR="$REPORT_ROOT/iccdev-cov-static-build-$COVERAGE_CACHE_KEY"
+COV_BUILD_DIR="$REPORT_ROOT/iccdev-cov-static-build-$(sanitize_key "$REPORT_NAME")"
 REACH_BUILD_DIR="$REPORT_ROOT/iccdev-reach-static-build-$COVERAGE_CACHE_KEY"
 TARGET_REPORT_DIR="$REPORT_ROOT/cov-$REPORT_NAME-static"
 REACH_JSON="$REPORT_ROOT/reachability-$COVERAGE_CACHE_KEY-static.json"
@@ -308,6 +308,7 @@ TARGET_STATICALLY_REACHABLE_TXT="$REPORT_ROOT/statically_reachable-$TARGET.txt"
 TARGET_STATICALLY_UNREACHABLE_TXT="$REPORT_ROOT/statically_unreachable-$TARGET.txt"
 TARGET_STATICALLY_REACHABLE_DEMANGLED_TXT="$REPORT_ROOT/statically_reachable-$TARGET.demangled.txt"
 TARGET_STATICALLY_UNREACHABLE_DEMANGLED_TXT="$REPORT_ROOT/statically_unreachable-$TARGET.demangled.txt"
+REACH_LOCK_DIR="$REPORT_ROOT/locks/global-reachability.lock"
 
 if [[ "$REUSE_BUILD" -ne 1 ]]; then
     rm -rf "$COV_BUILD_DIR" "$REACH_BUILD_DIR" "$TARGET_REPORT_DIR" \
@@ -361,20 +362,32 @@ if [[ "$RUN_REACHABILITY" -eq 1 ]]; then
     if [[ "$REUSE_BUILD" -eq 1 && -s "$REACH_JSON" && -s "$STATICALLY_REACHABLE_TXT" && -s "$STATICALLY_UNREACHABLE_TXT" ]]; then
         echo "[*] Reusing reachability report: $REACH_JSON"
     else
-        echo "[*] Building static reachability bitcode and report..."
-        reach_build_cmd="$(quote_cmd cmake -S "$ICCDEV_SRC/Build/Cmake" -B "$REACH_BUILD_DIR" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=gclang -DCMAKE_CXX_COMPILER=gclang++ -DENABLE_TOOLS=ON -DENABLE_SHARED_LIBS=OFF -DENABLE_STATIC_LIBS=ON)"
-        reach_build_cmd+=" && "
-        reach_build_cmd+="$(quote_cmd cmake --build "$REACH_BUILD_DIR" --target "$CMAKE_TARGET" -j "$JOBS")"
-        reachability run \
-            --lang cpp \
-            --project "$ICCDEV_SRC" \
-            --build-cmd "$reach_build_cmd" \
-            --artifact "$REACH_BUILD_DIR/Tools/$(basename "$(dirname "$COV_BIN")")/$TOOL_BIN_NAME" \
-            --static-libs auto \
-            --entry main \
-            --reached "$STATICALLY_REACHABLE_TXT" \
-            --not-reached "$STATICALLY_UNREACHABLE_TXT" \
-            --out "$REACH_JSON"
+        mkdir -p "$REPORT_ROOT/locks"
+        while ! mkdir "$REACH_LOCK_DIR" 2>/dev/null; do
+            sleep 2
+        done
+        trap 'if [[ -n "${REACH_LOCK_DIR:-}" && -d "${REACH_LOCK_DIR:-}" ]]; then rmdir "$REACH_LOCK_DIR" 2>/dev/null || true; fi' EXIT
+        if [[ "$REUSE_BUILD" -eq 1 && -s "$REACH_JSON" && -s "$STATICALLY_REACHABLE_TXT" && -s "$STATICALLY_UNREACHABLE_TXT" ]]; then
+            echo "[*] Reusing reachability report after lock: $REACH_JSON"
+        else
+            echo "[*] Building static reachability bitcode and report..."
+            reach_build_cmd="$(quote_cmd cmake -S "$ICCDEV_SRC/Build/Cmake" -B "$REACH_BUILD_DIR" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=gclang -DCMAKE_CXX_COMPILER=gclang++ -DENABLE_TOOLS=ON -DENABLE_SHARED_LIBS=OFF -DENABLE_STATIC_LIBS=ON)"
+            reach_build_cmd+=" && "
+            reach_build_cmd+="$(quote_cmd cmake --build "$REACH_BUILD_DIR" --target "$CMAKE_TARGET" -j "$JOBS")"
+            reachability run \
+                --lang cpp \
+                --project "$ICCDEV_SRC" \
+                --build-cmd "$reach_build_cmd" \
+                --artifact "$REACH_BUILD_DIR/Tools/$(basename "$(dirname "$COV_BIN")")/$TOOL_BIN_NAME" \
+                --static-libs auto \
+                --entry main \
+                --reached "$STATICALLY_REACHABLE_TXT" \
+                --not-reached "$STATICALLY_UNREACHABLE_TXT" \
+                --out "$REACH_JSON"
+        fi
+        rmdir "$REACH_LOCK_DIR" 2>/dev/null || true
+        REACH_LOCK_DIR=""
+        trap - EXIT
     fi
     demangle_symbol_file "$STATICALLY_REACHABLE_TXT" "$STATICALLY_REACHABLE_DEMANGLED_TXT"
     demangle_symbol_file "$STATICALLY_UNREACHABLE_TXT" "$STATICALLY_UNREACHABLE_DEMANGLED_TXT"
