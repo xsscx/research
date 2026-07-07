@@ -94,6 +94,29 @@ count_files() {
     find "$dir" -maxdepth 1 -type f ! -name 'README*' 2>/dev/null | wc -l
 }
 
+count_finding_files() {
+    local inst_dir="$1"
+    local kind="$2"
+    local count=0
+    local dir
+
+    while IFS= read -r -d '' dir; do
+        count=$((count + $(count_files "$dir")))
+    done < <(find "$inst_dir" -maxdepth 1 -type d \( -name "$kind" -o -name "$kind.*" \) -print0 2>/dev/null | sort -z)
+
+    printf '%s' "$count"
+}
+
+print_finding_files() {
+    local inst_dir="$1"
+    local kind="$2"
+    local dir
+
+    while IFS= read -r -d '' dir; do
+        find "$dir" -maxdepth 1 -type f ! -name 'README*' -printf '    %p\n' 2>/dev/null
+    done < <(find "$inst_dir" -maxdepth 1 -type d \( -name "$kind" -o -name "$kind.*" \) -print0 2>/dev/null | sort -z)
+}
+
 live_afl_pid_for_output() {
     local output_dir="$1"
     local proc_cmdline
@@ -172,8 +195,8 @@ collect_instance() {
     else
         last_find_age="-"
     fi
-    crash_files=$(count_files "$inst_dir/crashes")
-    hang_files=$(count_files "$inst_dir/hangs")
+    crash_files=$(count_finding_files "$inst_dir" "crashes")
+    hang_files=$(count_finding_files "$inst_dir" "hangs")
 
     crashes="${crashes:-$crash_files}"
     hangs="${hangs:-$hang_files}"
@@ -312,13 +335,13 @@ if [[ "$DETAIL" -eq 1 ]]; then
         echo "  Runtime:    timeout=${exec_timeout}ms slowest=${slowest_exec_ms}ms peak_rss=${peak_rss_mb}MB timeouts=$total_tmout last_find_age=${last_find_age}s"
         echo "  Stats age:  ${age}s"
         [[ "$inst" != "-" ]] && echo "  Stats:      $inst_dir/fuzzer_stats"
-        if [[ "$crash_files" -gt 0 && -d "$inst_dir/crashes" ]]; then
+        if [[ "$crash_files" -gt 0 ]]; then
             echo "  Crash files:"
-            find "$inst_dir/crashes" -maxdepth 1 -type f ! -name 'README*' -printf '    %p\n' | sed -n '1,10p'
+            print_finding_files "$inst_dir" "crashes" | sed -n '1,10p'
         fi
-        if [[ "$hang_files" -gt 0 && -d "$inst_dir/hangs" ]]; then
+        if [[ "$hang_files" -gt 0 ]]; then
             echo "  Hang files:"
-            find "$inst_dir/hangs" -maxdepth 1 -type f ! -name 'README*' -printf '    %p\n' | sed -n '1,10p'
+            print_finding_files "$inst_dir" "hangs" | sed -n '1,10p'
         fi
         echo "  Action:     $action"
         echo ""

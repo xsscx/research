@@ -212,11 +212,12 @@ triage_dir() {
     local files=()
 
     for d in "$AFL_OUTPUT_DIR"/*/; do
-        local artifact_dir="$d/$kind"
-        [[ -d "$artifact_dir" ]] || continue
-        while IFS= read -r -d '' f; do
-            files+=("$f")
-        done < <(find "$artifact_dir" -type f ! -name README.txt -print0 2>/dev/null)
+        local artifact_dir
+        while IFS= read -r -d '' artifact_dir; do
+            while IFS= read -r -d '' f; do
+                files+=("$f")
+            done < <(find "$artifact_dir" -maxdepth 1 -type f ! -name README.txt -print0 2>/dev/null)
+        done < <(find "$d" -maxdepth 1 -type d \( -name "$kind" -o -name "$kind.*" \) -print0 2>/dev/null | sort -z)
     done
 
     if [[ ${#files[@]} -eq 0 ]]; then

@@ -122,8 +122,7 @@ fi
 case "$SOURCE" in
     input) INPUT_DIR="$AFL_DIR/input" ;;
     queue) INPUT_DIR="$AFL_DIR/output/$INSTANCE/queue" ;;
-    crashes) INPUT_DIR="$AFL_DIR/output/$INSTANCE/crashes" ;;
-    hangs) INPUT_DIR="$AFL_DIR/output/$INSTANCE/hangs" ;;
+    crashes|hangs) INPUT_DIR="$AFL_DIR/output/$INSTANCE" ;;
     *) echo "ERROR: Unknown source: $SOURCE" >&2; exit 1 ;;
 esac
 
@@ -141,7 +140,13 @@ TMP_ROOT="${TMPDIR:-${HOME:-$REPO_ROOT}/work/copilot/tmp}"
 mkdir -p "$TMP_ROOT"
 FILE_LIST="$(TMPDIR="$TMP_ROOT" mktemp)"
 trap 'rm -f "$FILE_LIST"' EXIT
-find "$INPUT_DIR" -maxdepth 1 -type f ! -name 'README*' -print | sort > "$FILE_LIST"
+if [[ "$SOURCE" == "crashes" || "$SOURCE" == "hangs" ]]; then
+    find "$INPUT_DIR" -maxdepth 2 -type f \
+        \( -path "$INPUT_DIR/$SOURCE/*" -o -path "$INPUT_DIR/$SOURCE.*/*" \) \
+        ! -name 'README*' -print | sort > "$FILE_LIST"
+else
+    find "$INPUT_DIR" -maxdepth 1 -type f ! -name 'README*' -print | sort > "$FILE_LIST"
+fi
 INPUT_COUNT=$(wc -l < "$FILE_LIST" | tr -d ' ')
 
 if [[ "$INPUT_COUNT" -eq 0 ]]; then
