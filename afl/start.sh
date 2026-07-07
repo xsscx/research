@@ -357,6 +357,10 @@ seed_file_allowed() {
     local seed_file="$1"
     local seed_type
 
+    if [[ -n "${SEED_INCLUDE_REGEX:-}" && ! "$(basename "$seed_file")" =~ $SEED_INCLUDE_REGEX ]]; then
+        return 1
+    fi
+
     if [[ -n "${SEED_EXCLUDE_REGEX:-}" && "$(basename "$seed_file")" =~ $SEED_EXCLUDE_REGEX ]]; then
         return 1
     fi
@@ -457,6 +461,7 @@ seed_file_dry_run_ok() {
     done
 
     output=$(
+        cd "$REPO_ROOT" && \
         LD_LIBRARY_PATH="$ICC_RUNTIME_LIB_PATH" \
         ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0,allocator_may_return_null=1" \
         UBSAN_OPTIONS="halt_on_error=1,print_stacktrace=1" \
@@ -778,6 +783,7 @@ if [[ "$PARALLEL" -eq 1 ]]; then
     echo "[*] Starting AFL (single instance)..."
     echo "    Press Ctrl+C to stop"
     echo ""
+    cd "$REPO_ROOT"
     exec afl-fuzz \
         "${INPUT_ARGS[@]}" \
         -o "$AFL_DIR/output" \
@@ -787,6 +793,7 @@ if [[ "$PARALLEL" -eq 1 ]]; then
         -- "$BINARY" "${AFL_ARGS[@]}"
 else
     echo "[*] Starting $PARALLEL AFL instances (1 main + $((PARALLEL-1)) secondary)..."
+    cd "$REPO_ROOT"
 
     afl-fuzz \
         "${INPUT_ARGS[@]}" \

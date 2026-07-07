@@ -168,6 +168,7 @@ afl_configure_target() {
     SEED_DRY_RUN_TARGET=0
     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=0
     SEED_DRY_RUN_TIMEOUT=5
+    SEED_INCLUDE_REGEX=""
     SEED_EXCLUDE_REGEX=""
     REQUIRED_FILES=()
     SEED_FILES=()
@@ -221,6 +222,7 @@ afl_configure_target() {
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 SEED_DRY_RUN_TARGET=1
+                SEED_INCLUDE_REGEX='(^|/)(applynamedcmm-|sbo-repro-applynamedcmm|array-not-object|empty-object|invalid-syntax|null-value|missing-profilesequence|wrong-types|type-confusion-all-fields|empty-arrays|null-all-fields|null-sections|empty-string-paths|nonexistent-profile|path-traversal-|extreme-|negative-nan-infinity|envvars-extreme-values|deep-profile-chain)'
                 [[ -z "${AFL_INPUT_FORMAT:-}" ]] && AFL_INPUT_FORMAT="text"
                 [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=65536
                 SEED_EXCLUDE_REGEX='output-to-file\.json$'
@@ -289,6 +291,7 @@ afl_configure_target() {
                     AFL_DISABLE_TRIM_TARGET=1
                     AFL_FAST_CAL_TARGET=1
                     SEED_DRY_RUN_TARGET=1
+                    SEED_INCLUDE_REGEX='(^|/)(applyprofiles-|sbo-repro-applyprofiles|array-not-object|empty-object|invalid-syntax|null-value|missing-profilesequence|wrong-types|type-confusion-all-fields|empty-arrays|null-all-fields|null-sections|empty-string-paths|nonexistent-profile|path-traversal-|extreme-|negative-nan-infinity|envvars-extreme-values|deep-profile-chain)'
                     [[ -z "${AFL_INPUT_FORMAT:-}" ]] && AFL_INPUT_FORMAT="text"
                     [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=65536
                     SEED_EXCLUDE_REGEX='output-to-file\.json$'
@@ -296,8 +299,8 @@ afl_configure_target() {
                         "$REPO_ROOT/docs/Testing/json-configs"
                         "$REPO_ROOT/docs/Testing/malformed-json"
                     )
-                    TARGET_NOTE="ApplyProfiles JSON config lane: fuzzes IccConnect config parsing through -cfg; threaded coverage stays in applyprofiles-row for reproducible AFL triage."
-                    AFL_ARGS=("-cfg" "@@")
+                    TARGET_NOTE="ApplyProfiles JSON config lane: fuzzes the documented -threads N -cfg config_file shape from the iccApplyProfiles CLI."
+                    AFL_ARGS=("-threads" "1" "-cfg" "@@")
                     ;;
                 applyprofiles-hybrid-embedded|profiles-hybrid-embedded)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-hybrid-embedded"
@@ -390,6 +393,7 @@ afl_configure_target() {
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 SEED_DRY_RUN_TARGET=1
+                SEED_INCLUDE_REGEX='(^|/)(applysearch-|pccweight-|searchapply-|array-not-object|empty-object|invalid-syntax|null-value|missing-profilesequence|wrong-types|type-confusion-all-fields|empty-arrays|null-all-fields|null-sections|empty-string-paths|nonexistent-profile|path-traversal-|extreme-|negative-nan-infinity|envvars-extreme-values|deep-profile-chain)'
                 [[ -z "${AFL_INPUT_FORMAT:-}" ]] && AFL_INPUT_FORMAT="text"
                 [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=65536
                 SEED_EXCLUDE_REGEX='output-to-file\.json$'

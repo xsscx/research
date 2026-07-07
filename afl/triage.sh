@@ -248,7 +248,7 @@ triage_dir() {
             fi
         done
 
-        output=$(timeout "$timeout_sec" "$UPSTREAM_BIN" "${triage_args[@]}" 2>&1) || exit_code=$?
+        output=$(cd "$REPO_ROOT" && timeout "$timeout_sec" "$UPSTREAM_BIN" "${triage_args[@]}" 2>&1) || exit_code=$?
 
         local classification
         local owner

@@ -164,6 +164,7 @@ export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0
 export UBSAN_OPTIONS="halt_on_error=1,abort_on_error=1,print_stacktrace=0"
 
 env -u AFL_BASE -u AFL_BIN_DIR \
+    bash -c 'cd "$1" && shift && exec "$@"' bash "$REPO_ROOT" \
     afl-showmap -q -C -e -I "$FILE_LIST" -o "$OUT_FILE" -m none -t "${AFL_TIMEOUT:-${TIMEOUT:-5000}}" -- "$BINARY" "${AFL_ARGS[@]}"
 
 EDGE_COUNT=$(wc -l < "$OUT_FILE" | tr -d ' ')

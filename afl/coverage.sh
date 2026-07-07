@@ -410,13 +410,16 @@ COV_CMD_STRING="$(quote_cmd "${COV_CMD[@]}")"
 echo "[*] Running cov-analysis..."
 export TMPDIR="$REPORT_ROOT/tmp"
 mkdir -p "$TMPDIR"
-CC="$COV_CC" CXX="$COV_CXX" cov-analysis \
-    -d "$COV_ANALYSIS_OUTPUT_DIR" \
-    -e "$COV_CMD_STRING" \
-    -o "$TARGET_REPORT_DIR" \
-    -t "$JOBS" \
-    -T "$COVERAGE_TIMEOUT" \
-    "${REACH_ARG[@]}"
+(
+    cd "$REPO_ROOT"
+    CC="$COV_CC" CXX="$COV_CXX" cov-analysis \
+        -d "$COV_ANALYSIS_OUTPUT_DIR" \
+        -e "$COV_CMD_STRING" \
+        -o "$TARGET_REPORT_DIR" \
+        -t "$JOBS" \
+        -T "$COVERAGE_TIMEOUT" \
+        "${REACH_ARG[@]}"
+)
 
 generate_runtime_function_reports
 
