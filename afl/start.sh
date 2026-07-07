@@ -200,6 +200,48 @@ remove_stale_resume_state() {
     fi
 }
 
+testcase_count() {
+    local dir="$1"
+
+    [[ -d "$dir" ]] || { printf '0'; return; }
+    find "$dir" -maxdepth 1 -type f ! -name 'README*' 2>/dev/null | wc -l
+}
+
+instance_has_usable_corpus() {
+    local inst_dir="$1"
+    local resume_count
+    local queue_count
+
+    resume_count="$(testcase_count "$inst_dir/_resume")"
+    queue_count="$(testcase_count "$inst_dir/queue")"
+    [[ "$resume_count" -gt 0 || "$queue_count" -gt 0 ]]
+}
+
+remove_unusable_resume_state() {
+    local inst_dir="$1"
+
+    if [[ -d "$inst_dir/_resume" && "$(testcase_count "$inst_dir/_resume")" -eq 0 ]]; then
+        rm -rf -- "$inst_dir/_resume"
+        echo "[*] Removed unusable empty AFL resume corpus: $inst_dir/_resume"
+    fi
+    rm -f -- "$inst_dir/fastresume.bin"
+}
+
+archive_unusable_instance_state() {
+    local inst_dir="$1"
+    local backup
+    local suffix=0
+
+    [[ -d "$inst_dir" ]] || return 0
+    backup="$inst_dir.unusable-resume.$(date -u +%Y%m%dT%H%M%SZ)"
+    while [[ -e "$backup" ]]; do
+        suffix=$((suffix + 1))
+        backup="$inst_dir.unusable-resume.$(date -u +%Y%m%dT%H%M%SZ).$suffix"
+    done
+    mv "$inst_dir" "$backup"
+    echo "[*] Archived unusable AFL instance state: $backup"
+}
+
 # Target-specific configuration
 if ! afl_configure_target "$TARGET"; then
     echo "ERROR: Unknown target '$TARGET'"
@@ -725,8 +767,15 @@ fi
 # Parallel mode uses output/main/, single mode uses output/default/.
 if [[ "$PARALLEL" -gt 1 ]]; then
     if [[ -f "$AFL_DIR/output/main/fuzzer_stats" ]]; then
-        echo "[*] Existing parallel session detected - AFL will auto-resume"
-        INPUT_ARGS=("-i-")
+        if instance_has_usable_corpus "$AFL_DIR/output/main"; then
+            echo "[*] Existing parallel session detected - AFL will auto-resume"
+            INPUT_ARGS=("-i-")
+        else
+            echo "[*] Existing parallel session has no usable queue/resume corpus - using input corpus"
+            remove_unusable_resume_state "$AFL_DIR/output/main"
+            archive_unusable_instance_state "$AFL_DIR/output/main"
+            INPUT_ARGS=("-i" "${AFL_INPUT_DIR:-$AFL_DIR/input}")
+        fi
     else
         for stale in "$AFL_DIR/output/main" "$AFL_DIR/output"/secondary_*; do
             [[ -d "$stale" && ! -f "$stale/fuzzer_stats" ]] && rm -rf "$stale"
@@ -735,8 +784,15 @@ if [[ "$PARALLEL" -gt 1 ]]; then
     fi
 else
     if [[ -f "$AFL_DIR/output/default/fuzzer_stats" ]]; then
-        echo "[*] Existing session detected - AFL will auto-resume"
-        INPUT_ARGS=("-i-")
+        if instance_has_usable_corpus "$AFL_DIR/output/default"; then
+            echo "[*] Existing session detected - AFL will auto-resume"
+            INPUT_ARGS=("-i-")
+        else
+            echo "[*] Existing session has no usable queue/resume corpus - using input corpus"
+            remove_unusable_resume_state "$AFL_DIR/output/default"
+            archive_unusable_instance_state "$AFL_DIR/output/default"
+            INPUT_ARGS=("-i" "${AFL_INPUT_DIR:-$AFL_DIR/input}")
+        fi
     else
         INPUT_ARGS=("-i" "${AFL_INPUT_DIR:-$AFL_DIR/input}")
     fi
