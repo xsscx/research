@@ -127,7 +127,7 @@ afl_configure_target() {
     local tmp_prefix="$tmp_root/afl-${target}-$$"
     local rgb_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt"
     local rgb_float_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-float.txt"
-    local srgb_profile="$REPO_ROOT/test-profiles/sRGB_D65_MAT.icc"
+    local srgb_profile
     local fixed_tiff
     local fixed_observer
     local fixed_jpeg
@@ -137,6 +137,11 @@ afl_configure_target() {
 
     mkdir -p "$tmp_root"
 
+    srgb_profile="$(afl_first_existing \
+        "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc" \
+        "$REPO_ROOT/afl/iccDEV/Testing/sRGB_v4_ICC_preference.icc" \
+        "$REPO_ROOT/iccDEV/Testing/sRGB_v4_ICC_preference.icc" \
+        "$REPO_ROOT/test-profiles/sRgbEncoding.icc")"
     fixed_tiff="$(afl_first_existing \
         "$REPO_ROOT/test-profiles/tiff-codecs/seed-tiff-none-rgb-8x8.tif" \
         "$REPO_ROOT/afl/iccDEV/Testing/hybrid/Data/TShirtDesignKW.tif" \
@@ -473,6 +478,18 @@ afl_configure_target() {
                     AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
                 fi
             else
+                SEED_FILES=(
+                    "$REPO_ROOT/test-profiles/argbCalc.icc"
+                    "$REPO_ROOT/test-profiles/Lab_float-D50_2deg.icc"
+                    "$REPO_ROOT/test-profiles/Lab_float-D93_2deg-MAT.icc"
+                    "$REPO_ROOT/test-profiles/XYZ_float-D50_2deg.icc"
+                    "$REPO_ROOT/test-profiles/XYZ_float-D65_2deg-MAT.icc"
+                    "$REPO_ROOT/test-profiles/npd-CIccCombinedConnectionConditions-IccPcc_cpp-Line337.icc"
+                    "$REPO_ROOT/test-profiles/xml-to-icc-to-xml-fidelity-test-001.icc"
+                    "$REPO_ROOT/fuzz/graphics/icc/dbz-CIccCamConverter-HyperbolicInv-IccCAM_cpp-Line214.icc"
+                    "$REPO_ROOT/fuzz/graphics/icc/dbz-CIccFormulaCurveSegment-Apply-IccMpeBasic_cpp-Line682.icc"
+                    "$REPO_ROOT/fuzz/graphics/icc/dbz-CIccFormulaCurveSegment-Apply-FT6-IccMpeBasic_cpp-Line668.icc"
+                )
                 if [[ "$target" == applysearch-fast || "$target" == search-fast ]]; then
                     SEED_MAX_BYTES=8192
                     SEED_LIMIT=96
@@ -480,7 +497,7 @@ afl_configure_target() {
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     AFL_DISABLE_TRIM_TARGET=1
                     AFL_FAST_CAL_TARGET=1
-                    TARGET_NOTE="Fast apply-search lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                    TARGET_NOTE="Fast apply-search lane: valid ApplySearch-compatible seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                 else
                     SEED_MAX_BYTES=262144
                     SEED_LIMIT=32
@@ -488,9 +505,9 @@ afl_configure_target() {
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     AFL_DISABLE_TRIM_TARGET=1
                     AFL_FAST_CAL_TARGET=1
-                    TARGET_NOTE="ApplySearch ICC lane: fuzzes the destination profile with a small screened ICC sample <= 256 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                    TARGET_NOTE="ApplySearch ICC lane: fuzzes the destination profile with a small screened ICC sample <= 256 KiB and a fixed PCC weight profile, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                 fi
-                AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "@@" "1" "-INIT" "1")
+                AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "@@" "1" "-INIT" "1" "$srgb_profile" "1")
             fi
             ;;
         applytolink|applytolink-cube)
