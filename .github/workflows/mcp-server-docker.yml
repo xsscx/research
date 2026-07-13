@@ -193,7 +193,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest SBOM
-        uses: actions/attest-sbom@1e90a52b29134830c21851fb4e19938dc331fede # v3
+        uses: actions/attest-sbom@5ab5806a2ce22f5acba1a3cf560dc12fd0049bd6 # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/icc-profile-mcp
           subject-digest: ${{ steps.build-push.outputs.digest }}
