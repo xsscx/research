@@ -195,6 +195,15 @@ source ~/work/copilot/tools/env.sh
 ./afl/run-all.sh all --seconds 300 --jobs 2 --report-target-timeout 3600
 ```
 
+When `afl-health` reports dead or plateaued campaigns across many binaries, use
+the coverage-boost preset to resume existing queues, reseed each target, enable
+matching CmpLog binaries from `afl/bin-cmplog/` when present, and raise AFL's
+testcase cache:
+
+```bash
+./afl/run-all.sh all --coverage-boost --seconds 3600 --parallel 1 --no-coverage
+```
+
 Use `--no-coverage` for a faster stats/maps/triage pass, or `--dry-run` to audit
 the target list before launching campaigns.
 

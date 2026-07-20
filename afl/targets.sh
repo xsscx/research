@@ -125,6 +125,7 @@ afl_configure_target() {
     local target="$1"
     local tmp_root="${TMPDIR:-${HOME:-$REPO_ROOT}/work/copilot/tmp}"
     local tmp_prefix="$tmp_root/afl-${target}-$$"
+    AFL_TMP_PREFIX="$tmp_prefix"
     local rgb_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt"
     local rgb_float_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-float.txt"
     local srgb_profile

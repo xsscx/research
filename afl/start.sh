@@ -22,6 +22,8 @@ AFL_IMPORT_FIRST_VAL="${AFL_IMPORT_FIRST:-1}"
 AFL_POWER_SCHEDULE="${AFL_POWER_SCHEDULE:-}"
 AFL_MOPT_SECS="${AFL_MOPT_SECS:-}"
 AFL_CMPLOG_BINARY="${AFL_CMPLOG_BINARY:-}"
+AFL_CMPLOG_AUTO="${AFL_CMPLOG_AUTO:-0}"
+AFL_CMPLOG_BIN_DIR="${AFL_CMPLOG_BIN_DIR:-$REPO_ROOT/afl/bin-cmplog}"
 AFL_CMPLOG_OPTS="${AFL_CMPLOG_OPTS:-}"
 AFL_EXEC_LIMIT="${AFL_EXEC_LIMIT:-}"
 AFL_INPUT_FORMAT="${AFL_INPUT_FORMAT:-}"
@@ -38,6 +40,7 @@ AFL_SEED_ONLY="${AFL_SEED_ONLY:-0}"
 AFL_SEED_LIMIT_OVERRIDE="${AFL_SEED_LIMIT:-}"
 AFL_SEED_MAX_BYTES_OVERRIDE="${AFL_SEED_MAX_BYTES:-}"
 AFL_SEED_ORDER="${AFL_SEED_ORDER:-random}"
+AFL_TESTCACHE_SIZE_VAL="${AFL_TESTCACHE_SIZE:-256}"
 AFL_DICT_OVERRIDE="${AFL_DICT:-${AFL_DICTIONARY:-}}"
 BIN_DIR="${AFL_BIN_DIR:-$REPO_ROOT/afl/bin}"
 
@@ -63,6 +66,7 @@ usage() {
     echo "  --timeout MS          AFL execution timeout"
     echo "  --run-time SEC        stop fuzzing after SEC seconds"
     echo "  --map-size N          AFL map size"
+    echo "  --cmplog-auto         use matching afl/bin-cmplog binary when available"
     echo "  --cmplog-binary FILE  pass FILE to afl-fuzz -c"
     echo "  --cmplog-opts OPTS    pass OPTS to afl-fuzz -l"
     echo "  --power-schedule NAME pass NAME to afl-fuzz -p"
@@ -73,6 +77,7 @@ usage() {
     echo "  --max-length N        pass N to afl-fuzz -G"
     echo "  --sequential-queue    pass -Z to afl-fuzz"
     echo "  --splice              pass -u to afl-fuzz"
+    echo "  --testcache-size MB   set AFL_TESTCACHE_SIZE; default 256"
     echo "  --extra-args ARGS     append shell-split extra afl-fuzz args"
     echo "  --help, -h            show this help"
     echo ""
@@ -113,6 +118,7 @@ while [[ $# -gt 0 ]]; do
         --timeout) AFL_TIMEOUT="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --run-time) AFL_RUN_TIME="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --map-size) AFL_MAP_SIZE_VAL="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --cmplog-auto) AFL_CMPLOG_AUTO=1; shift ;;
         --cmplog-binary) AFL_CMPLOG_BINARY="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --cmplog-opts) AFL_CMPLOG_OPTS="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --power-schedule) AFL_POWER_SCHEDULE="$(option_arg "$1" "${2:-}")"; shift 2 ;;
@@ -123,6 +129,7 @@ while [[ $# -gt 0 ]]; do
         --max-length) AFL_MAX_LENGTH="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --sequential-queue) AFL_SEQUENTIAL_QUEUE=1; shift ;;
         --splice) AFL_SPLICE=1; shift ;;
+        --testcache-size) AFL_TESTCACHE_SIZE_VAL="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --extra-args) AFL_EXTRA_ARGS="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --help|-h) TARGET="$1"; break ;;
         --list) TARGET="$1"; break ;;
@@ -329,6 +336,7 @@ fi
 if [[ -n "$AFL_EXEC_LIMIT" ]]; then
     require_uint "AFL_EXEC_LIMIT" "$AFL_EXEC_LIMIT"
 fi
+require_uint "AFL_TESTCACHE_SIZE" "$AFL_TESTCACHE_SIZE_VAL"
 if [[ -n "$AFL_MIN_LENGTH" ]]; then
     require_uint "AFL_MIN_LENGTH" "$AFL_MIN_LENGTH"
 fi
@@ -382,6 +390,18 @@ for required_file in "${REQUIRED_FILES[@]}"; do
 done
 
 afl_prepare_target_support_files "$TARGET"
+
+if [[ "$AFL_CMPLOG_AUTO" != "0" && -z "$AFL_CMPLOG_BINARY" ]]; then
+    candidate_cmplog="$AFL_CMPLOG_BIN_DIR/$(basename "$BINARY")"
+    if [[ -x "$candidate_cmplog" ]]; then
+        AFL_CMPLOG_BINARY="$candidate_cmplog"
+        if [[ -z "${AFL_CMPLOG_ONLY_NEW:-}" ]]; then
+            export AFL_CMPLOG_ONLY_NEW=1
+        fi
+    else
+        echo "[WARN] CmpLog auto requested but matching binary is unavailable: $candidate_cmplog" >&2
+    fi
+fi
 
 # Set up AFL directories. AFL_FRESH archives prior local input/output state
 # instead of deleting it, then stages a target-appropriate seed corpus.
@@ -658,6 +678,9 @@ fi
 if [[ -n "$AFL_CMPLOG_BINARY" ]]; then
     echo "[*] CMPLOG:     $AFL_CMPLOG_BINARY"
 fi
+if [[ -n "${AFL_CMPLOG_ONLY_NEW:-}" ]]; then
+    echo "[*] CMPLOG new: ${AFL_CMPLOG_ONLY_NEW}"
+fi
 if [[ -n "$AFL_CMPLOG_OPTS" ]]; then
     echo "[*] CMPLOG opts: $AFL_CMPLOG_OPTS"
 fi
@@ -678,6 +701,9 @@ if [[ -n "$AFL_MIN_LENGTH" || -n "$AFL_MAX_LENGTH" ]]; then
 fi
 if [[ "${AFL_STATSD:-0}" != "0" ]]; then
     echo "[*] StatsD:     ${AFL_STATSD_HOST:-127.0.0.1}:${AFL_STATSD_PORT:-8125} tags=${AFL_STATSD_TAGS_FLAVOR:-none}"
+fi
+if [[ "$AFL_TESTCACHE_SIZE_VAL" != "0" ]]; then
+    echo "[*] Test cache: ${AFL_TESTCACHE_SIZE_VAL} MB"
 fi
 if [[ -n "$TARGET_NOTE" ]]; then
     echo "[WARN] $TARGET_NOTE"
@@ -763,6 +789,22 @@ if [[ -n "$AFL_RUN_TIME" ]]; then
     AFL_COMMON_ARGS+=("-V" "$AFL_RUN_TIME")
 fi
 
+instance_afl_args() {
+    local instance="$1"
+    local arg
+    local replacement
+
+    INSTANCE_AFL_ARGS=()
+    replacement="${AFL_TMP_PREFIX:-}-${instance}"
+    for arg in "${AFL_ARGS[@]}"; do
+        if [[ -n "${AFL_TMP_PREFIX:-}" && "$arg" == *"${AFL_TMP_PREFIX}"* ]]; then
+            INSTANCE_AFL_ARGS+=("${arg//${AFL_TMP_PREFIX}/$replacement}")
+        else
+            INSTANCE_AFL_ARGS+=("$arg")
+        fi
+    done
+}
+
 # Check for existing session (resume)
 # Parallel mode uses output/main/, single mode uses output/default/.
 if [[ "$PARALLEL" -gt 1 ]]; then
@@ -811,6 +853,11 @@ if [[ "$AFL_IMPORT_FIRST_VAL" != "0" ]]; then
 else
     unset AFL_IMPORT_FIRST
 fi
+if [[ "$AFL_TESTCACHE_SIZE_VAL" != "0" ]]; then
+    export AFL_TESTCACHE_SIZE="$AFL_TESTCACHE_SIZE_VAL"
+else
+    unset AFL_TESTCACHE_SIZE
+fi
 if [[ "${AFL_DISABLE_TRIM_TARGET:-0}" -eq 1 || "${AFL_DISABLE_TRIM:-0}" != "0" ]]; then
     export AFL_DISABLE_TRIM=1
 else
@@ -829,11 +876,11 @@ fi
 export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0,allocator_may_return_null=1"
 export UBSAN_OPTIONS="halt_on_error=1,abort_on_error=1,print_stacktrace=0"
 unset MSAN_OPTIONS
-export -n AFL_AUTORESUME_VAL AFL_BASE AFL_BIN_DIR AFL_CMPLOG_BINARY AFL_CMPLOG_OPTS AFL_DICT AFL_FRESH 2>/dev/null || true
+export -n AFL_AUTORESUME_VAL AFL_BASE AFL_BIN_DIR AFL_CMPLOG_AUTO AFL_CMPLOG_BINARY AFL_CMPLOG_BIN_DIR AFL_CMPLOG_OPTS AFL_DICT AFL_FRESH 2>/dev/null || true
 export -n AFL_DICTIONARY AFL_EXEC_LIMIT AFL_EXTRA_ARGS AFL_EXTRA_DICTS AFL_EXTRA_SEED_DIRS AFL_INPUT_DIR 2>/dev/null || true
 export -n AFL_DICT_OVERRIDE AFL_IMPORT_FIRST_VAL AFL_INPUT_FORMAT AFL_MAX_LENGTH AFL_MIN_LENGTH 2>/dev/null || true
 export -n AFL_MOPT_SECS AFL_POWER_SCHEDULE AFL_RESEED AFL_RUN_TIME AFL_SEED_LIMIT AFL_SEED_MAX_BYTES AFL_SEED_ONLY AFL_SEED_ORDER 2>/dev/null || true
-export -n AFL_SEQUENTIAL_QUEUE AFL_SPLICE AFL_TIMEOUT 2>/dev/null || true
+export -n AFL_SEQUENTIAL_QUEUE AFL_SPLICE AFL_TESTCACHE_SIZE_VAL AFL_TIMEOUT 2>/dev/null || true
 
 if [[ "$PARALLEL" -eq 1 ]]; then
     echo "[*] Starting AFL (single instance)..."
@@ -851,6 +898,7 @@ else
     echo "[*] Starting $PARALLEL AFL instances (1 main + $((PARALLEL-1)) secondary)..."
     cd "$REPO_ROOT"
 
+    instance_afl_args "main"
     afl-fuzz \
         "${INPUT_ARGS[@]}" \
         -o "$AFL_DIR/output" \
@@ -858,12 +906,13 @@ else
         "${AFL_COMMON_ARGS[@]}" \
         -m none \
         -t "$AFL_TIMEOUT" \
-        -- "$BINARY" "${AFL_ARGS[@]}" &
+        -- "$BINARY" "${INSTANCE_AFL_ARGS[@]}" &
     echo "    Main PID: $!"
 
     sleep 2
 
     for i in $(seq 2 "$PARALLEL"); do
+        instance_afl_args "secondary_$i"
         afl-fuzz \
             "${INPUT_ARGS[@]}" \
             -o "$AFL_DIR/output" \
@@ -871,7 +920,7 @@ else
             "${AFL_COMMON_ARGS[@]}" \
             -m none \
             -t "$AFL_TIMEOUT" \
-            -- "$BINARY" "${AFL_ARGS[@]}" &
+            -- "$BINARY" "${INSTANCE_AFL_ARGS[@]}" &
         echo "    Secondary $i PID: $!"
         sleep 1
     done
