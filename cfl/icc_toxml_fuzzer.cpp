@@ -59,7 +59,17 @@
 #include <string>
 #include <unistd.h>
 
+static void suppress_upstream_stdout(void) {
+  fflush(stdout);
+  int devNull = open("/dev/null", O_WRONLY);
+  if (devNull < 0) return;
+  dup2(devNull, STDOUT_FILENO);
+  close(devNull);
+}
+
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
+  suppress_upstream_stdout();
+
   // Match tool lines 23-24: register XML factories
   auto *tagFactory = new (std::nothrow) CIccTagXmlFactory();
   auto *mpeFactory = new (std::nothrow) CIccMpeXmlFactory();

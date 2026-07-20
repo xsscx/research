@@ -225,6 +225,10 @@ ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tojson_fuzzer -
 
 ### `icc_toxml_fuzzer`
 
+This harness redirects upstream stdout to `/dev/null` during initialization.
+Expected XML serialization diagnostics stay out of fuzzer logs; libFuzzer
+progress and sanitizer reports still print on stderr.
+
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 toxml
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_toxml_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=8192 -max_len=5242880 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_toxml_fuzzer.dict cfl/corpus-icc_toxml_fuzzer/

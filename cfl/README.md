@@ -86,6 +86,11 @@ Current harness areas:
 | XML export | `icc_toxml_fuzzer` |
 | v5 display observer conversion | `icc_v5dspobs_fuzzer` |
 
+`icc_toxml_fuzzer` suppresses upstream stdout during fuzzing. This keeps
+expected XML serialization diagnostics such as non-XML tag notices from
+dominating logs while preserving libFuzzer progress and sanitizer reports on
+stderr.
+
 ## Patch Stack
 
 `cfl/patches/` is an optional patch stack. `cfl/patches-retired/` preserves
