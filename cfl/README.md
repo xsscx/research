@@ -1,10 +1,10 @@
 # CFL - LibFuzzer Harnesses for iccDEV
 
-Last updated: 2026-07-04
+Last updated: 2026-07-20
 
 `cfl/` contains the LibFuzzer side of the iccDEV fuzzing workflow: active
-harnesses, sanitizer builds, dictionaries, seed material, and the active patch
-stack used for patched vs upstream A/B testing.
+harnesses, sanitizer builds, dictionaries, seed material, and an optional patch
+stack used only for explicit patched-vs-upstream A/B testing.
 
 Use `cfl/patches/README.md` as the source of truth for the current patch list.
 Use `cfl/fuzzers.sh` as the source of truth for the current fuzzer list.
@@ -12,11 +12,12 @@ Use `cfl/fuzzers.sh` as the source of truth for the current fuzzer list.
 ## Fast Path
 
 ```bash
-# Build current upstream master with the active CFL patch stack.
-cd cfl && ./build.sh --patches --refresh-iccdev
-
-# Build current upstream master without CFL patches.
+# Build current upstream master without CFL patches. This is the default.
+cd cfl && ./build.sh --refresh-iccdev
 cd cfl && ./build.sh --no-patches --refresh-iccdev
+
+# Build current upstream master with the CFL patch stack for A/B testing.
+cd cfl && ./build.sh --patches --refresh-iccdev
 
 # Build one selected patch for an isolated A/B check.
 cd cfl && ./build.sh --refresh-iccdev \
@@ -33,8 +34,9 @@ cd cfl && ./fuzz-local.sh -t 14400 -w 4 -r /mnt/g/fuzz-ssd
 
 | Mode | Command | Purpose |
 |------|---------|---------|
-| Upstream | `./build.sh --no-patches --refresh-iccdev` | Baseline current iccDEV behavior |
-| Patched stack | `./build.sh --patches --refresh-iccdev` | Full CFL hardening stack |
+| Upstream | `./build.sh --refresh-iccdev` | Baseline current iccDEV behavior |
+| Upstream explicit | `./build.sh --no-patches --refresh-iccdev` | Same as default, useful in A/B logs |
+| Patched stack | `./build.sh --patches --refresh-iccdev` | CFL hardening stack for comparison |
 | Single patch | `./build.sh --patch-file NAME.patch --refresh-iccdev` | Isolate one candidate fix |
 
 Keep the same corpus, timeout, worker count, sanitizer options, and machine
@@ -86,8 +88,10 @@ Current harness areas:
 
 ## Patch Stack
 
-`cfl/patches/` is the active patch stack. `cfl/patches-retired/` preserves
-accepted, superseded, or obsolete patches for audit history.
+`cfl/patches/` is an optional patch stack. `cfl/patches-retired/` preserves
+accepted, superseded, or obsolete patches for audit history. Plain `build.sh`
+does not apply patches; pass `--patches` or `--patch-file` when an A/B run
+intentionally needs patched source.
 
 ```bash
 cd cfl && ./build.sh --patches --refresh-iccdev

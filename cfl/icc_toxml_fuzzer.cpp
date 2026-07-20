@@ -73,9 +73,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Gate 0: minimum viable ICC profile (128-byte header + tag count)
   if (size < 132 || size > 5 * 1024 * 1024) return 0;
 
-  // Gate 0b: Validate tag table integrity (CWE-789 amplification guard)
-  if (!fuzz_validate_icc_tags(data, size)) return 0;
-
   // Write to temp file - upstream uses CIccFileIO, NOT CIccMemIO
   // Fuzzer temp file path is hardcoded, not user-controlled XML input
   char fuzzTmp[512];

@@ -53,9 +53,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 128 || size > 5 * 1024 * 1024)
     return 0;
 
-  if (!fuzz_validate_icc_tags(data, size))
-    return 0;
-
   // Write the fuzzed display profile to a temp file. The observer is a fixed
   // argv companion so ICC header size mismatches are seen by iccDEV, not by
   // harness framing.

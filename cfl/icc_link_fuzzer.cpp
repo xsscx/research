@@ -77,9 +77,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 132 || size > 2 * 1024 * 1024)
     return 0;
 
-  if (!fuzz_validate_icc_tags(data, size))
-    return 0;
-
   // Derive fuzz parameters from bytes that remain part of the profile file.
   // Matches iccApplyToLink intent/type/interp parsing (lines 726-746)
   uint8_t ctrl0 = data[0];

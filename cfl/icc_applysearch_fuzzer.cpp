@@ -96,8 +96,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     icFloatNumber pcc_weight = 1.0f;
 #endif
 
-    if (!fuzz_validate_icc_tags(data, size)) return 0;
-
     const char *tmpdir = fuzz_tmpdir();
     char fixed_srgb[512];
     if (!fuzz_find_repo_file(fixed_srgb, sizeof(fixed_srgb), __FILE__,

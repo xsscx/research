@@ -45,7 +45,6 @@
 #include "IccTag.h"
 #include "IccTagLut.h"
 #include "IccMpeBasic.h"
-#include "CflSafeDescribe.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 128) return 0;
@@ -74,7 +73,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     for (i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
       if (i->pTag) {
         std::string desc;
-        SafeDescribe(i->pTag, desc, 100);
+        i->pTag->Describe(desc, 100);
         i->pTag->GetType();
         i->pTag->IsArrayType();
         i->pTag->IsSupported();
@@ -101,7 +100,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       CIccTag *tag = pIcc->FindTag(tags[j]);
       if (tag) {
         std::string desc, rpt;
-        SafeDescribe(tag, desc, 50);
+        tag->Describe(desc, 50);
         tag->Validate("", rpt);
         tag->GetType();
         tag->IsSupported();

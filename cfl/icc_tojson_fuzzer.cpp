@@ -32,8 +32,6 @@ static IccToJsonFactories g_factories;
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (!data || size < 132 || size > kMaxIccInputSize)
     return 0;
-  if (!fuzz_validate_icc_tags(data, size))
-    return 0;
 
   CIccMemIO mem;
   if (!mem.Attach(const_cast<icUInt8Number *>(data), size, false))

@@ -20,8 +20,8 @@ scripts and filesystem in the current checkout.
 ## Build And A/B Commands
 
 ```bash
-cd cfl && ./build.sh --patches --refresh-iccdev
 cd cfl && ./build.sh --no-patches --refresh-iccdev
+cd cfl && ./build.sh --patches --refresh-iccdev
 cd cfl && ./build.sh --refresh-iccdev --patch-file NAME.patch
 cd cfl && ./fuzz-local.sh -t 60 -w 1
 cd cfl && ./status.sh --detail
@@ -69,6 +69,7 @@ remove stale build output before judging a failure:
 
 ```bash
 rm -rf cfl/iccDEV/Build cfl/build cfl/bin
+cd cfl && ./build.sh --no-patches --refresh-iccdev
 cd cfl && ./build.sh --patches --refresh-iccdev
 ```
 

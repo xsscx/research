@@ -42,7 +42,6 @@
 #include "IccUtil.h"
 
 #include "fuzz_utils.h"
-#include "CflSafeDescribe.h"
 
 // ===================================================================
 // CubeFile class - VERBATIM from iccFromCube.cpp (upstream lines 78-270)
@@ -587,7 +586,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         for (ti = pReadback->m_Tags.begin(); ti != pReadback->m_Tags.end(); ti++) {
           if (ti->pTag) {
             std::string tagDesc;
-            SafeDescribe(ti->pTag, tagDesc, 100);
+            ti->pTag->Describe(tagDesc, 100);
           }
         }
         delete pReadback;

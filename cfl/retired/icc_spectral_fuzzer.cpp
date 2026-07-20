@@ -80,7 +80,6 @@
 #include "IccMpeSpectral.h"
 #include "IccUtil.h"
 #include "IccCmm.h"
-#include "CflSafeDescribe.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <new>
@@ -179,9 +178,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     CIccTag *pTag = profile.FindTag(kSpectralTags[i]);
     if (!pTag) continue;
 
-    // Describe (IccDumpProfile alignment -- SafeDescribe validates first)
+    // Describe (IccDumpProfile alignment)
     std::string desc;
-    SafeDescribe(pTag, desc, 100);
+    pTag->Describe(desc, 100);
 
     // Write round-trip
     CIccMemIO outIO;
@@ -198,7 +197,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (pSvcn) {
     // Describe exercises illuminant/observer name resolution
     std::string svcnDesc;
-    SafeDescribe(pSvcn, svcnDesc, 100);
+    pSvcn->Describe(svcnDesc, 100);
 
     // Access illuminant data (used by ReflectanceObserver::Begin)
     icSpectralRange illumRange;
@@ -216,7 +215,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                             icSigSpectralDataInfoType));
   if (pSdi) {
     std::string sdiDesc;
-    SafeDescribe(pSdi, sdiDesc, 100);
+    pSdi->Describe(sdiDesc, 100);
     std::string sdiReport;
     pSdi->Validate("sdi", sdiReport, &profile);
   }
@@ -229,9 +228,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         profile.FindTagOfType(kMpeTags[t], icSigMultiProcessElementType));
     if (!pMpe) continue;
 
-    // Describe the MPE tag (IccDumpProfile alignment -- SafeDescribe validates first)
+    // Describe the MPE tag (IccDumpProfile alignment)
     std::string mpeDesc;
-    SafeDescribeMPE(pMpe, mpeDesc, 100, &profile);
+    pMpe->Describe(mpeDesc, 100);
 
     // Validate (catches channel mismatches, range errors)
     std::string mpeReport;
@@ -250,7 +249,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
       // Describe the element
       std::string elemDesc;
-      SafeDescribeElement(pElem, elemDesc, 100, pMpe, &profile);
+      pElem->Describe(elemDesc, 100);
 
       // Validate the element
       std::string elemReport;
@@ -336,14 +335,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   (void)hdr.biSpectralRange.end;
   (void)hdr.biSpectralRange.steps;
 
-  // Phase 8: Tag iteration with SafeDescribe() - IccDumpProfile alignment
+  // Phase 8: Tag iteration with Describe() - IccDumpProfile alignment
   // IccDumpProfile iterates all tags and calls Describe on each
   TagEntryList::iterator it;
   for (it = profile.m_Tags.begin(); it != profile.m_Tags.end(); it++) {
     CIccTag *pTag = profile.FindTag(it->TagInfo.sig);
     if (!pTag) continue;
     std::string tagDesc;
-    SafeDescribe(pTag, tagDesc, 100);
+    pTag->Describe(tagDesc, 100);
   }
 
   return 0;

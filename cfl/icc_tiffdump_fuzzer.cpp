@@ -31,7 +31,6 @@
 #include "IccIO.h"
 #include "TiffImg.h"
 #include "fuzz_utils.h"
-#include "CflSafeDescribe.h"
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -158,9 +157,9 @@ static void ExerciseProfile(CIccProfile *pProfile, int depth) {
       (void)pTag->IsArrayType();
       (void)pTag->IsNumArrayType();
 
-      // Describe() with validation guard - the core coverage target
+      // Describe() exercises the same tag formatter used by iccTiffDump.
       std::string desc;
-      SafeDescribe(pTag, desc, 0, 65536);
+      pTag->Describe(desc, 0);
 
       // Profile description tag - specific branches
       if (entry->TagInfo.sig == icSigProfileDescriptionTag) {

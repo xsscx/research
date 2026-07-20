@@ -22,7 +22,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 | Component | Purpose |
 |-----------|---------|
 | **iccanalyzer-lite/** | Security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV. |
-| **cfl/** | 13 LibFuzzer harnesses + security patches on a separate iccDEV clone. |
+| **cfl/** | LibFuzzer harnesses plus an optional security patch stack on a separate iccDEV clone. |
 | **mcp-server/** | MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. |
 | **colorbleed_tools/** | Intentionally unsafe ICC-to-XML converters (no ASAN). |
 | **fuzz/** | Curated malicious input files (CVE PoCs, injection sigs, malformed media). |
@@ -59,7 +59,7 @@ ALL locations listed in the relevant path-specific instructions file.
 # Prerequisites: clang/clang++ 18+, cmake 3.15+, libxml2-dev, libtiff-dev,
 #   libpng-dev, libjpeg-dev, libssl-dev, libclang-rt-18-dev
 cd iccanalyzer-lite && ./build.sh       # analyzer (ASAN+UBSAN+coverage)
-cd cfl && ./build.sh                    # 13 fuzzers (clones iccDEV, applies patches)
+cd cfl && ./build.sh                    # LibFuzzer harnesses against unpatched upstream
 cd colorbleed_tools && make setup && make # unsafe tools (no ASAN)
 ./afl/build.sh                          # AFL-instrumented upstream tools
 cd mcp-server && pip install -e .       # MCP server

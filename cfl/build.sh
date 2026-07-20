@@ -5,7 +5,7 @@
 # Clones iccDEV, builds static libraries, then compiles all fuzzers
 # with full sanitizer instrumentation and Clang source-based coverage.
 #
-# Usage:  ./build.sh          # build all fuzzers
+# Usage:  ./build.sh          # build all fuzzers against unpatched upstream
 #         ./build.sh clean    # remove build artifacts and start fresh
 #         ./build.sh --no-patches --refresh-iccdev
 #
@@ -24,7 +24,7 @@ NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 CC="${CC:-clang}"
 CXX="${CXX:-clang++}"
-APPLY_PATCHES="${CFL_APPLY_PATCHES:-1}"
+APPLY_PATCHES="${CFL_APPLY_PATCHES:-0}"
 REFRESH_ICCDEV="${CFL_REFRESH_ICCDEV:-0}"
 PATCH_WX="${CFL_PATCH_WX:-0}"
 KEEP_ICCDEV="${CFL_KEEP_ICCDEV:-0}"
@@ -143,8 +143,8 @@ usage() {
   echo ""
   echo "Options:"
   echo "  clean             remove build artifacts and nested iccDEV checkout"
-  echo "  --no-patches      build against unpatched iccDEV even when cfl/patches exists"
-  echo "  --patches         apply cfl/patches before building (default)"
+  echo "  --no-patches      build against unpatched iccDEV (default)"
+  echo "  --patches         apply cfl/patches before building"
   echo "  --patch [DIR|FILE] apply all patches, a patch directory, or one patch file"
   echo "  --patch-file FILE apply one patch file; may be repeated"
   echo "  --keep-iccdev     preserve current cfl/iccDEV source edits"

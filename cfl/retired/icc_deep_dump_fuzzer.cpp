@@ -71,7 +71,6 @@
 #include "IccUtil.h"
 #include "IccIO.h"
 #include "IccSignatureUtils.h"
-#include "CflSafeDescribe.h"
 
 // Limits to prevent OOM in fuzzer (mirrors iccanalyzer-lite constants)
 static constexpr size_t kMaxProfileSize = 4 * 1024 * 1024;  // 4 MB
@@ -534,7 +533,7 @@ static void ExerciseTags(CIccProfile *pIcc, int verboseness) {
 
     // Describe at caller-controlled verbosity (tool line 108)
     std::string desc;
-    SafeDescribe(pTag, desc, verboseness);
+    pTag->Describe(desc, verboseness);
 
     // Validate every tag
     std::string valReport;
@@ -589,9 +588,9 @@ static void ExerciseTags(CIccProfile *pIcc, int verboseness) {
       CIccCurve *pCurveB = pLut->GetCurvesB() ? pLut->GetCurvesB()[0] : nullptr;
       CIccCurve *pCurveM = pLut->GetCurvesM() ? pLut->GetCurvesM()[0] : nullptr;
       DIAG("  Curves: A=%p B=%p M=%p", (void*)pCurveA, (void*)pCurveB, (void*)pCurveM);
-      if (pCurveA) { std::string s; SafeDescribe(pCurveA, s, verboseness); }
-      if (pCurveB) { std::string s; SafeDescribe(pCurveB, s, verboseness); }
-      if (pCurveM) { std::string s; SafeDescribe(pCurveM, s, verboseness); }
+      if (pCurveA) { std::string s; pCurveA->Describe(s, verboseness); }
+      if (pCurveB) { std::string s; pCurveB->Describe(s, verboseness); }
+      if (pCurveM) { std::string s; pCurveM->Describe(s, verboseness); }
     }
 
     // -- MPE tag deep exercise (chain depth, element iteration) --
@@ -671,7 +670,7 @@ static void ExerciseTags(CIccProfile *pIcc, int verboseness) {
             DIAG("  TagArray[%u]: type=%s", idx,
                  icGetSig(buf, bufSize, pElem->GetType()));
             std::string elemDesc;
-            SafeDescribe(pElem, elemDesc, verboseness > 50 ? 50 : verboseness);
+            pElem->Describe(elemDesc, verboseness > 50 ? 50 : verboseness);
           }
         }
       }
@@ -686,7 +685,7 @@ static void ExerciseTags(CIccProfile *pIcc, int verboseness) {
       auto *pStructHandler = pStruct->GetStructHandler();
       if (pStructHandler) {
         std::string structDesc;
-        SafeDescribe(pStruct, structDesc, verboseness > 50 ? 50 : verboseness);
+        pStruct->Describe(structDesc, verboseness > 50 ? 50 : verboseness);
       } else {
         DIAG("  TagStruct: GetStructHandler()=nullptr");
       }
@@ -699,7 +698,7 @@ static void ExerciseTags(CIccProfile *pIcc, int verboseness) {
       // Describe exercises the full record iteration path
       DIAG("TagDict: exercising Describe");
       std::string dictDesc;
-      SafeDescribe(pDict, dictDesc, verboseness > 50 ? 50 : verboseness);
+      pDict->Describe(dictDesc, verboseness > 50 ? 50 : verboseness);
 
       // Validate exercises structural integrity checks
       std::string dictVal;
@@ -814,7 +813,7 @@ static void ExerciseCalculatorTags(CIccProfile *pIcc) {
 
     // Describe exercises Describe->DescribeSequence path in calculator
     std::string desc;
-    SafeDescribeMPE(pMPE, desc, 100);
+    pMPE->Describe(desc, 100);
 
     // Note: iccDumpProfile calls Describe()/Validate() on MPE tags
     // but never Begin() -- tag execution is out of tool scope.
@@ -864,7 +863,7 @@ static void ExerciseSignatureLookups(CIccProfile *pIcc, int verboseness) {
            fmt.GetTagTypeSigName(foundType));
 
       std::string desc;
-      SafeDescribe(tag, desc, verboseness);
+      tag->Describe(desc, verboseness);
 
       std::string valReport;
       tag->Validate(fmt.GetTagSigName(tagSig), valReport);

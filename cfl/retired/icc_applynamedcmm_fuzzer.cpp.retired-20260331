@@ -42,7 +42,6 @@
  *
  * Gate sequence (matches tool main() lines 305-563):
  *   Gate 0a: size [132..1MB]
- *   Gate 0b: fuzz_validate_icc_tags() -- offset/size/overflow checks
  *   Gate 1:  Write to temp file (CIccFileIO path -- matches tool's OpenIccProfile)
  *   Gate 2:  Open profile, extract header fields
  *   Gate 3:  srcSpace = profile.colorSpace (matches what fromLegacy data file declares)
@@ -86,10 +85,6 @@
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // --- Gate 0a: Size bounds ---
     if (size < 132 || size > 1024 * 1024)
-        return 0;
-
-    // --- Gate 0b: Tag table structural validation ---
-    if (!fuzz_validate_icc_tags(data, size))
         return 0;
 
     // --- Gate 1: Write to temp file (CIccFileIO path) ---

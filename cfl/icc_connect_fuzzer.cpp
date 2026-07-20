@@ -91,9 +91,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   const uint8_t *profile_data = data;
   const uint8_t *ctrl = data + profile_size;
 
-  if (!fuzz_validate_icc_tags(profile_data, profile_size))
-    return 0;
-
   const bool use_embedded = (ctrl[0] & 0x01) != 0;
   const bool try_named = (ctrl[0] & 0x02) != 0;
   const bool try_threaded = (ctrl[0] & 0x04) != 0 && profile_size <= 64 * 1024;

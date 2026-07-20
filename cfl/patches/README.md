@@ -1,8 +1,8 @@
 # CFL Patches -- Active Security Fixes
 
-Last Updated: 2026-07-05
+Last Updated: 2026-07-20
 
-This directory contains the active CFL patch stack for current
+This directory contains the optional CFL patch stack for current
 `InternationalColorConsortium/iccDEV:master`.
 
 This file is the source of truth for active patch inventory. Higher-level docs
@@ -17,11 +17,11 @@ Current upstream baseline:
 ## Build Modes
 
 ```bash
-# Apply all active patches and build all fuzzers.
-./cfl/build.sh --patches --refresh-iccdev
+# Build current upstream master without CFL patches. This is the CFL default.
+./cfl/build.sh --refresh-iccdev
 
-# Build current upstream master without CFL patches.
-./cfl/build.sh --no-patches --refresh-iccdev
+# Apply all active patches and build all fuzzers for an A/B comparison.
+./cfl/build.sh --patches --refresh-iccdev
 
 # Apply one or more selected patches for on-the-fly testing.
 ./cfl/build.sh --refresh-iccdev --patch-file 053-formulacurve-describe-format-specifiers.patch
@@ -125,7 +125,7 @@ calculator source. Patches `047`, `071`, `076`, `087`, `090`, `091`, `092`,
 the current upstream source already contains equivalent or stronger hardening,
 or the original context is superseded by upstream restructuring.
 
-Default patched build status for this baseline:
+Patched build status for this baseline:
 
 ```bash
 cd cfl && ./build.sh --patches

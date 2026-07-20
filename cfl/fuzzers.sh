@@ -220,6 +220,84 @@ cfl_asan_options() {
   printf '%s\n' "$options"
 }
 
+cfl_tool_command() {
+  local fuzzer="$1"
+  local artifact="${2:-<artifact>}"
+
+  case "$fuzzer" in
+    icc_applynamedcmm_fuzzer)
+      printf 'iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0 0 %s 1\n' "$artifact"
+      ;;
+    icc_applyprofiles_fuzzer)
+      printf 'iccApplyProfiles test-profiles/tiff-codecs/seed-tiff-none-rgb-8x8.tif /tmp/cfl-applyprofiles-out.tif 3 1 1 1 1 %s 40\n' "$artifact"
+      ;;
+    icc_applyprofiles_row_fuzzer)
+      printf 'iccApplyProfiles -threads 0 test-profiles/tiff-codecs/seed-tiff-none-rgb-8x8.tif /tmp/cfl-applyprofiles-row-out.tif 3 1 1 1 1 %s 40\n' "$artifact"
+      ;;
+    icc_applysearch_fuzzer)
+      printf 'iccApplySearch docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0 0 test-profiles/sRGB_D65_MAT.icc 1 %s 1 -INIT 1 test-profiles/sRGB_D65_MAT.icc 1\n' "$artifact"
+      ;;
+    icc_applysearch_weight_fuzzer)
+      printf 'iccApplySearch docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0 0 test-profiles/sRGB_D65_MAT.icc 1 test-profiles/sRGB_D65_MAT.icc 1 -INIT 1 %s 1\n' "$artifact"
+      ;;
+    icc_connect_fuzzer)
+      printf 'iccApplyProfiles -cfg %s\n' "$artifact"
+      ;;
+    icc_cfg_fuzzer)
+      printf 'iccApplyProfiles -cfg %s\n' "$artifact"
+      ;;
+    icc_dump_fuzzer)
+      printf 'iccDumpProfile -v 100 %s ALL\n' "$artifact"
+      ;;
+    icc_fromcube_fuzzer)
+      printf 'iccFromCube %s /tmp/cfl-fromcube-out.icc\n' "$artifact"
+      ;;
+    icc_fromjson_fuzzer)
+      printf 'iccFromJson %s /tmp/cfl-fromjson-out.icc\n' "$artifact"
+      ;;
+    icc_fromxml_fuzzer)
+      printf 'iccFromXml %s /tmp/cfl-fromxml-out.icc\n' "$artifact"
+      ;;
+    icc_jpegdump_fuzzer)
+      printf 'iccJpegDump %s /tmp/cfl-jpegdump.icc\n' "$artifact"
+      ;;
+    icc_link_fuzzer)
+      printf 'iccApplyToLink /tmp/cfl-link-out.icc 0 2 1 CFL 0.0 1.0 0 0 %s 40 test-profiles/sRGB_D65_MAT.icc 40\n' "$artifact"
+      ;;
+    icc_pawgreport_fuzzer)
+      printf 'iccPawgReport --json %s\n' "$artifact"
+      ;;
+    icc_pngdump_fuzzer)
+      printf 'iccPngDump %s /tmp/cfl-pngdump.icc\n' "$artifact"
+      ;;
+    icc_profilevisualize_fuzzer)
+      printf 'iccProfileVisualize %s /tmp/cfl-profilevisualize\n' "$artifact"
+      ;;
+    icc_roundtrip_fuzzer)
+      printf 'iccRoundTrip %s /tmp/cfl-roundtrip-out.icc\n' "$artifact"
+      ;;
+    icc_specsep_fuzzer)
+      printf 'iccSpecSepToTiff %s _A2B0 /tmp/cfl-specsep 8 0\n' "$artifact"
+      ;;
+    icc_tiffdump_fuzzer)
+      printf 'iccTiffDump %s /tmp/cfl-tiffdump.icc\n' "$artifact"
+      ;;
+    icc_tojson_fuzzer)
+      printf 'iccToJson %s /tmp/cfl-tojson-out.json\n' "$artifact"
+      ;;
+    icc_toxml_fuzzer)
+      printf 'iccToXml %s /tmp/cfl-toxml-out.xml\n' "$artifact"
+      ;;
+    icc_v5dspobs_fuzzer)
+      printf 'iccV5DspObsToV4Dsp %s test-profiles/XYZ_float-D65_2deg-Part1.icc /tmp/cfl-v5dspobs-out.icc\n' "$artifact"
+      ;;
+    *)
+      printf 'ERROR: no tool command mapping for %s\n' "$fuzzer" >&2
+      return 1
+      ;;
+  esac
+}
+
 cfl_pid_is_running() {
   local pid_file="$1"
   local fuzzer="$2"

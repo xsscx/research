@@ -44,7 +44,6 @@
     Modeled command: iccDumpProfile -v 100 <input> ALL
     AST gates match tool lines:
       Gate 0: argc/size check (tool line 155)
-      Gate 0b: Tag table size validation (CWE-789 guard)
       Gate 1: ValidateIccProfile(path) or OpenIccProfile(path) (tool lines 198/218)
       Gate 2: CIccInfo header formatting (tool lines 244-290)
       Gate 3: O(N logN) tag overlap detection (tool lines 309-380)
@@ -66,15 +65,11 @@
 #include "IccTag.h"
 #include "IccUtil.h"
 #include "IccIO.h"
-#include "CflSafeDescribe.h"
 #include "fuzz_utils.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Gate 0: minimum viable ICC profile
   if (size < 132 || size > 5 * 1024 * 1024) return 0;
-
-  // Gate 0b: Validate tag table integrity (CWE-789 amplification guard)
-  if (!fuzz_validate_icc_tags(data, size)) return 0;
 
   // Write to temp file - upstream uses CIccFileIO, NOT CIccMemIO
   // Fuzzer temp file path is hardcoded, not user-controlled XML input
@@ -151,7 +146,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   for (auto i = pIcc->m_Tags.begin(); i != pIcc->m_Tags.end(); i++) {
     if (!i->pTag) continue;
     std::string desc;
-    SafeDescribe(i->pTag, desc, verboseness);
+    i->pTag->Describe(desc, verboseness);
     Fmt.GetTagTypeSigName(i->pTag->GetType());
   }
 

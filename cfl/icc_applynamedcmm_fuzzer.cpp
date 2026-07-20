@@ -71,7 +71,7 @@
       data[104]: bits 0-1 -> pixel pattern (0=mid, 1=zero, 2=saturated, 3=mixed)
 
     Gate sequence (matches tool main()):
-      Gate 0:  size [132..1MB], tag table validation
+      Gate 0:  size [132..1MB]
       Gate 1:  Write to temp file (CIccFileIO path)
       Gate 2:  Open profile, extract header fields
       Gate 3:  srcSpace = profile.colorSpace
@@ -108,10 +108,8 @@
 #define IsSpacePCS(x) ((x)==icSigXYZData || (x)==icSigLabData)
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-    // --- Gate 0: Size bounds + tag table validation ---
+    // --- Gate 0: Size bounds ---
     if (size < 132 || size > 1024 * 1024)
-        return 0;
-    if (!fuzz_validate_icc_tags(data, size))
         return 0;
 
     // --- Extract control bytes from ICC reserved region (bytes 100-107) ---
