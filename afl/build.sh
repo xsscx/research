@@ -266,6 +266,13 @@ select_afl_toolchain() {
         echo "ERROR: clang-22 and clang++-22 are required for AFL builds" >&2
         return 1
     fi
+    AFL_LLVM_AR="$(first_tool llvm-ar-22 || true)"
+    AFL_LLVM_RANLIB="$(first_tool llvm-ranlib-22 || true)"
+    AFL_LLVM_NM="$(first_tool llvm-nm-22 || true)"
+    if [[ -z "$AFL_LLVM_AR" || -z "$AFL_LLVM_RANLIB" || -z "$AFL_LLVM_NM" ]]; then
+        echo "ERROR: llvm-ar-22, llvm-ranlib-22, and llvm-nm-22 are required for AFL LTO builds" >&2
+        return 1
+    fi
 
     AFL_CLANG_FAST_BIN=""
     AFL_CLANG_FASTXX_BIN=""
@@ -391,6 +398,7 @@ echo "    Bin dir: $BIN_DIR"
 echo "    Link mode: $AFL_LINK_MODE"
 echo "    AFL backend: $AFL_CC_BACKEND / $AFL_CXX_BACKEND"
 echo "    AFL wrapper: $AFL_CLANG_FAST_BIN / $AFL_CLANG_FASTXX_BIN"
+echo "    LLVM binutils: $AFL_LLVM_AR / $AFL_LLVM_RANLIB / $AFL_LLVM_NM"
 if [[ -n "$ICCDEV_BRANCH" ]]; then
     echo "    Branch: $ICCDEV_BRANCH"
 fi
@@ -423,6 +431,13 @@ fi
 env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_BACKEND" "${AFL_BUILD_ENV[@]}" cmake -S "$CMAKE_DIR" -B "$BUILD_DIR" \
     -DCMAKE_C_COMPILER="$AFL_CLANG_FAST_BIN" \
     -DCMAKE_CXX_COMPILER="$AFL_CLANG_FASTXX_BIN" \
+    -DCMAKE_AR="$AFL_LLVM_AR" \
+    -DCMAKE_RANLIB="$AFL_LLVM_RANLIB" \
+    -DCMAKE_NM="$AFL_LLVM_NM" \
+    -DCMAKE_C_COMPILER_AR="$AFL_LLVM_AR" \
+    -DCMAKE_C_COMPILER_RANLIB="$AFL_LLVM_RANLIB" \
+    -DCMAKE_CXX_COMPILER_AR="$AFL_LLVM_AR" \
+    -DCMAKE_CXX_COMPILER_RANLIB="$AFL_LLVM_RANLIB" \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_C_FLAGS="-g -O0 -I${ARCH_INCLUDE}" \
     -DCMAKE_CXX_FLAGS="-g -O0 -I${ARCH_INCLUDE}" \
