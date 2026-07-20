@@ -5,8 +5,9 @@
 # Clones iccDEV, builds static libraries, then compiles all fuzzers
 # with full sanitizer instrumentation and Clang source-based coverage.
 #
-# Usage:  ./build.sh          # build all fuzzers against unpatched upstream
-#         ./build.sh clean    # remove build artifacts and start fresh
+# Usage:  ./build.sh                         # build all fuzzers against upstream master
+#         ./build.sh clean                   # remove build artifacts and start fresh
+#         ./build.sh --branch ci-qa-flags --refresh-iccdev
 #         ./build.sh --no-patches --refresh-iccdev
 #
 # Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev, libtiff-dev, zlib,
@@ -28,6 +29,7 @@ APPLY_PATCHES="${CFL_APPLY_PATCHES:-0}"
 REFRESH_ICCDEV="${CFL_REFRESH_ICCDEV:-0}"
 PATCH_WX="${CFL_PATCH_WX:-0}"
 KEEP_ICCDEV="${CFL_KEEP_ICCDEV:-0}"
+ICCDEV_REF="${CFL_ICCDEV_REF:-master}"
 SELECTED_PATCHES=()
 
 # Sanitizer + debug + instrumentation + coverage flags
@@ -147,8 +149,10 @@ usage() {
   echo "  --patches         apply cfl/patches before building"
   echo "  --patch [DIR|FILE] apply all patches, a patch directory, or one patch file"
   echo "  --patch-file FILE apply one patch file; may be repeated"
+  echo "  --branch REF      clone/fetch the named iccDEV branch or tag (default: master)"
+  echo "  --ref REF         alias for --branch"
   echo "  --keep-iccdev     preserve current cfl/iccDEV source edits"
-  echo "  --refresh-iccdev  fetch origin/master and reset the nested checkout to it"
+  echo "  --refresh-iccdev  fetch the selected iccDEV ref and reset the nested checkout"
   echo "  --patch-wx        apply the legacy local wxWidgets CMake workaround"
 }
 
@@ -190,6 +194,14 @@ while [[ $# -gt 0 ]]; do
         shift
       fi
       ;;
+    --branch|--ref)
+      if [[ $# -lt 2 || "$2" == --* ]]; then
+        echo "[FAIL] ERROR: $1 requires an iccDEV branch or tag"
+        exit 1
+      fi
+      ICCDEV_REF="$2"
+      shift 2
+      ;;
     --keep-iccdev)
       KEEP_ICCDEV=1
       shift
@@ -216,6 +228,11 @@ done
 
 if [[ "$REFRESH_ICCDEV" = "1" && "$KEEP_ICCDEV" = "1" ]]; then
   echo "[FAIL] ERROR: --refresh-iccdev and --keep-iccdev are mutually exclusive"
+  exit 1
+fi
+
+if [[ -z "$ICCDEV_REF" ]]; then
+  echo "[FAIL] ERROR: iccDEV branch/ref must not be empty"
   exit 1
 fi
 
@@ -257,6 +274,7 @@ echo "Compiler:  $($CXX --version | head -1)"
 echo "CMake:     $(cmake --version | head -1)"
 echo "Cores:     $NPROC"
 echo "Output:    $OUTPUT_DIR"
+echo "iccDEV ref: $ICCDEV_REF"
 echo ""
 echo "Flags:"
 echo "  Library:  $CFLAGS_LIB"
@@ -266,17 +284,18 @@ echo "  Coverage: $COVERAGE_FLAGS"
 banner "Step 1: iccDEV source"
 if [ -d "$ICCDEV_DIR/.git" ]; then
   if [ "$REFRESH_ICCDEV" = "1" ]; then
-    echo "Refreshing existing checkout from origin/master"
-    git -C "$ICCDEV_DIR" fetch origin master
-    git -C "$ICCDEV_DIR" reset --hard origin/master
+    echo "Refreshing existing checkout from origin/$ICCDEV_REF"
+    git -C "$ICCDEV_DIR" fetch --depth 1 origin "$ICCDEV_REF"
+    git -C "$ICCDEV_DIR" checkout -B "$ICCDEV_REF" FETCH_HEAD
+    git -C "$ICCDEV_DIR" reset --hard FETCH_HEAD
     git -C "$ICCDEV_DIR" clean -fd
   else
     echo "Using existing checkout: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
   fi
 else
-  echo "Cloning iccDEV..."
+  echo "Cloning iccDEV ref: $ICCDEV_REF"
   rm -rf "$ICCDEV_DIR"
-  git clone --branch master --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
+  git clone --branch "$ICCDEV_REF" --depth 1 https://github.com/InternationalColorConsortium/iccDEV.git "$ICCDEV_DIR"
 fi
 echo "Branch: $(cd "$ICCDEV_DIR" && git rev-parse --abbrev-ref HEAD)"
 echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
