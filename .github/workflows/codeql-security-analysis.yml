@@ -109,7 +109,7 @@ jobs:
           make -j$(nproc) IccProfLib2 IccXML2 IccJSON2 IccProfLib2-static IccXML2-static IccJSON2-static
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         with:
           languages: cpp
           config-file: ${{ matrix.target == 'icctest' && 'iccanalyzer-lite/codeql-config.yml' || format('{0}/codeql-config.yml', matrix.target) }}
@@ -252,7 +252,7 @@ jobs:
           preset: 'codeql'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         with:
           languages: python
           config-file: mcp-server/codeql-config.yml
