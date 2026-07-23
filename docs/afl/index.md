@@ -23,6 +23,22 @@ Use `afl/targets.sh` as the source of truth for available targets.
 ./afl/triage.sh dump
 ```
 
+To preserve actionable replay artifacts for the checked-in iccDEV shell suites,
+mark them during triage:
+
+```bash
+./afl/triage.sh applytolink --mark
+./afl/triage.sh applytolink-cube --mark
+bash .github/scripts/test-iccApplyToLink.sh --quick --asan
+```
+
+`--mark` copies sanitizer, signal, and timeout artifacts into
+`afl/marked/<target>/` and writes a neighboring `.cmd` file with the exact
+canonical iccDEV replay command. `test-iccApplyToLink.sh` automatically sweeps
+`afl/marked/applytolink/` and `afl/marked/applytolink-cube/` when those
+directories exist. Override the sweep inputs with colon-separated
+`ICCDEV_APPLYTOLINK_AFL_DIRS` and `ICCDEV_APPLYTOLINK_CUBE_AFL_DIRS`.
+
 ## Target Model
 
 `afl/targets.sh` maps short target names to:

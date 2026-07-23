@@ -1,10 +1,10 @@
 #!/bin/bash
-# afl/build.sh - Build iccDEV with AFL++ instrumentation (ASAN+UBSAN)
+# afl/build.sh - Build iccDEV with AFL++ instrumentation and full sanitizers
 #
 # Usage: ./afl/build.sh [--clean] [--no-patches|--patches] [--refresh-iccdev]
 #
-# Builds the full iccDEV library and tools using afl-clang-fast++ with
-# AddressSanitizer and UndefinedBehaviorSanitizer enabled.
+# Builds the full iccDEV library and tools using afl-clang-fast++ with ASan,
+# UBSan, IntegerSanitizer, float-divide-by-zero, and float-cast-overflow.
 
 set -euo pipefail
 
@@ -384,7 +384,7 @@ fi
 
 echo "[*] Configuring iccDEV with AFL++ instrumentation..."
 echo "    Compiler: afl-clang-fast++"
-echo "    Sanitizers: ASAN + UBSAN"
+echo "    Sanitizers: ASAN + UBSAN + integer + float-divide-by-zero + float-cast-overflow"
 if [[ "$APPLY_PATCHES" = "0" ]]; then
     echo "    Patch mode: unpatched upstream"
 elif [[ "$APPLY_PATCHES" = "selected" ]]; then
@@ -441,6 +441,8 @@ env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_B
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_C_FLAGS="-g -O0 -I${ARCH_INCLUDE}" \
     -DCMAKE_CXX_FLAGS="-g -O0 -I${ARCH_INCLUDE}" \
+    -DENABLE_SANITIZERS=ON \
+    -DSANITIZER_RECOVER=OFF \
     -DENABLE_TOOLS=ON \
     -DENABLE_SHARED_LIBS="$AFL_ENABLE_SHARED_LIBS" \
     -DENABLE_STATIC_LIBS=ON \
@@ -455,6 +457,15 @@ env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_B
 
 echo "[*] Building with $JOBS cores..."
 env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_BACKEND" "${AFL_BUILD_ENV[@]}" cmake --build "$BUILD_DIR" --parallel "$JOBS"
+
+if ! grep -q '^ENABLE_SANITIZERS:BOOL=ON$' "$BUILD_DIR/CMakeCache.txt"; then
+    echo "[FAIL] CMake cache does not enable the full sanitizer set"
+    exit 1
+fi
+if ! grep -q '^SANITIZER_RECOVER:BOOL=OFF$' "$BUILD_DIR/CMakeCache.txt"; then
+    echo "[FAIL] CMake cache does not enforce fatal sanitizer findings"
+    exit 1
+fi
 
 echo ""
 echo "[OK] AFL-instrumented iccDEV built successfully"
@@ -533,6 +544,31 @@ else
     echo ""
     echo "Shared libraries: static link mode, none deployed"
 fi
+
+SANITIZER_PROBE="$BIN_DIR/iccDumpProfile"
+if [[ ! -x "$SANITIZER_PROBE" ]]; then
+    echo "[FAIL] Sanitizer verification binary not found: $SANITIZER_PROBE"
+    exit 1
+fi
+
+verify_sanitizer_symbol() {
+    local label="$1"
+    local pattern="$2"
+
+    if ! nm "$SANITIZER_PROBE" 2>/dev/null | grep -E "$pattern" >/dev/null; then
+        echo "[FAIL] Missing $label instrumentation in $SANITIZER_PROBE"
+        exit 1
+    fi
+    echo "  [OK] $label"
+}
+
+echo ""
+echo "Sanitizer instrumentation:"
+verify_sanitizer_symbol "AddressSanitizer" '__asan_init'
+verify_sanitizer_symbol "UndefinedBehaviorSanitizer" '__ubsan_handle_(type_mismatch|add_overflow)'
+verify_sanitizer_symbol "IntegerSanitizer" '__ubsan_handle_(implicit_conversion|unsigned_add_overflow|shift_out_of_bounds)'
+verify_sanitizer_symbol "float-divide-by-zero" '__ubsan_handle_divrem_overflow'
+verify_sanitizer_symbol "float-cast-overflow" '__ubsan_handle_float_cast_overflow'
 
 echo ""
 echo "[OK] $DEPLOYED AFL-instrumented tools deployed to $BIN_DIR"

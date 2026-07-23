@@ -15,10 +15,12 @@ TARGET="${1:-}"
 TRIAGE_JOBS="${AFL_TRIAGE_JOBS:-$(nproc 2>/dev/null || echo 1)}"
 
 source "$REPO_ROOT/afl/targets.sh"
+source "$REPO_ROOT/afl/sanitizer-env.sh"
 
 if [[ "$TARGET" == "--help" || "$TARGET" == "-h" ]]; then
     echo "Usage: $0 <target>"
     echo "       $0 <target> --jobs N"
+    echo "       $0 <target> --mark [DIR]"
     echo ""
     afl_print_targets
     exit 0
@@ -38,6 +40,15 @@ while [[ $# -gt 0 ]]; do
             fi
             TRIAGE_JOBS="$2"
             shift 2
+            ;;
+        --mark)
+            if [[ $# -ge 2 && "$2" != -* ]]; then
+                AFL_MARK_DIR="$2"
+                shift 2
+            else
+                AFL_MARK_DIR="$AFL_BASE/marked/$TARGET"
+                shift
+            fi
             ;;
         -*) echo "ERROR: Unknown option: $1" >&2; exit 1 ;;
         *) echo "ERROR: Unexpected argument: $1" >&2; exit 1 ;;
@@ -134,6 +145,7 @@ REPLAY_SOURCE=""
 REPLAY_LIB=""
 select_replay_binary
 AFL_OUTPUT_DIR="$AFL_DIR/output"
+AFL_MARK_DIR="${AFL_MARK_DIR:-}"
 
 if [[ ! -x "$UPSTREAM_BIN" ]]; then
     echo "ERROR: Upstream binary not found: $UPSTREAM_BIN"
@@ -155,8 +167,69 @@ if [[ -n "$REPLAY_LIB" ]]; then
 else
     unset LD_LIBRARY_PATH
 fi
-export ASAN_OPTIONS="halt_on_error=1,abort_on_error=1,detect_leaks=0,symbolize=1,allocator_may_return_null=1"
-export UBSAN_OPTIONS="halt_on_error=1,print_stacktrace=1"
+afl_export_triage_sanitizer_env
+
+quote_shell_arg() {
+    local quoted
+    printf -v quoted '%q' "$1"
+    printf '%s' "$quoted"
+}
+
+write_marked_artifact() {
+    local kind="$1"
+    local classification="$2"
+    local exit_code="$3"
+    local source_file="$4"
+
+    [[ -n "$AFL_MARK_DIR" ]] || return 0
+
+    local mark_subdir="$AFL_MARK_DIR/$kind"
+    local source_base
+    local safe_base
+    local marked_file
+    local cmd_file
+    local rel_marked_file
+    local arg
+
+    source_base="$(basename "$source_file")"
+    safe_base="$(printf '%s' "$source_base" | tr -c 'A-Za-z0-9._,+-=' '_')"
+    mkdir -p "$mark_subdir"
+    marked_file="$mark_subdir/$safe_base"
+    cp -f "$source_file" "$marked_file"
+    cmd_file="$marked_file.cmd"
+
+    rel_marked_file="${marked_file#$REPO_ROOT/}"
+    {
+        printf '# target=%s\n' "$TARGET"
+        printf '# kind=%s\n' "$kind"
+        printf '# classification=%s\n' "$classification"
+        printf '# exit_code=%s\n' "$exit_code"
+        printf '# source=%s\n' "$source_file"
+        printf 'cd '
+        quote_shell_arg "$REPO_ROOT"
+        printf ' && '
+        if [[ -n "${REPLAY_LIB:-}" ]]; then
+            printf 'LD_LIBRARY_PATH='
+            quote_shell_arg "$REPLAY_LIB"
+            printf ' '
+        fi
+        printf 'ASAN_OPTIONS='
+        quote_shell_arg "$ASAN_OPTIONS"
+        printf ' UBSAN_OPTIONS='
+        quote_shell_arg "$UBSAN_OPTIONS"
+        printf ' timeout 60s '
+        quote_shell_arg "$UPSTREAM_BIN"
+        for arg in "${AFL_ARGS[@]}"; do
+            printf ' '
+            if [[ "$arg" == "@@" ]]; then
+                quote_shell_arg "$rel_marked_file"
+            else
+                quote_shell_arg "$arg"
+            fi
+        done
+        printf '\n'
+    } > "$cmd_file"
+}
 
 classify_owner() {
     local output="$1"
@@ -295,15 +368,18 @@ triage_dir() {
             local sig=$((exit_code - 128))
             echo "  [CRASH]       $fname - signal $sig (exit $exit_code, owner=$owner)"
             printf '%s\n' "$output" | tail -3 | sed 's/^/    /'
+            write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
             signal=$((signal + 1))
         elif [[ "$classification" == "SANITIZER" ]]; then
             echo "  [SANITIZER]   $fname - sanitizer finding (exit $exit_code, owner=$owner)"
             printf '%s\n' "$output" | grep -Eai 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY:' | tail -3 | sed 's/^/    /'
+            write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
             sanitizer=$((sanitizer + 1))
         elif [[ "$classification" == "TIMEOUT" ]]; then
             echo "  [TIMEOUT]     $fname - hung for ${timeout_sec}s"
+            write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
             timeout_count=$((timeout_count + 1))
         elif [[ "$classification" == "SOFT_FAIL" ]]; then
@@ -325,6 +401,7 @@ echo ""
 echo "Upstream binary: $UPSTREAM_BIN"
 echo "Replay source:   $REPLAY_SOURCE"
 echo "Library path:    ${REPLAY_LIB:-<tool runpath>}"
+echo "Mark directory:  ${AFL_MARK_DIR:-<disabled>}"
 echo ""
 
 echo "--- Crashes ---"

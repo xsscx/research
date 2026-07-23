@@ -14,6 +14,7 @@ INSTANCE=""
 OUT_FILE=""
 
 source "$REPO_ROOT/afl/targets.sh"
+source "$REPO_ROOT/afl/sanitizer-env.sh"
 
 usage() {
     sed -n '2,5p' "$0" | sed 's/^# \?//'
@@ -165,8 +166,7 @@ if command -v readelf >/dev/null 2>&1 && readelf -d "$BINARY" 2>/dev/null | grep
 else
     unset LD_LIBRARY_PATH
 fi
-export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0,allocator_may_return_null=1"
-export UBSAN_OPTIONS="halt_on_error=1,abort_on_error=1,print_stacktrace=0"
+afl_export_fuzz_sanitizer_env
 
 env -u AFL_BASE -u AFL_BIN_DIR \
     bash -c 'cd "$1" && shift && exec "$@"' bash "$REPO_ROOT" \

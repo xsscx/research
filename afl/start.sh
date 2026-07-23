@@ -45,6 +45,7 @@ AFL_DICT_OVERRIDE="${AFL_DICT:-${AFL_DICTIONARY:-}}"
 BIN_DIR="${AFL_BIN_DIR:-$REPO_ROOT/afl/bin}"
 
 source "$REPO_ROOT/afl/targets.sh"
+source "$REPO_ROOT/afl/sanitizer-env.sh"
 
 TARGET=""
 PARALLEL=1
@@ -525,8 +526,8 @@ seed_file_dry_run_ok() {
     output=$(
         cd "$REPO_ROOT" && \
         LD_LIBRARY_PATH="$ICC_RUNTIME_LIB_PATH" \
-        ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0,allocator_may_return_null=1" \
-        UBSAN_OPTIONS="halt_on_error=1,print_stacktrace=1" \
+        ASAN_OPTIONS="$AFL_ASAN_OPTIONS_TRIAGE" \
+        UBSAN_OPTIONS="$AFL_UBSAN_OPTIONS_TRIAGE" \
         timeout "${SEED_DRY_RUN_TIMEOUT:-5}" "$BINARY" "${dry_run_args[@]}" 2>&1
     ) || exit_code=$?
 
@@ -873,9 +874,7 @@ if [[ -n "$ICC_RUNTIME_LIB_PATH" ]]; then
 else
     unset LD_LIBRARY_PATH
 fi
-export ASAN_OPTIONS="detect_leaks=0,halt_on_error=1,abort_on_error=1,symbolize=0,allocator_may_return_null=1"
-export UBSAN_OPTIONS="halt_on_error=1,abort_on_error=1,print_stacktrace=0"
-unset MSAN_OPTIONS
+afl_export_fuzz_sanitizer_env
 export -n AFL_AUTORESUME_VAL AFL_BASE AFL_BIN_DIR AFL_CMPLOG_AUTO AFL_CMPLOG_BINARY AFL_CMPLOG_BIN_DIR AFL_CMPLOG_OPTS AFL_DICT AFL_FRESH 2>/dev/null || true
 export -n AFL_DICTIONARY AFL_EXEC_LIMIT AFL_EXTRA_ARGS AFL_EXTRA_DICTS AFL_EXTRA_SEED_DIRS AFL_INPUT_DIR 2>/dev/null || true
 export -n AFL_DICT_OVERRIDE AFL_IMPORT_FIRST_VAL AFL_INPUT_FORMAT AFL_MAX_LENGTH AFL_MIN_LENGTH 2>/dev/null || true

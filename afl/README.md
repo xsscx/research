@@ -25,6 +25,22 @@ image, avoiding split executable/shared-library coverage maps. Use
 `./afl/build.sh --shared` only when intentionally comparing shared-library
 behavior.
 
+Every AFL build enables the full Clang sanitizer set used for security testing:
+AddressSanitizer, UndefinedBehaviorSanitizer, IntegerSanitizer,
+float-divide-by-zero, and float-cast-overflow. Sanitizer findings are fatal, and
+`build.sh` verifies the deployed `iccDumpProfile` contains each sanitizer
+runtime handler before reporting success. Runtime options shared by fuzzing,
+mapping, minimization, seed validation, and triage live in
+`afl/sanitizer-env.sh`.
+
+When an `iccApplyToLink` AFL artifact remains actionable under canonical
+iccDEV replay, mark it for the project tool suite with
+`./afl/triage.sh applytolink --mark` or
+`./afl/triage.sh applytolink-cube --mark`. The marker copy lands under
+`afl/marked/<target>/` next to a `.cmd` file containing the exact replay
+command, and `.github/scripts/test-iccApplyToLink.sh` sweeps those marked
+inputs when present.
+
 Build the isolated AFL iccDEV checkout with comparison-guided variants when a
 campaign plateaus on parser-heavy paths:
 
