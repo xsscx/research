@@ -46,7 +46,6 @@ INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccCommon"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccPawgReport"
-INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccProfileVisualize"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccConnect/IccLibConnect"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccJSON/IccLibJSON"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$BUILD_DIR/IccConnect -I$BUILD_DIR/IccJSON"
@@ -112,10 +111,6 @@ REPORT_FUZZERS=(
   icc_pawgreport_fuzzer
 )
 
-VISUAL_FUZZERS=(
-  icc_profilevisualize_fuzzer
-)
-
 TIFFIMG_SRC="$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp"
 TIFFIMG_OBJ="$SCRIPT_DIR/.build_tmp/TiffImg.o"
 TIFF_CFLAGS="$(pkg-config --cflags libtiff-4 2>/dev/null || true)"
@@ -125,12 +120,6 @@ PNG_LIBS="$(pkg-config --libs libpng 2>/dev/null || echo '-lpng')"
 ZLIB_LIBS="$(pkg-config --libs zlib 2>/dev/null || echo '-lz')"
 PAWG_SRC="$ICCDEV_DIR/Tools/CmdLine/IccPawgReport/PawgReport.cpp"
 PAWG_OBJ="$SCRIPT_DIR/.build_tmp/PawgReport.o"
-VISUAL_SRC_DIR="$ICCDEV_DIR/Tools/CmdLine/IccProfileVisualize"
-VISUAL_OBJS=(
-  "$SCRIPT_DIR/.build_tmp/MiniTIFF.o"
-  "$SCRIPT_DIR/.build_tmp/MiniSVG.o"
-  "$SCRIPT_DIR/.build_tmp/MiniPDF.o"
-)
 INCLUDE_FLAGS="$INCLUDE_FLAGS $PNG_CFLAGS"
 
 banner() {
@@ -416,18 +405,20 @@ ls -lh "$LIB_PROF" "$LIB_XML" "$LIB_CONNECT" "$LIB_JSON"
 ASAN_SYM=$(nm "$LIB_PROF" | grep -c '__asan' || true)
 UBSAN_SYM=$(nm "$LIB_PROF" | grep -c '__ubsan' || true)
 COV_SYM=$(nm "$LIB_PROF" | grep -c '__profc_\|__llvm_prf' || true)
+XML_COV_SYM=$(nm "$LIB_XML" | grep -c '__profc_\|__llvm_prf' || true)
 CONNECT_COV_SYM=$(nm "$LIB_CONNECT" | grep -c '__profc_\|__llvm_prf' || true)
 JSON_COV_SYM=$(nm "$LIB_JSON" | grep -c '__profc_\|__llvm_prf' || true)
 echo ""
-echo "Instrumentation (IccProfLib2-static):"
+echo "Instrumentation:"
 echo "  ASan symbols:     $ASAN_SYM"
 echo "  UBSan symbols:    $UBSAN_SYM"
 echo "  Coverage symbols: $COV_SYM"
+echo "  IccXML cov:       $XML_COV_SYM"
 echo "  IccConnect cov:   $CONNECT_COV_SYM"
 echo "  IccJSON cov:      $JSON_COV_SYM"
 
 if [ "$ASAN_SYM" -eq 0 ] || [ "$UBSAN_SYM" -eq 0 ] || [ "$COV_SYM" -eq 0 ] || \
-   [ "$CONNECT_COV_SYM" -eq 0 ] || [ "$JSON_COV_SYM" -eq 0 ]; then
+   [ "$XML_COV_SYM" -eq 0 ] || [ "$CONNECT_COV_SYM" -eq 0 ] || [ "$JSON_COV_SYM" -eq 0 ]; then
   echo "[FAIL] ERROR: Missing instrumentation - aborting"
   exit 1
 fi
@@ -551,30 +542,6 @@ if [ -f "$PAWG_SRC" ]; then
   wait
 else
   echo "  SKIP (PawgReport.cpp not found)"
-  echo "SKIP" >> "$BUILD_RESULTS"
-fi
-
-echo ""
-echo "Profile visualization fuzzers:"
-if [ -f "$VISUAL_SRC_DIR/MiniTIFF.cpp" ] && [ -f "$VISUAL_SRC_DIR/MiniSVG.cpp" ] && \
-   [ -f "$VISUAL_SRC_DIR/MiniPDF.cpp" ]; then
-  mkdir -p "$SCRIPT_DIR/.build_tmp"
-  echo "  Compiling MiniTIFF.o + MiniSVG.o + MiniPDF.o..."
-  # shellcheck disable=SC2086
-  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
-    -c "$VISUAL_SRC_DIR/MiniTIFF.cpp" -o "${VISUAL_OBJS[0]}" 2>&1
-  # shellcheck disable=SC2086
-  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
-    -c "$VISUAL_SRC_DIR/MiniSVG.cpp" -o "${VISUAL_OBJS[1]}" 2>&1
-  # shellcheck disable=SC2086
-  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
-    -c "$VISUAL_SRC_DIR/MiniPDF.cpp" -o "${VISUAL_OBJS[2]}" 2>&1
-  for f in "${VISUAL_FUZZERS[@]}"; do
-    build_fuzzer "$f" "${VISUAL_OBJS[@]}" -lm &
-  done
-  wait
-else
-  echo "  SKIP (profile visualization support sources not found)"
   echo "SKIP" >> "$BUILD_RESULTS"
 fi
 

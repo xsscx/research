@@ -17,7 +17,6 @@ CFL_FUZZERS=(
   icc_link_fuzzer
   icc_pawgreport_fuzzer
   icc_pngdump_fuzzer
-  icc_profilevisualize_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
   icc_tiffdump_fuzzer
@@ -59,7 +58,6 @@ cfl_normalize_fuzzer() {
     link) name="icc_link_fuzzer" ;;
     pawg|pawgreport) name="icc_pawgreport_fuzzer" ;;
     png|pngdump) name="icc_pngdump_fuzzer" ;;
-    visualize|profilevisualize) name="icc_profilevisualize_fuzzer" ;;
     roundtrip) name="icc_roundtrip_fuzzer" ;;
     specsep) name="icc_specsep_fuzzer" ;;
     tiffdump) name="icc_tiffdump_fuzzer" ;;
@@ -256,7 +254,7 @@ cfl_tool_command() {
       printf 'iccFromJson %s /tmp/cfl-fromjson-out.icc\n' "$artifact"
       ;;
     icc_fromxml_fuzzer)
-      printf 'iccFromXml %s /tmp/cfl-fromxml-out.icc\n' "$artifact"
+      printf 'iccFromXml %s /tmp/cfl-fromxml-out.icc [-noid|-v=SampleIccRELAX.rng]\n' "$artifact"
       ;;
     icc_jpegdump_fuzzer)
       printf 'iccJpegDump %s /tmp/cfl-jpegdump.icc\n' "$artifact"
@@ -269,9 +267,6 @@ cfl_tool_command() {
       ;;
     icc_pngdump_fuzzer)
       printf 'iccPngDump %s /tmp/cfl-pngdump.icc\n' "$artifact"
-      ;;
-    icc_profilevisualize_fuzzer)
-      printf 'iccProfileVisualize %s /tmp/cfl-profilevisualize\n' "$artifact"
       ;;
     icc_roundtrip_fuzzer)
       printf 'iccRoundTrip %s /tmp/cfl-roundtrip-out.icc\n' "$artifact"

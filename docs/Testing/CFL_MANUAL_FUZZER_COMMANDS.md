@@ -135,6 +135,9 @@ ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromjson_fuzzer
 
 ### `icc_fromxml_fuzzer`
 
+The harness exercises the `iccFromXml` default import, `-noid`, and `-v=<schema>`
+argv modes for each parseable XML input.
+
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 fromxml
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromxml_fuzzer -max_total_time=600 -timeout=25 -rss_limit_mb=8192 -max_len=5242880 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_fromxml_fuzzer.dict cfl/corpus-icc_fromxml_fuzzer/
@@ -176,15 +179,6 @@ cd cfl && ./fuzz-local.sh -t 30 -w 1 png
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_pngdump_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=5242880 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_pngdump_fuzzer/
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_pngdump_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=4096 -max_len=5242880 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_pngdump_fuzzer/
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_pngdump_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=5242880 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
-```
-
-### `icc_profilevisualize_fuzzer`
-
-```bash
-cd cfl && ./fuzz-local.sh -t 30 -w 1 visualize
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_profilevisualize_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=8192 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_profilevisualize_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_profilevisualize_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=4096 -max_len=8192 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_profilevisualize_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_profilevisualize_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=8192 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 ### `icc_roundtrip_fuzzer`

@@ -34,6 +34,11 @@
 /** @file
     CFL harness for iccDEV iccProfileVisualize.
 
+    Retired: the iccProfileVisualize tool surface is new and this harness
+    depended on processLuts(), which is not currently exposed by refreshed
+    upstream iccDEV builds. Keep this source for later repair instead of
+    carrying it in the active CFL build.
+
     Modeled command:
       iccProfileVisualize -silent profile
 

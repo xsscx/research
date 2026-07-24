@@ -78,7 +78,6 @@ Current harness areas:
 | Profile linking | `icc_link_fuzzer` |
 | PAWG report generation | `icc_pawgreport_fuzzer` |
 | PNG ICC extraction | `icc_pngdump_fuzzer` |
-| Profile visualization | `icc_profilevisualize_fuzzer` |
 | Read/write round trip | `icc_roundtrip_fuzzer` |
 | Spectral separation | `icc_specsep_fuzzer` |
 | TIFF ICC extraction | `icc_tiffdump_fuzzer` |
@@ -86,10 +85,19 @@ Current harness areas:
 | XML export | `icc_toxml_fuzzer` |
 | v5 display observer conversion | `icc_v5dspobs_fuzzer` |
 
+`icc_fromxml_fuzzer` now follows the `iccFromXml` CLI envelope for the default
+import path, `-noid`, and `-v=<schema>` validation path on each parseable XML
+input. The CFL build also verifies `IccXML` coverage instrumentation so XML
+import coverage cannot silently disappear from an uninstrumented library build.
+
 `icc_toxml_fuzzer` suppresses upstream stdout during fuzzing. This keeps
 expected XML serialization diagnostics such as non-XML tag notices from
 dominating logs while preserving libFuzzer progress and sanitizer reports on
 stderr.
+
+`icc_profilevisualize_fuzzer` is retired in `cfl/retired/`. The harness targets
+a very new external tool surface and currently does not build against refreshed
+upstream `iccDEV` because its expected `processLuts` entry point is not exposed.
 
 ## Patch Stack
 

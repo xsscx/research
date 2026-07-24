@@ -46,7 +46,9 @@
 #include "IccProfileXml.h"
 #include "IccIO.h"
 #include "IccUtil.h"
+#include "IccXmlConfig.h"
 #include <climits>
+#include <string>
 #include "fuzz_utils.h"
 
 // Suppress libxml2 errors during fuzzing
@@ -65,15 +67,60 @@ static xmlParserInputPtr blockExternalEntity(const char *URL,
 
 // Initialize factories once
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
+  (void)argc;
+  (void)argv;
+
   auto *tagFactory = new (std::nothrow) CIccTagXmlFactory();
   auto *mpeFactory = new (std::nothrow) CIccMpeXmlFactory();
   if (!tagFactory || !mpeFactory) { delete tagFactory; delete mpeFactory; return -1; }
   CIccTagCreator::PushFactory(tagFactory);
   CIccMpeCreator::PushFactory(mpeFactory);
+  IccXmlSetAllowFileIncludes(true);
   xmlSetGenericErrorFunc(nullptr, suppressXmlErrors);
   xmlSetExternalEntityLoader(blockExternalEntity);
 
   return 0;
+}
+
+static icProfileIDSaveMethod ProfileIdSaveMethod(const CIccProfileXml &profile, bool bNoId) {
+  if (bNoId)
+    return icNeverWriteID;
+
+  for (int i = 0; i < 16; i++) {
+    if (profile.m_Header.profileID.ID8[i])
+      return icAlwaysWriteID;
+  }
+  return icVersionBasedID;
+}
+
+static void ExerciseFromXmlToolPath(const char *inputPath,
+                                    const char *outputPath,
+                                    const char *relaxNgPath,
+                                    bool bNoId) {
+  // ===================================================================
+  // TOOL CODE STARTS HERE - mirrors IccFromXml.cpp parse/validate/save
+  // ===================================================================
+
+  CIccProfileXml profile;
+  std::string reason;
+  std::string szRelaxNGDir = relaxNgPath ? relaxNgPath : "";
+
+  if (!profile.LoadXml(inputPath, szRelaxNGDir.c_str(), &reason))
+    return;
+
+  std::string valid_report;
+  if (profile.Validate(valid_report) <= icValidateWarning) {
+    SaveIccProfile(outputPath, &profile, ProfileIdSaveMethod(profile, bNoId));
+  }
+  else {
+    SaveIccProfile(outputPath, &profile, ProfileIdSaveMethod(profile, bNoId));
+    std::string discard;
+    profile.Validate(discard);
+  }
+
+  // ===================================================================
+  // TOOL CODE ENDS HERE
+  // ===================================================================
 }
 
 // FUZZER HARNESS - Minimal wrapper around tool code
@@ -95,75 +142,48 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     return 0;
   }
 
-  // ===================================================================
-  // TOOL CODE STARTS HERE - EXACT COPY FROM IccFromXml.cpp lines 24-109
-  // ===================================================================
-
-  CIccProfileXml profile;
-  std::string reason;
-
-  std::string szRelaxNGDir;
-  bool bNoId = false;
-
-  // NOTE: Schema validation and -noid flag skipped (fuzzer doesn't use args)
-  // This matches tool behavior when called without optional flags
-
-  if (!profile.LoadXml(temp_input, szRelaxNGDir.c_str(), &reason)) {
+  char temp_output[PATH_MAX];
+  if (!fuzz_build_path(temp_output, sizeof(temp_output), tmpdir, "/fuzz_fromxml_tool_out_XXXXXX")) {
     unlink(temp_input);
     return 0;
   }
-
-  std::string valid_report;
-
-  if (profile.Validate(valid_report)<=icValidateWarning) {
-    int i;
-
-    for (i=0; i<16; i++) {
-      if (profile.m_Header.profileID.ID8[i])
-        break;
-    }
-
-    // Write to temp output file (replaces argv[2])
-    char temp_output[PATH_MAX];
-    if (!fuzz_build_path(temp_output, sizeof(temp_output), tmpdir, "/fuzz_fromxml_tool_out_XXXXXX")) {
-      unlink(temp_input);
-      return 0;
-    }
-    int out_fd = mkstemp(temp_output);
-    if (out_fd != -1) {
-      close(out_fd);
-
-      SaveIccProfile(temp_output, &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID));
-      unlink(temp_output);
-    }
+  int out_fd = mkstemp(temp_output);
+  if (out_fd == -1) {
+    unlink(temp_input);
+    return 0;
   }
-  else {
-    int i;
+  close(out_fd);
 
-    for (i=0; i<16; i++) {
-      if (profile.m_Header.profileID.ID8[i])
-        break;
-    }
-
-    char temp_output[PATH_MAX];
-    if (!fuzz_build_path(temp_output, sizeof(temp_output), tmpdir, "/fuzz_fromxml_tool_out_XXXXXX")) {
-      unlink(temp_input);
-      return 0;
-    }
-    int out_fd = mkstemp(temp_output);
-    if (out_fd != -1) {
-      close(out_fd);
-      SaveIccProfile(temp_output, &profile, bNoId ? icNeverWriteID : (i<16 ? icAlwaysWriteID : icVersionBasedID));
-      std::string discard;
-      profile.Validate(discard);
-      unlink(temp_output);
+  char temp_rng[PATH_MAX];
+  temp_rng[0] = '\0';
+  bool have_rng = false;
+  if (fuzz_build_path(temp_rng, sizeof(temp_rng), tmpdir, "/fuzz_fromxml_relax_XXXXXX")) {
+    int rng_fd = mkstemp(temp_rng);
+    if (rng_fd != -1) {
+      static const char kRelaxNgSeed[] =
+        "<grammar xmlns=\"http://relaxng.org/ns/structure/1.0\">"
+        "<start><ref name=\"any\"/></start>"
+        "<define name=\"any\"><element><anyName/><zeroOrMore><choice>"
+        "<attribute><anyName/><text/></attribute><text/><ref name=\"any\"/>"
+        "</choice></zeroOrMore></element></define></grammar>";
+      ssize_t rng_written = write(rng_fd, kRelaxNgSeed, sizeof(kRelaxNgSeed) - 1);
+      close(rng_fd);
+      have_rng = rng_written == static_cast<ssize_t>(sizeof(kRelaxNgSeed) - 1);
     }
   }
 
-  // ===================================================================
-  // TOOL CODE ENDS HERE
-  // ===================================================================
+  // argv shape coverage:
+  //   iccFromXml input.xml output.icc
+  //   iccFromXml input.xml output.icc -noid
+  //   iccFromXml input.xml output.icc -v=<schema>
+  ExerciseFromXmlToolPath(temp_input, temp_output, nullptr, false);
+  ExerciseFromXmlToolPath(temp_input, temp_output, nullptr, true);
+  if (have_rng)
+    ExerciseFromXmlToolPath(temp_input, temp_output, temp_rng, false);
 
+  if (temp_rng[0])
+    unlink(temp_rng);
+  unlink(temp_output);
   unlink(temp_input);
   return 0;
 }

@@ -7,9 +7,9 @@ Static analysis of IccFromXml.cpp to extract call graph, AST gates,
 and fuzzer fidelity mapping for the icc_fromxml_fuzzer.
 
 This tool is notable for:
-  - Being the primary OOM attack surface (XML→ICC parsing)
+  - Being the primary OOM attack surface (XML to ICC parsing)
   - Having near-perfect fuzzer fidelity (direct code copy)
-  - Deep call chains through CIccProfileXml::LoadXml → CIccTagXml::ParseXml
+  - Deep call chains through CIccProfileXml::LoadXml to CIccTagXml::ParseXml
 
 Usage:
     python3 iccFromXml-callgraph.py [--dot FILE] [--json FILE] [--render FORMAT]
@@ -53,30 +53,36 @@ INIT_CALLS = [
     CallSite("CIccTagCreator::PushFactory(CIccTagXmlFactory)", 24, "main",
              "Register XML tag factory for tag deserialization",
              in_fuzzer=True,
-             note="Fuzzer does this in LLVMFuzzerInitialize — identical"),
+             note="Fuzzer does this in LLVMFuzzerInitialize - identical"),
     CallSite("CIccMpeCreator::PushFactory(CIccMpeXmlFactory)", 25, "main",
              "Register XML MPE factory for calculator/MPE tags",
              in_fuzzer=True,
-             note="Fuzzer does this in LLVMFuzzerInitialize — identical"),
+             note="Fuzzer does this in LLVMFuzzerInitialize - identical"),
+    CallSite("IccXmlSetAllowFileIncludes(true)", 28, "main",
+             "Enable CLI filesystem include handling for XML import",
+             in_fuzzer=True,
+             note="Fuzzer enables the same CLI-only XML include mode"),
 ]
 
 # Phase 2: CLI Argument Parsing
 CLI_CALLS = [
     CallSite("stricmp(-noid)", 39, "main",
-             "Check for -noid flag", cli_only=True, in_fuzzer=False),
+             "Check for -noid flag", in_fuzzer=True,
+             note="Fuzzer exercises the bNoId save path on each parsed XML"),
     CallSite("strncmp(-v)", 42, "main",
              "Check for RelaxNG schema validation flag",
-             cli_only=True, in_fuzzer=False,
-             note="Fuzzer skips schema validation — matches tool default behavior"),
+             in_fuzzer=True,
+             note="Fuzzer exercises the -v=<schema> LoadXml path"),
     CallSite("fopen(schema)", 60, "main",
-             "Open RelaxNG schema file for validation",
-             cli_only=True, in_fuzzer=False),
+             "Open RelaxNG schema file for validation", cli_only=True,
+             in_fuzzer=False,
+             note="Implicit -v schema discovery remains CLI filesystem-only"),
 ]
 
-# Phase 3: XML Parsing (core attack surface — where OOMs occur)
+# Phase 3: XML Parsing (core attack surface - where OOMs occur)
 PARSE_CALLS = [
     CallSite("CIccProfileXml::LoadXml", 72, "main",
-             "Parse XML file into ICC profile — MAIN ATTACK SURFACE",
+             "Parse XML file into ICC profile - MAIN ATTACK SURFACE",
              in_fuzzer=True,
              note="Exact 1:1 match. This is where all OOM/crash paths originate"),
     CallSite("CIccProfileXml::Validate", 80, "main",
@@ -90,11 +96,11 @@ OUTPUT_CALLS = [
     CallSite("SaveIccProfile(valid)", 92, "main",
              "Save parsed profile when validation <= warning",
              in_fuzzer=True,
-             note="Fuzzer saves to temp file then deletes — exercises write path"),
+             note="Fuzzer saves to temp file then deletes - exercises write path"),
     CallSite("SaveIccProfile(invalid)", 102, "main",
              "Save parsed profile even when validation fails",
              in_fuzzer=True,
-             note="Fuzzer exercises both paths — valid and invalid save"),
+             note="Fuzzer exercises both paths - valid and invalid save"),
 ]
 
 # Phase 5: Fuzzer-only calls
@@ -102,12 +108,9 @@ FUZZER_EXTRA = [
     CallSite("xmlSetGenericErrorFunc", 0, "LLVMFuzzerInitialize",
              "Suppress libxml2 error output during fuzzing",
              in_fuzzer=True, note="Required to prevent stderr flooding"),
-    CallSite("xmlSubstituteEntitiesDefault(0)", 0, "LLVMFuzzerInitialize",
-             "Disable XXE entity substitution",
-             in_fuzzer=True, note="Security hardening — prevents XXE attacks"),
-    CallSite("xmlLoadExtDtdDefaultValue=0", 0, "LLVMFuzzerTestOneInput",
-             "Disable external DTD loading",
-             in_fuzzer=True, note="Security hardening — prevents DTD-based XXE"),
+    CallSite("xmlSetExternalEntityLoader(blockExternalEntity)", 0,
+             "LLVMFuzzerInitialize", "Block external entity loads",
+             in_fuzzer=True, note="Security hardening - prevents XXE reads"),
 ]
 
 # Deep call chains from LoadXml (the real attack surface)
@@ -118,22 +121,22 @@ DEEP_CALLS = [
     CallSite("icXmlParseProfHdr", 0, "CIccProfileXml::LoadXml",
              "Parse ICC header from XML", in_fuzzer=True),
     CallSite("CIccTag*::ParseXml (50+ tag types)", 0, "CIccProfileXml::LoadXml",
-             "Per-tag XML parsing — each tag type has its own ParseXml",
+             "Per-tag XML parsing - each tag type has its own ParseXml",
              in_fuzzer=True,
              note="OOM hotspot: CIccLocalizedUnicode copy ctor (mluc tags)"),
-    CallSite("CIccTagXmlMultiLocalizedUnicode::ParseXml", 0, "LoadXml→tag",
-             "Parse mluc (multi-localized Unicode) — OOM HOTSPOT",
+    CallSite("CIccTagXmlMultiLocalizedUnicode::ParseXml", 0, "LoadXml to tag",
+             "Parse mluc (multi-localized Unicode) - OOM HOTSPOT",
              in_fuzzer=True,
-             note="IccTagBasic.cpp:7123 — CIccLocalizedUnicode copy ctor allocates"),
-    CallSite("CIccMpeXml*::ParseXml", 0, "LoadXml→tag",
+             note="IccTagBasic.cpp:7123 - CIccLocalizedUnicode copy ctor allocates"),
+    CallSite("CIccMpeXml*::ParseXml", 0, "LoadXml to tag",
              "Parse MPE calculator elements",
              in_fuzzer=True),
-    CallSite("CIccTagXmlProfileSeqDesc::ParseXml", 0, "LoadXml→tag",
-             "Parse profile sequence description — allocation loop",
+    CallSite("CIccTagXmlProfileSeqDesc::ParseXml", 0, "LoadXml to tag",
+             "Parse profile sequence description - allocation loop",
              in_fuzzer=True,
              note="Can allocate unbounded ProfileDescStructs"),
     CallSite("icFixXml", 0, "various ParseXml",
-             "XML string unescaping — BUFFER OVERFLOW HOTSPOT",
+             "XML string unescaping - BUFFER OVERFLOW HOTSPOT",
              in_fuzzer=True,
              note="Patch 065 caps this at 65536 bytes"),
 ]
@@ -145,7 +148,7 @@ GATES = [
             security_relevant=False, note="Usage message guard"),
     ASTGate("!profile.LoadXml()", 72, "if", "main",
             security_relevant=True,
-            note="XML parse failure — prevents SaveIccProfile on corrupt data"),
+            note="XML parse failure - prevents SaveIccProfile on corrupt data"),
     ASTGate("Validate() <= icValidateWarning", 80, "if", "main",
             security_relevant=True,
             note="Controls whether profile is saved as 'valid' or 'invalid'"),
@@ -154,7 +157,7 @@ GATES = [
             note="Determines icAlwaysWriteID vs icVersionBasedID"),
     ASTGate("XML entity expansion size", 0, "xmlParseFile", "libxml2",
             security_relevant=True,
-            note="libxml2 internal — can trigger unbounded memory allocation"),
+            note="libxml2 internal - can trigger unbounded memory allocation"),
     ASTGate("Tag count in XML", 0, "LoadXml", "CIccProfileXml",
             security_relevant=True,
             note="Number of <Tag> elements determines allocation count"),
@@ -175,12 +178,12 @@ def compute_fidelity():
         "coverage_percent": round(matched / max(fuzzable, 1) * 100, 1),
         "fidelity_note": "NEAR-PERFECT",
         "note": (
-            "The fromxml fuzzer is an almost exact copy of the tool code "
-            "(IccFromXml.cpp lines 24-109). It exercises LoadXml, Validate, "
-            "and SaveIccProfile on both valid and invalid paths. The only "
-            "differences are: (1) schema validation is skipped (matches tool "
-            "default), (2) XXE protection is added for security, (3) -noid "
-            "flag is hardcoded to false."
+            "The fromxml fuzzer mirrors the tool parse/validate/save envelope "
+            "and now covers the default import path, -noid save behavior, "
+            "explicit -v=<schema> validation, and CLI XML file-include mode. "
+            "The remaining CLI-only gap is implicit -v discovery of "
+            "SampleIccRELAX.rng beside argv[0]. External entity loading stays "
+            "blocked during fuzzing."
         ),
     }
 
@@ -201,10 +204,11 @@ def generate_json(output_file):
             "2_cli_parsing": {
                 "description": "Command-line argument parsing",
                 "calls": [asdict(c) for c in CLI_CALLS],
-                "in_fuzzer": False,
+                "in_fuzzer": True,
+                "note": "The fuzzer covers -noid and explicit -v=<schema>; implicit -v schema discovery remains CLI-only.",
             },
             "3_xml_parsing": {
-                "description": "XML→ICC profile parsing — main attack surface",
+                "description": "XML to ICC profile parsing - main attack surface",
                 "calls": [asdict(c) for c in PARSE_CALLS],
                 "in_fuzzer": True,
             },
@@ -242,7 +246,7 @@ def generate_json(output_file):
             {
                 "location": "icFixXml (char* overload)",
                 "file": "IccUtilXml.cpp:307",
-                "trigger": "Large XML text content → unchecked strcpy",
+                "trigger": "Large XML text content to unchecked strcpy",
                 "patch": "065 (65536-byte buffer cap)",
             },
             {
@@ -293,8 +297,10 @@ def generate_dot(output_file):
         '  // CLI',
         '  subgraph cluster_cli {',
         '    label="Phase 2: CLI Args"; style=rounded;',
-        '    noid [label="-noid flag", fillcolor="#D3D3D3"];',
-        '    schema [label="RelaxNG schema", fillcolor="#D3D3D3"];',
+        '    noid [label="-noid save mode", fillcolor="#90EE90"];',
+        '    schema [label="-v=<schema>\\nRelaxNG validation", fillcolor="#90EE90"];',
+        '    schema_find [label="implicit -v\\nSampleIccRELAX.rng lookup", fillcolor="#D3D3D3"];',
+        '    file_include [label="IccXmlSetAllowFileIncludes(true)", fillcolor="#90EE90"];',
         '  }',
         '',
         '  // Core parsing',
@@ -328,6 +334,8 @@ def generate_dot(output_file):
         '  tool -> mpe_factory;',
         '  tool -> noid [style=dashed];',
         '  tool -> schema [style=dashed];',
+        '  tool -> schema_find [style=dashed];',
+        '  tool -> file_include;',
         '  tool -> loadxml [style=bold, penwidth=2];',
         '  tool -> validate;',
         '  tool -> save_valid;',
@@ -336,6 +344,9 @@ def generate_dot(output_file):
         '  // Fuzzer edges (mirrors tool)',
         '  fuzzer -> tag_factory [style=dotted, color=green];',
         '  fuzzer -> mpe_factory [style=dotted, color=green];',
+        '  fuzzer -> noid [style=dotted, color=green];',
+        '  fuzzer -> schema [style=dotted, color=green];',
+        '  fuzzer -> file_include [style=dotted, color=green];',
         '  fuzzer -> loadxml [style=bold, color=green, penwidth=2];',
         '  fuzzer -> validate [style=dotted, color=green];',
         '  fuzzer -> save_valid [style=dotted, color=green];',
