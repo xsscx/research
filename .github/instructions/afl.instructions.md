@@ -17,7 +17,7 @@ read `afl/targets.sh` in the current checkout.
 
 ```bash
 ./afl/build.sh          # default: unpatched upstream iccDEV
-./afl/build.sh --patches # optional CFL patch A/B comparison
+./afl/build.sh --patches # optional AFL-local patch stack
 ./afl/start.sh --list
 ./afl/start.sh dump
 ./afl/start.sh toxml --parallel 4

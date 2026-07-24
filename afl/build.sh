@@ -16,7 +16,7 @@ BUILD_DIR="${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL}"
 CMAKE_DIR="$ICCDEV_DIR/Build/Cmake"
 BIN_DIR="${AFL_BIN_DIR:-$SCRIPT_DIR/bin}"
 JOBS=$(nproc)
-PATCH_DIR="$REPO_ROOT/cfl/patches"
+PATCH_DIR="$REPO_ROOT/afl/patches"
 APPLY_PATCHES="${AFL_APPLY_PATCHES:-0}"
 REFRESH_ICCDEV="${AFL_REFRESH_ICCDEV:-0}"
 KEEP_ICCDEV="${AFL_KEEP_ICCDEV:-0}"
@@ -33,9 +33,9 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --clean           remove Build-AFL before building"
-    echo "  --no-patches      build upstream iccDEV without CFL patches (default)"
-    echo "  --patches         apply cfl/patches before building; failed patches warn and continue"
-    echo "  --patch [DIR|FILE] apply all patches, a patch directory, or one patch file"
+    echo "  --no-patches      build upstream iccDEV without AFL patches (default)"
+    echo "  --patches         apply afl/patches before building; failed patches warn and continue"
+    echo "  --patch [DIR|FILE] apply all AFL patches, a patch directory, or one patch file"
     echo "  --patch-file FILE apply one patch file; may be repeated"
     echo "  --branch NAME     use iccDEV branch NAME; existing checkout stays local-only"
     echo "  --refresh-iccdev  fetch selected branch or origin/master and reset the nested checkout"
@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --patch-file)
             if [[ $# -lt 2 ]]; then
-                echo "ERROR: $1 requires a patch path or cfl/patches filename"
+                echo "ERROR: $1 requires a patch path or afl/patches filename"
                 exit 1
             fi
             APPLY_PATCHES=selected
@@ -389,9 +389,9 @@ echo "    Sanitizers: ASAN + UBSAN + integer + float-divide-by-zero + float-cast
 if [[ "$APPLY_PATCHES" = "0" ]]; then
     echo "    Patch mode: unpatched upstream"
 elif [[ "$APPLY_PATCHES" = "selected" ]]; then
-    echo "    Patch mode: selected CFL patch files"
+    echo "    Patch mode: selected AFL patch files"
 else
-    echo "    Patch mode: all CFL patches"
+    echo "    Patch mode: all AFL patches"
 fi
 echo "    Jobs: $JOBS"
 echo "    Build dir: $BUILD_DIR"
