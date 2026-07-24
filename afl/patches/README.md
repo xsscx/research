@@ -15,6 +15,9 @@ Current patches:
   turning dependency-internal integer sanitizer reports into AFL crashes.
 - `002-jpegdump-segment-bounds.patch` uses subtraction-based JPEG segment
   bounds checks before reading marker length bytes.
+- `003-applyprofiles-cam-encoding-div-zero.patch` guards malformed CAM inverse
+  and encoding surround-ratio denominators found by `iccApplyProfiles` AFL
+  replays.
 
 Patch failures warn and the build continues so older or newer iccDEV snapshots
 can still be tested.
