@@ -22,7 +22,7 @@ Track files that make another VM reproducible:
 | Track | Examples |
 |-------|----------|
 | Source and orchestration | `afl/*.sh`, `afl/targets.sh`, `cfl/*.sh`, `cfl/*.cpp`, `cfl/*.h` |
-| Patch source | `cfl/patches/*.patch`, `cfl/patches-retired/*.patch` |
+| Patch source | `cfl/patches/*.patch`, `cfl/retired-patches/*.patch` |
 | Dictionaries | `cfl/*.dict`, curated per-target AFL dictionaries |
 | Curated seeds | `cfl/corpus/`, small `cfl/seeds-*` fixtures, `test-profiles/` |
 | Promoted findings | Named repro files in `fuzz/`, `test-profiles/`, or `docs/pocs/` |

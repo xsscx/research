@@ -12,7 +12,7 @@ changes.
 - Fuzzer list and aliases: `cfl/fuzzers.sh`
 - User-facing workflow: `cfl/README.md`
 - Active patch list: `cfl/patches/README.md`
-- Retired patch archive: `cfl/patches-retired/`
+- Retired patch archive: `cfl/retired-patches/`
 
 Avoid count drift in docs. When the exact inventory matters, inspect the source
 scripts and filesystem in the current checkout.

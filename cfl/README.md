@@ -101,7 +101,7 @@ upstream `iccDEV` because its expected `processLuts` entry point is not exposed.
 
 ## Patch Stack
 
-`cfl/patches/` is an optional patch stack. `cfl/patches-retired/` preserves
+`cfl/patches/` is an optional patch stack. `cfl/retired-patches/` preserves
 accepted, superseded, or obsolete patches for audit history. Plain `build.sh`
 does not apply patches; pass `--patches` or `--patch-file` when an A/B run
 intentionally needs patched source.
@@ -109,7 +109,7 @@ intentionally needs patched source.
 ```bash
 cd cfl && ./build.sh --patches --refresh-iccdev
 cd cfl && ./build.sh --no-patches --refresh-iccdev
-cd cfl && ./build.sh --patch-file 084-tagcurve-setgamma-range-ubsan.patch
+cd cfl && ./build.sh --patch-file 001-json-config-parser-no-sanitize.patch
 ```
 
 Patch application failures are fatal in patched mode. After refreshing the
@@ -127,7 +127,7 @@ Track reusable inputs and source needed to reproduce runs on another VM:
 | Track | Examples |
 |-------|----------|
 | Harness and build source | `cfl/*.cpp`, `cfl/*.h`, `cfl/*.sh`, `CMakeLists.txt`, `Dockerfile` |
-| Patch source | `cfl/patches/*.patch`, `cfl/patches-retired/*.patch` |
+| Patch source | `cfl/patches/*.patch`, `cfl/retired-patches/*.patch` |
 | Dictionaries | `cfl/*.dict`, curated AFL target dictionaries |
 | Minimal seed fixtures | `cfl/corpus/`, `cfl/seeds-*`, small named fixtures |
 | Promoted repro artifacts | Files moved to `test-profiles/`, `fuzz/`, or `docs/pocs/` with evidence |
