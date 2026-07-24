@@ -10,6 +10,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_DIR="$REPO_ROOT/afl"
+AFL_BASE="${AFL_BASE:-$SCRIPT_DIR}"
 ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
 BUILD_DIR="${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL}"
 CMAKE_DIR="$ICCDEV_DIR/Build/Cmake"
