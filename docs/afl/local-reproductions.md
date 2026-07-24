@@ -75,3 +75,32 @@ Patch coverage after the 2026-07-24 sweep:
 - `004-applyprofiles-tiff-sample-count-bounds.patch` covers the marked
   `applyprofiles-hybrid-embedded` malformed TIFF sample-count
   heap-buffer-overflow class in patched AFL/CFL builds.
+- `005-applytolink-bpc-degenerate-lrange.patch` covers the live
+  `applytolink` BPC destination L* range division-by-zero class in patched
+  AFL/CFL builds.
+
+## 2026-07-24 -- live iccApplyToLink BPC L* range UBSAN
+
+Target: `applytolink`
+
+Current retained artifact:
+
+```text
+afl/afl-applytolink/output/default/crashes/id:000299,sig:06,src:004287,time:558341213,execs:103328920,op:ext_UO,pos:30592
+```
+
+Verified one-liner:
+
+```bash
+cd /home/xss/research && LD_LIBRARY_PATH=/home/xss/research/iccDEV/Build/IccProfLib:/home/xss/research/iccDEV/Build/IccXML:/home/xss/research/iccDEV/Build/IccJSON:/home/xss/research/iccDEV/Build/IccConnect ASAN_OPTIONS=detect_leaks=0:halt_on_error=1:abort_on_error=1:symbolize=1:allocator_may_return_null=1:print_scariness=1 UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_stacktrace=1 timeout 30s /home/xss/research/iccDEV/Build/Tools/IccApplyToLink/iccApplyToLink /tmp/iccdev-repro/applytolink-299.icc 0 2 1 AFL 0.0 1.0 0 0 'afl/afl-applytolink/output/default/crashes/id:000299,sig:06,src:004287,time:558341213,execs:103328920,op:ext_UO,pos:30592' 40
+```
+
+Expected sanitizer signature:
+
+```text
+IccProfLib/IccApplyBPC.cpp:505:28: runtime error: division by zero
+```
+
+Observed exit from the verified replay: `124`. Classification is UBSAN
+division-by-zero followed by timeout; the sanitizer finding is emitted before
+the timeout terminates the replay.

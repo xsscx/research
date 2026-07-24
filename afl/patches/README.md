@@ -21,6 +21,9 @@ Current patches:
 - `004-applyprofiles-tiff-sample-count-bounds.patch` rejects malformed TIFF
   sample counts before `iccApplyProfiles` strip de-planarization can copy past
   the strip buffer.
+- `005-applytolink-bpc-degenerate-lrange.patch` rejects degenerate BPC
+  destination L* ranges before `iccApplyToLink` can divide by `MaxL - MinL`
+  during quadratic black-point normalization.
 
 Patch failures warn and the build continues so older or newer iccDEV snapshots
 can still be tested.

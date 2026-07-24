@@ -22,6 +22,7 @@ should link here instead of duplicating the full patch table.
 ./cfl/build.sh --refresh-iccdev --patch-file 002-jpegdump-segment-bounds.patch
 ./cfl/build.sh --refresh-iccdev --patch-file 003-applyprofiles-cam-encoding-div-zero.patch
 ./cfl/build.sh --refresh-iccdev --patch-file 004-applyprofiles-tiff-sample-count-bounds.patch
+./cfl/build.sh --refresh-iccdev --patch-file 005-applytolink-bpc-degenerate-lrange.patch
 ```
 
 Patch application failures are fatal in patched mode.
@@ -34,6 +35,7 @@ Patch application failures are fatal in patched mode.
 | `002-jpegdump-segment-bounds.patch` | Use subtraction-based JPEG segment bounds checks and one-past-safe payload pointers before reading marker segment data. |
 | `003-applyprofiles-cam-encoding-div-zero.patch` | Guard malformed CAM inverse and encoding surround-ratio denominators found by `iccApplyProfiles` AFL replays. |
 | `004-applyprofiles-tiff-sample-count-bounds.patch` | Reject malformed TIFF sample counts before `iccApplyProfiles` strip de-planarization can copy past the strip buffer. |
+| `005-applytolink-bpc-degenerate-lrange.patch` | Reject degenerate BPC destination L* ranges before `iccApplyToLink` can divide by `MaxL - MinL` during quadratic black-point normalization. |
 
 ## Drift Review
 
