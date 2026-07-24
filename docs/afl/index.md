@@ -90,6 +90,9 @@ For quick status, use `./afl/report.sh all --stats-only --target-jobs 8` or
 `./afl/report.sh all --no-coverage --target-jobs 8`. For focused reachability,
 prefer a single target command such as
 `./afl/report.sh fromcube --jobs 2 --target-timeout 3600`.
+Use `./afl/report.sh TARGET --marked-only` when reviewing already marked
+reproduction artifacts; it skips maps and coverage and triages only
+`afl/marked/TARGET`.
 During long runs, monitor `afl/reports/generated/latest/targets.tsv`, the
 per-target logs under `afl/reports/generated/latest/logs/`, and
 `./afl/status.sh --json`.
@@ -130,6 +133,17 @@ instead of committing a raw runtime directory.
 AFL-instrumented crashes are not automatically upstream bugs. Re-run the input
 against the intended upstream reference build under ASAN/UBSAN and record the
 exact command, input path, exit mode, and sanitizer summary.
+
+Locally retained findings with exact replay commands are recorded in
+`docs/afl/local-reproductions.md`.
+
+Timeout-only artifacts are not automatically actionable. `afl/triage.sh`
+separates `TIMEOUT`, `TIMEOUT_WITH_SANITIZER`, `SANITIZER`, `SIGNAL`,
+`SOFT_FAIL`, and `CLEAN`. For stricter hang replay, set
+`AFL_TRIAGE_HANG_REPEATS=N`. Set `AFL_TRIAGE_MARK_TIMEOUTS=0` to avoid marking
+plain timeout-only inputs while still preserving sanitizer and signal findings.
+Tool scratch paths default under `afl/tmp`; override with `AFL_TMP_ROOT` only
+when a run needs a different local scratch directory.
 
 ```bash
 ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1 \

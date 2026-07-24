@@ -137,7 +137,7 @@ if [[ -z "$OUT_FILE" ]]; then
 fi
 
 mkdir -p "$(dirname "$OUT_FILE")"
-TMP_ROOT="${TMPDIR:-${HOME:-$REPO_ROOT}/work/copilot/tmp}"
+TMP_ROOT="${AFL_TMP_ROOT:-$AFL_BASE/tmp}"
 mkdir -p "$TMP_ROOT"
 FILE_LIST="$(TMPDIR="$TMP_ROOT" mktemp)"
 trap 'rm -f "$FILE_LIST"' EXIT

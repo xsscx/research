@@ -200,7 +200,7 @@ afl_wrappers_compile() {
     local wrapperxx="$2"
     local cc_backend="$3"
     local cxx_backend="$4"
-    local tmp_root="${TMPDIR:-${HOME:-$REPO_ROOT}/work/copilot/tmp}"
+    local tmp_root="${AFL_TMP_ROOT:-$AFL_BASE/tmp}"
     local test_dir
 
     mkdir -p "$tmp_root"

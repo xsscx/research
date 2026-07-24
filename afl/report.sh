@@ -14,6 +14,7 @@ RUN_COVERAGE=1
 RUN_REACHABILITY=1
 RUN_MAPS=1
 RUN_TRIAGE=1
+MARKED_ONLY=0
 REUSE_BUILD="${AFL_REPORT_REUSE_BUILD:-0}"
 COVERAGE_TIMEOUT="${AFL_REPORT_COVERAGE_TIMEOUT:-5}"
 TARGET_TIMEOUT="${AFL_REPORT_TARGET_TIMEOUT:-3600}"
@@ -34,6 +35,7 @@ usage() {
     echo "  --jobs N           replay/build jobs for coverage"
     echo "  --target-jobs N    run up to N targets concurrently; default ${TARGET_JOBS}"
     echo "  --stats-only       collect status/index files without map, triage, or coverage replay"
+    echo "  --marked-only      triage only afl/marked/<target>; skip maps and coverage"
     echo "  --no-coverage      collect stats/maps/triage only"
     echo "  --no-reachability  run coverage without reachability annotation"
     echo "  --fresh-build      rebuild coverage/reachability artifacts"
@@ -111,6 +113,13 @@ while [[ $# -gt 0 ]]; do
             RUN_COVERAGE=0
             RUN_MAPS=0
             RUN_TRIAGE=0
+            shift
+            ;;
+        --marked-only)
+            MARKED_ONLY=1
+            RUN_COVERAGE=0
+            RUN_MAPS=0
+            RUN_TRIAGE=1
             shift
             ;;
         --no-reachability) RUN_REACHABILITY=0; shift ;;
@@ -237,10 +246,19 @@ process_target() {
     fi
 
     if [[ "$RUN_TRIAGE" -eq 1 ]]; then
-        if "$REPO_ROOT/afl/triage.sh" "$target" > "$triage_file" 2>&1; then
+        local triage_input_dir=""
+        if [[ "$MARKED_ONLY" -eq 1 ]]; then
+            triage_input_dir="$AFL_BASE/marked/$target"
+        fi
+        if [[ "$MARKED_ONLY" -eq 0 || -d "$triage_input_dir" ]]; then
+            if AFL_TRIAGE_INPUT_DIR="${triage_input_dir:-}" "$REPO_ROOT/afl/triage.sh" "$target" > "$triage_file" 2>&1; then
+                :
+            else
+                echo "WARN: triage failed for $target; see $triage_file" >&2
+            fi
+        elif [[ "$MARKED_ONLY" -eq 1 ]]; then
+            echo "No marked artifacts for $target" > "$triage_file"
             :
-        else
-            echo "WARN: triage failed for $target; see $triage_file" >&2
         fi
     else
         triage_file=""
@@ -338,6 +356,8 @@ fi
     echo "- Target TSV: $TARGETS_TSV"
     if [[ "$RUN_MAPS" -eq 0 && "$RUN_TRIAGE" -eq 0 && "$RUN_COVERAGE" -eq 0 ]]; then
         echo "- Mode: stats-only"
+    elif [[ "$MARKED_ONLY" -eq 1 ]]; then
+        echo "- Mode: marked-only triage"
     fi
     if [[ "$RUN_COVERAGE" -eq 1 ]]; then
         echo "- Coverage build reuse: $([[ "$REUSE_BUILD" -eq 1 ]] && printf 'enabled' || printf 'disabled')"

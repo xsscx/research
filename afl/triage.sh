@@ -13,6 +13,10 @@ AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
 BIN_DIR="${AFL_BIN_DIR:-$REPO_ROOT/afl/bin}"
 TARGET="${1:-}"
 TRIAGE_JOBS="${AFL_TRIAGE_JOBS:-$(nproc 2>/dev/null || echo 1)}"
+TRIAGE_TIMEOUT="${AFL_TRIAGE_TIMEOUT:-15}"
+TRIAGE_HANG_TIMEOUT="${AFL_TRIAGE_HANG_TIMEOUT:-30}"
+TRIAGE_HANG_REPEATS="${AFL_TRIAGE_HANG_REPEATS:-1}"
+TRIAGE_MARK_TIMEOUTS="${AFL_TRIAGE_MARK_TIMEOUTS:-1}"
 
 source "$REPO_ROOT/afl/targets.sh"
 source "$REPO_ROOT/afl/sanitizer-env.sh"
@@ -146,6 +150,7 @@ REPLAY_LIB=""
 select_replay_binary
 AFL_OUTPUT_DIR="$AFL_DIR/output"
 AFL_MARK_DIR="${AFL_MARK_DIR:-}"
+AFL_TRIAGE_INPUT_DIR="${AFL_TRIAGE_INPUT_DIR:-$AFL_OUTPUT_DIR}"
 
 if [[ ! -x "$UPSTREAM_BIN" ]]; then
     echo "ERROR: Upstream binary not found: $UPSTREAM_BIN"
@@ -256,7 +261,11 @@ classify_exit() {
     local output="$2"
 
     if [[ "$exit_code" -eq 124 ]]; then
-        echo "TIMEOUT"
+        if printf '%s\n' "$output" | grep -Eaiq 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)'; then
+            echo "TIMEOUT_WITH_SANITIZER"
+        else
+            echo "TIMEOUT"
+        fi
     elif printf '%s\n' "$output" | grep -Eaiq 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)'; then
         echo "SANITIZER"
     elif [[ "$exit_code" -eq 255 ]]; then
@@ -280,16 +289,29 @@ triage_dir() {
     local soft_fail=0
     local clean=0
     local sanitizer=0
+    local timeout_with_sanitizer=0
     local signal=0
     local timeout_count=0
     local files=()
 
-    for d in "$AFL_OUTPUT_DIR"/*/; do
+    if [[ -d "$AFL_TRIAGE_INPUT_DIR/$kind" ]]; then
+        while IFS= read -r -d '' f; do
+            files+=("$f")
+        done < <(find "$AFL_TRIAGE_INPUT_DIR/$kind" -maxdepth 1 -type f ! -name README.txt ! -name '*.cmd' -print0 2>/dev/null)
+    fi
+
+    for d in "$AFL_TRIAGE_INPUT_DIR"/*/; do
         local artifact_dir
+        local d_base
+        [[ -d "$d" ]] || continue
+        d_base="$(basename "$d")"
+        if [[ "$d_base" == "$kind" || "$d_base" == "$kind."* ]]; then
+            continue
+        fi
         while IFS= read -r -d '' artifact_dir; do
             while IFS= read -r -d '' f; do
                 files+=("$f")
-            done < <(find "$artifact_dir" -maxdepth 1 -type f ! -name README.txt -print0 2>/dev/null)
+            done < <(find "$artifact_dir" -maxdepth 1 -type f ! -name README.txt ! -name '*.cmd' -print0 2>/dev/null)
         done < <(find "$d" -maxdepth 1 -type d \( -name "$kind" -o -name "$kind.*" \) -print0 2>/dev/null | sort -z)
     done
 
@@ -308,7 +330,7 @@ triage_dir() {
         local idx="$1"
         local f="$2"
         local exit_code=0
-        local output
+        local output=""
         local fname
         fname=$(basename "$f")
 
@@ -322,7 +344,26 @@ triage_dir() {
             fi
         done
 
-        output=$(cd "$REPO_ROOT" && timeout "$timeout_sec" "$UPSTREAM_BIN" "${triage_args[@]}" 2>&1) || exit_code=$?
+        local run_count=1
+        if [[ "$kind" == "hangs" ]]; then
+            run_count="$TRIAGE_HANG_REPEATS"
+        fi
+
+        local run=1
+        while [[ "$run" -le "$run_count" ]]; do
+            local run_output=""
+            local run_exit=0
+            run_output=$(cd "$REPO_ROOT" && timeout "$timeout_sec" "$UPSTREAM_BIN" "${triage_args[@]}" 2>&1) || run_exit=$?
+            output="${output}${output:+
+}=== replay ${run}/${run_count} exit=${run_exit} ===
+${run_output}"
+            if [[ "$run_exit" -ne 124 ]]; then
+                exit_code="$run_exit"
+                break
+            fi
+            exit_code="$run_exit"
+            run=$((run + 1))
+        done
 
         local classification
         local owner
@@ -377,10 +418,18 @@ triage_dir() {
             write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
             sanitizer=$((sanitizer + 1))
-        elif [[ "$classification" == "TIMEOUT" ]]; then
-            echo "  [TIMEOUT]     $fname - hung for ${timeout_sec}s"
+        elif [[ "$classification" == "TIMEOUT_WITH_SANITIZER" ]]; then
+            echo "  [TIMEOUT+SAN] $fname - sanitizer output before ${timeout_sec}s timeout (owner=$owner)"
+            printf '%s\n' "$output" | grep -Eai 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY:' | tail -3 | sed 's/^/    /'
             write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
+            timeout_with_sanitizer=$((timeout_with_sanitizer + 1))
+        elif [[ "$classification" == "TIMEOUT" ]]; then
+            echo "  [TIMEOUT]     $fname - hung for ${timeout_sec}s"
+            if [[ "$TRIAGE_MARK_TIMEOUTS" -eq 1 ]]; then
+                write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
+                upstream_bug=$((upstream_bug + 1))
+            fi
             timeout_count=$((timeout_count + 1))
         elif [[ "$classification" == "SOFT_FAIL" ]]; then
             echo "  [SOFT_FAIL]   $fname - graceful tool failure (exit $exit_code)"
@@ -393,7 +442,7 @@ triage_dir() {
     rm -rf "$tmp_dir"
 
     echo ""
-    echo "  $kind summary: $total total, $upstream_bug actionable, $fuzzer_only clean, $soft_fail soft-fail, $sanitizer sanitizer, $signal signal, $timeout_count timeout"
+    echo "  $kind summary: $total total, $upstream_bug actionable, $fuzzer_only clean, $soft_fail soft-fail, $sanitizer sanitizer, $timeout_with_sanitizer timeout-with-sanitizer, $signal signal, $timeout_count timeout"
 }
 
 echo "=== AFL Triage: $TARGET ==="
@@ -401,15 +450,16 @@ echo ""
 echo "Upstream binary: $UPSTREAM_BIN"
 echo "Replay source:   $REPLAY_SOURCE"
 echo "Library path:    ${REPLAY_LIB:-<tool runpath>}"
+echo "Input directory: ${AFL_TRIAGE_INPUT_DIR}"
 echo "Mark directory:  ${AFL_MARK_DIR:-<disabled>}"
 echo ""
 
 echo "--- Crashes ---"
-triage_dir "crashes" 15
+triage_dir "crashes" "$TRIAGE_TIMEOUT"
 echo ""
 
 echo "--- Hangs ---"
-triage_dir "hangs" 30
+triage_dir "hangs" "$TRIAGE_HANG_TIMEOUT"
 echo ""
 
 echo "[OK] Triage complete"

@@ -123,7 +123,7 @@ afl_first_existing() {
 
 afl_configure_target() {
     local target="$1"
-    local tmp_root="${TMPDIR:-${HOME:-$REPO_ROOT}/work/copilot/tmp}"
+    local tmp_root="${AFL_TMP_ROOT:-$AFL_BASE/tmp}"
     local tmp_prefix="$tmp_root/afl-${target}-$$"
     AFL_TMP_PREFIX="$tmp_prefix"
     local rgb_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt"
