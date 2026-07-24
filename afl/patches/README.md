@@ -18,6 +18,9 @@ Current patches:
 - `003-applyprofiles-cam-encoding-div-zero.patch` guards malformed CAM inverse
   and encoding surround-ratio denominators found by `iccApplyProfiles` AFL
   replays.
+- `004-applyprofiles-tiff-sample-count-bounds.patch` rejects malformed TIFF
+  sample counts before `iccApplyProfiles` strip de-planarization can copy past
+  the strip buffer.
 
 Patch failures warn and the build continues so older or newer iccDEV snapshots
 can still be tested.

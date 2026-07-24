@@ -72,3 +72,6 @@ Patch coverage after the 2026-07-24 sweep:
 - `003-applyprofiles-cam-encoding-div-zero.patch` covers the marked
   `applyprofiles` CAM inverse and encoding surround-ratio division-by-zero
   classes in patched AFL/CFL builds.
+- `004-applyprofiles-tiff-sample-count-bounds.patch` covers the marked
+  `applyprofiles-hybrid-embedded` malformed TIFF sample-count
+  heap-buffer-overflow class in patched AFL/CFL builds.
