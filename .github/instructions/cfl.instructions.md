@@ -64,8 +64,10 @@ it exists locally.
 5. Validate both patched and unpatched behavior.
 6. Update `cfl/patches/README.md` and only summarize in `cfl/README.md`.
 
-Patch application failures are fatal in patched mode. After an upstream refresh,
-remove stale build output before judging a failure:
+Patch application failures are warnings in patched mode. Non-applicable patches
+are skipped so stale local patch stacks do not block AFL/CFL builds. After an
+upstream refresh, remove stale build output before judging build or sanitizer
+failures:
 
 ```bash
 rm -rf cfl/iccDEV/Build cfl/build cfl/bin

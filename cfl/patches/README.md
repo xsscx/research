@@ -25,7 +25,8 @@ should link here instead of duplicating the full patch table.
 ./cfl/build.sh --refresh-iccdev --patch-file 005-applytolink-bpc-degenerate-lrange.patch
 ```
 
-Patch application failures are fatal in patched mode.
+Patch application failures are warnings in patched mode. Non-applicable patches
+are skipped so stale local patch stacks do not block AFL/CFL builds.
 
 ## Active Patch Files
 

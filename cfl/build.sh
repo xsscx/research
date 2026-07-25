@@ -145,6 +145,25 @@ usage() {
   echo "  --patch-wx        apply the legacy local wxWidgets CMake workaround"
 }
 
+apply_cfl_patch() {
+  local patch_path="$1"
+  local pname
+
+  pname=$(basename "$patch_path")
+  if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1; then
+    patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1
+    echo "[OK] Applied: $pname"
+    return 0
+  elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1; then
+    echo "[OK] Already applied: $pname"
+    return 0
+  fi
+
+  echo "[WARN] Skipped non-applicable patch: $pname"
+  patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" || true
+  return 1
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     clean)
@@ -300,7 +319,7 @@ if [ "$APPLY_PATCHES" = "0" ]; then
   echo "Patch application disabled (building current cfl/iccDEV state)"
 elif [ "$APPLY_PATCHES" = "selected" ]; then
   PATCH_OK=0
-  PATCH_FAIL=0
+  PATCH_SKIP=0
   for p in "${SELECTED_PATCHES[@]}"; do
     if [ -f "$p" ]; then
       patch_path="$p"
@@ -311,46 +330,24 @@ elif [ "$APPLY_PATCHES" = "selected" ]; then
       exit 1
     fi
 
-    pname=$(basename "$patch_path")
-    if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1; then
-      patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1
-      echo "[OK] Applied: $pname"
-      PATCH_OK=$((PATCH_OK + 1))
-    elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1; then
-      echo "[OK] Already applied: $pname"
+    if apply_cfl_patch "$patch_path"; then
       PATCH_OK=$((PATCH_OK + 1))
     else
-      echo "[FAIL] Cannot apply: $pname"
-      PATCH_FAIL=$((PATCH_FAIL + 1))
+      PATCH_SKIP=$((PATCH_SKIP + 1))
     fi
   done
-  echo "Patches: $PATCH_OK OK, $PATCH_FAIL FAIL"
-  if [ "$PATCH_FAIL" -gt 0 ]; then
-    echo "[FAIL] selected patch application failed"
-    exit 1
-  fi
+  echo "Patches: $PATCH_OK OK, $PATCH_SKIP SKIP"
 elif [ -d "$PATCH_DIR" ] && ls "$PATCH_DIR"/*.patch 1>/dev/null 2>&1; then
   PATCH_OK=0
-  PATCH_FAIL=0
+  PATCH_SKIP=0
   for p in "$PATCH_DIR"/*.patch; do
-    pname=$(basename "$p")
-    if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
-      patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1
-      echo "[OK] Applied: $pname"
-      PATCH_OK=$((PATCH_OK + 1))
-    elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$p" > /dev/null 2>&1; then
-      echo "[OK] Already applied: $pname"
+    if apply_cfl_patch "$p"; then
       PATCH_OK=$((PATCH_OK + 1))
     else
-      echo "[FAIL] Cannot apply: $pname"
-      PATCH_FAIL=$((PATCH_FAIL + 1))
+      PATCH_SKIP=$((PATCH_SKIP + 1))
     fi
   done
-  echo "Patches: $PATCH_OK OK, $PATCH_FAIL FAIL"
-  if [ "$PATCH_FAIL" -gt 0 ]; then
-    echo "[FAIL] patch application failed"
-    exit 1
-  fi
+  echo "Patches: $PATCH_OK OK, $PATCH_SKIP SKIP"
 else
   echo "No patches to apply (zero-patch mode)"
 fi

@@ -112,8 +112,10 @@ cd cfl && ./build.sh --no-patches --refresh-iccdev
 cd cfl && ./build.sh --patch-file 001-json-config-parser-no-sanitize.patch
 ```
 
-Patch application failures are fatal in patched mode. After refreshing the
-nested `iccDEV` checkout, remove stale build output before judging a failure:
+Patch application failures are warnings in patched mode. Non-applicable patches
+are skipped so stale local patch stacks do not block AFL/CFL builds. After
+refreshing the nested `iccDEV` checkout, remove stale build output before
+judging build or sanitizer failures:
 
 ```bash
 rm -rf cfl/iccDEV/Build cfl/build cfl/bin
