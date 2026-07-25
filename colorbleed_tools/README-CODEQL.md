@@ -1,12 +1,12 @@
 # CodeQL Security Analysis for ColorBleed Tools
 
 **Purpose:** Security analysis of unsafe ICC XML tools for vulnerability research
-**Target Tools:** `iccFromXml_unsafe`, `iccToXml_unsafe`
+**Target Tools:** `iccFromXml_unsafe`, `iccToXml_unsafe`, `iccFromJson_unsafe`, `iccToJson_unsafe`
 **Analysis Date:** 2026-02-07
 
 ## Overview
 
-This directory contains CodeQL security queries specifically targeting the ColorBleed ICC XML conversion tools. These tools intentionally bypass validation for security research purposes.
+This directory contains CodeQL security queries specifically targeting the ColorBleed ICC XML and JSON conversion tools. These tools intentionally bypass validation for security research purposes.
 
 ## Query Categories
 

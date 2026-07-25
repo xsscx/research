@@ -25,6 +25,13 @@ image, avoiding split executable/shared-library coverage maps. Use
 `./afl/build.sh --shared` only when intentionally comparing shared-library
 behavior.
 
+When editing the local AFL/CFL patch stacks, validate patch syntax and drift
+before committing:
+
+```bash
+.github/scripts/check-afl-cfl-patches.sh
+```
+
 Every AFL build enables the full Clang sanitizer set used for security testing:
 AddressSanitizer, UndefinedBehaviorSanitizer, IntegerSanitizer,
 float-divide-by-zero, and float-cast-overflow. Sanitizer findings are fatal, and

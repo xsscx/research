@@ -129,11 +129,13 @@ int main(int argc, char* argv[])
   limits.max_mem_mb  = 4096;
   limits.max_cpu_sec = 120;
   limits.max_fsize_mb = 512;
+  limits.max_wall_sec = 30;
 
   // Tighten resource limits for profiles with critical pre-flight warnings
   if (preflight.worst == PreflightSeverity::CRITICAL) {
     limits.max_cpu_sec  = 30;   // reduce CPU budget for suspicious profiles
     limits.max_fsize_mb = 128;  // reduce output budget
+    limits.max_wall_sec = 15;
   }
 
   // CRITICAL pre-flight = known dangerous patterns (SBO, HBO, unterminated strings).

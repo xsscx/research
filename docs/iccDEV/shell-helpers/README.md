@@ -46,7 +46,7 @@ three components:
 |-----------|-------------|-------|
 | `iccanalyzer-lite/` | Links unpatched upstream IccProfLib + IccLibXML | `./build.sh` |
 | `cfl/` | Clones iccDEV, applies the active CFL patch set, builds the current fuzzer set | `./build.sh` |
-| `colorbleed_tools/` | Links unpatched upstream for ICC/XML conversion | `make setup && make` |
+| `colorbleed_tools/` | Links unpatched upstream for ICC XML/JSON conversion | `make setup && make` |
 
 The iccDEV checkout at `iccDEV/Build/` provides the **unpatched reference tools** used
 for crash fidelity testing. See `.github/copilot-instructions.md` for the full build

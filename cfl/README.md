@@ -117,6 +117,12 @@ are skipped so stale local patch stacks do not block AFL/CFL builds. After
 refreshing the nested `iccDEV` checkout, remove stale build output before
 judging build or sanitizer failures:
 
+Validate patch syntax and drift before commit:
+
+```bash
+.github/scripts/check-afl-cfl-patches.sh
+```
+
 ```bash
 rm -rf cfl/iccDEV/Build cfl/build cfl/bin
 cd cfl && ./build.sh --patches --refresh-iccdev

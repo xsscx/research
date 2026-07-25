@@ -21,9 +21,19 @@ Current patches:
 - `004-applyprofiles-tiff-sample-count-bounds.patch` rejects malformed TIFF
   sample counts before `iccApplyProfiles` strip de-planarization can copy past
   the strip buffer.
-- `005-applytolink-bpc-degenerate-lrange.patch` rejects degenerate BPC
-  destination L* ranges before `iccApplyToLink` can divide by `MaxL - MinL`
-  during quadratic black-point normalization.
+- `005-fromxml-namedcolor-devicecoords-bounds.patch` rejects malformed
+  `namedColor2Type` `CountOfDeviceCoords` values before `iccFromXml` can feed
+  an overflowing `atoi()` result into `SetSize()`.
 
 Patch failures warn and the build continues so older or newer iccDEV snapshots
 can still be tested.
+
+Before committing patch edits, run:
+
+```bash
+.github/scripts/check-afl-cfl-patches.sh
+```
+
+The checker uses fresh temporary clones of `afl/iccDEV` and `cfl/iccDEV` for
+`git apply --check`, catching malformed patch hunks and patch drift without
+depending on the current dirty nested checkouts.

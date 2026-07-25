@@ -26,6 +26,7 @@ cd cfl && ./build.sh --refresh-iccdev --patch-file NAME.patch
 cd cfl && ./fuzz-local.sh -t 60 -w 1
 cd cfl && ./status.sh --detail
 cd cfl && ./status.sh --json | jq .
+.github/scripts/check-afl-cfl-patches.sh
 ```
 
 Use patched, unpatched, and single-patch builds with the same corpus, timeout,
@@ -60,9 +61,10 @@ it exists locally.
 1. Reproduce against upstream `iccDEV` with ASAN/UBSAN.
 2. Patch in `cfl/iccDEV/`.
 3. Generate the patch into `cfl/patches/NNN-name.patch`.
-4. Reset the nested checkout before rebuilding.
-5. Validate both patched and unpatched behavior.
-6. Update `cfl/patches/README.md` and only summarize in `cfl/README.md`.
+4. Run `.github/scripts/check-afl-cfl-patches.sh` before rebuilding.
+5. Reset the nested checkout before rebuilding.
+6. Validate both patched and unpatched behavior.
+7. Update `cfl/patches/README.md` and only summarize in `cfl/README.md`.
 
 Patch application failures are warnings in patched mode. Non-applicable patches
 are skipped so stale local patch stacks do not block AFL/CFL builds. After an

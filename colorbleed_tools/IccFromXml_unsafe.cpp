@@ -44,7 +44,6 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <unistd.h>
-#include <libxml/parser.h>
 
 static constexpr int kExitUsage = 64;
 static constexpr int kExitNoInput = 66;
@@ -141,17 +140,15 @@ int main(int argc, char* argv[])
   limits.max_mem_mb  = 4096;
   limits.max_cpu_sec = 120;
   limits.max_fsize_mb = 512;
+  limits.max_wall_sec = 30;
 
   if (preflight.worst == PreflightSeverity::CRITICAL) {
     limits.max_cpu_sec  = 30;
     limits.max_fsize_mb = 128;
+    limits.max_wall_sec = 15;
   }
 
   SandboxResult result = RunSandboxed([&]() -> int {
-    // Disable XXE: prevent external entity loading and network access
-    xmlSubstituteEntitiesDefault(0);
-    xmlLoadExtDtdDefaultValue = 0;
-
     CIccTagCreator::PushFactory(new CIccTagXmlFactory());
     CIccMpeCreator::PushFactory(new CIccMpeXmlFactory());
 

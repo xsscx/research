@@ -43,8 +43,9 @@ endif
 # Auto-detect config: sanitizer for clang (needs llvm runtime), release for gcc
 CONFIG ?= $(shell $(CXX) --version 2>&1 | grep -qi clang && echo sanitizer || echo release)
 
-TARGETS = iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad
-SAN_RUN_ENV = LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1
+TARGETS = iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccDumpAll iccDiagnosticLoad
+UBSAN_SUPP = $(CURDIR)/silence.txt
+SAN_RUN_ENV = LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1:suppressions=$(UBSAN_SUPP)
 
 .PHONY: all clean distclean test setup help
 
@@ -56,7 +57,7 @@ setup:
 
 clean:
 	@echo "Cleaning test artifacts..."
-	rm -f test.xml roundtrip.icc SHA256SUMS *.o *.profraw *.profdata
+	rm -f test.xml test.json roundtrip.icc roundtrip-json.icc SHA256SUMS *.o *.profraw *.profdata
 	@echo "  [OK] Clean complete (binaries preserved in bin/)"
 
 distclean: clean
@@ -72,11 +73,24 @@ test: all colorbleed-test
 	@echo "Test 2: iccFromXml_unsafe (no args)"
 	@$(SAN_RUN_ENV) ./iccFromXml_unsafe 2>&1 | head -10 || true
 	@echo ""
+	@echo "Test 3: iccToJson_unsafe (no args)"
+	@$(SAN_RUN_ENV) ./iccToJson_unsafe 2>&1 | head -10 || true
+	@echo ""
+	@echo "Test 4: iccFromJson_unsafe (no args)"
+	@$(SAN_RUN_ENV) ./iccFromJson_unsafe 2>&1 | head -10 || true
+	@echo ""
 	@if [ -f "$(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc" ]; then \
-		echo "Test 3: Roundtrip conversion"; \
+		echo "Test 5: XML roundtrip conversion"; \
 		$(SAN_RUN_ENV) ./iccToXml_unsafe $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc test.xml; \
 		$(SAN_RUN_ENV) ./iccFromXml_unsafe test.xml roundtrip.icc; \
 		ls -lh test.xml roundtrip.icc; \
+	fi
+	@echo ""
+	@if [ -f "$(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc" ]; then \
+		echo "Test 6: JSON roundtrip conversion"; \
+		$(SAN_RUN_ENV) ./iccToJson_unsafe $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc test.json; \
+		$(SAN_RUN_ENV) ./iccFromJson_unsafe test.json roundtrip-json.icc; \
+		ls -lh test.json roundtrip-json.icc; \
 	fi
 	@echo ""
 	@sha256sum $(TARGETS) 2>/dev/null || shasum -a 256 $(TARGETS) 2>/dev/null
@@ -84,7 +98,7 @@ test: all colorbleed-test
 	@echo "[OK] Basic tests complete"
 
 help:
-	@echo "ColorBleed Unsafe XML Tools Makefile"
+	@echo "ColorBleed Unsafe ICC XML/JSON Tools Makefile"
 	@echo ""
 	@echo "Targets:"
 	@echo "  setup     - Build via build.sh (default config: $(CONFIG))"

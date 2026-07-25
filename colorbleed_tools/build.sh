@@ -4,7 +4,8 @@
 #
 # Clones vanilla upstream iccDEV (NO security patches), builds static
 # libraries in three configurations, then compiles the sandboxed
-# iccToXml_unsafe and iccFromXml_unsafe tools for each.
+# iccToXml_unsafe, iccFromXml_unsafe, iccToJson_unsafe, and
+# iccFromJson_unsafe tools for each.
 #
 # Configurations:
 #   release    - -O2 -DNDEBUG, no sanitizers, no coverage
@@ -36,11 +37,11 @@ BIN_DIR="$REPO_ROOT/bin"
 CXX="${CXX:-clang++}"
 CC="${CC:-clang}"
 
-TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe IccDumpAll IccDiagnosticLoad)
-TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad)
+TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe IccToJson_unsafe IccFromJson_unsafe IccDumpAll IccDiagnosticLoad)
+TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccDumpAll iccDiagnosticLoad)
 SANITIZER_IGNORELIST="$REPO_ROOT/sanitizer-ignorelist.txt"
 
-INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
+INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML -I$ICCDEV_DIR/IccJSON/IccLibJSON"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
 LINK_LIBS="-lxml2 -lz -llzma -lm -lpthread"
 # Allow our icRealloc to override the library's (both are strong symbols)
@@ -77,6 +78,7 @@ if [ "${1:-}" = "clean" ]; then
     rm -rf "$ICCDEV_DIR/Build-$d" "$BIN_DIR/$d"
   done
   rm -f "$REPO_ROOT/iccToXml_unsafe" "$REPO_ROOT/iccFromXml_unsafe" \
+    "$REPO_ROOT/iccToJson_unsafe" "$REPO_ROOT/iccFromJson_unsafe" \
     "$REPO_ROOT/iccDumpAll" "$REPO_ROOT/iccDiagnosticLoad"
   rm -rf "$ICCDEV_DIR" "$BIN_DIR"
   echo "[OK] Clean complete"
@@ -182,7 +184,7 @@ build_config() {
   # CMake generates IccLibXMLVer.h (and IccProfLibVer.h) into the build tree
   # via configure_file(). Add the per-config build dirs so the headers resolve
   # when compiling our sandboxed tools.
-  local gen_includes="-I$build_dir/IccXML -I$build_dir/IccProfLib"
+  local gen_includes="-I$build_dir/IccXML -I$build_dir/IccJSON -I$build_dir/IccProfLib"
   local config_includes="$gen_includes $INCLUDE_FLAGS"
 
   banner "Building [$config]"
@@ -199,6 +201,7 @@ build_config() {
     -DCMAKE_BUILD_TYPE="$cmake_type" \
     -DCMAKE_C_FLAGS="$c_flags" \
     -DCMAKE_CXX_FLAGS="$cxx_flags" \
+    -DUBSAN_IGNORELIST="$SANITIZER_IGNORELIST" \
     -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
     -DENABLE_STATIC_LIBS=ON \
     -DENABLE_SHARED_LIBS=ON \
@@ -206,16 +209,18 @@ build_config() {
     -DENABLE_WXWIDGETS=OFF \
     -Wno-dev 2>&1 | tail -3
 
-  make -j"$NPROC" IccProfLib2-static IccXML2-static 2>&1 | tail -3
+  make -j"$NPROC" IccProfLib2-static IccXML2-static IccJSON2-static 2>&1 | tail -3
 
   local lib_prof
   local lib_xml
+  local lib_json
   lib_prof="$(resolve_static_lib "$build_dir/IccProfLib" "libIccProfLib2")"
   lib_xml="$(resolve_static_lib "$build_dir/IccXML" "libIccXML2")"
+  lib_json="$(resolve_static_lib "$build_dir/IccJSON" "libIccJSON2")"
 
   echo ""
   echo "  Libraries:"
-  ls -lh "$lib_prof" "$lib_xml" | awk '{print "    "$0}'
+  ls -lh "$lib_prof" "$lib_xml" "$lib_json" | awk '{print "    "$0}'
 
   # Verify instrumentation for sanitizer config
   if [ "$config" = "sanitizer" ]; then
@@ -265,7 +270,7 @@ build_config() {
       "$compat_obj" \
       "$f16_obj" \
       "$known_obj" \
-      "$lib_prof" "$lib_xml" \
+      -Wl,--start-group "$lib_prof" "$lib_xml" "$lib_json" -Wl,--end-group \
       $LINK_LIBS \
       -o "$out_dir/$bin"
     chmod +x "$out_dir/$bin"
@@ -285,7 +290,7 @@ build_config() {
     for bin in "${TOOL_BINS[@]}"; do
       ln -sf "bin/$config/$bin" "$REPO_ROOT/$bin"
     done
-    echo "  Symlinked $config -> ./iccToXml_unsafe, ./iccFromXml_unsafe, ./iccDumpAll, ./iccDiagnosticLoad"
+    echo "  Symlinked $config -> ./icc*_unsafe, ./iccDumpAll, ./iccDiagnosticLoad"
   fi
 }
 
@@ -315,16 +320,21 @@ echo ""
 echo "Usage:"
 echo "  # Release (fastest, no diagnostics)"
 echo "  bin/release/iccToXml_unsafe input.icc output.xml"
+echo "  bin/release/iccToJson_unsafe input.icc output.json"
 echo ""
 echo "  # Debug (symbols, assertions, no sanitizers)"
 echo "  bin/debug/iccToXml_unsafe input.icc output.xml"
+echo "  bin/debug/iccToJson_unsafe input.icc output.json"
 echo ""
 echo "  # Sanitizer (ASan+UBSan recoverable + coverage)"
 echo "  LLVM_PROFILE_FILE=/tmp/colorbleed-%m.profraw \\"
 echo "    bin/sanitizer/iccToXml_unsafe input.icc output.xml"
+echo "  LLVM_PROFILE_FILE=/tmp/colorbleed-%m.profraw \\"
+echo "    bin/sanitizer/iccToJson_unsafe input.icc output.json"
 echo ""
-echo "  # Default symlinks point to sanitizer build"
+echo "  # Default symlinks point to the selected build"
 echo "  ./iccToXml_unsafe input.icc output.xml"
+echo "  ./iccToJson_unsafe input.icc output.json"
 echo ""
 echo "ColorBleed Tooling: Unsafe Load & Store for ICC Profiles"
 echo "Copyright (c) 2021-2026 David H Hoyt LLC"

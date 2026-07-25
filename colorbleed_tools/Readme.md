@@ -10,6 +10,8 @@ ICC Color Profile research tools to load & store unsafe file representations.
 |--------|-------------|
 | `iccToXml_unsafe` | ICC Profile -> XML (unsafe load) |
 | `iccFromXml_unsafe` | XML -> ICC Profile blob (unsafe store) |
+| `iccToJson_unsafe` | ICC Profile -> JSON (unsafe load) |
+| `iccFromJson_unsafe` | JSON -> ICC Profile blob (unsafe store) |
 | `iccDumpAll` | Enhanced ICC profile dump with full v5/iccMAX MPE element detail |
 | `iccDiagnosticLoad` | Deep diagnostic ICC profile loader with IO tracing (build from source) |
 
@@ -82,10 +84,31 @@ make setup       # clone vanilla iccDEV, build static libs
 make test        # build tools and run tests
 ```
 
+### Unsafe JSON Round Trip
+```
+./iccToJson_unsafe ../test-profiles/sRGB_D65_MAT.icc /tmp/profile.json
+./iccFromJson_unsafe /tmp/profile.json /tmp/profile-json.icc
+```
+
+### Sanitizer Signal
+
+Sanitizer builds use `sanitizer-ignorelist.txt` at compile time and
+`silence.txt` at runtime to suppress known-benign libstdc++ template noise
+such as `bits/basic_string.tcc`, `bits/stl_bvector.h`, and
+`bits/stl_uninitialized.h`. Do not add iccDEV parser findings to those files
+unless the exact operation is proven well-defined and intentional.
+
+For ad hoc sanitizer reproductions, pass the runtime suppression file:
+
+```
+UBSAN_OPTIONS=print_stacktrace=1:suppressions=$PWD/silence.txt \
+  bin/sanitizer/iccFromJson_unsafe input.json /tmp/out.icc
+```
+
 ### Individual Targets
 ```
 make setup       # clone iccDEV + build libraries (one-time)
-make             # build both unsafe tools
+make             # build unsafe XML/JSON tools
 make test        # build + run basic tests
 make clean       # remove binaries and test files
 make distclean   # remove everything including iccDEV clone

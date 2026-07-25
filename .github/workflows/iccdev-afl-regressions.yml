@@ -1,0 +1,97 @@
+name: iccDEV AFL Regressions
+
+permissions:
+  contents: read
+
+on:
+  push:
+    paths:
+      - '.github/scripts/iccdev-afl-fromxml-regression.sh'
+      - '.github/workflows/iccdev-afl-regressions.yml'
+      - 'afl/patches/**'
+      - 'afl/reproducers/**'
+  pull_request:
+    paths:
+      - '.github/scripts/iccdev-afl-fromxml-regression.sh'
+      - '.github/workflows/iccdev-afl-regressions.yml'
+      - 'afl/patches/**'
+      - 'afl/reproducers/**'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'iccDEV branch to test'
+        required: false
+        default: 'ci-afl-cfl'
+        type: choice
+        options:
+          - ci-afl-cfl
+          - master
+
+concurrency:
+  group: iccdev-afl-regressions-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fromxml-namedcolor-devicecoords:
+    name: iccFromXml namedColor2 CountOfDeviceCoords
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+    env:
+      BASH_ENV: /dev/null
+      ICCDEV_REF: ${{ github.event.inputs.ref || 'ci-afl-cfl' }}
+      WORK_ROOT: /tmp/iccdev-afl-fromxml-regression
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env
+        with:
+          preset: 'coverage'
+          extra-packages: >-
+            clang++-18 libxml2-dev liblzma-dev libtiff-dev libpng-dev
+            libjpeg-dev libssl-dev libclang-rt-18-dev
+
+      - name: Transaction - reproduce unpatched, apply patch, replay patched
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          source .github/scripts/sanitize-sed.sh
+
+          chmod +x .github/scripts/iccdev-afl-fromxml-regression.sh
+          .github/scripts/iccdev-afl-fromxml-regression.sh
+
+      - name: Summarize regression
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          source .github/scripts/sanitize-sed.sh
+
+          REPORT_FILE="$WORK_ROOT/transaction.md"
+          if [ ! -r "$REPORT_FILE" ]; then
+            {
+              echo "### iccFromXml AFL regression"
+              echo ""
+              echo "[FAIL] transaction report was not generated"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          while IFS= read -r line; do
+            sanitize_line "$line"
+            echo ""
+          done < "$REPORT_FILE" >> "$GITHUB_STEP_SUMMARY"

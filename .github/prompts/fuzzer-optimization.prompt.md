@@ -129,6 +129,14 @@ keyword_empty=""
 keyword_utf8="--"
 ```
 
+### Patch Stack Validation
+Before committing AFL/CFL patch-stack changes, run:
+```bash
+.github/scripts/check-afl-cfl-patches.sh
+```
+This validates every `afl/patches/*.patch` and `cfl/patches/*.patch` file
+against fresh temporary clones of the nested iccDEV checkouts.
+
 ### ASAN Ownership Semantics
 `CIccCmm::AddXform(CIccProfile*)` transfers ownership:
 - **icCmmStatOk**: CMM owns the profile -- do NOT delete

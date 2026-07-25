@@ -44,6 +44,10 @@ Call `validate_roundtrip` for AToB/BToA tag pair completeness.
 - `analyze_security_json` -- machine-readable structured output
 - `full_analysis` -- all modes combined
 
+For profile-representation mutation outside MCP, use ColorBleed:
+`colorbleed_tools/iccToXml_unsafe`, `colorbleed_tools/iccFromXml_unsafe`,
+`colorbleed_tools/iccToJson_unsafe`, and `colorbleed_tools/iccFromJson_unsafe`.
+
 ### 5. Report
 
 Summarize findings by severity and heuristic ID. Note round-trip completeness

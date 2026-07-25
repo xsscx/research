@@ -24,7 +24,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 | **iccanalyzer-lite/** | Security analyzer (ASAN+UBSAN). Links **unpatched** upstream iccDEV. |
 | **cfl/** | LibFuzzer harnesses plus an optional security patch stack on a separate iccDEV clone. |
 | **mcp-server/** | MCP server (FastMCP) + REST API + WebUI wrapping the analyzer. |
-| **colorbleed_tools/** | Intentionally unsafe ICC-to-XML converters (no ASAN). |
+| **colorbleed_tools/** | Intentionally unsafe ICC XML/JSON converters (no ASAN). |
 | **fuzz/** | Curated malicious input files (CVE PoCs, injection sigs, malformed media). |
 | **afl/** | AFL++ tool-level fuzzing of unpatched upstream iccDEV CLI tools. |
 

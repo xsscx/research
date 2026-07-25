@@ -43,6 +43,29 @@ bash iccDEV/Testing/Fuzzing/scripts/test-json-tools.sh              # 90 tests
 bash iccDEV/Testing/Fuzzing/scripts/json-cli-exercise.sh            # 125 tests
 ```
 
+## Unsafe Profile JSON Round Trip
+
+Use ColorBleed when the task is ICC profile JSON conversion rather than
+`-cfg <config.json>` application config parsing.
+
+```bash
+cd colorbleed_tools
+make setup
+./iccToJson_unsafe ../test-profiles/sRGB_D65_MAT.icc /tmp/profile.json
+./iccFromJson_unsafe /tmp/profile.json /tmp/profile-json.icc
+```
+
+For sanitizer reproductions of malformed profile JSON, keep STL/libstdc++
+template noise suppressed while preserving iccDEV parser reports:
+
+```bash
+UBSAN_OPTIONS=print_stacktrace=1:suppressions=$PWD/silence.txt \
+  bin/sanitizer/iccFromJson_unsafe input.json /tmp/profile-json.icc
+```
+
+Do not add `IccJSON/IccLibJSON/*` parser findings to suppression files unless
+the arithmetic or conversion is proven intentional and well-defined.
+
 ## JSON Encoding Values (CRITICAL -- strings, NOT integers)
 
 The JSON configs use **string** encoding names. Passing numeric enums silently fails.

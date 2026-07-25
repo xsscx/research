@@ -40,6 +40,7 @@
 #include <functional>
 #include <string>
 #include <climits>
+#include <ctime>
 
 // ASan recoverable mode: log errors, don't abort
 extern "C" const char* __asan_default_options() {
@@ -76,6 +77,7 @@ struct SandboxResult {
     int  exit_code;
     int  signal_num;
     bool timed_out;
+    bool wall_timed_out;
     bool oom_killed;
     bool crashed;
     bool partial_output;
@@ -88,6 +90,7 @@ struct SandboxResult {
             case SIGBUS:  return "SIGBUS (bus error)";
             case SIGFPE:  return "SIGFPE (floating point exception)";
             case SIGILL:  return "SIGILL (illegal instruction)";
+            case SIGTERM: return "SIGTERM (terminated)";
             case SIGXCPU: return "SIGXCPU (CPU time limit)";
             case SIGXFSZ: return "SIGXFSZ (file size limit)";
             case SIGKILL: return "SIGKILL (killed -- likely OOM)";
@@ -111,7 +114,8 @@ struct SandboxResult {
             fprintf(stderr, "| Status:    %-40.40s |\n", "*** CRASH DETECTED ***");
             fprintf(stderr, "| Signal:    %-40.40s |\n", SignalName());
             if (timed_out)
-                fprintf(stderr, "| Detail:    %-40.40s |\n", "CPU time limit exceeded");
+                fprintf(stderr, "| Detail:    %-40.40s |\n",
+                        wall_timed_out ? "Wall time limit exceeded" : "CPU time limit exceeded");
             if (oom_killed)
                 fprintf(stderr, "| Detail:    %-40.40s |\n", "Memory limit exceeded");
         } else {
@@ -131,6 +135,7 @@ struct SandboxLimits {
     size_t max_mem_mb   = 4096;
     size_t max_cpu_sec  = 120;
     size_t max_fsize_mb = 512;
+    size_t max_wall_sec = 0;
 };
 
 /// Apply resource limits in the child process
@@ -237,7 +242,43 @@ static SandboxResult RunSandboxed(std::function<int()> fn,
 
     // === PARENT PROCESS ===
     int status = 0;
-    pid_t waited = waitpid(child, &status, 0);
+    pid_t waited = 0;
+    const time_t start_time = time(nullptr);
+
+    for (;;) {
+        waited = waitpid(child, &status, WNOHANG);
+        if (waited == child) {
+            break;
+        }
+
+        if (waited < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            break;
+        }
+
+        if (limits.max_wall_sec > 0) {
+            const time_t now = time(nullptr);
+            if (now != static_cast<time_t>(-1) && start_time != static_cast<time_t>(-1) &&
+                static_cast<size_t>(now - start_time) >= limits.max_wall_sec) {
+                fprintf(stderr, "[ColorBleed] ERROR: wall time limit exceeded after %zu seconds\n",
+                        limits.max_wall_sec);
+                kill(child, SIGTERM);
+                usleep(200000);
+                waited = waitpid(child, &status, WNOHANG);
+                if (waited == 0) {
+                    kill(child, SIGKILL);
+                    waited = waitpid(child, &status, 0);
+                }
+                result.timed_out = true;
+                result.wall_timed_out = true;
+                break;
+            }
+        }
+
+        usleep(100000);
+    }
 
     if (waited < 0) {
         fprintf(stderr, "[ColorBleed] FATAL: waitpid() failed: %s\n", strerror(errno));
@@ -258,8 +299,9 @@ static SandboxResult RunSandboxed(std::function<int()> fn,
         }
     } else if (WIFSIGNALED(status)) {
         result.signal_num = WTERMSIG(status);
+        result.exit_code = 128 + result.signal_num;
         result.crashed = true;
-        if (result.signal_num == SIGXCPU)
+        if (result.signal_num == SIGXCPU || result.wall_timed_out)
             result.timed_out = true;
         if (result.signal_num == SIGKILL)
             result.oom_killed = true;

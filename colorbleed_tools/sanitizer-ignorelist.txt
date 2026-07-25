@@ -1,1 +1,23 @@
+# ColorBleed sanitizer ignorelist
+#
+# Used at compile time through -fsanitize-ignorelist. Keep this file narrow:
+# it should suppress known-benign library/template noise while preserving
+# signal from iccDEV parser code reached by malformed profiles.
+
+# RFC 1321 MD5 intentionally uses unsigned wraparound and shifts.
+[unsigned-integer-overflow]
 src:*/IccMD5.cpp
+
+[unsigned-shift-base]
+src:*/IccMD5.cpp
+
+[unsigned-shift-exponent]
+src:*/IccMD5.cpp
+
+# libstdc++ 15 implements several STL loops with unsigned decrement patterns
+# such as "n - 1" or "n--" at loop exit. IntegerSanitizer reports these as
+# unsigned overflow even when the container operation itself is well-defined.
+[unsigned-integer-overflow]
+src:*/include/c++/*/bits/basic_string.tcc
+src:*/include/c++/*/bits/stl_bvector.h
+src:*/include/c++/*/bits/stl_uninitialized.h

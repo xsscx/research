@@ -3,10 +3,10 @@ colorbleed-test:
 	@echo ""
 	@if [ -f "iccDEV/Testing/sRGB_v4_ICC_preference.icc" ]; then \
 		echo "Test 4: iccDumpAll --diag"; \
-		LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1 \
+		LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1:suppressions=$(UBSAN_SUPP) \
 			./iccDumpAll --diag -v 100 iccDEV/Testing/sRGB_v4_ICC_preference.icc 2>&1 | head -30; \
 		echo ""; \
 		echo "Test 5: iccDiagnosticLoad --all"; \
-		LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1 \
+		LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1:suppressions=$(UBSAN_SUPP) \
 			./iccDiagnosticLoad --all iccDEV/Testing/sRGB_v4_ICC_preference.icc 2>&1 | head -40; \
 	fi

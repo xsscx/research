@@ -205,7 +205,7 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           cd colorbleed_tools
-          sha256sum iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad > SHA256SUMS
+          sha256sum iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccDumpAll iccDiagnosticLoad > SHA256SUMS
           cat SHA256SUMS
 
       - name: Upload Artifacts
@@ -215,11 +215,15 @@ jobs:
           path: |
             colorbleed_tools/iccToXml_unsafe
             colorbleed_tools/iccFromXml_unsafe
+            colorbleed_tools/iccToJson_unsafe
+            colorbleed_tools/iccFromJson_unsafe
             colorbleed_tools/iccDumpAll
             colorbleed_tools/iccDiagnosticLoad
             colorbleed_tools/SHA256SUMS
             colorbleed_tools/test.xml
+            colorbleed_tools/test.json
             colorbleed_tools/roundtrip.icc
+            colorbleed_tools/roundtrip-json.icc
             colorbleed_tools/tool-test-logs/
 
       - name: Summary Report

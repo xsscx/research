@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IccProfile>
+  <Header>
+    <PreferredCMMType>appl</PreferredCMMType> <ProfileVersion>2.20</ProfileVersion>
+    <ProfileDeviceClass>nmcl</ProfileDeviceClass> <DataColourSpace>RGB </DataColourSpace> <PCS>Lab </PCS> <CreationDateTime>700</CreationDateTime>
+    <PrimaryPlatform>APPL</PrimaryPlatform>
+    <ProfileFlags te="sy" lour="co"/>
+<RenderingIntent>Per</RenderingIntent>
+    <PCSIlluminant>
+  <XYZNumber X="09" Y="1." Z="0.8508"/>
+    </PCSIlluminant>
+<ProfileCreator>appl</ProfileCreator>
+  </Header>
+  <Tags>
+    <profileDescriptionTag> <textDescriptionType>   <TextData>.<![CDATA[Wrs]]></TextData>   <MacScript Wc="0">5760</MacScript>
+    </textDescriptionType> </profileDescriptionTag>
+
+   <mediaWhitePointTag> <XYZArrayType>
+  <XYZNumber X="0." Y="1.0000" Z="08"/>
+    </XYZArrayType> </mediaWhitePointTag>
+ <namedColor2Tag> <namedColor2Type>
+  <NamedColors VendorFlag="0000" CountOfDeviceCoords="333333333333" DeviceEncoding="5" Prefix="#" Suffix=""> <LabNamedColor Name="FF" L="1900" a="-95" b="-95"> </LabNamedColor> <LabNamedColor Name="C">65   </LabNamedColor>
+<LabNamedColor Name="43"> </LabNamedColor>
+    <LabNamedColor Name="" b="17.">39   </LabNamedColor>
+   </NamedColors> </namedColor2Type> </namedColor2Tag>
+
+<PrivateTag ture="ncpi">e> </PrivateTag></Tags>
+</IccProfile>

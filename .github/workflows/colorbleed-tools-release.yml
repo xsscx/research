@@ -217,7 +217,9 @@ jobs:
           set -euo pipefail
           source .github/scripts/icc-profile-quarantine.sh
           mkdir -p colorbleed-test-results/outputs/toxml
+          mkdir -p colorbleed-test-results/outputs/tojson
           mkdir -p colorbleed-test-results/outputs/roundtrip
+          mkdir -p colorbleed-test-results/outputs/roundtrip-json
           mkdir -p colorbleed-test-results/outputs/diffs
 
           PROFILE_COUNT="${REQUESTED_PROFILE_COUNT}"
@@ -290,7 +292,7 @@ jobs:
           echo "" >> $SUMMARY
           echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $SUMMARY
           echo "Compiler: ${MATRIX_COMPILER} (${{ env.CXX }})" >> $SUMMARY
-          echo "Tools: iccToXml_unsafe, iccFromXml_unsafe" >> $SUMMARY
+          echo "Tools: iccToXml_unsafe, iccFromXml_unsafe, iccToJson_unsafe, iccFromJson_unsafe" >> $SUMMARY
           echo "Profiles: $(wc -l < colorbleed-test-results/selected-profiles.txt)" >> $SUMMARY
           echo "" >> $SUMMARY
 
@@ -302,7 +304,9 @@ jobs:
             TOTAL=$((TOTAL + 1))
             PROFILE_NAME=$(basename "$profile")
             XML_OUT="colorbleed-test-results/outputs/toxml/${PROFILE_NAME}.xml"
+            JSON_OUT="colorbleed-test-results/outputs/tojson/${PROFILE_NAME}.json"
             RT_OUT="colorbleed-test-results/outputs/roundtrip/${PROFILE_NAME}"
+            JSON_RT_OUT="colorbleed-test-results/outputs/roundtrip-json/${PROFILE_NAME}"
             DIFF_OUT="colorbleed-test-results/outputs/diffs/${PROFILE_NAME}.diff.txt"
             printf '%s\n' "$profile" > colorbleed-test-results/current-profile.txt
 
@@ -355,10 +359,57 @@ jobs:
               echo "  XML->ICC: SKIPPED"
             fi
 
-            # Step 3: Compare sizes
-            if [ "$ROUNDTRIP_OK" = true ]; then
+            # Step 3: ICC -> JSON
+            TOJSON_OK=false
+            if timeout 30s ./colorbleed_tools/iccToJson_unsafe "${profile}" "$JSON_OUT" > "colorbleed-test-results/outputs/tojson/${PROFILE_NAME}.log" 2>&1; then
+              if [ -f "$JSON_OUT" ] && [ -s "$JSON_OUT" ]; then
+                TOJSON_OK=true
+                JSON_SIZE=$(stat -c%s "$JSON_OUT" 2>/dev/null || echo 0)
+                echo "  ICC->JSON: OK ($JSON_SIZE bytes)" >> $SUMMARY
+                echo "  ICC->JSON: OK ($JSON_SIZE bytes)"
+              else
+                echo "  ICC->JSON: FAIL (empty output)" >> $SUMMARY
+                echo "  ICC->JSON: FAIL (empty output)"
+              fi
+            else
+              EXIT_CODE=$?
+              echo "  ICC->JSON: FAIL (exit $EXIT_CODE)" >> $SUMMARY
+              echo "  ICC->JSON: FAIL (exit $EXIT_CODE)"
+              LOG_TAIL=$(tail -3 "colorbleed-test-results/outputs/tojson/${PROFILE_NAME}.log" 2>/dev/null || true)
+              echo "  Log: $LOG_TAIL" >> $SUMMARY
+            fi
+
+            # Step 4: JSON -> ICC (roundtrip)
+            JSON_ROUNDTRIP_OK=false
+            if [ "$TOJSON_OK" = true ]; then
+              if timeout 30s ./colorbleed_tools/iccFromJson_unsafe "$JSON_OUT" "$JSON_RT_OUT" > "colorbleed-test-results/outputs/roundtrip-json/${PROFILE_NAME}.log" 2>&1; then
+                if [ -f "$JSON_RT_OUT" ] && [ -s "$JSON_RT_OUT" ]; then
+                  JSON_ROUNDTRIP_OK=true
+                  JSON_RT_SIZE=$(stat -c%s "$JSON_RT_OUT" 2>/dev/null || echo 0)
+                  ORIG_SIZE=$(stat -c%s "${profile}" 2>/dev/null || echo 0)
+                  echo "  JSON->ICC: OK ($JSON_RT_SIZE bytes, original: $ORIG_SIZE bytes)" >> $SUMMARY
+                  echo "  JSON->ICC: OK ($JSON_RT_SIZE bytes, original: $ORIG_SIZE bytes)"
+                else
+                  echo "  JSON->ICC: FAIL (empty output)" >> $SUMMARY
+                  echo "  JSON->ICC: FAIL (empty output)"
+                fi
+              else
+                EXIT_CODE=$?
+                echo "  JSON->ICC: FAIL (exit $EXIT_CODE)" >> $SUMMARY
+                echo "  JSON->ICC: FAIL (exit $EXIT_CODE)"
+                LOG_TAIL=$(tail -3 "colorbleed-test-results/outputs/roundtrip-json/${PROFILE_NAME}.log" 2>/dev/null || true)
+                echo "  Log: $LOG_TAIL" >> $SUMMARY
+              fi
+            else
+              echo "  JSON->ICC: SKIPPED (no JSON from step 3)" >> $SUMMARY
+              echo "  JSON->ICC: SKIPPED"
+            fi
+
+            # Step 5: Compare sizes
+            if [ "$ROUNDTRIP_OK" = true ] && [ "$JSON_ROUNDTRIP_OK" = true ]; then
               ORIG_SIZE=$(stat -c%s "${profile}" 2>/dev/null || echo 0)
               RT_SIZE=$(stat -c%s "$RT_OUT" 2>/dev/null || echo 0)
+              JSON_RT_SIZE=$(stat -c%s "$JSON_RT_OUT" 2>/dev/null || echo 0)
               if [ "$ORIG_SIZE" -eq "$RT_SIZE" ]; then
                 ORIG_SHA=$(sha256sum "${profile}" | cut -d' ' -f1)
                 RT_SHA=$(sha256sum "$RT_OUT" | cut -d' ' -f1)
@@ -374,6 +425,10 @@ jobs:
                 echo "  Roundtrip: SIZE DELTA ${SIZE_DIFF} bytes (orig=$ORIG_SIZE rt=$RT_SIZE)" >> $SUMMARY
                 echo "  Roundtrip: SIZE DELTA ${SIZE_DIFF} bytes"
               fi
+
+              JSON_SIZE_DIFF=$((JSON_RT_SIZE - ORIG_SIZE))
+              echo "  JSON roundtrip: SIZE DELTA ${JSON_SIZE_DIFF} bytes (orig=$ORIG_SIZE rt=$JSON_RT_SIZE)" >> $SUMMARY
+              echo "  JSON roundtrip: SIZE DELTA ${JSON_SIZE_DIFF} bytes"
 
               SUCCESS=$((SUCCESS + 1))
               echo "  Status: SUCCESS" >> $SUMMARY
@@ -446,7 +501,7 @@ jobs:
         working-directory: colorbleed_tools
         run: |
           set -euo pipefail
-          sha256sum iccToXml_unsafe iccFromXml_unsafe iccDumpAll iccDiagnosticLoad > SHA256SUMS
+          sha256sum iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccDumpAll iccDiagnosticLoad > SHA256SUMS
           cat SHA256SUMS
 
       - name: Download Windows diagnostic release assets
@@ -531,11 +586,15 @@ jobs:
           # Copy binaries + checksums into results
           cp colorbleed_tools/iccToXml_unsafe  colorbleed-test-results/
           cp colorbleed_tools/iccFromXml_unsafe colorbleed-test-results/
+          cp colorbleed_tools/iccToJson_unsafe  colorbleed-test-results/
+          cp colorbleed_tools/iccFromJson_unsafe colorbleed-test-results/
           cp colorbleed_tools/iccDumpAll colorbleed-test-results/
           cp colorbleed_tools/iccDiagnosticLoad colorbleed-test-results/
           cp colorbleed_tools/SHA256SUMS        colorbleed-test-results/
           cp colorbleed_tools/test.xml          colorbleed-test-results/ 2>/dev/null || true
+          cp colorbleed_tools/test.json         colorbleed-test-results/ 2>/dev/null || true
           cp colorbleed_tools/roundtrip.icc     colorbleed-test-results/ 2>/dev/null || true
+          cp colorbleed_tools/roundtrip-json.icc colorbleed-test-results/ 2>/dev/null || true
 
           TARBALL="colorbleed-test-results-${MATRIX_COMPILER}-${DATESTAMP}.tar.gz"
           tar -czf "${TARBALL}" colorbleed-test-results/
@@ -550,14 +609,19 @@ jobs:
           # Copy binaries with compiler-stamped names for release upload
           cp colorbleed_tools/iccToXml_unsafe "iccToXml_unsafe-${MATRIX_COMPILER}"
           cp colorbleed_tools/iccFromXml_unsafe "iccFromXml_unsafe-${MATRIX_COMPILER}"
+          cp colorbleed_tools/iccToJson_unsafe "iccToJson_unsafe-${MATRIX_COMPILER}"
+          cp colorbleed_tools/iccFromJson_unsafe "iccFromJson_unsafe-${MATRIX_COMPILER}"
           cp colorbleed_tools/iccDumpAll "iccDumpAll-${MATRIX_COMPILER}"
           cp colorbleed_tools/iccDiagnosticLoad "iccDiagnosticLoad-${MATRIX_COMPILER}"
           chmod +x "iccToXml_unsafe-${MATRIX_COMPILER}" "iccFromXml_unsafe-${MATRIX_COMPILER}" \
+            "iccToJson_unsafe-${MATRIX_COMPILER}" "iccFromJson_unsafe-${MATRIX_COMPILER}" \
             "iccDumpAll-${MATRIX_COMPILER}" "iccDiagnosticLoad-${MATRIX_COMPILER}"
 
           # Wrap binaries in tar.gz to preserve execute permissions
           tar -czf "iccToXml_unsafe-${MATRIX_COMPILER}.tar.gz" "iccToXml_unsafe-${MATRIX_COMPILER}"
           tar -czf "iccFromXml_unsafe-${MATRIX_COMPILER}.tar.gz" "iccFromXml_unsafe-${MATRIX_COMPILER}"
+          tar -czf "iccToJson_unsafe-${MATRIX_COMPILER}.tar.gz" "iccToJson_unsafe-${MATRIX_COMPILER}"
+          tar -czf "iccFromJson_unsafe-${MATRIX_COMPILER}.tar.gz" "iccFromJson_unsafe-${MATRIX_COMPILER}"
           tar -czf "iccDumpAll-${MATRIX_COMPILER}.tar.gz" "iccDumpAll-${MATRIX_COMPILER}"
           tar -czf "iccDiagnosticLoad-${MATRIX_COMPILER}.tar.gz" "iccDiagnosticLoad-${MATRIX_COMPILER}"
 
@@ -565,6 +629,8 @@ jobs:
             "SHA256SUMS-${MATRIX_COMPILER}.txt" \
             "iccToXml_unsafe-${MATRIX_COMPILER}.tar.gz" \
             "iccFromXml_unsafe-${MATRIX_COMPILER}.tar.gz" \
+            "iccToJson_unsafe-${MATRIX_COMPILER}.tar.gz" \
+            "iccFromJson_unsafe-${MATRIX_COMPILER}.tar.gz" \
             "iccDumpAll-${MATRIX_COMPILER}.tar.gz" \
             "iccDiagnosticLoad-${MATRIX_COMPILER}.tar.gz" \
             windows-release-assets/colorbleed-windows-diagnostics-x64.zip \
@@ -592,6 +658,8 @@ jobs:
             |------|-------------|
             | `iccToXml_unsafe` | ICC binary -> XML conversion |
             | `iccFromXml_unsafe` | XML -> ICC binary conversion |
+            | `iccToJson_unsafe` | ICC binary -> JSON conversion |
+            | `iccFromJson_unsafe` | JSON -> ICC binary conversion |
             | `iccDumpAll` | Enhanced ICC profile dump |
             | `iccDiagnosticLoad` | Diagnostic ICC profile loader |
 
@@ -612,7 +680,9 @@ jobs:
             Each ICC profile is:
             1. Converted to XML via `iccToXml_unsafe`
             2. Converted back to ICC via `iccFromXml_unsafe`
-            3. Compared for size match and content integrity
+            3. Converted to JSON via `iccToJson_unsafe`
+            4. Converted back to ICC via `iccFromJson_unsafe`
+            5. Compared for size match and content integrity
 
             ### Binary Checksums
             ```
@@ -630,6 +700,8 @@ jobs:
             ${{ steps.package.outputs.checksums_file }}
             iccToXml_unsafe-${{ matrix.compiler }}.tar.gz
             iccFromXml_unsafe-${{ matrix.compiler }}.tar.gz
+            iccToJson_unsafe-${{ matrix.compiler }}.tar.gz
+            iccFromJson_unsafe-${{ matrix.compiler }}.tar.gz
             iccDumpAll-${{ matrix.compiler }}.tar.gz
             iccDiagnosticLoad-${{ matrix.compiler }}.tar.gz
             windows-release-assets/colorbleed-windows-diagnostics-x64.zip

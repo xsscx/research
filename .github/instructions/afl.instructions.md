@@ -25,6 +25,7 @@ read `afl/targets.sh` in the current checkout.
 ./afl/status.sh --json | jq .
 ./afl/stop.sh dump
 ./afl/triage.sh dump
+.github/scripts/check-afl-cfl-patches.sh
 ```
 
 ## Tracking Policy
@@ -63,6 +64,14 @@ LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
 ```
 
 Adjust the tool and arguments to match the AFL target.
+
+## Patch Checks
+
+After editing `afl/patches/*.patch`, run
+`.github/scripts/check-afl-cfl-patches.sh`. The checker applies each AFL patch
+to a fresh temporary clone of `afl/iccDEV`, so invalid zero-context diffs,
+stale paths, and already-applied nested worktree state are caught before
+building.
 
 ## Corpus Minimization
 

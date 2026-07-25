@@ -116,6 +116,17 @@ select_replay_binary() {
     local tool_dir
     local canonical_bin
 
+    if [[ "${AFL_TRIAGE_CANONICAL_BUILD:-0}" != "1" && -x "$BINARY" ]]; then
+        UPSTREAM_BIN="$BINARY"
+        REPLAY_SOURCE="afl-bin"
+        if command -v readelf >/dev/null 2>&1 && readelf -d "$BINARY" 2>/dev/null | grep -q 'Shared library: \[libIcc'; then
+            REPLAY_LIB="$BIN_DIR"
+        else
+            REPLAY_LIB=""
+        fi
+        return
+    fi
+
     tool_name="$(basename "$BINARY")"
     if tool_dir="$(canonical_tool_dir "$tool_name")"; then
         canonical_bin="$REPO_ROOT/iccDEV/Build/Tools/$tool_dir/$tool_name"
@@ -138,7 +149,7 @@ select_replay_binary() {
     UPSTREAM_BIN="$BINARY"
     REPLAY_SOURCE="afl-bin"
     if command -v readelf >/dev/null 2>&1 && readelf -d "$BINARY" 2>/dev/null | grep -q 'Shared library: \[libIcc'; then
-        REPLAY_LIB="$AFL_BASE/bin"
+        REPLAY_LIB="$BIN_DIR"
     else
         REPLAY_LIB=""
     fi

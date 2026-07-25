@@ -20,6 +20,8 @@ export ASAN_OPTIONS=detect_leaks=0
 | iccDumpProfile | - | Dump header, tags, data | Valid profile |
 | iccToXml | - | ICC binary to XML | Conversion OK |
 | iccFromXml | - | XML to ICC binary | Conversion OK |
+| iccToJson | - | ICC binary to JSON | Conversion OK |
+| iccFromJson | - | JSON to ICC binary | Conversion OK |
 | iccRoundTrip | - | Forward+inverse error | Transform OK |
 | iccFromCube | - | .cube LUT to ICC DeviceLink | Conversion OK |
 | iccApplyNamedCmm | -cfg | Apply profile chain to data | Transform OK |
@@ -67,6 +69,18 @@ iccFromXml src.xml dst.icc {-noid -v{=[relax_ng_schema]}}
 ```bash
 iccToXml profile.icc /tmp/profile.xml
 iccFromXml /tmp/profile.xml /tmp/roundtrip.icc
+```
+
+### iccToJson / iccFromJson
+
+```
+iccToJson src.icc dst.json {-indent=N -sort}
+iccFromJson src.json dst.icc {-noid}
+```
+
+```bash
+iccToJson profile.icc /tmp/profile.json
+iccFromJson /tmp/profile.json /tmp/roundtrip-json.icc
 ```
 
 ### iccRoundTrip

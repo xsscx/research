@@ -2,13 +2,13 @@
 applyTo: "colorbleed_tools/**"
 ---
 
-# colorbleed_tools — Path-Specific Instructions
+# colorbleed_tools - Path-Specific Instructions
 
 ## What This Is
 
-Unsafe ICC↔XML conversion tools for mutation testing and profile generation.
+Unsafe ICC XML/JSON conversion tools for mutation testing and profile generation.
 These are deliberately built WITHOUT sanitizer hardening to match how typical
-applications consume ICC profiles — exposing real-world crash surfaces.
+applications consume ICC profiles - exposing real-world crash surfaces.
 
 ## Build
 
@@ -17,16 +17,21 @@ cd colorbleed_tools && make setup && make
 ```
 
 - `make setup`: clones iccDEV, builds the C++ library without ASAN
-- `make`: compiles `iccToXml_unsafe` and `iccFromXml_unsafe`
-- Binaries: `colorbleed_tools/iccToXml_unsafe`, `colorbleed_tools/iccFromXml_unsafe`
-- These are intentionally UNsafe — no ASAN, no bounds checks beyond library defaults
+- `make`: compiles `iccToXml_unsafe`, `iccFromXml_unsafe`,
+  `iccToJson_unsafe`, and `iccFromJson_unsafe`
+- Binaries: `colorbleed_tools/iccToXml_unsafe`,
+  `colorbleed_tools/iccFromXml_unsafe`, `colorbleed_tools/iccToJson_unsafe`,
+  `colorbleed_tools/iccFromJson_unsafe`
+- These are intentionally UNsafe - no ASAN, no bounds checks beyond library defaults
 
 ## Purpose
 
-1. **ICC → XML**: Convert binary ICC profiles to human-readable XML for inspection
-2. **XML → ICC**: Reconstruct ICC profiles from XML (enables manual mutation testing)
-3. **Round-trip testing**: ICC → XML → ICC to verify parse/serialize fidelity
-4. **Crash reproduction**: Run against known-bad profiles without ASAN to see
+1. **ICC -> XML**: Convert binary ICC profiles to human-readable XML for inspection
+2. **XML -> ICC**: Reconstruct ICC profiles from XML (enables manual mutation testing)
+3. **ICC -> JSON**: Convert binary ICC profiles to IccJSON for structured mutation
+4. **JSON -> ICC**: Reconstruct ICC profiles from IccJSON
+5. **Round-trip testing**: ICC -> XML/JSON -> ICC to verify parse/serialize fidelity
+6. **Crash reproduction**: Run against known-bad profiles without ASAN to see
    real-world behavior (crashes, hangs, incorrect output)
 
 ## Usage
@@ -38,9 +43,17 @@ cd colorbleed_tools && make setup && make
 # Convert XML to ICC
 ./iccFromXml_unsafe input.xml output.icc
 
+# Convert ICC to JSON
+./iccToJson_unsafe input.icc output.json
+
+# Convert JSON to ICC
+./iccFromJson_unsafe input.json output.icc
+
 # Round-trip test
 ./iccToXml_unsafe test.icc /tmp/test.xml
 ./iccFromXml_unsafe /tmp/test.xml /tmp/test_rt.icc
+./iccToJson_unsafe test.icc /tmp/test.json
+./iccFromJson_unsafe /tmp/test.json /tmp/test_json_rt.icc
 diff <(xxd test.icc) <(xxd /tmp/test_rt.icc)
 ```
 
@@ -61,9 +74,12 @@ analysis phase is skipped.
 
 ## Security Considerations
 
-- These tools process UNTRUSTED input — they are attack surface
-- Do NOT add ASAN/UBSAN — the point is to test without sanitizers
+- These tools process UNTRUSTED input - they are attack surface
+- Do NOT add ASAN/UBSAN - the point is to test without sanitizers
 - Crashes in these tools indicate real vulnerabilities in iccDEV
+- Sanitizer builds suppress only known-benign STL/libstdc++ template noise in
+  `sanitizer-ignorelist.txt` and `silence.txt`. Keep iccDEV parser UB visible
+  unless an operation is proven intentional and well-defined.
 - When a crash is found:
   1. Minimize with `cfl/bin/icc_toxml_fuzzer -minimize_crash=1 <crash_file>`
   2. Report to upstream: `github.com/InternationalColorConsortium/iccDEV/issues`
@@ -73,11 +89,15 @@ analysis phase is skipped.
 
 ```
 colorbleed_tools/
-├── Makefile           # Build system
-├── build.sh           # Alternative build script
-├── Readme.md          # Usage documentation
-├── iccToXml_unsafe    # Binary: ICC → XML converter (built, not committed)
-└── iccFromXml_unsafe  # Binary: XML → ICC converter (built, not committed)
+|-- Makefile           # Build system
+|-- build.sh           # Alternative build script
+|-- Readme.md          # Usage documentation
+|-- sanitizer-ignorelist.txt # Compile-time sanitizer ignorelist
+|-- silence.txt        # Runtime UBSAN suppressions for ad hoc reproductions
+|-- iccToXml_unsafe    # Binary: ICC -> XML converter (built, not committed)
+|-- iccFromXml_unsafe  # Binary: XML -> ICC converter (built, not committed)
+|-- iccToJson_unsafe   # Binary: ICC -> JSON converter (built, not committed)
+`-- iccFromJson_unsafe # Binary: JSON -> ICC converter (built, not committed)
 ```
 
 ## Logging Convention
@@ -88,4 +108,5 @@ WARNING: Tag 'desc' has unexpected type signature
 ERROR: Failed to read tag data at offset 0x1234
 ```
 
-Stdout is reserved for the XML output (iccToXml) or status messages (iccFromXml).
+Stdout is reserved for status messages. Converted XML and JSON are written to
+the requested output path.

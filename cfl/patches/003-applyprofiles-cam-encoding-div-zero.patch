@@ -1,7 +1,11 @@
 diff --git a/IccProfLib/IccCAM.cpp b/IccProfLib/IccCAM.cpp
+index bfa0240..5d54a4d 100644
 --- a/IccProfLib/IccCAM.cpp
 +++ b/IccProfLib/IccCAM.cpp
-@@ -150 +150,7 @@ CIccCamConverter::H_FunctionInv (icFloatNumber	y)
+@@ -147,7 +147,13 @@ CIccCamConverter::H_FunctionInv (icFloatNumber	y)
+ {
+ 	icFloatNumber	x;
+ 
 -	x = (icFloatNumber) (pow (27.13*y / (400.0-y), 1.0/m_exp));
 +	double denom = 400.0 - (double)y;
 +	if (!std::isfinite((double)y) || !std::isfinite((double)m_exp) || m_exp == 0.0f ||
@@ -10,11 +14,21 @@ diff --git a/IccProfLib/IccCAM.cpp b/IccProfLib/IccCAM.cpp
 +	}
 +
 +	x = (icFloatNumber) (pow (27.13*y / denom, 1.0/m_exp));
+ 
+ 	return x;
+ }
 diff --git a/IccProfLib/IccEncoding.cpp b/IccProfLib/IccEncoding.cpp
+index 0ed54af..5273131 100644
 --- a/IccProfLib/IccEncoding.cpp
 +++ b/IccProfLib/IccEncoding.cpp
-@@ -435 +435,3 @@ icStatusEncConvert CIccDefaultEncProfileConverter::ConvertFromParams(CIccProfile
+@@ -432,7 +432,9 @@ icStatusEncConvert CIccDefaultEncProfileConverter::ConvertFromParams(CIccProfile
+     pCstmConvert->SetParameter_La(La);
+     pCstmConvert->SetParameter_Yb(Lw);
+ 
 -    icFloatNumber SWr = Lsw / Lw;
 +    icFloatNumber SWr = 0.0f;
 +    if (std::isfinite(Lsw) && std::isfinite(Lw) && Lw != 0.0f)
 +      SWr = Lsw / Lw;
+ 
+     if (SWr>0.2) { //Average Surround
+       pCstmConvert->SetParameter_C(0.69f);

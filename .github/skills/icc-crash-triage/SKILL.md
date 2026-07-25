@@ -49,9 +49,16 @@ Read ASAN/UBSAN stack frame #2-#3 and classify by source file path:
 | `iccDEV/IccProfLib/` | UPSTREAM | CFL patch + report upstream |
 | `iccDEV/Tools/` | UPSTREAM | CFL patch + report upstream |
 | `libtiff` / `libpng` | SYSTEM LIB | Fix our call site |
+| `bits/basic_string.tcc`, `bits/stl_bvector.h`, `bits/stl_uninitialized.h` | STL NOISE | Suppress only if no iccDEV frame reports UB first |
 
 NEVER classify by profile filename. A profile named `ub-runtime-error-*` does
 NOT mean the bug is upstream.
+
+For ColorBleed sanitizer runs, `colorbleed_tools/sanitizer-ignorelist.txt`
+handles compile-time STL/libstdc++ noise and `colorbleed_tools/silence.txt`
+handles runtime UBSAN suppressions. Do not suppress iccDEV parser frames such
+as `IccJSON/IccLibJSON/IccProfileJson.cpp` unless the operation is proven
+intentional and well-defined.
 
 ### 3. Verify Commit Alignment
 
@@ -88,9 +95,10 @@ For multi-profile fuzzers, unbundle first:
 
 1. Reproduce: `ASAN_OPTIONS=detect_leaks=0 timeout 10 cfl/bin/<fuzzer> <crash-file>`
 2. Fix: Patch fuzzer or create `cfl/patches/NNN-*.patch`
-3. Rebuild: `cd cfl && ./build.sh`
-4. Verify: Re-run crash file -- must exit 0 with no ASAN/UBSAN
-5. Document: Update patch table, commit reproducer
+3. Patch-check: `.github/scripts/check-afl-cfl-patches.sh`
+4. Rebuild: `cd cfl && ./build.sh`
+5. Verify: Re-run crash file -- must exit 0 with no ASAN/UBSAN
+6. Document: Update patch table, commit reproducer
 
 ### 7. Reproduction Discipline
 

@@ -62,9 +62,13 @@ static const char* GetLateBindingNote(icElemTypeSignature sig)
 
 static icUInt32Number CountMpeElements(CIccTagMultiProcessElement *pMpe)
 {
+  static const icUInt32Number kMaxMpeElements = 65536;
   icUInt32Number nElements = 0;
-  while (pMpe && pMpe->GetElement((int)nElements)) {
+  while (pMpe && nElements < kMaxMpeElements && pMpe->GetElement((int)nElements)) {
     nElements++;
+  }
+  if (pMpe && nElements == kMaxMpeElements) {
+    DIAG("MPE element count reached safety cap (%u)", kMaxMpeElements);
   }
   return nElements;
 }
