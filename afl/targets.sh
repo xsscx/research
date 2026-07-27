@@ -44,7 +44,10 @@ AFL_TARGETS=(
     specseptotiff
     specseptotiff-compress
     specseptotiff-desc
+    specseptotiff-harvest
     specseptotiff-sep
+    specseptotiff-short
+    specseptotiff-tiff
     tiffdump
     tiffdump-extract
     tojson
@@ -96,8 +99,11 @@ afl_print_targets() {
     echo "  roundtrip-mpe    - iccRoundTrip (MPE round-trip lane)"
     echo "  specseptotiff    - iccSpecSepToTiff (fixed spectral TIFFs, fuzz embedded ICC)"
     echo "  specseptotiff-compress - iccSpecSepToTiff (compressed output lane)"
-    echo "  specseptotiff-desc - iccSpecSepToTiff (short-range compatibility lane)"
+    echo "  specseptotiff-desc - iccSpecSepToTiff (descending channel range lane)"
+    echo "  specseptotiff-harvest - iccSpecSepToTiff (gray300 spectral TIFF lane)"
     echo "  specseptotiff-sep - iccSpecSepToTiff (separated planes lane)"
+    echo "  specseptotiff-short - iccSpecSepToTiff (short-range compatibility lane)"
+    echo "  specseptotiff-tiff - iccSpecSepToTiff (fuzz spectral TIFF input via wrapper)"
     echo "  tiffdump         - iccTiffDump (TIFF -> ICC extraction)"
     echo "  tiffdump-extract - iccTiffDump (TIFF -> saved embedded ICC extraction)"
     echo "  tojson           - iccToJson (ICC binary -> JSON)"
@@ -732,7 +738,7 @@ afl_configure_target() {
                 AFL_ARGS=("@@")
             fi
             ;;
-        specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-sep)
+        specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-harvest|specseptotiff-sep|specseptotiff-short|specseptotiff-tiff)
             BINARY="$BIN_DIR/iccSpecSepToTiff"
             if [[ "$target" == "spec" ]]; then
                 AFL_DIR="$AFL_BASE/afl-spec"
@@ -754,6 +760,9 @@ afl_configure_target() {
             AFL_DISABLE_TRIM_TARGET=1
             AFL_FAST_CAL_TARGET=1
             [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=8192
+            SPECSEP_SOURCE_PREFIX="$REPO_ROOT/test-profiles/spectral/spec_00"
+            SPECSEP_COPY_START=1
+            SPECSEP_COPY_END=9
             REQUIRED_FILES=(
                 "$REPO_ROOT/test-profiles/spectral/spec_001.tif"
                 "$REPO_ROOT/test-profiles/spectral/spec_002.tif"
@@ -771,12 +780,55 @@ afl_configure_target() {
                     AFL_ARGS=("${tmp_prefix}.tif" "1" "0" "${tmp_prefix}-spec_00" "1" "9" "1" "@@")
                     ;;
                 specseptotiff-desc)
+                    TARGET_NOTE="SpecSep descending lane: fuzzes a small optional ICC profile with start=9, end=1, increment=-1 to cover reverse channel iteration."
+                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "${tmp_prefix}-spec_00" "9" "1" "-1" "@@")
+                    ;;
+                specseptotiff-harvest)
+                    TARGET_NOTE="SpecSep gray300 lane: fuzzes optional ICC profile parsing while fixed gray300 spectral TIFF inputs exercise larger 8-bit image rows."
+                    SPECSEP_SOURCE_PREFIX="$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_"
+                    SPECSEP_COPY_START=1
+                    SPECSEP_COPY_END=8
+                    REQUIRED_FILES=(
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_1"
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_2"
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_3"
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_4"
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_5"
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_6"
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_7"
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_8"
+                    )
+                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "${tmp_prefix}-harvest-spec_" "1" "8" "1" "@@")
+                    ;;
+                specseptotiff-short)
                     TARGET_NOTE="SpecSep short-range lane: fuzzes a small optional ICC profile with start=1, end=3, increment=1, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                     AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "${tmp_prefix}-spec_00" "1" "3" "1" "@@")
                     ;;
                 specseptotiff-sep)
                     TARGET_NOTE="SpecSep separated-plane lane: fuzzes a small optional ICC profile with compress=0, sep=1, ascending range, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                     AFL_ARGS=("${tmp_prefix}.tif" "0" "1" "${tmp_prefix}-spec_00" "1" "9" "1" "@@")
+                    ;;
+                specseptotiff-tiff)
+                    BINARY="$AFL_BASE/specsep-tiff-wrapper.sh"
+                    DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
+                    TARGET_NOTE="SpecSep TIFF-input lane: wrapper copies @@ to a one-channel prefix so AFL mutates CTiffImg/open/readline paths instead of the optional ICC profile."
+                    SEED_FILE_TYPE_REGEX='^(TIFF image data|Big TIFF image data)'
+                    SEED_DIRS=(
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-ci-small"
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-qa-2x1"
+                        "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300"
+                        "$REPO_ROOT/fuzz/graphics/spectral/valid"
+                        "$REPO_ROOT/fuzz/graphics/spectral/malformed"
+                        "$REPO_ROOT/fuzz/graphics/tif"
+                        "$REPO_ROOT/test-profiles/spectral"
+                        "$REPO_ROOT/test-profiles/tiff-codecs"
+                    )
+                    SEED_MAX_BYTES=262144
+                    SEED_LIMIT=128
+                    SEED_DRY_RUN_TARGET=1
+                    REQUIRED_FILES=("$BINARY" "$BIN_DIR/iccSpecSepToTiff")
+                    AFL_MAX_LENGTH=262144
+                    AFL_ARGS=("@@")
                     ;;
                 *)
                     TARGET_NOTE="SpecSep default lane: fuzzes a small optional ICC profile with fixed spectral TIFF inputs, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
@@ -951,13 +1003,16 @@ afl_prepare_target_support_files() {
     afl_prepare_hybrid_support_files
 
     case "$target" in
-        specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-sep)
+        specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-harvest|specseptotiff-sep|specseptotiff-short)
             local spectral_prefix="${AFL_ARGS[3]}"
             local n src dst
 
             mkdir -p "$(dirname "$spectral_prefix")"
-            for n in 1 2 3 4 5 6 7 8 9; do
-                src="$REPO_ROOT/test-profiles/spectral/spec_00${n}.tif"
+            for ((n=SPECSEP_COPY_START; n<=SPECSEP_COPY_END; n++)); do
+                src="${SPECSEP_SOURCE_PREFIX}${n}"
+                if [[ ! -e "$src" && "$n" -lt 10 ]]; then
+                    src="${SPECSEP_SOURCE_PREFIX}${n}.tif"
+                fi
                 dst="${spectral_prefix}${n}"
                 if [[ ! -e "$src" ]]; then
                     echo "ERROR: Required spectral TIFF not found: $src" >&2
