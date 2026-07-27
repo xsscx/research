@@ -91,7 +91,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest SBOM
-        uses: actions/attest-sbom@5ab5806a2ce22f5acba1a3cf560dc12fd0049bd6 # v3
+        uses: actions/attest-sbom@5729fe4dc697fb7538e4e94fd44d040aac1367b2 # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/iccdev-instrumented
           subject-digest: ${{ steps.build-push.outputs.digest }}
