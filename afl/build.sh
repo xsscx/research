@@ -27,6 +27,7 @@ AFL_LAF_BUILD=0
 AFL_CTX_BUILD=0
 AFL_NGRAM_SIZE_VAL="${AFL_NGRAM_SIZE:-}"
 AFL_LINK_MODE="${AFL_LINK_MODE:-static}"
+AFL_UBSAN_IGNORELIST="${AFL_UBSAN_IGNORELIST:-.github/ci/ubsan-ignorelist.txt}"
 
 usage() {
     sed -n '2,8p' "$0" | sed 's/^# \?//'
@@ -406,6 +407,15 @@ fi
 if [[ "$AFL_CMPLOG_BUILD" = "1" || "$AFL_LAF_BUILD" = "1" || "$AFL_CTX_BUILD" = "1" || -n "$AFL_NGRAM_SIZE_VAL" ]]; then
     echo "    AFL modes: cmplog=$AFL_CMPLOG_BUILD laf=$AFL_LAF_BUILD ctx=$AFL_CTX_BUILD ngram=${AFL_NGRAM_SIZE_VAL:-off}"
 fi
+UBSAN_IGNORELIST_ARGS=()
+if [[ -n "$AFL_UBSAN_IGNORELIST" ]]; then
+    if [[ -f "$ICCDEV_DIR/$AFL_UBSAN_IGNORELIST" ]]; then
+        UBSAN_IGNORELIST_ARGS=(-DUBSAN_IGNORELIST="$AFL_UBSAN_IGNORELIST")
+        echo "    UBSAN ignorelist: $AFL_UBSAN_IGNORELIST"
+    else
+        echo "    UBSAN ignorelist: not found ($AFL_UBSAN_IGNORELIST)"
+    fi
+fi
 
 # Detect multiarch include/lib paths. Ubuntu puts some headers in /usr/include/<arch>/.
 ARCH_INCLUDE="/usr/include/$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu)"
@@ -445,6 +455,7 @@ env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_B
     -DENABLE_SANITIZERS=ON \
     -DSANITIZER_RECOVER=OFF \
     -DENABLE_TOOLS=ON \
+    "${UBSAN_IGNORELIST_ARGS[@]}" \
     -DENABLE_SHARED_LIBS="$AFL_ENABLE_SHARED_LIBS" \
     -DENABLE_STATIC_LIBS=ON \
     -DTIFF_INCLUDE_DIR="$ARCH_INCLUDE" \
