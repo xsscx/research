@@ -267,6 +267,12 @@ int main(int argc, char* argv[])
 
   result.Report("ICC -> XML", src_path);
 
+  if (result.SanitizerFinding()) {
+    printf("[ColorBleed] FINDING: Profile triggered sanitizer report\n");
+    printf("[ColorBleed] Exit code: %d\n", result.exit_code);
+    return result.exit_code;
+  }
+
   if (result.crashed) {
     printf("[ColorBleed] FINDING: Profile triggered library crash\n");
     printf("[ColorBleed] Exit code: %d  Signal: %s\n",

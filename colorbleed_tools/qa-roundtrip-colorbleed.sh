@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+tools_dir="${COLORBLEED_TOOLS_DIR:-$script_dir/bin/sanitizer}"
+input_icc="${1:-$repo_root/afl/afl-toxml/input.backup.20260729T011533Z/Rec2020rgbColorimetric.icc}"
+out_dir="${2:-/tmp/colorbleed-qa-$(date +%s)}"
+
+mkdir -p "$out_dir"
+
+run_tool() {
+  local name="$1"
+  shift
+  local log="$out_dir/$name.log"
+
+  set +e
+  timeout 45 "$@" >"$log" 2>&1
+  local rc=$?
+  set -e
+
+  printf '%-22s rc=%s\n' "$name" "$rc" | tee -a "$out_dir/summary.txt"
+  if rg -n "runtime error:|ERROR: AddressSanitizer|SUMMARY: UndefinedBehaviorSanitizer|CRASH DETECTED|wall time limit exceeded|ABNORMAL EXIT" "$log" >"$out_dir/$name.findings"; then
+    sed "s#^#$name:#" "$out_dir/$name.findings" >> "$out_dir/findings.txt"
+  fi
+
+  return "$rc"
+}
+
+: >"$out_dir/summary.txt"
+: >"$out_dir/findings.txt"
+
+run_tool icc_to_xml "$tools_dir/iccToXml_unsafe" "$input_icc" "$out_dir/base.xml"
+run_tool xml_to_icc "$tools_dir/iccFromXml_unsafe" "$out_dir/base.xml" "$out_dir/base-roundtrip.icc" -noid
+run_tool icc_to_xml_again "$tools_dir/iccToXml_unsafe" "$out_dir/base-roundtrip.icc" "$out_dir/base-roundtrip.xml"
+run_tool icc_to_json "$tools_dir/iccToJson_unsafe" "$out_dir/base-roundtrip.icc" "$out_dir/base.json"
+run_tool json_to_icc "$tools_dir/iccFromJson_unsafe" "$out_dir/base.json" "$out_dir/base-json.icc" -noid
+run_tool json_icc_to_xml "$tools_dir/iccToXml_unsafe" "$out_dir/base-json.icc" "$out_dir/base-json.xml"
+run_tool dumpall "$tools_dir/iccDumpAll" --diag --read "$out_dir/base-roundtrip.icc" ALL
+run_tool diagnostic "$tools_dir/iccDiagnosticLoad" --all --dump "$out_dir/base-roundtrip.icc"
+
+if [ -s "$out_dir/findings.txt" ]; then
+  echo "ColorBleed QA findings:"
+  sed -n '1,120p' "$out_dir/findings.txt"
+  exit 1
+fi
+
+echo "ColorBleed QA clean: $out_dir"

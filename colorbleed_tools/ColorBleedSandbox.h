@@ -42,15 +42,44 @@
 #include <climits>
 #include <ctime>
 
-// ASan recoverable mode: log errors, don't abort
+static bool ColorBleedStrictSanitizers()
+{
+    const char *value = getenv("COLORBLEED_STRICT_SANITIZERS");
+    return value && value[0] && strcmp(value, "0");
+}
+
+// ASan recoverable mode by default: log errors, don't abort.  Set
+// COLORBLEED_STRICT_SANITIZERS=1 for QA gates where sanitizer reports should
+// stop the child immediately and produce a non-zero status.
 extern "C" const char* __asan_default_options() {
+    if (ColorBleedStrictSanitizers()) {
+        return "halt_on_error=1:abort_on_error=1:detect_leaks=0:print_summary=1"
+               ":color=always:print_scariness=1";
+    }
     return "halt_on_error=0:detect_leaks=0:print_summary=1"
            ":color=always:print_scariness=1";
 }
 
-// UBSan: recover and continue
+// UBSan: recover and continue unless strict QA mode is requested.
 extern "C" const char* __ubsan_default_options() {
+    if (ColorBleedStrictSanitizers()) {
+        return "halt_on_error=1:abort_on_error=1:print_stacktrace=1";
+    }
     return "halt_on_error=0:print_stacktrace=1";
+}
+
+extern "C" void __asan_on_error()
+{
+    if (ColorBleedStrictSanitizers()) {
+        _exit(86);
+    }
+}
+
+extern "C" void __ubsan_on_report()
+{
+    if (ColorBleedStrictSanitizers()) {
+        _exit(86);
+    }
 }
 
 // Signal recovery jump buffer (per-child)
@@ -82,6 +111,10 @@ struct SandboxResult {
     bool crashed;
     bool partial_output;
 
+    bool SanitizerFinding() const {
+        return exit_code == 86;
+    }
+
     const char* SignalName() const {
         if (!signal_num) return "none";
         switch (signal_num) {
@@ -107,7 +140,9 @@ struct SandboxResult {
         fprintf(stderr, "| Operation: %-40.40s |\n", operation);
         fprintf(stderr, "| File:      %-40.40s |\n", filename);
 
-        if (!crashed && exit_code == 0) {
+        if (SanitizerFinding()) {
+            fprintf(stderr, "| Status:    %-40.40s |\n", "*** SANITIZER FINDING ***");
+        } else if (!crashed && exit_code == 0) {
             snprintf(status, sizeof(status), "CLEAN EXIT (code %d)", exit_code);
             fprintf(stderr, "| Status:    %-40.40s |\n", status);
         } else if (signal_num) {

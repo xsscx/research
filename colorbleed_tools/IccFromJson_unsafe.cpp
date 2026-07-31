@@ -331,6 +331,12 @@ int main(int argc, char* argv[])
   result.Report("JSON -> ICC", json_path);
   WriteDiagnosticSidecar(icc_path, json_path, json_summary, result);
 
+  if (result.SanitizerFinding()) {
+    printf("[ColorBleed] FINDING: Input triggered sanitizer report\n");
+    printf("[ColorBleed] Exit code: %d\n", result.exit_code);
+    return result.exit_code;
+  }
+
   if (result.crashed) {
     printf("[ColorBleed] FINDING: Input triggered library crash\n");
     printf("[ColorBleed] Exit code: %d  Signal: %s\n",

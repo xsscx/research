@@ -135,6 +135,13 @@ int main(int argc, char* argv[])
     }
   }
 
+  if (sort_keys) {
+    fprintf(stderr,
+            "[ColorBleed] ERROR: -sort is disabled pending sanitizer hardening; "
+            "run without -sort for ICC->JSON QA\n");
+    return kExitUsage;
+  }
+
   char resolved_src[PATH_MAX];
   if (!realpath(argv[1], resolved_src)) {
     fprintf(stderr, "[ColorBleed] Cannot resolve input path: %s\n", argv[1]);
@@ -242,6 +249,12 @@ int main(int argc, char* argv[])
   }, limits);
 
   result.Report("ICC -> JSON", src_path);
+
+  if (result.SanitizerFinding()) {
+    printf("[ColorBleed] FINDING: Profile triggered sanitizer report\n");
+    printf("[ColorBleed] Exit code: %d\n", result.exit_code);
+    return result.exit_code;
+  }
 
   if (result.crashed) {
     printf("[ColorBleed] FINDING: Profile triggered library crash\n");
