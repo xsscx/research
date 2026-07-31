@@ -12,17 +12,17 @@ Quick reference - metrics, data model, regex patterns, fidelity results.
 
 | Metric | Value |
 |--------|-------|
-| Knowledge graph nodes | 525 |
-| Knowledge graph edges | 585 |
+| Knowledge graph nodes | 562 |
+| Knowledge graph edges | 602 |
 | Registry-derived heuristics | 181 |
-| Generated call-graph components | 9 |
-| Fuzzer target edges | 7 |
-| Generated component fuzzer coverage | 6/9 |
+| Generated call-graph components | 46 |
+| Fuzzer target edges | 11 |
+| Generated component fuzzer coverage | 10/46 |
 
 The latest local rebuild reused the committed heuristic registry data because
 `iccanalyzer-lite/iccanalyzer-lite` was not present. Call-graph components were
-refreshed from generated `*-summary.json` files because `call-graph/index.json`
-is generated and ignored.
+refreshed from generated `*-summary.json` files and the regenerated
+`call-graph/index.json`.
 
 ## Where to Find Information
 
@@ -64,4 +64,4 @@ python3 call-graph/scripts/generate-mermaid.py all
 ```
 
 ---
-**Last Updated:** 2026-07-05 | **Scope:** generated local artifacts + knowledge graph
+**Last Updated:** 2026-07-28 | **Scope:** generated local artifacts + knowledge graph

@@ -8,7 +8,7 @@ Transforms:
   3. Remove record-style {braces} from labels (use plain labels)
   4. Strip graph attribute blocks and replace with clean styling
   5. Filter noise nodes: std::, libc, LLVM intrinsics, compiler helpers
-  6. Regenerate SVGs with graphviz dot (auto-sized, not forced 200×200in)
+  6. Regenerate SVGs with graphviz dot (auto-sized, not forced 200x200in)
 
 Usage:
   python3 improve-callgraphs.py                    # process all (always filters noise)
@@ -27,7 +27,7 @@ from pathlib import Path
 
 CALL_GRAPH_DIR = Path(__file__).resolve().parent.parent
 
-# Noise node prefixes — these add clutter without analytical value
+# Noise node prefixes - these add clutter without analytical value
 NOISE_PREFIXES = [
     # C++ runtime
     "std::", "__cxa_", "__gxx_", "_Unwind_", "__clang_", "__cxx_global",
@@ -96,7 +96,7 @@ NOISE_EXACT = {
 
 # Graph attributes for clean, browser-viewable SVGs
 GRAPH_ATTRS = """\
-\t// Clean graph styling — auto-sized for browser viewing
+\t// Clean graph styling - auto-sized for browser viewing
 \tgraph [
 \t\trankdir=LR,
 \t\tnodesep=0.3,
@@ -375,7 +375,7 @@ def main():
     if filter_noise:
         print("  Filtering noise nodes (libc, LLVM, std::, compiler helpers)")
     if args.dry_run:
-        print("  DRY RUN — no files will be modified")
+        print("  DRY RUN - no files will be modified")
 
     total = {"demangled": 0, "fallback": 0, "noise_filtered": 0, "total_nodes": 0, "remaining": 0}
 

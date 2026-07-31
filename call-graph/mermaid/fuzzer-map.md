@@ -25,10 +25,18 @@ graph LR
     comp_iccdev_tools_IccApplyToLink(["IccApplyToLink"]):::tool
     fuzzer_icc_link_fuzzer -->|65%| comp_iccdev_tools_IccApplyToLink
     fuzzer_icc_roundtrip_fuzzer["roundtrip"]:::fuzzer
+    comp_iccdev_tools_IccRoundTrip(["IccRoundTrip"]):::tool
+    fuzzer_icc_roundtrip_fuzzer -->|95%| comp_iccdev_tools_IccRoundTrip
     fuzzer_icc_specsep_fuzzer["specsep"]:::fuzzer
+    comp_iccdev_tools_IccSpecSepToTiff(["IccSpecSepToTiff"]):::tool
+    fuzzer_icc_specsep_fuzzer -->|85%| comp_iccdev_tools_IccSpecSepToTiff
     fuzzer_icc_tiffdump_fuzzer["tiffdump"]:::fuzzer
+    comp_iccdev_tools_IccTiffDump(["IccTiffDump"]):::tool
+    fuzzer_icc_tiffdump_fuzzer --> comp_iccdev_tools_IccTiffDump
     fuzzer_icc_toxml_fuzzer["toxml"]:::fuzzer
     fuzzer_icc_v5dspobs_fuzzer["v5dspobs"]:::fuzzer
+    comp_iccdev_tools_IccV5DspObsToV4Dsp(["IccV5DspObsToV4Dsp"]):::tool
+    fuzzer_icc_v5dspobs_fuzzer --> comp_iccdev_tools_IccV5DspObsToV4Dsp
 
     classDef fuzzer fill:#1565c0,color:#fff,stroke:#0d47a1
     classDef tool fill:#2e7d32,color:#fff,stroke:#1b5e20

@@ -87,7 +87,7 @@ These rules derive from real multi-agent failures. Source: xsscx/governance LLMC
 | 3 | Verify counts with `find`/`wc -l` before updating docs. | Inflated counts propagate. |
 | 4 | One Dockerfile, one workflow, one image. | Duplicate Dockerfiles diverge. |
 | 5 | Run `pre-push-validate.sh` before pushing. 7 build locations must sync. | Local build.sh success != CI success. |
-| 6 | NEVER claim success without showing verification command + output. | 62.5% of governance violations are this pattern. |
+| 6 | NEVER claim success without showing verification command + output, and require GitHub `Pre-flight checks` plus `ci-risk-analysis` to pass before calling PR/CI green. | 62.5% of governance violations are this pattern; pre-flight and risk analysis catch lint/governance/security failures that build/test jobs can miss. |
 | 7 | Exit 1-127 = graceful (NOT a crash). Exit 128+ = signal (crash). Tool exit code is authoritative, not fuzzer output. | False crash reports. |
 | 8 | ALWAYS use project tools (`iccDEV/Build/Tools/`) for crash repro. No custom test programs. | Missing patches/flags/runtime config. |
 | 9 | Before debugging, `grep -r` the error across `.github/`, `docs/`, `README.md`. | Reinventing what docs already explain. |
@@ -131,5 +131,7 @@ Types: `analysis:` `cfl:` `afl:` `cli:` `coverage:` `fuzz:` `docs:` `fix:` `call
 ## Session Governance
 
 Core workflow: VERIFY -> CITE -> CLAIM. No success claims without evidence.
+PR/CI success claims require the GitHub `Pre-flight checks` job and
+`ci-risk-analysis` workflow to pass.
 All agent file output MUST be ASCII. Use `edit`/`create` tools, never heredocs.
 Verify with `file FILENAME`. See `AGENTS.md` for TUI encoding defect details.

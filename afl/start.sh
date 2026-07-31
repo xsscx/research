@@ -869,6 +869,16 @@ if [[ "${AFL_FAST_CAL_TARGET:-0}" -eq 1 || "${AFL_FAST_CAL:-0}" != "0" ]]; then
 else
     unset AFL_FAST_CAL
 fi
+if [[ "${AFL_NO_FORKSRV_TARGET:-0}" -eq 1 || "${AFL_NO_FORKSRV:-0}" != "0" ]]; then
+    export AFL_NO_FORKSRV=1
+else
+    unset AFL_NO_FORKSRV
+fi
+if [[ "${AFL_SKIP_BIN_CHECK_TARGET:-0}" -eq 1 || "${AFL_SKIP_BIN_CHECK:-0}" != "0" ]]; then
+    export AFL_SKIP_BIN_CHECK=1
+else
+    unset AFL_SKIP_BIN_CHECK
+fi
 if [[ -n "$ICC_RUNTIME_LIB_PATH" ]]; then
     export LD_LIBRARY_PATH="$ICC_RUNTIME_LIB_PATH"
 else

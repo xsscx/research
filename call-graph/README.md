@@ -72,15 +72,16 @@ Observed command results:
 
 | Command | Result |
 |---------|--------|
-| `python3 call-graph/scripts/generate-callgraphs.py --summary` | 9 targets, 109796 AST functions, 10015 call edges |
-| `python3 call-graph/scripts/build-knowledge-graph.py` | 525 nodes, 585 edges |
-| `python3 call-graph/scripts/query-graph.py stats` | 181 heuristics, 98 CVEs, 106 GHSAs, 57 CWEs, 61 patches, 9 components, 13 fuzzers |
-| `python3 call-graph/scripts/query-graph.py attack` | 6/9 generated components have fuzzer target edges |
+| `python3 call-graph/scripts/generate-callgraphs.py` | 46 targets processed |
+| `python3 call-graph/scripts/improve-callgraphs.py` | 146 SVGs regenerated, 0 failed |
+| `python3 call-graph/scripts/generate-callgraphs.py --summary` | 46 targets, 1159816 AST functions, 105087 call edges |
+| `python3 call-graph/scripts/build-knowledge-graph.py` | 562 nodes, 602 edges |
+| `python3 call-graph/scripts/query-graph.py stats` | 181 heuristics, 98 CVEs, 106 GHSAs, 57 CWEs, 61 patches, 46 components, 13 fuzzers |
+| `python3 call-graph/scripts/query-graph.py attack` | 10/46 generated components have fuzzer target edges |
 
-The function counts above come from summaries generated before the AST source
-filter was tightened to avoid system-header declarations with missing file
-locations. Regenerate affected targets before using those counts as coverage
-denominators.
+During raw generation, Graphviz timed out on two large IccLibJSON SVGs at the
+generator's 120-second per-render limit. The required post-processing pass
+rerendered the complete SVG set successfully.
 
 ## Method
 

@@ -785,14 +785,19 @@ def generate_master_index(all_results: List[Dict], merge_existing: bool = False)
         }
 
     result_keys = {(r["component"], r["target"]) for r in all_results}
+    if merge_existing:
+        for comp, targets in list(index["components"].items()):
+            index["components"][comp] = [
+                existing for existing in targets
+                if (comp, existing.get("name")) not in result_keys
+            ]
+    else:
+        index["components"] = {}
+
     for r in all_results:
         comp = r["component"]
         if comp not in index["components"]:
             index["components"][comp] = []
-        index["components"][comp] = [
-            existing for existing in index["components"][comp]
-            if (comp, existing.get("name")) not in result_keys
-        ]
         index["components"][comp].append({
             "name": r["target"],
             "ast_functions": r["ast_functions"],

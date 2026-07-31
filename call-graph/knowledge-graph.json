@@ -2,14 +2,14 @@
   "version": "1.0.0",
   "generated_by": "build-knowledge-graph.py",
   "stats": {
-    "nodes": 525,
-    "edges": 585,
+    "nodes": 562,
+    "edges": 602,
     "heuristics": 181,
     "cves": 98,
     "ghsas": 106,
     "cwes": 57,
     "patches": 61,
-    "components": 9,
+    "components": 46,
     "fuzzers": 13,
     "severity_distribution": {
       "CRITICAL": 62,
@@ -3050,11 +3050,263 @@
       "review_state": "verified"
     },
     {
+      "id": "comp:analyzer/iccanalyzer-lite",
+      "type": "component",
+      "component": "analyzer",
+      "name": "iccanalyzer-lite",
+      "ast_functions": 313211,
+      "cg_edges": 23689,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_applynamedcmm_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_applynamedcmm_fuzzer",
+      "ast_functions": 7030,
+      "cg_edges": 41,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_applyprofiles_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_applyprofiles_fuzzer",
+      "ast_functions": 18205,
+      "cg_edges": 264,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_applyprofiles_row_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_applyprofiles_row_fuzzer",
+      "ast_functions": 18204,
+      "cg_edges": 264,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_applysearch_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_applysearch_fuzzer",
+      "ast_functions": 7503,
+      "cg_edges": 46,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_applysearch_weight_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_applysearch_weight_fuzzer",
+      "ast_functions": 7503,
+      "cg_edges": 46,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_cfg_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_cfg_fuzzer",
+      "ast_functions": 17138,
+      "cg_edges": 2575,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_connect_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_connect_fuzzer",
+      "ast_functions": 18082,
+      "cg_edges": 229,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_dump_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_dump_fuzzer",
+      "ast_functions": 7217,
+      "cg_edges": 198,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_fromcube_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_fromcube_fuzzer",
+      "ast_functions": 6209,
+      "cg_edges": 287,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_fromjson_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_fromjson_fuzzer",
+      "ast_functions": 14106,
+      "cg_edges": 2392,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_fromxml_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_fromxml_fuzzer",
+      "ast_functions": 4981,
+      "cg_edges": 110,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_jpegdump_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_jpegdump_fuzzer",
+      "ast_functions": 3876,
+      "cg_edges": 442,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_link_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_link_fuzzer",
+      "ast_functions": 6866,
+      "cg_edges": 85,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_pawgreport_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_pawgreport_fuzzer",
+      "ast_functions": 0,
+      "cg_edges": 3,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:cfl/icc_pngdump_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_pngdump_fuzzer",
+      "ast_functions": 0,
+      "cg_edges": 20,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:cfl/icc_roundtrip_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_roundtrip_fuzzer",
+      "ast_functions": 6430,
+      "cg_edges": 27,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_specsep_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_specsep_fuzzer",
+      "ast_functions": 2736,
+      "cg_edges": 137,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_tiffdump_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_tiffdump_fuzzer",
+      "ast_functions": 6856,
+      "cg_edges": 147,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_tojson_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_tojson_fuzzer",
+      "ast_functions": 13544,
+      "cg_edges": 616,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_toxml_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_toxml_fuzzer",
+      "ast_functions": 4666,
+      "cg_edges": 105,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_v5dspobs_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_v5dspobs_fuzzer",
+      "ast_functions": 5975,
+      "cg_edges": 163,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:colorbleed/ColorBleedAlloc",
+      "type": "component",
+      "component": "colorbleed",
+      "name": "ColorBleedAlloc",
+      "ast_functions": 264,
+      "cg_edges": 4,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:colorbleed/IccFromXml_unsafe",
+      "type": "component",
+      "component": "colorbleed",
+      "name": "IccFromXml_unsafe",
+      "ast_functions": 0,
+      "cg_edges": 11,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:colorbleed/IccToXml_unsafe",
+      "type": "component",
+      "component": "colorbleed",
+      "name": "IccToXml_unsafe",
+      "ast_functions": 0,
+      "cg_edges": 39,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/connect/IccLibConnect",
+      "type": "component",
+      "component": "iccdev/connect",
+      "name": "IccLibConnect",
+      "ast_functions": 52457,
+      "cg_edges": 8168,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/json/IccLibJSON",
+      "type": "component",
+      "component": "iccdev/json",
+      "name": "IccLibJSON",
+      "ast_functions": 104498,
+      "cg_edges": 17043,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/proflib/IccProfLib",
+      "type": "component",
+      "component": "iccdev/proflib",
+      "name": "IccProfLib",
+      "ast_functions": 227043,
+      "cg_edges": 18328,
+      "cg_method": "llvm-ir"
+    },
+    {
       "id": "comp:iccdev/tools/IccApplyNamedCmm",
       "type": "component",
       "component": "iccdev/tools",
       "name": "IccApplyNamedCmm",
-      "ast_functions": 19814,
+      "ast_functions": 18436,
       "cg_edges": 2060,
       "cg_method": "llvm-ir"
     },
@@ -3063,7 +3315,7 @@
       "type": "component",
       "component": "iccdev/tools",
       "name": "IccApplyProfiles",
-      "ast_functions": 21220,
+      "ast_functions": 19806,
       "cg_edges": 1696,
       "cg_method": "llvm-ir"
     },
@@ -3072,7 +3324,7 @@
       "type": "component",
       "component": "iccdev/tools",
       "name": "IccApplySearch",
-      "ast_functions": 19809,
+      "ast_functions": 18432,
       "cg_edges": 2066,
       "cg_method": "llvm-ir"
     },
@@ -3081,8 +3333,8 @@
       "type": "component",
       "component": "iccdev/tools",
       "name": "IccApplyToLink",
-      "ast_functions": 8494,
-      "cg_edges": 643,
+      "ast_functions": 8236,
+      "cg_edges": 657,
       "cg_method": "llvm-ir"
     },
     {
@@ -3090,7 +3342,7 @@
       "type": "component",
       "component": "iccdev/tools",
       "name": "IccDumpProfile",
-      "ast_functions": 7754,
+      "ast_functions": 7599,
       "cg_edges": 497,
       "cg_method": "llvm-ir"
     },
@@ -3099,8 +3351,17 @@
       "type": "component",
       "component": "iccdev/tools",
       "name": "IccFromCube",
-      "ast_functions": 6110,
-      "cg_edges": 311,
+      "ast_functions": 6345,
+      "cg_edges": 322,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccFromJson",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccFromJson",
+      "ast_functions": 12514,
+      "cg_edges": 86,
       "cg_method": "llvm-ir"
     },
     {
@@ -3108,7 +3369,7 @@
       "type": "component",
       "component": "iccdev/tools",
       "name": "IccJpegDump",
-      "ast_functions": 4958,
+      "ast_functions": 4741,
       "cg_edges": 419,
       "cg_method": "llvm-ir"
     },
@@ -3117,8 +3378,8 @@
       "type": "component",
       "component": "iccdev/tools",
       "name": "IccPawgReport",
-      "ast_functions": 13232,
-      "cg_edges": 2066,
+      "ast_functions": 12716,
+      "cg_edges": 2141,
       "cg_method": "llvm-ir"
     },
     {
@@ -3126,8 +3387,80 @@
       "type": "component",
       "component": "iccdev/tools",
       "name": "IccPngDump",
-      "ast_functions": 8405,
-      "cg_edges": 257,
+      "ast_functions": 7923,
+      "cg_edges": 255,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccProfilePlot",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccProfilePlot",
+      "ast_functions": 38439,
+      "cg_edges": 3817,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccProfileVisualize",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccProfileVisualize",
+      "ast_functions": 33637,
+      "cg_edges": 3863,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccRoundTrip",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccRoundTrip",
+      "ast_functions": 6281,
+      "cg_edges": 25,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccSpecSepToTiff",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccSpecSepToTiff",
+      "ast_functions": 8011,
+      "cg_edges": 356,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccTiffDump",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccTiffDump",
+      "ast_functions": 6503,
+      "cg_edges": 191,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccToJson",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccToJson",
+      "ast_functions": 15871,
+      "cg_edges": 3915,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccV5DspObsToV4Dsp",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccV5DspObsToV4Dsp",
+      "ast_functions": 5855,
+      "cg_edges": 212,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/xml/IccLibXML",
+      "type": "component",
+      "component": "iccdev/xml",
+      "name": "IccLibXML",
+      "ast_functions": 53871,
+      "cg_edges": 7030,
       "cg_method": "llvm-ir"
     },
     {
@@ -6250,10 +6583,51 @@
       "fidelity_pct": 100
     },
     {
+      "source": "fuzzer:icc_dump_fuzzer",
+      "target": "comp:cfl/icc_dump_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_toxml_fuzzer",
+      "target": "comp:cfl/icc_toxml_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_fromxml_fuzzer",
+      "target": "comp:cfl/icc_fromxml_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_roundtrip_fuzzer",
+      "target": "comp:iccdev/tools/IccRoundTrip",
+      "relationship": "TARGETS",
+      "fidelity_pct": 95
+    },
+    {
+      "source": "fuzzer:icc_roundtrip_fuzzer",
+      "target": "comp:cfl/icc_roundtrip_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
       "source": "fuzzer:icc_fromcube_fuzzer",
       "target": "comp:iccdev/tools/IccFromCube",
       "relationship": "TARGETS",
       "fidelity_pct": 100
+    },
+    {
+      "source": "fuzzer:icc_fromcube_fuzzer",
+      "target": "comp:cfl/icc_fromcube_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_tiffdump_fuzzer",
+      "target": "comp:iccdev/tools/IccTiffDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "fuzzer:icc_tiffdump_fuzzer",
+      "target": "comp:cfl/icc_tiffdump_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
     },
     {
       "source": "fuzzer:icc_applynamedcmm_fuzzer",
@@ -6262,9 +6636,19 @@
       "fidelity_pct": 75
     },
     {
+      "source": "fuzzer:icc_applynamedcmm_fuzzer",
+      "target": "comp:cfl/icc_applynamedcmm_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
       "source": "fuzzer:icc_applyprofiles_fuzzer",
       "target": "comp:iccdev/tools/IccApplyProfiles",
       "relationship": "TARGETS"
+    },
+    {
+      "source": "fuzzer:icc_applyprofiles_fuzzer",
+      "target": "comp:cfl/icc_applyprofiles_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
     },
     {
       "source": "fuzzer:icc_link_fuzzer",
@@ -6273,14 +6657,50 @@
       "fidelity_pct": 65
     },
     {
+      "source": "fuzzer:icc_link_fuzzer",
+      "target": "comp:cfl/icc_link_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_v5dspobs_fuzzer",
+      "target": "comp:iccdev/tools/IccV5DspObsToV4Dsp",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "fuzzer:icc_v5dspobs_fuzzer",
+      "target": "comp:cfl/icc_v5dspobs_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_specsep_fuzzer",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS",
+      "fidelity_pct": 85
+    },
+    {
+      "source": "fuzzer:icc_specsep_fuzzer",
+      "target": "comp:cfl/icc_specsep_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
       "source": "fuzzer:icc_applysearch_fuzzer",
       "target": "comp:iccdev/tools/IccApplySearch",
       "relationship": "TARGETS"
     },
     {
+      "source": "fuzzer:icc_applysearch_fuzzer",
+      "target": "comp:cfl/icc_applysearch_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
       "source": "fuzzer:icc_cfg_fuzzer",
       "target": "comp:iccdev/tools/IccApplyNamedCmm",
       "relationship": "TARGETS"
+    },
+    {
+      "source": "fuzzer:icc_cfg_fuzzer",
+      "target": "comp:cfl/icc_cfg_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
     }
   ]
 }

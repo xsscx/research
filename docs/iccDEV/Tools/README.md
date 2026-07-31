@@ -20,7 +20,7 @@ export ASAN_OPTIONS=detect_leaks=0
 | iccDumpProfile | - | Dump header, tags, data | Valid profile |
 | iccToXml | - | ICC binary to XML | Conversion OK |
 | iccFromXml | - | XML to ICC binary | Conversion OK |
-| iccToJson | - | ICC binary to JSON | Conversion OK |
+| [iccToJson](iccToJson/README.md) | - | ICC binary to JSON | Conversion OK |
 | iccFromJson | - | JSON to ICC binary | Conversion OK |
 | iccRoundTrip | - | Forward+inverse error | Transform OK |
 | iccFromCube | - | .cube LUT to ICC DeviceLink | Conversion OK |

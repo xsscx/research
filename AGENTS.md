@@ -50,6 +50,9 @@ ALWAYS verify after writing.
 
 1. **File writes**: `create`/`edit` tools only. Verify `file FILENAME` = `ASCII text`.
 2. **Claims**: VERIFY -> CITE -> CLAIM. No success without command output evidence.
+   PR/CI success also requires the GitHub `Pre-flight checks` job and
+   `ci-risk-analysis` workflow to pass; do not call a PR green while either is
+   failing or pending.
 3. **The loop**: If fixing the same thing twice, stop and switch approach.
 4. **Tool convergence**: Use proven winners -- do not re-evaluate each session.
 5. **PoC policy**: Do not create standalone `.cpp` PoCs. Reproduce bugs with

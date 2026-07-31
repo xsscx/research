@@ -267,6 +267,11 @@ tests, ASAN spot-check, and `.github/scripts/pre-push-validate.sh`. The
 `pre-push-validate.sh` check is mandatory because a local `build.sh` success does
 NOT guarantee CI success.
 
+For PR/CI status reports, the GitHub `Pre-flight checks` job and
+`ci-risk-analysis` workflow are required success gates. Do not report a PR as
+green or successful while either is failing, skipped unexpectedly, or still
+pending, even if all build/test jobs pass.
+
 ### iccanalyzer-lite build sync
 
 When adding/removing analyzer sources or linker flags, keep all 7 build locations
