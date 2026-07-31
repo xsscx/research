@@ -122,6 +122,8 @@ screenshot-*.png
 *.screenshot.png
 *.trace.zip
 *.har
+*_luts.pdf
+*_edges.tif
 
 # Scratch / staging dictionaries (consolidated versions are tracked)
 add-dict.txt

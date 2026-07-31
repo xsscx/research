@@ -729,12 +729,18 @@ afl_configure_target() {
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/extended-test-profiles"
             )
+            SEED_MAX_BYTES=262144
+            SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
+            SEED_DRY_RUN_TARGET=1
             if [[ "$target" == "profilevisualize-fast" ]]; then
                 SEED_MAX_BYTES=8192
                 SEED_LIMIT=96
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 TARGET_NOTE="Fast ProfileVisualize lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+            else
+                SEED_LIMIT=200
+                TARGET_NOTE="ProfileVisualize lane: screened ICC corpus capped at 256 KiB to avoid oversized visualization seeds before long runs."
             fi
             AFL_ARGS=("@@")
             ;;
@@ -797,7 +803,10 @@ afl_configure_target() {
             )
             case "$target" in
                 specseptotiff-compress)
-                    TARGET_NOTE="SpecSep compressed-output lane: fuzzes a small optional ICC profile with compress=1, sep=0, ascending range, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                    SEED_MAX_BYTES=65536
+                    SEED_LIMIT=64
+                    [[ -z "${AFL_MAX_LENGTH:-}" || "${AFL_MAX_LENGTH:-}" == "8192" ]] && AFL_MAX_LENGTH=65536
+                    TARGET_NOTE="SpecSep compressed-output lane: fuzzes a bounded optional ICC profile with compress=1, sep=0, ascending range; 64 KiB cap keeps richer seeds without reopening the oversized corpus."
                     AFL_ARGS=("${tmp_prefix}.tif" "1" "0" "${tmp_prefix}-spec_00" "1" "9" "1" "@@")
                     ;;
                 specseptotiff-desc)
