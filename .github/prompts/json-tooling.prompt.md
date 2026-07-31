@@ -53,13 +53,19 @@ cd colorbleed_tools
 make setup
 ./iccToJson_unsafe ../test-profiles/sRGB_D65_MAT.icc /tmp/profile.json
 ./iccFromJson_unsafe /tmp/profile.json /tmp/profile-json.icc
+./qa-roundtrip-colorbleed.sh
 ```
+
+Do not pass `-sort` to `iccToJson_unsafe` in ColorBleed QA. That wrapper exits
+64 for `-sort` until the sorted JSON writer path is sanitizer-clean.
 
 For sanitizer reproductions of malformed profile JSON, keep STL/libstdc++
 template noise suppressed while preserving iccDEV parser reports:
 
 ```bash
 UBSAN_OPTIONS=print_stacktrace=1:suppressions=$PWD/silence.txt \
+  bin/sanitizer/iccFromJson_unsafe input.json /tmp/profile-json.icc
+COLORBLEED_STRICT_SANITIZERS=1 \
   bin/sanitizer/iccFromJson_unsafe input.json /tmp/profile-json.icc
 ```
 

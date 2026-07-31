@@ -54,7 +54,7 @@ python3 "$REPO_ROOT/iccanalyzer-lite/tests/run_tests.py" -v
 cd "$REPO_ROOT/iccanalyzer-lite/icctest" && ./build.sh
 ctest --test-dir build --output-on-failure
 
-cd "$REPO_ROOT/colorbleed_tools" && make setup && make test
+cd "$REPO_ROOT/colorbleed_tools" && make setup && make test && make qa
 
 cd "$REPO_ROOT/cfl" && ./build.sh
 

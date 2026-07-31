@@ -47,7 +47,7 @@ TARGETS = iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe 
 UBSAN_SUPP = $(CURDIR)/silence.txt
 SAN_RUN_ENV = LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1:suppressions=$(UBSAN_SUPP)
 
-.PHONY: all clean distclean test setup help
+.PHONY: all clean distclean test qa setup help
 
 # Default target: ensure binaries exist
 all: setup
@@ -97,6 +97,9 @@ test: all colorbleed-test
 	@echo ""
 	@echo "[OK] Basic tests complete"
 
+qa: all
+	@COLORBLEED_TOOLS_DIR="$(CURDIR)" ./qa-roundtrip-colorbleed.sh
+
 help:
 	@echo "ColorBleed Unsafe ICC XML/JSON Tools Makefile"
 	@echo ""
@@ -106,6 +109,7 @@ help:
 	@echo "  clean     - Remove test artifacts (keeps binaries)"
 	@echo "  distclean - Remove everything including iccDEV clone"
 	@echo "  test      - Build and run basic tests"
+	@echo "  qa        - Build and run XML/JSON/blob converter QA"
 	@echo "  help      - Show this help message"
 	@echo ""
 	@echo "Config override:"

@@ -10,7 +10,7 @@ ICC Color Profile research tools to load & store unsafe file representations.
 |--------|-------------|
 | `iccToXml_unsafe` | ICC Profile -> XML (unsafe load) |
 | `iccFromXml_unsafe` | XML -> ICC Profile blob (unsafe store) |
-| `iccToJson_unsafe` | ICC Profile -> JSON (unsafe load) |
+| `iccToJson_unsafe` | ICC Profile -> JSON (unsafe load; `-sort` is disabled in this wrapper pending sanitizer hardening) |
 | `iccFromJson_unsafe` | JSON -> ICC Profile blob (unsafe store) |
 | `iccDumpAll` | Enhanced ICC profile dump with full v5/iccMAX MPE element detail |
 | `iccDiagnosticLoad` | Deep diagnostic ICC profile loader with IO tracing (build from source) |
@@ -90,6 +90,20 @@ make test        # build tools and run tests
 ./iccFromJson_unsafe /tmp/profile.json /tmp/profile-json.icc
 ```
 
+Do not use `-sort` with `iccToJson_unsafe` during ColorBleed QA. The wrapper
+rejects it with exit code 64 until that path is sanitizer-clean.
+
+### XML/JSON/Blob QA
+```
+./qa-roundtrip-colorbleed.sh
+COLORBLEED_STRICT_SANITIZERS=1 ./iccFromXml_unsafe input.xml /tmp/out.icc
+```
+
+`qa-roundtrip-colorbleed.sh` runs ICC -> XML -> ICC -> XML, ICC -> JSON -> ICC
+-> XML, then `iccDumpAll` and `iccDiagnosticLoad` on the synthesized blob. It
+fails if any tool emits a sanitizer report, sandbox crash report, abnormal exit,
+or wall-time limit finding.
+
 ### Sanitizer Signal
 
 Sanitizer builds use `sanitizer-ignorelist.txt` at compile time and
@@ -97,6 +111,10 @@ Sanitizer builds use `sanitizer-ignorelist.txt` at compile time and
 such as `bits/basic_string.tcc`, `bits/stl_bvector.h`, and
 `bits/stl_uninitialized.h`. Do not add iccDEV parser findings to those files
 unless the exact operation is proven well-defined and intentional.
+
+By default, sanitizer builds recover so a single run can expose multiple parser
+signals. Set `COLORBLEED_STRICT_SANITIZERS=1` when a reproducer or CI gate should
+exit immediately with code 86 and report `*** SANITIZER FINDING ***`.
 
 For ad hoc sanitizer reproductions, pass the runtime suppression file:
 

@@ -7,8 +7,8 @@ applyTo: "colorbleed_tools/**"
 ## What This Is
 
 Unsafe ICC XML/JSON conversion tools for mutation testing and profile generation.
-These are deliberately built WITHOUT sanitizer hardening to match how typical
-applications consume ICC profiles - exposing real-world crash surfaces.
+Release/debug builds keep the real-world unsafe conversion surface, while the
+default clang build is sanitizer-instrumented for QA and crash attribution.
 
 ## Build
 
@@ -16,13 +16,14 @@ applications consume ICC profiles - exposing real-world crash surfaces.
 cd colorbleed_tools && make setup && make
 ```
 
-- `make setup`: clones iccDEV, builds the C++ library without ASAN
+- `make setup`: clones iccDEV and builds the C++ library
 - `make`: compiles `iccToXml_unsafe`, `iccFromXml_unsafe`,
   `iccToJson_unsafe`, and `iccFromJson_unsafe`
+- `make qa`: runs the XML/JSON/blob round-trip QA script
 - Binaries: `colorbleed_tools/iccToXml_unsafe`,
   `colorbleed_tools/iccFromXml_unsafe`, `colorbleed_tools/iccToJson_unsafe`,
   `colorbleed_tools/iccFromJson_unsafe`
-- These are intentionally UNsafe - no ASAN, no bounds checks beyond library defaults
+- These are intentionally unsafe wrappers around unpatched iccDEV parser code.
 
 ## Purpose
 
@@ -31,8 +32,8 @@ cd colorbleed_tools && make setup && make
 3. **ICC -> JSON**: Convert binary ICC profiles to IccJSON for structured mutation
 4. **JSON -> ICC**: Reconstruct ICC profiles from IccJSON
 5. **Round-trip testing**: ICC -> XML/JSON -> ICC to verify parse/serialize fidelity
-6. **Crash reproduction**: Run against known-bad profiles without ASAN to see
-   real-world behavior (crashes, hangs, incorrect output)
+6. **Crash reproduction**: Run release/debug builds for real-world behavior
+   checks, then sanitizer builds for attribution and regression gates.
 
 ## Usage
 
@@ -50,12 +51,15 @@ cd colorbleed_tools && make setup && make
 ./iccFromJson_unsafe input.json output.icc
 
 # Round-trip test
-./iccToXml_unsafe test.icc /tmp/test.xml
-./iccFromXml_unsafe /tmp/test.xml /tmp/test_rt.icc
-./iccToJson_unsafe test.icc /tmp/test.json
-./iccFromJson_unsafe /tmp/test.json /tmp/test_json_rt.icc
-diff <(xxd test.icc) <(xxd /tmp/test_rt.icc)
+./qa-roundtrip-colorbleed.sh
+
+# Strict sanitizer reproducer mode
+COLORBLEED_STRICT_SANITIZERS=1 ./iccFromXml_unsafe input.xml /tmp/out.icc
 ```
+
+Do not pass `-sort` to `iccToJson_unsafe` in ColorBleed QA. The wrapper rejects
+that option with exit code 64 until the sorted JSON writer path is
+sanitizer-clean.
 
 ## Integration with MCP Server
 
@@ -75,11 +79,14 @@ analysis phase is skipped.
 ## Security Considerations
 
 - These tools process UNTRUSTED input - they are attack surface
-- Do NOT add ASAN/UBSAN - the point is to test without sanitizers
+- Use release/debug builds for unsanitized behavior checks, and sanitizer builds
+  for finding attribution and regression gates.
 - Crashes in these tools indicate real vulnerabilities in iccDEV
 - Sanitizer builds suppress only known-benign STL/libstdc++ template noise in
   `sanitizer-ignorelist.txt` and `silence.txt`. Keep iccDEV parser UB visible
   unless an operation is proven intentional and well-defined.
+- Set `COLORBLEED_STRICT_SANITIZERS=1` when a reproducer must exit on the first
+  ASAN/UBSAN report. Strict sanitizer findings exit with code 86.
 - When a crash is found:
   1. Minimize with `cfl/bin/icc_toxml_fuzzer -minimize_crash=1 <crash_file>`
   2. Report to upstream: `github.com/InternationalColorConsortium/iccDEV/issues`
@@ -92,6 +99,7 @@ colorbleed_tools/
 |-- Makefile           # Build system
 |-- build.sh           # Alternative build script
 |-- Readme.md          # Usage documentation
+|-- qa-roundtrip-colorbleed.sh # XML/JSON/blob QA sweep
 |-- sanitizer-ignorelist.txt # Compile-time sanitizer ignorelist
 |-- silence.txt        # Runtime UBSAN suppressions for ad hoc reproductions
 |-- iccToXml_unsafe    # Binary: ICC -> XML converter (built, not committed)

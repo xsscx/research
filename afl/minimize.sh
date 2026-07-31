@@ -117,7 +117,7 @@ setup_value() {
 
 input_file_count() {
     local dir="$1"
-    find "$dir" -maxdepth 1 -type f ! -name 'README*' 2>/dev/null | wc -l | tr -d ' '
+    find "$dir" -maxdepth 1 \( -type f -o -type l \) ! -name 'README*' 2>/dev/null | wc -l | tr -d ' '
 }
 
 collect_rotated_source_dirs() {
@@ -149,7 +149,7 @@ stage_rotated_sources() {
             if ! ln "$file" "$dest" 2>/dev/null; then
                 cp "$file" "$dest"
             fi
-        done < <(find "$dir" -maxdepth 1 -type f ! -name 'README*' -print0 2>/dev/null | sort -z)
+        done < <(find "$dir" -maxdepth 1 \( -type f -o -type l \) ! -name 'README*' -print0 2>/dev/null | sort -z)
     done
 }
 
@@ -266,7 +266,7 @@ env -u AFL_BASE -u AFL_BIN_DIR -u AFL_CMIN_BIN -u AFL_CMIN_EXTRA_ARGS \
     bash -c 'cd "$1" && shift && exec "$@"' bash "$REPO_ROOT" \
     "$AFL_CMIN_BIN" "${AFL_CMIN_ARGS[@]}" -i "$INPUT_DIR" -o "$OUT_DIR" -m none -t "${AFL_TIMEOUT:-${TIMEOUT:-5000}}" -- "$BINARY" "${AFL_ARGS[@]}"
 
-CMIN_COUNT=$(find "$OUT_DIR" -maxdepth 1 -type f ! -name 'README*' 2>/dev/null | wc -l | tr -d ' ')
+CMIN_COUNT=$(input_file_count "$OUT_DIR")
 echo "[OK] afl-cmin kept $CMIN_COUNT of $INPUT_COUNT input(s)"
 echo "     Output: $OUT_DIR"
 
@@ -291,7 +291,7 @@ while IFS= read -r -d '' f; do
     if [[ "$TMIN_LIMIT" -gt 0 && "$TMIN_DONE" -ge "$TMIN_LIMIT" ]]; then
         break
     fi
-done < <(find "$OUT_DIR" -maxdepth 1 -type f ! -name 'README*' -print0 2>/dev/null | sort -z)
+done < <(find "$OUT_DIR" -maxdepth 1 \( -type f -o -type l \) ! -name 'README*' -print0 2>/dev/null | sort -z)
 
 echo "[OK] afl-tmin minimized $TMIN_DONE input(s)"
 echo "     Output: $TMIN_DIR"

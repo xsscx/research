@@ -52,6 +52,36 @@ read_proc_cmdline() {
     dd if="$proc_cmdline" bs=4096 count=1 2>/dev/null | tr '\0' ' ' || true
 }
 
+ACTIVE_AFL_CACHE_READY=0
+ACTIVE_AFL_PIDS=()
+ACTIVE_AFL_CMDLINES=()
+
+build_active_afl_cache() {
+    local pid
+    local cmdline
+    local line
+
+    [[ "$ACTIVE_AFL_CACHE_READY" -eq 0 ]] || return 0
+    ACTIVE_AFL_CACHE_READY=1
+
+    if command -v pgrep >/dev/null 2>&1; then
+        while IFS= read -r line; do
+            pid="${line%% *}"
+            cmdline="${line#* }"
+            [[ "$pid" =~ ^[0-9]+$ && "$cmdline" == *"afl-fuzz"* ]] || continue
+            ACTIVE_AFL_PIDS+=("$pid")
+            ACTIVE_AFL_CMDLINES+=("$cmdline")
+        done < <(pgrep -af afl-fuzz 2>/dev/null || true)
+        return 0
+    fi
+
+    while IFS= read -r pid cmdline; do
+        [[ "$pid" =~ ^[0-9]+$ && "$cmdline" == *"afl-fuzz"* ]] || continue
+        ACTIVE_AFL_PIDS+=("$pid")
+        ACTIVE_AFL_CMDLINES+=("$cmdline")
+    done < <(ps -eo pid=,args= 2>/dev/null || true)
+}
+
 stat_value() {
     local stats="$1"
     local key="$2"
@@ -119,19 +149,15 @@ print_finding_files() {
 
 live_afl_pid_for_output() {
     local output_dir="$1"
-    local proc_cmdline
-    local pid
-    local cmdline
+    local i
 
-    while IFS= read -r -d '' proc_cmdline; do
-        pid="${proc_cmdline#/proc/}"
-        pid="${pid%/cmdline}"
-        cmdline="$(read_proc_cmdline "$proc_cmdline")"
-        if [[ "$cmdline" == *"afl-fuzz"* && "$cmdline" == *"$output_dir"* ]]; then
-            printf '%s' "$pid"
+    build_active_afl_cache
+    for i in "${!ACTIVE_AFL_CMDLINES[@]}"; do
+        if [[ "${ACTIVE_AFL_CMDLINES[$i]}" == *"$output_dir"* ]]; then
+            printf '%s' "${ACTIVE_AFL_PIDS[$i]}"
             return 0
         fi
-    done < <(find /proc -maxdepth 2 -path '/proc/[0-9]*/cmdline' -print0 2>/dev/null)
+    done
 
     return 1
 }

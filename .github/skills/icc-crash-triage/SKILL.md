@@ -60,6 +60,10 @@ handles runtime UBSAN suppressions. Do not suppress iccDEV parser frames such
 as `IccJSON/IccLibJSON/IccProfileJson.cpp` unless the operation is proven
 intentional and well-defined.
 
+Use `COLORBLEED_STRICT_SANITIZERS=1` for ColorBleed reproducer gates when a
+single ASAN/UBSAN report should exit immediately with code 86 and the sandbox
+status `*** SANITIZER FINDING ***`.
+
 ### 3. Verify Commit Alignment
 
 ```bash
@@ -99,6 +103,12 @@ For multi-profile fuzzers, unbundle first:
 4. Rebuild: `cd cfl && ./build.sh`
 5. Verify: Re-run crash file -- must exit 0 with no ASAN/UBSAN
 6. Document: Update patch table, commit reproducer
+
+For ColorBleed converter changes, also run:
+
+```bash
+cd colorbleed_tools && make qa
+```
 
 ### 7. Reproduction Discipline
 

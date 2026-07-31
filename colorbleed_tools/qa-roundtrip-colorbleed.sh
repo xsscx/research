@@ -3,11 +3,30 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
-tools_dir="${COLORBLEED_TOOLS_DIR:-$script_dir/bin/sanitizer}"
+
+if [ -n "${COLORBLEED_TOOLS_DIR:-}" ]; then
+  tools_dir="$COLORBLEED_TOOLS_DIR"
+elif [ -x "$script_dir/iccToXml_unsafe" ]; then
+  tools_dir="$script_dir"
+else
+  tools_dir="$script_dir/bin/sanitizer"
+fi
 input_icc="${1:-$repo_root/afl/afl-toxml/input.backup.20260729T011533Z/Rec2020rgbColorimetric.icc}"
 out_dir="${2:-/tmp/colorbleed-qa-$(date +%s)}"
 
 mkdir -p "$out_dir"
+
+scan_findings() {
+  local log="$1"
+  local out="$2"
+  local pattern="runtime error:|ERROR: AddressSanitizer|SUMMARY: UndefinedBehaviorSanitizer|CRASH DETECTED|wall time limit exceeded|ABNORMAL EXIT"
+
+  if command -v rg >/dev/null 2>&1; then
+    rg -n "$pattern" "$log" >"$out"
+  else
+    grep -En "$pattern" "$log" >"$out"
+  fi
+}
 
 run_tool() {
   local name="$1"
@@ -20,7 +39,7 @@ run_tool() {
   set -e
 
   printf '%-22s rc=%s\n' "$name" "$rc" | tee -a "$out_dir/summary.txt"
-  if rg -n "runtime error:|ERROR: AddressSanitizer|SUMMARY: UndefinedBehaviorSanitizer|CRASH DETECTED|wall time limit exceeded|ABNORMAL EXIT" "$log" >"$out_dir/$name.findings"; then
+  if scan_findings "$log" "$out_dir/$name.findings"; then
     sed "s#^#$name:#" "$out_dir/$name.findings" >> "$out_dir/findings.txt"
   fi
 

@@ -88,6 +88,18 @@ jobs:
           make setup
           make test
 
+      - name: Run ColorBleed Round-Trip QA
+        env:
+          BASH_ENV: /dev/null
+          COLORBLEED_STRICT_SANITIZERS: "1"
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          cd colorbleed_tools
+          make qa
+
       - name: Test iccDumpAll and iccDiagnosticLoad
         env:
           BASH_ENV: /dev/null

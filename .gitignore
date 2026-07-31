@@ -65,6 +65,8 @@ venv/
 *_coverage_html/
 *_coverage_report.txt
 **/coverage-report/
+coverage.xml
+htmlcov/
 
 # Doxygen generated output
 docs/doxygen/html/
@@ -104,6 +106,22 @@ test-profiles/[0-9a-f][0-9a-f][0-9a-f][0-9a-f]*
 *.log
 dump.log
 profile-fuzzer.log
+
+# Local campaign reports belong in ~/bisect/afl-reports
+docs/afl/20*-afl-*-report.md
+
+# Test, QA, and local UI artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+junit.xml
+test-results/
+playwright-report/
+screenshots/
+screenshot-*.png
+*.screenshot.png
+*.trace.zip
+*.har
 
 # Scratch / staging dictionaries (consolidated versions are tracked)
 add-dict.txt
@@ -171,9 +189,13 @@ wasm/
 .codex/
 
 # AFL++ fuzzing - all input seeds, output queues, crash dirs, stats
+fastresume.bin
 afl/bin/
 afl/iccDEV/
+afl/tmp/
+afl/afl-*/*.dict
 afl/afl-*/input/
+afl/afl-*/input.backup.*/
 afl/afl-*/output*/
 afl/afl-*/cmin*/
 afl/afl-*/pruned-seeds-*/

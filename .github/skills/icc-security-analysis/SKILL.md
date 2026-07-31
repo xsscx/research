@@ -47,6 +47,9 @@ Call `validate_roundtrip` for AToB/BToA tag pair completeness.
 For profile-representation mutation outside MCP, use ColorBleed:
 `colorbleed_tools/iccToXml_unsafe`, `colorbleed_tools/iccFromXml_unsafe`,
 `colorbleed_tools/iccToJson_unsafe`, and `colorbleed_tools/iccFromJson_unsafe`.
+Use `colorbleed_tools/qa-roundtrip-colorbleed.sh` for the full ICC -> XML/JSON
+-> ICC -> XML converter sweep. Do not use `-sort` with `iccToJson_unsafe`
+during ColorBleed QA until that wrapper path is sanitizer-clean.
 
 ### 5. Report
 

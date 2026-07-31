@@ -177,6 +177,8 @@ afl_configure_target() {
     SEED_LIMIT=200
     AFL_DISABLE_TRIM_TARGET=0
     AFL_FAST_CAL_TARGET=0
+    AFL_NO_FORKSRV_TARGET=0
+    AFL_SKIP_BIN_CHECK_TARGET=0
     SEED_DRY_RUN_TARGET=0
     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=0
     SEED_DRY_RUN_TIMEOUT=5
@@ -426,6 +428,7 @@ afl_configure_target() {
                 SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
+                AFL_MAX_LENGTH=65536
                 SEED_FILES=(
                     "$HYBRID_LAB_D50"
                     "$HYBRID_LAB_D93"
@@ -458,11 +461,13 @@ afl_configure_target() {
                 REQUIRED_FILES=("$rgb_data" "$srgb_profile" "${SEED_FILES[@]}")
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
+                AFL_MAX_LENGTH=8192
                 if [[ "$target" == *positive-fast ]]; then
                     SEED_MAX_BYTES=512
                     SEED_LIMIT=96
                     SEED_DRY_RUN_TARGET=1
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                    AFL_MAX_LENGTH=2048
                     REQUIRED_FILES=("$rgb_float_data" "$srgb_profile" "${SEED_FILES[@]}")
                     TARGET_NOTE="Fast weight-positive apply-search lane: tiny valid PCC seeds plus screened CFL weight corpus entries, shorter float data, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                     AFL_ARGS=("$rgb_float_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
@@ -618,10 +623,15 @@ afl_configure_target() {
                 "$REPO_ROOT/fuzz/xml/icc/minimized"
                 "$REPO_ROOT/cfl/corpus-icc_fromxml_fuzzer"
             )
+            SEED_MAX_BYTES=262144
+            SEED_DRY_RUN_TARGET=1
+            AFL_INPUT_FORMAT="text"
+            AFL_MAX_LENGTH=262144
             if [[ "$target" == "fromxml-noid" ]]; then
                 TARGET_NOTE="FromXml no-id lane: exercises SaveIccProfile with icNeverWriteID."
                 AFL_ARGS=("@@" "${tmp_prefix}.icc" "-noid")
             else
+                TARGET_NOTE="FromXml lane: XML text corpus with dictionary/CmpLog-compatible bounded inputs."
                 AFL_ARGS=("@@" "${tmp_prefix}.icc")
             fi
             ;;
@@ -633,6 +643,7 @@ afl_configure_target() {
                 DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
                 SEED_MAX_BYTES=8192
                 SEED_LIMIT=96
+                AFL_MAX_LENGTH=65536
                 SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
                 SEED_DIRS=(
                     "$REPO_ROOT/test-profiles"
@@ -692,10 +703,20 @@ afl_configure_target() {
                     "$REPO_ROOT/extended-test-profiles"
                 )
                 REQUIRED_FILES=("$fixed_png")
-                TARGET_NOTE="PNG injection lane: fixed PNG, fuzzed ICC profile through --write-icc."
+                TARGET_NOTE="PNG injection smoke lane: fixed PNG, fuzzed ICC profile through --write-icc; keep bounded until new coverage improves."
                 AFL_ARGS=("$fixed_png" "--write-icc" "@@" "--output" "${tmp_prefix}.png")
             else
-                SEED_DIRS=("$REPO_ROOT/fuzz/graphics/png")
+                SEED_FILE_TYPE_REGEX='^PNG image data'
+                SEED_MAX_BYTES=262144
+                SEED_LIMIT=256
+                SEED_DRY_RUN_TARGET=1
+                AFL_MAX_LENGTH=262144
+                SEED_DIRS=(
+                    "$REPO_ROOT/fuzz/graphics/png"
+                    "$REPO_ROOT/test-profiles"
+                    "$REPO_ROOT/extended-test-profiles"
+                )
+                TARGET_NOTE="PNG dump lane: screened PNG corpus with varied bit depth, alpha, endian, ICC, and malformed classes."
                 AFL_ARGS=("@@")
             fi
             ;;
@@ -812,6 +833,8 @@ afl_configure_target() {
                     BINARY="$AFL_BASE/specsep-tiff-wrapper.sh"
                     DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
                     TARGET_NOTE="SpecSep TIFF-input lane: wrapper copies @@ to a one-channel prefix so AFL mutates CTiffImg/open/readline paths instead of the optional ICC profile."
+                    AFL_NO_FORKSRV_TARGET=1
+                    AFL_SKIP_BIN_CHECK_TARGET=1
                     SEED_FILE_TYPE_REGEX='^(TIFF image data|Big TIFF image data)'
                     SEED_DIRS=(
                         "$REPO_ROOT/fuzz/graphics/spectral/specsep-ci-small"
@@ -826,6 +849,8 @@ afl_configure_target() {
                     SEED_MAX_BYTES=262144
                     SEED_LIMIT=128
                     SEED_DRY_RUN_TARGET=1
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                    AFL_DISABLE_TRIM_TARGET=1
                     REQUIRED_FILES=("$BINARY" "$BIN_DIR/iccSpecSepToTiff")
                     AFL_MAX_LENGTH=262144
                     AFL_ARGS=("@@")
