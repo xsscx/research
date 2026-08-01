@@ -45,7 +45,7 @@ jobs:
         uses: ./.github/actions/setup-build-env
         with:
           preset: 'analyzer'
-          extra-packages: 'ca-certificates libjpeg-dev clang-tools-18'
+          extra-packages: 'ca-certificates libjpeg-dev'
 
       - name: Cache iccDEV repository
         id: cache-iccdev

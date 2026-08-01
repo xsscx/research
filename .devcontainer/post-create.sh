@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ###############################################################
-# post-create.sh — Dev container setup
+# post-create.sh - Dev container setup
 #
 # Installs build dependencies, clones iccDEV, sets up the
 # MCP server Python venv, and builds analysis tools.
@@ -11,7 +11,7 @@ echo "[INFO] Installing build dependencies..."
 sudo apt-get update -qq
 sudo apt-get install -y --no-install-recommends \
   build-essential cmake pkg-config patch \
-  clang-18 llvm-18 llvm-18-tools libclang-rt-18-dev \
+  clang-18 clang-tools-18 clang-tidy-18 clang-format-18 llvm-18 llvm-18-tools libclang-rt-18-dev \
   libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
   zlib1g-dev liblzma-dev nlohmann-json3-dev libssl-dev \
   ccache

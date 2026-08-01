@@ -1,5 +1,5 @@
 ###############################################################
-# Dev Container — ICC Security Research (Dockerfile-based)
+# Dev Container - ICC Security Research (Dockerfile-based)
 #
 # Pre-builds iccDEV with ASAN+UBSAN instrumentation, fuzzers,
 # MCP server venv, and all analysis tools so the container is
@@ -10,10 +10,10 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# System packages — compilers, cmake, libraries, Python, git, gh
+# System packages - compilers, cmake, libraries, Python, git, gh
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential cmake pkg-config patch ca-certificates \
-      clang-18 llvm-18 llvm-18-tools libclang-rt-18-dev \
+      clang-18 clang-tools-18 clang-tidy-18 clang-format-18 llvm-18 llvm-18-tools libclang-rt-18-dev \
       libxml2-dev libtiff-dev libjpeg-dev libpng-dev \
       zlib1g-dev liblzma-dev libssl-dev nlohmann-json3-dev \
       ccache git curl sudo \
@@ -38,7 +38,7 @@ COPY docker/apply-patches.sh /usr/local/bin/apply-patches.sh
 RUN apply-patches.sh /opt/iccdev /tmp/cfl-patches \
     && rm -rf /tmp/cfl-patches
 
-# Build iccDEV — Debug + ASAN + UBSAN + Tools
+# Build iccDEV - Debug + ASAN + UBSAN + Tools
 RUN cd /opt/iccdev && mkdir -p Build/build && cd Build/build \
     && cmake ../Cmake \
        -DCMAKE_BUILD_TYPE=Debug \

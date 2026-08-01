@@ -26,25 +26,26 @@ runs:
         unset GITHUB_TOKEN || true
 
         COMMON="build-essential cmake libxml2-dev libtiff-dev libpng-dev zlib1g-dev nlohmann-json3-dev"
+        CLANG_TOOLCHAIN="clang-18 clang-tools-18 clang-tidy-18 clang-format-18 llvm-18 llvm-18-tools"
 
         case "${PRESET}" in
           analyzer)
-            PACKAGES="${COMMON} clang-18 llvm-18 libjpeg-dev libssl-dev liblzma-dev"
+            PACKAGES="${COMMON} ${CLANG_TOOLCHAIN} libjpeg-dev libssl-dev liblzma-dev"
             ;;
           cfl)
-            PACKAGES="${COMMON} clang-18 llvm-18 libjpeg-dev libssl-dev liblzma-dev"
+            PACKAGES="${COMMON} ${CLANG_TOOLCHAIN} libjpeg-dev libssl-dev liblzma-dev"
             ;;
           colorbleed)
-            PACKAGES="${COMMON} gcc g++ clang-18 clang-tools-18 libjpeg-dev libssl-dev llvm-18 python3 python3-pip curl git"
+            PACKAGES="${COMMON} gcc g++ ${CLANG_TOOLCHAIN} libjpeg-dev libssl-dev python3 python3-pip curl git"
             ;;
           codeql)
-            PACKAGES="${COMMON} clang-18 libjpeg-dev libssl-dev git ca-certificates"
+            PACKAGES="${COMMON} ${CLANG_TOOLCHAIN} libjpeg-dev libssl-dev git ca-certificates"
             ;;
           coverage)
-            PACKAGES="${COMMON} clang-18 llvm-18 libjpeg-dev lcov"
+            PACKAGES="${COMMON} ${CLANG_TOOLCHAIN} libjpeg-dev lcov"
             ;;
           minimal)
-            PACKAGES="${COMMON} clang-18"
+            PACKAGES="${COMMON} clang-18 clang-tools-18 clang-tidy-18 clang-format-18 llvm-18-tools"
             ;;
           *)
             echo "[FAIL] Unknown preset: ${PRESET}"

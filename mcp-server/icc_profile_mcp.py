@@ -2132,52 +2132,66 @@ async def check_dependencies() -> str:
         has_apt = shutil.which("apt") is not None or shutil.which("dpkg") is not None
         if has_apt:
             lines.append("Package manager: apt (Debian/Ubuntu)")
-            apt_pkgs = {
-                "cmake": "cmake",
-                "make": "make",
-                "clang": "clang",
-                "clang++": "clang",
-                "g++": "g++",
-                "git": "git",
-                "curl": "curl",
-                "xmllint": "libxml2-utils",
-            }
+            apt_bins = [
+                ("cmake", ["cmake"], "cmake"),
+                ("make", ["make"], "make"),
+                ("clang", ["clang", "clang-18"], "clang-18"),
+                ("clang++", ["clang++", "clang++-18"], "clang-18"),
+                ("scan-build", ["scan-build", "scan-build-18"], "clang-tools-18"),
+                ("clang-tidy", ["clang-tidy", "clang-tidy-18"], "clang-tidy-18"),
+                ("clang-format", ["clang-format", "clang-format-18"], "clang-format-18"),
+                ("g++", ["g++"], "g++"),
+                ("git", ["git"], "git"),
+                ("curl", ["curl"], "curl"),
+                ("xmllint", ["xmllint"], "libxml2-utils"),
+            ]
             # Library checks via dpkg
-            lib_pkgs = [
-                "libpng-dev", "libjpeg-dev", "libtiff-dev",
-                "libxml2-dev", "nlohmann-json3-dev",
-                "build-essential", "clang-tools",
+            apt_pkg_groups = [
+                ("libpng-dev", ["libpng-dev"], "libpng-dev"),
+                ("libjpeg-dev", ["libjpeg-dev"], "libjpeg-dev"),
+                ("libtiff-dev", ["libtiff-dev"], "libtiff-dev"),
+                ("libxml2-dev", ["libxml2-dev"], "libxml2-dev"),
+                ("nlohmann-json3-dev", ["nlohmann-json3-dev"], "nlohmann-json3-dev"),
+                ("build-essential", ["build-essential"], "build-essential"),
+                ("clang-tools", ["clang-tools-18", "clang-tools"], "clang-tools-18"),
+                ("clang-tidy", ["clang-tidy-18", "clang-tidy"], "clang-tidy-18"),
+                ("clang-format", ["clang-format-18", "clang-format"], "clang-format-18"),
+                ("llvm tools", ["llvm-18-tools", "llvm"], "llvm-18-tools"),
             ]
         else:
             lines.append("Package manager: unknown (not apt-based)")
-            apt_pkgs = {}
+            apt_bins = []
 
-        results: list[tuple[str, bool]] = []
-        for binary, pkg in apt_pkgs.items():
-            found = shutil.which(binary) is not None
-            results.append((f"{binary} ({pkg})", found))
+        results: list[tuple[str, bool, str]] = []
+        for label, candidates, pkg in apt_bins:
+            found = any(shutil.which(candidate) is not None for candidate in candidates)
+            results.append((f"{label} ({pkg})", found, pkg))
 
         if has_apt:
             # Check dpkg for library packages
-            for pkg in lib_pkgs:
-                proc = await asyncio.create_subprocess_exec(
-                    "dpkg", "-s", pkg,
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL,
-                )
-                await proc.wait()
-                results.append((pkg, proc.returncode == 0))
+            for label, candidates, pkg in apt_pkg_groups:
+                found = False
+                for candidate in candidates:
+                    proc = await asyncio.create_subprocess_exec(
+                        "dpkg", "-s", candidate,
+                        stdout=asyncio.subprocess.DEVNULL,
+                        stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    await proc.wait()
+                    if proc.returncode == 0:
+                        found = True
+                        break
+                results.append((label, found, pkg))
 
-        missing = [name for name, ok in results if not ok]
-        for name, ok in results:
+        missing = [(name, pkg) for name, ok, pkg in results if not ok]
+        for name, ok, _pkg in results:
             lines.append(f"  {'[OK]' if ok else '[MISSING]':>10}  {name}")
 
         if missing:
             lines.append("")
             deduped: list[str] = []
             seen_pkgs: set[str] = set()
-            for name in missing:
-                pkg = name.split("(")[-1].rstrip(")") if "(" in name else name
+            for _name, pkg in missing:
                 if pkg not in seen_pkgs:
                     seen_pkgs.add(pkg)
                     deduped.append(pkg)
@@ -2252,7 +2266,7 @@ async def check_dependencies() -> str:
         found = shutil.which(tool) is not None
         lines.append(f"  {'[OK]' if found else '[---]':>10}  {tool}")
 
-    ok_count = sum(1 for _, ok in results if ok) if results else 0
+    ok_count = sum(1 for result in results if result[1]) if results else 0
     total = len(results) if results else 0
     lines.append(f"\nSummary: {ok_count}/{total} dependencies found")
 
