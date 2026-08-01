@@ -10,20 +10,14 @@ iccDEV checkout.
 
 Current patches:
 
-- `001-json-config-parser-no-sanitize.patch` rejects structurally unbalanced
-  JSON config inputs before dependency parsing and keeps parser inputs from
-  turning dependency-internal integer sanitizer reports into AFL crashes.
 - `002-jpegdump-segment-bounds.patch` uses subtraction-based JPEG segment
   bounds checks before reading marker length bytes.
-- `003-applyprofiles-cam-encoding-div-zero.patch` guards malformed CAM inverse
-  and encoding surround-ratio denominators found by `iccApplyProfiles` AFL
-  replays.
 - `004-applyprofiles-tiff-sample-count-bounds.patch` rejects malformed TIFF
   sample counts before `iccApplyProfiles` strip de-planarization can copy past
   the strip buffer.
-- `005-fromxml-namedcolor-devicecoords-bounds.patch` rejects malformed
-  `namedColor2Type` `CountOfDeviceCoords` values before `iccFromXml` can feed
-  an overflowing `atoi()` result into `SetSize()`.
+- `005-fromxml-formula-functiontype-bounds.patch` rejects malformed formula
+  curve segment `Reserved2` and `FunctionType` values before `iccFromXml`
+  can narrow overflowing `atoi()` results into 16-bit fields.
 
 Patch failures warn and the build continues so older or newer iccDEV snapshots
 can still be tested.

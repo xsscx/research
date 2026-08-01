@@ -18,10 +18,9 @@ should link here instead of duplicating the full patch table.
 ./cfl/build.sh --patches --refresh-iccdev
 
 # Apply one or more selected patches for isolated testing.
-./cfl/build.sh --refresh-iccdev --patch-file 001-json-config-parser-no-sanitize.patch
 ./cfl/build.sh --refresh-iccdev --patch-file 002-jpegdump-segment-bounds.patch
-./cfl/build.sh --refresh-iccdev --patch-file 003-applyprofiles-cam-encoding-div-zero.patch
 ./cfl/build.sh --refresh-iccdev --patch-file 004-applyprofiles-tiff-sample-count-bounds.patch
+./cfl/build.sh --refresh-iccdev --patch-file 005-fromxml-formula-functiontype-bounds.patch
 ```
 
 Patch application failures are warnings in patched mode. Non-applicable patches
@@ -41,10 +40,9 @@ depending on the current dirty nested checkouts.
 
 | Patch | Area |
 |-------|------|
-| `001-json-config-parser-no-sanitize.patch` | Reject structurally unbalanced JSON config inputs before dependency parsing and keep parser inputs from turning dependency-internal integer sanitizer reports into CFL crashes. |
 | `002-jpegdump-segment-bounds.patch` | Use subtraction-based JPEG segment bounds checks and one-past-safe payload pointers before reading marker segment data. |
-| `003-applyprofiles-cam-encoding-div-zero.patch` | Guard malformed CAM inverse and encoding surround-ratio denominators found by `iccApplyProfiles` AFL replays. |
 | `004-applyprofiles-tiff-sample-count-bounds.patch` | Reject malformed TIFF sample counts before `iccApplyProfiles` strip de-planarization can copy past the strip buffer. |
+| `005-fromxml-formula-functiontype-bounds.patch` | Reject malformed formula curve segment `Reserved2` and `FunctionType` values before XML parsing narrows overflowing `atoi()` results into 16-bit fields. |
 
 ## Drift Review
 
