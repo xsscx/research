@@ -691,12 +691,14 @@ afl_configure_target() {
             ;;
         pngdump|pngdump-inject)
             BINARY="$BIN_DIR/iccPngDump"
-            DICT="$REPO_ROOT/cfl/icc.dict"
+            DICT="$REPO_ROOT/cfl/png.dict"
             if [[ "$target" == "pngdump-inject" ]]; then
                 AFL_DIR="$AFL_BASE/afl-pngdump-inject"
                 DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
-                SEED_MAX_BYTES=8192
+                SEED_MAX_BYTES=0
                 SEED_LIMIT=96
+                SEED_DRY_RUN_TARGET=1
+                SEED_INCLUDE_REGEX='[.](icc|icm)$'
                 SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
                 SEED_DIRS=(
                     "$REPO_ROOT/test-profiles"
@@ -704,21 +706,20 @@ afl_configure_target() {
                     "$REPO_ROOT/extended-test-profiles"
                 )
                 REQUIRED_FILES=("$fixed_png")
-                TARGET_NOTE="PNG injection smoke lane: fixed PNG, fuzzed ICC profile through --write-icc; keep bounded until new coverage improves."
+                TARGET_NOTE="PNG injection lane: fixed PNG, fuzzed ICC profile through --write-icc; seeds are screened for crashes and hangs without a byte-size cap."
                 AFL_ARGS=("$fixed_png" "--write-icc" "@@" "--output" "${tmp_prefix}.png")
             else
                 SEED_FILE_TYPE_REGEX='^PNG image data'
-                SEED_MAX_BYTES=262144
+                SEED_MAX_BYTES=0
                 SEED_LIMIT=256
                 SEED_DRY_RUN_TARGET=1
-                AFL_MAX_LENGTH=262144
                 SEED_DIRS=(
                     "$REPO_ROOT/fuzz/graphics/png"
                     "$REPO_ROOT/test-profiles"
                     "$REPO_ROOT/extended-test-profiles"
                 )
-                TARGET_NOTE="PNG dump lane: screened PNG corpus with varied bit depth, alpha, endian, ICC, and malformed classes."
-                AFL_ARGS=("@@")
+                TARGET_NOTE="PNG dump lane: screened PNG corpus exercises metadata and optional ICC extraction without a byte-size cap."
+                AFL_ARGS=("@@" "${tmp_prefix}.icc")
             fi
             ;;
         profilevisualize|profilevisualize-fast)
