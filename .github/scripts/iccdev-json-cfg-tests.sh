@@ -151,12 +151,12 @@ cat > "$TMPDIR/named-basic.json" <<EOF
     "space": "RGB ",
     "encoding": "float",
     "data": [
-      {"values": [1.0, 1.0, 1.0]},
-      {"values": [0.0, 0.0, 0.0]},
-      {"values": [0.5, 0.5, 0.5]},
-      {"values": [1.0, 0.0, 0.0]},
-      {"values": [0.0, 1.0, 0.0]},
-      {"values": [0.0, 0.0, 1.0]}
+      {"v": [1.0, 1.0, 1.0]},
+      {"v": [0.0, 0.0, 0.0]},
+      {"v": [0.5, 0.5, 0.5]},
+      {"v": [1.0, 0.0, 0.0]},
+      {"v": [0.0, 1.0, 0.0]},
+      {"v": [0.0, 0.0, 1.0]}
     ]
   }
 }
@@ -186,10 +186,10 @@ cat > "$TMPDIR/named-8bit.json" <<EOF
     "space": "RGB ",
     "encoding": "8Bit",
     "data": [
-      {"values": [255, 255, 255]},
-      {"values": [0, 0, 0]},
-      {"values": [128, 128, 128]},
-      {"values": [255, 0, 0]}
+      {"v": [255, 255, 255]},
+      {"v": [0, 0, 0]},
+      {"v": [128, 128, 128]},
+      {"v": [255, 0, 0]}
     ]
   }
 }
@@ -219,9 +219,9 @@ cat > "$TMPDIR/named-16bit.json" <<EOF
     "space": "RGB ",
     "encoding": "16Bit",
     "data": [
-      {"values": [65535, 65535, 65535]},
-      {"values": [0, 0, 0]},
-      {"values": [32768, 32768, 32768]}
+      {"v": [65535, 65535, 65535]},
+      {"v": [0, 0, 0]},
+      {"v": [32768, 32768, 32768]}
     ]
   }
 }
@@ -250,7 +250,7 @@ cat > "$TMPDIR/named-output-file.json" <<EOF
     "space": "RGB ",
     "encoding": "float",
     "data": [
-      {"values": [0.5, 0.5, 0.5]}
+      {"v": [0.5, 0.5, 0.5]}
     ]
   }
 }
@@ -286,8 +286,8 @@ cat > "$TMPDIR/named-debug-bpc.json" <<EOF
     "space": "RGB ",
     "encoding": "float",
     "data": [
-      {"values": [0.5, 0.5, 0.5]},
-      {"values": [1.0, 0.0, 0.0]}
+      {"v": [0.5, 0.5, 0.5]},
+      {"v": [1.0, 0.0, 0.0]}
     ]
   }
 }
@@ -324,7 +324,7 @@ cat > "$TMPDIR/search-basic.json" <<EOF
     "space": "RGB ",
     "encoding": "float",
     "data": [
-      {"values": [0.5, 0.5, 0.5]}
+      {"v": [0.5, 0.5, 0.5]}
     ]
   }
 }
@@ -364,7 +364,7 @@ cat > "$TMPDIR/nonexistent-profile.json" <<EOF
   "colorData": {
     "space": "RGB ",
     "encoding": "float",
-    "data": [{"values": [0.5, 0.5, 0.5]}]
+    "data": [{"v": [0.5, 0.5, 0.5]}]
   }
 }
 EOF
@@ -386,7 +386,7 @@ cat > "$TMPDIR/wrong-types.json" <<EOF
   "colorData": {
     "space": "RGB ",
     "encoding": "float",
-    "data": [{"values": [0.5, 0.5, 0.5]}]
+    "data": [{"v": [0.5, 0.5, 0.5]}]
   }
 }
 EOF
@@ -410,7 +410,7 @@ cat > "$TMPDIR/extreme-values.json" <<EOF
   "colorData": {
     "space": "RGB ",
     "encoding": "float",
-    "data": [{"values": [1e38, -1e38, 0.0]}]
+    "data": [{"v": [1e38, -1e38, 0.0]}]
   }
 }
 EOF
@@ -432,7 +432,7 @@ cat > "$TMPDIR/path-traversal.json" <<EOF
   "colorData": {
     "space": "RGB ",
     "encoding": "float",
-    "data": [{"values": [0.5, 0.5, 0.5]}]
+    "data": [{"v": [0.5, 0.5, 0.5]}]
   }
 }
 EOF
@@ -457,7 +457,7 @@ for enc in "float" "unitFloat" "percent" "16BitV2" "value"; do
   "colorData": {
     "space": "RGB ",
     "encoding": "$enc",
-    "data": [{"values": [0.5, 0.5, 0.5]}]
+    "data": [{"v": [0.5, 0.5, 0.5]}]
   }
 }
 EOF
@@ -484,7 +484,7 @@ for intent in 0 1 2 3; do
   "colorData": {
     "space": "RGB ",
     "encoding": "float",
-    "data": [{"values": [0.5, 0.5, 0.5]}]
+    "data": [{"v": [0.5, 0.5, 0.5]}]
   }
 }
 EOF
@@ -515,7 +515,7 @@ cat > "$TMPDIR/named-chain.json" <<EOF
   "colorData": {
     "space": "RGB ",
     "encoding": "float",
-    "data": [{"values": [0.5, 0.5, 0.5]}, {"values": [1.0, 0.0, 0.0]}]
+    "data": [{"v": [0.5, 0.5, 0.5]}, {"v": [1.0, 0.0, 0.0]}]
   }
 }
 EOF
@@ -546,7 +546,7 @@ cat > "$TMPDIR/named-booleans.json" <<EOF
   "colorData": {
     "space": "RGB ",
     "encoding": "float",
-    "data": [{"values": [0.5, 0.5, 0.5]}]
+    "data": [{"v": [0.5, 0.5, 0.5]}]
   }
 }
 EOF

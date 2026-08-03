@@ -1,12 +1,15 @@
 {
-  "comment": "SBO reproduction: CIccCalculatorFunc::Apply() stack-buffer-overflow at IccMpeCalc.cpp:3873",
+  "comment": "Historical CIccCalculatorFunc::Apply() SBO regression seed; current builds reject the incompatible profile chain",
   "dataFiles": {
-    "srcDataFile": "docs/Testing/test-data/rgb-float.txt",
+    "srcType": "legacy",
+    "srcFile": "docs/Testing/test-data/rgb-float.txt",
+    "dstType": "colorData",
+    "dstFile": "",
     "dstEncoding": "float"
   },
   "profileSequence": [
     {
-      "iccFile": "sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc",
+      "iccFile": "fuzz/graphics/icc/sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc",
       "intent": "relative"
     }
   ]

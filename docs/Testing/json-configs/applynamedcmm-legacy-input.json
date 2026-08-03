@@ -1,0 +1,20 @@
+{
+  "dataFiles": {
+    "srcType": "legacy",
+    "srcFile": "docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt",
+    "dstType": "colorData",
+    "dstFile": "",
+    "dstEncoding": "float",
+    "dstPrecision": 6,
+    "dstDigits": 12
+  },
+  "profileSequence": [
+    {
+      "iccFile": "test-profiles/sRGB_D65_MAT.icc",
+      "intent": "relative",
+      "transform": "colorimetric",
+      "interpolation": "linear",
+      "useBPC": false
+    }
+  ]
+}

@@ -15,7 +15,10 @@
       "intent": 1,
       "interpolation": "linear",
       "useBPC": true,
-      "adjustPcsLuminance": false
+      "adjustPcsLuminance": false,
+      "useD2BxB2Dx": true,
+      "useHToS": false,
+      "useV5SubProfile": false
     }
   ],
   "colorData": {
@@ -23,77 +26,77 @@
     "encoding": "8Bit",
     "data": [
       {
-        "values": [
+        "v": [
           255,
           255,
           255
         ]
       },
       {
-        "values": [
+        "v": [
           0,
           0,
           0
         ]
       },
       {
-        "values": [
+        "v": [
           128,
           128,
           128
         ]
       },
       {
-        "values": [
+        "v": [
           255,
           0,
           0
         ]
       },
       {
-        "values": [
+        "v": [
           0,
           255,
           0
         ]
       },
       {
-        "values": [
+        "v": [
           0,
           0,
           255
         ]
       },
       {
-        "values": [
+        "v": [
           255,
           255,
           0
         ]
       },
       {
-        "values": [
+        "v": [
           0,
           255,
           255
         ]
       },
       {
-        "values": [
+        "v": [
           255,
           0,
           255
         ]
       },
       {
-        "values": [
+        "v": [
           192,
           192,
           192
         ]
       },
       {
-        "values": [
+        "v": [
           64,
           64,
           64

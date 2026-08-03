@@ -63,7 +63,7 @@
     "space": "RGB ",
     "encoding": "float",
     "data": [
-      { "values": [0.5, 0.5, 0.5] }
+      { "v": [0.5, 0.5, 0.5] }
     ]
   }
 }

@@ -1,0 +1,38 @@
+{
+  "dataFiles": {
+    "srcType": "colorData",
+    "srcFile": "",
+    "dstType": "colorData",
+    "dstFile": "",
+    "dstEncoding": "float",
+    "dstPrecision": 6,
+    "dstDigits": 12
+  },
+  "profileSequence": [
+    {
+      "iccFile": "iccDEV/Testing/Named/NamedColorV4.icc",
+      "intent": "absolute",
+      "transform": "namedColorimetric",
+      "interpolation": "tetrahedral",
+      "useD2BxB2Dx": false
+    }
+  ],
+  "colorData": {
+    "space": "nmcl",
+    "encoding": "value",
+    "data": [
+      {
+        "n": "Red",
+        "v": [1.0]
+      },
+      {
+        "n": "Blue",
+        "v": [0.5]
+      },
+      {
+        "n": "Green",
+        "v": [0.25]
+      }
+    ]
+  }
+}
