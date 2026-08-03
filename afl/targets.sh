@@ -138,7 +138,6 @@ afl_configure_target() {
     local fixed_tiff
     local fixed_observer
     local fixed_jpeg
-    local fixed_png
     local hybrid_source_dir
     local hybrid_support_dir
 
@@ -160,9 +159,6 @@ afl_configure_target() {
     fixed_jpeg="$(afl_first_existing \
         "$REPO_ROOT/test-profiles/p0-2225-cve-2021-30942-colorsync-uninit-mem.jpg" \
         "$REPO_ROOT/fuzz/graphics/jpg/2x2-rgb--sRGB_v4_ICC_preference.jpg")"
-    fixed_png="$(afl_first_existing \
-        "$REPO_ROOT/test-profiles/p0-2225-cve-2021-30942-colorsync-uninit-mem.png" \
-        "$REPO_ROOT/fuzz/graphics/png/2x2-rgba--sRGB_v4_ICC_preference.png")"
     hybrid_source_dir="$(afl_first_existing \
         "$REPO_ROOT/iccDEV/Testing/hybrid" \
         "$REPO_ROOT/afl/iccDEV/Testing/hybrid")"
@@ -694,20 +690,18 @@ afl_configure_target() {
             DICT="$REPO_ROOT/cfl/png.dict"
             if [[ "$target" == "pngdump-inject" ]]; then
                 AFL_DIR="$AFL_BASE/afl-pngdump-inject"
-                DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
+                SEED_FILE_TYPE_REGEX='^PNG image data'
                 SEED_MAX_BYTES=0
-                SEED_LIMIT=96
+                SEED_LIMIT=256
                 SEED_DRY_RUN_TARGET=1
-                SEED_INCLUDE_REGEX='[.](icc|icm)$'
-                SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
                 SEED_DIRS=(
+                    "$REPO_ROOT/fuzz/graphics/png"
                     "$REPO_ROOT/test-profiles"
-                    "$REPO_ROOT/fuzz/graphics/icc"
                     "$REPO_ROOT/extended-test-profiles"
                 )
-                REQUIRED_FILES=("$fixed_png")
-                TARGET_NOTE="PNG injection lane: fixed PNG, fuzzed ICC profile through --write-icc; seeds are screened for crashes and hangs without a byte-size cap."
-                AFL_ARGS=("$fixed_png" "--write-icc" "@@" "--output" "${tmp_prefix}.png")
+                REQUIRED_FILES=("$srgb_profile")
+                TARGET_NOTE="PNG injection lane: fuzzed PNG input with a fixed ICC profile supplied through --write-icc; seeds are screened for crashes and hangs without a byte-size cap."
+                AFL_ARGS=("@@" "--write-icc" "$srgb_profile" "--output" "${tmp_prefix}.png")
             else
                 SEED_FILE_TYPE_REGEX='^PNG image data'
                 SEED_MAX_BYTES=0
