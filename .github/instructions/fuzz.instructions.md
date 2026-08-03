@@ -1,3 +1,7 @@
+---
+applyTo: "fuzz/**"
+---
+
 # fuzz/ Instructions - Shared Security Corpus
 
 Use these instructions for `fuzz/` corpus and PoC material.
@@ -40,10 +44,14 @@ artifacts needed for repeatable testing on another VM.
 | `fuzz/xml/icc/` | `icc_fromxml_fuzzer`, AFL `fromxml` |
 | `fuzz/graphics/tif/` | `icc_tiffdump_fuzzer`, AFL `tiffdump` |
 | `fuzz/graphics/png/` | AFL `pngdump` and image tooling |
-| `fuzz/graphics/jpg/` | AFL `jpegdump` and image tooling |
+| `fuzz/graphics/jpg/` | AFL `jpegdump`/`jpegdump-inject` JPEG+ICC seeds and image tooling |
 
 Use scripts or documented copy commands for seeding. Do not replace curated
 source corpus files with transient fuzzer output.
+
+For AFL JPEG lanes, only `.jpg`/`.jpeg` files with extractable embedded ICC
+profiles are valid seeds. Raw `.icc` files belong in ICC-profile targets, not
+`jpegdump` or `jpegdump-inject`.
 
 ## Safety
 

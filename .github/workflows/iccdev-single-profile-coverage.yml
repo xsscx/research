@@ -4,7 +4,7 @@
 #
 # Intent: Code coverage for a SINGLE ICC profile using iccDEV
 #         tools. Does NOT run CreateAllProfiles.sh or RunTests.sh.
-#         Designed for MCP/Issue-based profile analysis where
+#         Designed for issue-based profile analysis where
 #         clean, isolated coverage per-profile is required.
 #
 # Usage: Trigger via workflow_dispatch with a profile path
@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       profile_path:
-        description: 'ICC profile path relative to test-profiles/ (e.g. test-hoyt.icc). Leave blank for random.'
+        description: 'ICC profile path relative to test-profiles/. Leave blank for random.'
         required: false
         default: ''
         type: string
@@ -66,7 +66,7 @@ jobs:
           source .github/scripts/sanitize-sed.sh
           if [ -z "$INPUT_PROFILE_PATH" ]; then
             # Pick a random profile from test-profiles/
-            INPUT_PATH=$(ls -1 test-profiles/ | shuf -n1)
+            INPUT_PATH=$(find test-profiles -maxdepth 1 -type f -name '*.icc' -printf '%f\n' | shuf -n1)
             echo "[INFO] No profile specified, randomly selected: $INPUT_PATH"
           else
             INPUT_PATH="$(sanitize_filename "$INPUT_PROFILE_PATH")"
@@ -75,12 +75,14 @@ jobs:
           if [ ! -f "$PROFILE" ]; then
             echo "::error::Profile not found: $PROFILE"
             echo "Available profiles:"
-            ls -1 test-profiles/*.icc 2>/dev/null || echo "  (none)"
+            find test-profiles -maxdepth 1 -type f -name '*.icc' -print 2>/dev/null || echo "  (none)"
             exit 1
           fi
-          echo "profile_file=$PROFILE" >> $GITHUB_ENV
-          echo "profile_name=$(basename "$INPUT_PATH" .icc)" >> $GITHUB_ENV
-          echo "selected_profile=$INPUT_PATH" >> $GITHUB_ENV
+          {
+            echo "profile_file=$PROFILE"
+            echo "profile_name=$(basename "$INPUT_PATH" .icc)"
+            echo "selected_profile=$INPUT_PATH"
+          } >> "$GITHUB_ENV"
           echo "[OK] Profile: $PROFILE ($(stat -c%s "$PROFILE") bytes)"
 
       - name: Install build dependencies
@@ -93,7 +95,9 @@ jobs:
         id: cache-iccdev
         with:
           path: /tmp/iccdev
-          key: ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'master' }}-${{ hashFiles('.github/workflows/iccdev-single-profile-coverage.yml') }}
+          key: >-
+            ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'master' }}-
+            ${{ hashFiles('.github/workflows/iccdev-single-profile-coverage.yml') }}
           restore-keys: |
             ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'master' }}-
 
@@ -111,7 +115,9 @@ jobs:
         id: cache-build
         with:
           path: /tmp/iccdev/build-coverage
-          key: ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'master' }}-${{ hashFiles('.github/workflows/iccdev-single-profile-coverage.yml') }}
+          key: >-
+            ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'master' }}-
+            ${{ hashFiles('.github/workflows/iccdev-single-profile-coverage.yml') }}
           restore-keys: |
             ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'master' }}-
 
@@ -138,7 +144,7 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
             -DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate" \
             -Wno-dev
-          make -j$(nproc)
+          make -j"$(nproc)"
 
       - name: Locate tools
         run: |
@@ -147,7 +153,7 @@ jobs:
           for tool in iccDumpProfile iccRoundTrip iccToXml iccFromXml iccApplyProfiles; do
             BIN=$(find "$BUILD_DIR" -name "$tool" -type f -executable -print -quit 2>/dev/null || true)
             if [ -n "$BIN" ]; then
-              echo "${tool}_path=$BIN" >> $GITHUB_ENV
+              echo "${tool}_path=$BIN" >> "$GITHUB_ENV"
               echo "[OK] $tool: $BIN"
             else
               echo "[SKIP] $tool: not found"
@@ -155,44 +161,53 @@ jobs:
           done
 
       - name: Profile with IccDumpProfile
+        env:
+          WORKSPACE_DIR: ${{ github.workspace }}
+          PROFILE: ${{ env.profile_file }}
+          TOOL: ${{ env.iccDumpProfile_path }}
         run: |
           set -euo pipefail
-          mkdir -p "${{ github.workspace }}/profraw" "${{ github.workspace }}/results"
-          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/dump-%p-%m.profraw"
-          PROFILE="${{ env.profile_file }}"
-          TOOL="${{ env.iccDumpProfile_path }}"
+          mkdir -p "$WORKSPACE_DIR/profraw" "$WORKSPACE_DIR/results"
+          export LLVM_PROFILE_FILE="$WORKSPACE_DIR/profraw/dump-%p-%m.profraw"
 
           echo "=== IccDumpProfile ===" | tee results/dump-output.txt
-          timeout 30s "$TOOL" "$PROFILE" 2>&1 | tee -a results/dump-output.txt || true
-          echo "exit_code=$?" >> results/dump-output.txt
+          EXIT_CODE=0
+          timeout 30s "$TOOL" "$PROFILE" 2>&1 | tee -a results/dump-output.txt || EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> results/dump-output.txt
 
       - name: Profile with IccRoundTrip
+        env:
+          WORKSPACE_DIR: ${{ github.workspace }}
+          PROFILE: ${{ env.profile_file }}
+          TOOL: ${{ env.iccRoundTrip_path }}
         run: |
           set -euo pipefail
-          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/roundtrip-%p-%m.profraw"
-          PROFILE="${{ env.profile_file }}"
-          TOOL="${{ env.iccRoundTrip_path }}"
+          export LLVM_PROFILE_FILE="$WORKSPACE_DIR/profraw/roundtrip-%p-%m.profraw"
 
           echo "=== IccRoundTrip ===" | tee results/roundtrip-output.txt
           if [ -n "$TOOL" ]; then
-            timeout 30s "$TOOL" "$PROFILE" 2>&1 | tee -a results/roundtrip-output.txt || true
-            echo "exit_code=$?" >> results/roundtrip-output.txt
+            EXIT_CODE=0
+            timeout 30s "$TOOL" "$PROFILE" 2>&1 | tee -a results/roundtrip-output.txt || EXIT_CODE=$?
+            echo "exit_code=$EXIT_CODE" >> results/roundtrip-output.txt
           else
             echo "[SKIP] iccRoundTrip not available" | tee -a results/roundtrip-output.txt
           fi
 
       - name: Profile with XML round-trip
+        env:
+          WORKSPACE_DIR: ${{ github.workspace }}
+          PROFILE: ${{ env.profile_file }}
+          PROFILE_NAME: ${{ env.profile_name }}
+          TO_XML: ${{ env.iccToXml_path }}
+          FROM_XML: ${{ env.iccFromXml_path }}
         run: |
           set -euo pipefail
-          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/xml-%p-%m.profraw"
-          PROFILE="${{ env.profile_file }}"
-          TO_XML="${{ env.iccToXml_path }}"
-          FROM_XML="${{ env.iccFromXml_path }}"
+          export LLVM_PROFILE_FILE="$WORKSPACE_DIR/profraw/xml-%p-%m.profraw"
 
           echo "=== XML Round-Trip ===" | tee results/xml-output.txt
           if [ -n "$TO_XML" ]; then
-            XML_OUT="/tmp/${{ env.profile_name }}.xml"
-            ICC_OUT="/tmp/${{ env.profile_name }}-roundtrip.icc"
+            XML_OUT="/tmp/${PROFILE_NAME}.xml"
+            ICC_OUT="/tmp/${PROFILE_NAME}-roundtrip.icc"
             timeout 30s "$TO_XML" "$PROFILE" "$XML_OUT" 2>&1 | tee -a results/xml-output.txt || true
             if [ -f "$XML_OUT" ]; then
               echo "XML size: $(stat -c%s "$XML_OUT") bytes" | tee -a results/xml-output.txt
@@ -209,11 +224,13 @@ jobs:
           fi
 
       - name: Profile with IccApplyProfiles
+        env:
+          WORKSPACE_DIR: ${{ github.workspace }}
+          PROFILE: ${{ env.profile_file }}
+          TOOL: ${{ env.iccApplyProfiles_path }}
         run: |
           set -euo pipefail
-          export LLVM_PROFILE_FILE="${{ github.workspace }}/profraw/apply-%p-%m.profraw"
-          PROFILE="${{ env.profile_file }}"
-          TOOL="${{ env.iccApplyProfiles_path }}"
+          export LLVM_PROFILE_FILE="$WORKSPACE_DIR/profraw/apply-%p-%m.profraw"
 
           echo "=== IccApplyProfiles ===" | tee results/apply-output.txt
           if [ -z "$TOOL" ]; then
@@ -266,37 +283,40 @@ jobs:
           rm -f /tmp/apply-input.tiff /tmp/apply-output-*.tiff
 
       - name: Merge profdata and generate coverage report
+        env:
+          WORKSPACE_DIR: ${{ github.workspace }}
+          MAIN_BIN: ${{ env.iccDumpProfile_path }}
         run: |
           set -euo pipefail
           mkdir -p coverage-report
 
-          PROFRAW_COUNT=$(find "${{ github.workspace }}/profraw" -name "*.profraw" 2>/dev/null | wc -l)
+          mapfile -t PROFRAW_FILES < <(find "$WORKSPACE_DIR/profraw" -name "*.profraw" -type f -print 2>/dev/null)
+          PROFRAW_COUNT=${#PROFRAW_FILES[@]}
           echo "[INFO] $PROFRAW_COUNT .profraw files"
 
           if [ "$PROFRAW_COUNT" -eq 0 ]; then
-            echo "::warning::No profraw files — profile may have caused early exit"
+            echo "::warning::No profraw files -- profile may have caused early exit"
             echo "No coverage data" > coverage-report/coverage-summary.txt
             exit 0
           fi
 
           llvm-profdata-18 merge \
             -sparse \
-            "${{ github.workspace }}"/profraw/*.profraw \
+            "${PROFRAW_FILES[@]}" \
             -o coverage-report/merged.profdata
 
           BUILD_DIR="/tmp/iccdev/build-coverage"
-          MAIN_BIN="${{ env.iccDumpProfile_path }}"
 
-          OBJECT_ARGS=""
-          for bin in $(find "$BUILD_DIR" -path "*/Tools/*" -type f -executable); do
+          OBJECT_ARGS=()
+          while IFS= read -r bin; do
             if [ "$bin" != "$MAIN_BIN" ]; then
-              OBJECT_ARGS="$OBJECT_ARGS -object=$bin"
+              OBJECT_ARGS+=("-object=$bin")
             fi
-          done
+          done < <(find "$BUILD_DIR" -path "*/Tools/*" -type f -executable -print)
 
           # Text summary (filter benign mismatch warning from multi-binary merge)
           llvm-cov-18 report \
-            "$MAIN_BIN" $OBJECT_ARGS \
+            "$MAIN_BIN" "${OBJECT_ARGS[@]}" \
             -instr-profile=coverage-report/merged.profdata \
             -ignore-filename-regex='(third_party|/usr/|test)' \
             2>&1 | grep -v "functions have mismatched data" \
@@ -304,7 +324,7 @@ jobs:
 
           # HTML report
           llvm-cov-18 show \
-            "$MAIN_BIN" $OBJECT_ARGS \
+            "$MAIN_BIN" "${OBJECT_ARGS[@]}" \
             -instr-profile=coverage-report/merged.profdata \
             -format=html \
             -output-dir=coverage-report/html \
@@ -315,7 +335,7 @@ jobs:
 
           # LCOV export
           llvm-cov-18 export \
-            "$MAIN_BIN" $OBJECT_ARGS \
+            "$MAIN_BIN" "${OBJECT_ARGS[@]}" \
             -instr-profile=coverage-report/merged.profdata \
             -format=lcov \
             -ignore-filename-regex='(third_party|/usr/|test)' \
@@ -326,6 +346,7 @@ jobs:
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh
+          SUMMARY_FILE="$GITHUB_STEP_SUMMARY"
           SAFE_PROFILE="$(sanitize_line "${selected_profile:-unknown}")"
           {
             echo "## iccDEV Single Profile Coverage"
@@ -346,17 +367,17 @@ jobs:
             done
             echo "### Coverage Summary"
             echo '```'
-          } >> $GITHUB_STEP_SUMMARY
+          } >> "$SUMMARY_FILE"
 
           if [ -f coverage-report/coverage-summary.txt ]; then
-            sanitize_codeblock "$(cat coverage-report/coverage-summary.txt)" >> $GITHUB_STEP_SUMMARY
+            sanitize_codeblock "$(cat coverage-report/coverage-summary.txt)" >> "$SUMMARY_FILE"
           else
-            echo "No coverage data available" >> $GITHUB_STEP_SUMMARY
+            sanitize_line "No coverage data available" >> "$SUMMARY_FILE"
           fi
 
           {
             echo '```'
-          } >> $GITHUB_STEP_SUMMARY
+          } >> "$SUMMARY_FILE"
 
       - name: Upload coverage report
         if: always()

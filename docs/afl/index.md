@@ -91,6 +91,8 @@ For quick status, use `./afl/report.sh all --stats-only --target-jobs 8` or
 `./afl/report.sh all --no-coverage --target-jobs 8`. For focused reachability,
 prefer a single target command such as
 `./afl/report.sh fromcube --jobs 2 --target-timeout 3600`.
+Each report root includes `summary.tsv`; use it for pipeline checks and quick
+artifact counts without parsing Markdown.
 Use `./afl/report.sh TARGET --marked-only` when reviewing already marked
 reproduction artifacts; it skips maps and coverage and triages only
 `afl/marked/TARGET`.

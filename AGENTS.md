@@ -2,18 +2,22 @@
 
 ## Project Structure
 Security-research monorepo for ICC color-profile tooling. Main components:
-`iccanalyzer-lite/` (instrumented analyzer + V2 rewrite in `icctest/`),
-`cfl/` (LibFuzzer harnesses), `colorbleed_tools/` (unsafe XML converters),
-`mcp-server/` (MCP server + Web UI). Shared corpora in `test-profiles/`,
-`extended-test-profiles/`, `cfl/corpus-*`. Vendor mirrors (`opencv/`) and
-archived dirs (`demo-rit/`, `issue-711/`) are read-only.
+`iccDEV/` (unpatched upstream reference tooling), `cfl/` (LibFuzzer harnesses),
+`afl/` (AFL++ tool-level fuzzing), and `colorbleed_tools/` (unsafe XML
+converters). Shared corpora live in
+`test-profiles/`, `extended-test-profiles/`, and `cfl/corpus-*`. Retired
+analyzer history was removed from tracking; use the Git backup in `~/retired/`
+if archaeology is required. Vendor mirrors (`opencv/`) and archived dirs
+(`demo-rit/`, `issue-711/`) are read-only.
 
 ## Documentation Map
 - `docs/INDEX.md` -- task-based navigation
 - `.github/copilot-instructions.md` -- cross-cutting rules (always loaded)
-- `.github/instructions/*.instructions.md` -- path-specific (auto-loaded)
+- `.github/instructions/*.instructions.md` -- path-specific; include
+  `applyTo` frontmatter so Copilot can select the right file
 - `.github/skills/*/SKILL.md` -- on-demand task workflows
 - `.github/prompts/` -- prompt templates
+- `AGENTS.md` -- agent instructions; nearest file in the directory tree wins
 
 ## Build and Test
 See `.github/copilot-instructions.md` for build/test commands per component.
@@ -25,7 +29,15 @@ Additional repo workflows in active use:
 - `bash .github/scripts/test-iccdev-all.sh [--quick] [--asan] [--tool=NAME]`
   -- run the checked-in per-tool iccDEV shell test suite locally, with `--quick` for shorter envelope passes or `--tool=` to isolate one tool.
 - `.github/scripts/pre-push-gate.sh`
-  -- run the unified pre-push validation gate; it dispatches component-specific checks and calls `.github/scripts/pre-push-validate.sh` for iccanalyzer-lite build-sync verification.
+  -- run the unified pre-push validation gate for active GitHub and
+     documentation checks.
+
+## AFL JPEG Seed Rule
+`jpegdump` and `jpegdump-inject` must seed only `.jpg`/`.jpeg` files from
+`fuzz/graphics/jpg` that contain an embedded ICC profile. Do not seed either
+JPEG lane with raw `.icc` files from `test-profiles/`, `extended-test-profiles/`,
+or `fuzz/graphics/icc/`. Keep the JPEG seed cap at 200 and run
+`.github/scripts/validate-afl-jpeg-seeds.sh` after changing AFL JPEG seeding.
 
 ## Latest iccDEV Bisect Context
 JSON/config parser fixes live on upstream `InternationalColorConsortium/iccDEV`
@@ -58,6 +70,15 @@ ALWAYS verify after writing.
 5. **PoC policy**: Do not create standalone `.cpp` PoCs. Reproduce bugs with
    existing project tools and durable input artifacts (`.icc`, XML, TIFF, PNG,
    JPEG, JSON config, `.cube`) plus exact one-line commands.
+
+## Repeated Correction Rule
+
+When the user says a task is a repeated attempt, a regression fix, or time to
+wrap up, stop broad discovery. Make the smallest scoped edit that directly
+addresses the named failure, run only the decisive validation commands, commit,
+push if requested, and report the exact commit and evidence. Do not continue
+iterating through adjacent cleanup, stale docs, or exploratory scans unless the
+user explicitly asks for that broader work.
 
 ## Testing
 Update tests in nearest suite for behavior changes. Do not commit `.profraw`,

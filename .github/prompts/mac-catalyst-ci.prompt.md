@@ -71,4 +71,3 @@ The VT instrumented job is disabled in CI -- test locally with extended timeouts
 ## See Also
 - [image-fuzzer-quality.prompt.md](image-fuzzer-quality.prompt.md) -- Image fuzzer assessment
 - [cooperative-development.prompt.md](cooperative-development.prompt.md) -- Multi-agent coordination
-- [health-check.prompt.yml](health-check.prompt.yml) -- MCP server verification

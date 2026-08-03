@@ -1,12 +1,13 @@
 # test-profiles/
 
-Curated ICC color profiles for security testing with iccanalyzer-lite, CFL fuzzers, and AFL++ targets.
+Curated ICC color profiles for security testing with iccDEV tools, CFL fuzzers,
+and AFL++ targets.
 
 ## Inventory
 
 | Directory | Count | Description |
 |-----------|-------|-------------|
-| Root (`*.icc`) | 329 | Primary test corpus — v2/v4/v5 profiles across all 7 ICC classes |
+| Root (`*.icc`) | 329 | Primary test corpus - v2/v4/v5 profiles across all 7 ICC classes |
 | `crashes/` | 4 | Known-crashing profiles (upstream iccDEV bugs) |
 | `cwe-400/` | 491 | CWE-400 timeout/DoS profiles (calculator, recursion, large allocations) |
 | `spectral/` | 10 | Spectral/multi-visualization v5 profiles |
@@ -24,19 +25,12 @@ Curated ICC color profiles for security testing with iccanalyzer-lite, CFL fuzze
 | `mid` (Material ID) | ~8 | v5-specific |
 | `cenc` (Color Encoding) | ~8 | v5-specific |
 | `link` (DeviceLink) | ~8 | Device link transforms |
-| `abst` (Abstract) | ~6 | Lab→Lab transforms |
+| `abst` (Abstract) | ~6 | Lab-to-Lab transforms |
 | `nmcl` (NamedColor) | ~5 | Named color palettes |
 
 ## Usage
 
 ```bash
-# Run iccanalyzer-lite against a single profile
-ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-  ./iccanalyzer-lite/iccanalyzer-lite -a test-profiles/sRGB_D65_MAT.icc
-
-# Run full test suite (uses synthesized corpus, not this directory)
-python3 iccanalyzer-lite/tests/run_tests.py
-
 # Seed CFL fuzzers
 cp test-profiles/*.icc cfl/corpus-icc_profile_fuzzer/
 
@@ -57,6 +51,6 @@ cp test-profiles/*.icc cfl/corpus-icc_profile_fuzzer/
 | Directory | Relationship |
 |-----------|-------------|
 | `extended-test-profiles/` | CVE PoCs, crash artifacts, malformed profiles |
-| `fuzz/graphics/icc/` | Separate repo — raw CVE PoC files |
+| `fuzz/graphics/icc/` | Separate repo - raw CVE PoC files |
 | `cfl/corpus-*` | Fuzzer corpora (superset of seeds from here) |
 | `afl/afl-*/input/` | AFL seed directories (sampled from here) |

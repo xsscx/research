@@ -22,6 +22,13 @@ AFL_RUN_TIME=300 ./afl/start.sh dump
 Report files should cite exact command outputs, artifact paths, and whether
 coverage was annotated with reachability.
 
+Every generated `afl/report.sh` root contains:
+
+- `status.json` from `afl/status.sh --json`
+- `targets.tsv` with one row per configured target
+- `summary.tsv` with aggregate artifact and mode counts
+- `index.md` with the same summary plus per-target links
+
 Use `--target-timeout` or `AFL_REPORT_TARGET_TIMEOUT` for all-target coverage
 reports. A timed-out target is recorded in its coverage log and the report
 continues with the remaining targets.
@@ -34,6 +41,20 @@ Use `--target-jobs` for concurrent target reports and keep `--jobs *
 --target-jobs` near the available CPU count. Use `./afl/report.sh all
 --stats-only` for a fast inventory or target-specific commands such as
 `./afl/report.sh fromcube --jobs 2` for focused reachability updates.
+
+Before a QA coverage rerun, clear stale generated artifacts so old report roots
+and profile counters cannot be mistaken for new coverage:
+
+```bash
+git clean -fdX afl/reports/generated
+find afl/tmp -mindepth 1 -depth -delete
+find . \( -name '*.profraw' -o -name '*.profdata' -o -name '*.gcda' -o -name '*.gcno' \) -type f -delete
+```
+
+Preserve checked-in seed corpora, dictionaries, and `afl/reports/generated/`
+placeholders. Use `git status --ignored --short afl/reports/generated afl/tmp`
+and a profile-counter `find` pass to verify the baseline before rerunning
+`./afl/start.sh` or `./afl/report.sh`.
 
 Coverage reports should record the LLVM major used for both source coverage and
 static reachability. On this VM the expected path is Clang/LLVM 22:

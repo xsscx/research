@@ -87,7 +87,7 @@ afl_print_targets() {
     echo "  fromxml          - iccFromXml (ICC XML -> binary)"
     echo "  fromxml-noid     - iccFromXml (-noid save policy)"
     echo "  jpegdump         - iccJpegDump (JPEG -> ICC extraction)"
-    echo "  jpegdump-inject  - iccJpegDump (--write-icc injection lane)"
+    echo "  jpegdump-inject  - iccJpegDump (JPEG+ICC extraction compatibility lane)"
     echo "  pawgreport       - iccPawgReport (PAWG profile assessment)"
     echo "  pawgreport-fast  - iccPawgReport (small/no-trim profile assessment lane)"
     echo "  pawgreport-read  - iccPawgReport (--read eager-load assessment lane)"
@@ -184,9 +184,11 @@ afl_configure_target() {
     SEED_DRY_RUN_TIMEOUT=5
     SEED_INCLUDE_REGEX=""
     SEED_EXCLUDE_REGEX=""
+    SEED_REQUIRE_JPEG_ICC=0
     REQUIRED_FILES=()
     SEED_FILES=()
     SEED_DIRS=()
+    SEED_FIND_MAXDEPTH=1
     SEED_FILE_TYPE_REGEX=""
     AFL_ARGS=()
     HYBRID_NEEDS_SUPPORT=0
@@ -638,23 +640,22 @@ afl_configure_target() {
         jpegdump|jpegdump-inject)
             BINARY="$BIN_DIR/iccJpegDump"
             DICT="$REPO_ROOT/cfl/icc.dict"
+            SEED_FILE_TYPE_REGEX='^JPEG image data'
+            SEED_INCLUDE_REGEX='\.([Jj][Pp][Ee]?[Gg])$'
+            SEED_REQUIRE_JPEG_ICC=1
+            SEED_MAX_BYTES=1048576
+            SEED_LIMIT=200
+            SEED_FIND_MAXDEPTH=3
+            AFL_MAX_LENGTH=1048576
+            SEED_DIRS=(
+                "$REPO_ROOT/fuzz/graphics/jpg"
+            )
             if [[ "$target" == "jpegdump-inject" ]]; then
                 AFL_DIR="$AFL_BASE/afl-jpegdump-inject"
-                DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
-                SEED_MAX_BYTES=8192
-                SEED_LIMIT=96
-                AFL_MAX_LENGTH=65536
-                SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
-                SEED_DIRS=(
-                    "$REPO_ROOT/test-profiles"
-                    "$REPO_ROOT/fuzz/graphics/icc"
-                    "$REPO_ROOT/extended-test-profiles"
-                )
-                REQUIRED_FILES=("$fixed_jpeg")
-                TARGET_NOTE="JPEG injection lane: fixed JPEG, fuzzed ICC profile through --write-icc."
-                AFL_ARGS=("$fixed_jpeg" "--write-icc" "@@" "--output" "${tmp_prefix}.jpg")
+                TARGET_NOTE="JPEG extraction compatibility lane: only .jpg/.jpeg media with embedded ICC profiles are accepted; raw ICC profile seeds are rejected."
+                AFL_ARGS=("@@" "${tmp_prefix}.icc")
             else
-                SEED_DIRS=("$REPO_ROOT/fuzz/graphics/jpg")
+                TARGET_NOTE="JPEG dump lane: only .jpg/.jpeg media with embedded ICC profiles are accepted; raw ICC profile seeds are rejected."
                 AFL_ARGS=("@@" "${tmp_prefix}.icc")
             fi
             ;;

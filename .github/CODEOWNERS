@@ -13,6 +13,4 @@
 .github/CODEOWNERS @xsscx
 
 # Security-critical components
-iccanalyzer-lite/ @xsscx
 cfl/ @xsscx
-mcp-server/ @xsscx

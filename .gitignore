@@ -133,6 +133,7 @@ new.dict
 *-dict-add.txt
 
 # Build artifacts (binaries and test outputs)
+iccanalyzer-lite/
 iccanalyzer-lite/iccanalyzer-lite
 iccanalyzer-lite/iccAnalyzer-lite
 iccanalyzer-lite/iccDEV/

@@ -344,6 +344,7 @@ fi
 if [[ -n "$AFL_MAX_LENGTH" ]]; then
     require_uint "AFL_MAX_LENGTH" "$AFL_MAX_LENGTH"
 fi
+require_uint "SEED_FIND_MAXDEPTH" "${SEED_FIND_MAXDEPTH:-1}"
 if [[ -n "$AFL_INPUT_FORMAT" && "$AFL_INPUT_FORMAT" != "text" && "$AFL_INPUT_FORMAT" != "binary" ]]; then
     echo "ERROR: AFL_INPUT_FORMAT must be 'text' or 'binary': $AFL_INPUT_FORMAT" >&2
     exit 1
@@ -419,6 +420,7 @@ remove_stale_resume_state "$AFL_DIR/output"
 seed_file_allowed() {
     local seed_file="$1"
     local seed_type
+    local icc_size
 
     if [[ -n "${SEED_INCLUDE_REGEX:-}" && ! "$(basename "$seed_file")" =~ $SEED_INCLUDE_REGEX ]]; then
         return 1
@@ -438,7 +440,18 @@ seed_file_allowed() {
     fi
 
     seed_type=$(file -b -- "$seed_file" 2>/dev/null || true)
-    [[ "$seed_type" =~ $SEED_FILE_TYPE_REGEX ]]
+    [[ "$seed_type" =~ $SEED_FILE_TYPE_REGEX ]] || return 1
+
+    if [[ "${SEED_REQUIRE_JPEG_ICC:-0}" -eq 1 ]]; then
+        if ! command -v exiftool >/dev/null 2>&1; then
+            echo "ERROR: exiftool is required for JPEG ICC seed filtering" >&2
+            exit 1
+        fi
+        icc_size=$(exiftool -b -ICC_Profile "$seed_file" 2>/dev/null | wc -c | tr -d ' ')
+        [[ "${icc_size:-0}" -gt 0 ]] || return 1
+    fi
+
+    return 0
 }
 
 seed_file_size_allowed() {
@@ -546,6 +559,7 @@ seed_file_dry_run_ok() {
 copy_seed_file() {
     local seed_file="$1"
     local skip_type_check="${2:-0}"
+    local base dest suffix
 
     if ! seed_file_size_allowed "$seed_file"; then
         return 1
@@ -558,7 +572,14 @@ copy_seed_file() {
         return 1
     fi
 
-    cp --update=none -- "$seed_file" "$AFL_DIR/input/"
+    base="$(basename "$seed_file")"
+    dest="$AFL_DIR/input/$base"
+    suffix=0
+    while [[ -e "$dest" ]]; do
+        suffix=$((suffix + 1))
+        dest="$AFL_DIR/input/${base}.dup$suffix"
+    done
+    cp -- "$seed_file" "$dest"
 }
 
 selected_seed_candidates() {
@@ -600,7 +621,7 @@ if [[ -z "$AFL_INPUT_DIR" && ( "$INPUT_SEED_COUNT" -eq 0 || "$AFL_RESEED" != "0"
     done
     for seed_dir in "${SEED_DIRS[@]}"; do
         if [[ -d "$seed_dir" ]]; then
-            seed_find=(find "$seed_dir" -maxdepth 1 -type f)
+            seed_find=(find "$seed_dir" -maxdepth "${SEED_FIND_MAXDEPTH:-1}" -type f)
             if [[ "${SEED_MAX_BYTES:-0}" -gt 0 ]]; then
                 seed_find+=( -size "-${SEED_MAX_BYTES}c" )
             fi

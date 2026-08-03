@@ -10,7 +10,7 @@ This Repo tracks ongoing Public Domain Research with emphasis on Color Profiles,
 The work on iccAnalyzer-lite and V2 iccTestlib completed April 2026.
 - Patches were applied upstream
 - iccPawgReport was Published
-- MCP Server repurposed as iccMCP
+- Retired analyzer and server surfaces were removed from active tracking
 
 ### AFL & CFL
 - Ongoing Campaigns

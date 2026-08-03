@@ -1,3 +1,7 @@
+---
+applyTo: "afl/**,docs/afl/**"
+---
+
 # AFL++ Instructions - Tool-Level Fuzzing
 
 Use these instructions for files under `afl/` and AFL++ work that drives real
@@ -13,6 +17,14 @@ iccDEV tool binaries.
 Do not duplicate exact target counts in docs. Run `./afl/start.sh --list` or
 read `afl/targets.sh` in the current checkout.
 
+## JPEG AFL Seed Contract
+
+The `jpegdump` and `jpegdump-inject` lanes fuzz JPEG media only. They must seed
+only `.jpg`/`.jpeg` files from `fuzz/graphics/jpg` that contain an embedded ICC
+profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/`,
+`fuzz/graphics/icc/`, or any raw `.icc` corpus. Keep `SEED_LIMIT=200` and run
+`.github/scripts/validate-afl-jpeg-seeds.sh` after changing JPEG AFL seeding.
+
 ## Standard Commands
 
 ```bash
@@ -26,6 +38,7 @@ read `afl/targets.sh` in the current checkout.
 ./afl/stop.sh dump
 ./afl/triage.sh dump
 .github/scripts/check-afl-cfl-patches.sh
+.github/scripts/validate-afl-jpeg-seeds.sh
 ```
 
 ## Tracking Policy

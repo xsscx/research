@@ -6,43 +6,33 @@ permissions:
 on:
   push:
     paths:
-      - '.github/scripts/iccdev-afl-fromxml-regression.sh'
       - '.github/workflows/iccdev-afl-regressions.yml'
-      - 'afl/patches/**'
-      - 'afl/reproducers/**'
+      - 'afl/*.sh'
+      - 'afl/targets.sh'
+      - '.github/scripts/validate-afl-jpeg-seeds.sh'
   pull_request:
     paths:
-      - '.github/scripts/iccdev-afl-fromxml-regression.sh'
       - '.github/workflows/iccdev-afl-regressions.yml'
-      - 'afl/patches/**'
-      - 'afl/reproducers/**'
+      - 'afl/*.sh'
+      - 'afl/targets.sh'
+      - '.github/scripts/validate-afl-jpeg-seeds.sh'
   workflow_dispatch:
-    inputs:
-      ref:
-        description: 'iccDEV branch to test'
-        required: false
-        default: 'ci-afl-cfl'
-        type: choice
-        options:
-          - ci-afl-cfl
-          - master
 
 concurrency:
   group: iccdev-afl-regressions-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  fromxml-namedcolor-devicecoords:
-    name: iccFromXml namedColor2 CountOfDeviceCoords
+  afl-script-smoke:
+    name: AFL script and report smoke
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash --noprofile --norc {0}
     env:
       BASH_ENV: /dev/null
-      ICCDEV_REF: ${{ github.event.inputs.ref || 'ci-afl-cfl' }}
-      WORK_ROOT: /tmp/iccdev-afl-fromxml-regression
+      AFL_BASE: /tmp/afl-script-smoke
 
     steps:
       - name: Checkout repository
@@ -51,47 +41,30 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Install build dependencies
-        uses: ./.github/actions/setup-build-env
-        with:
-          preset: 'coverage'
-          extra-packages: >-
-            clang++-18 libxml2-dev liblzma-dev libtiff-dev libpng-dev
-            libjpeg-dev libssl-dev libclang-rt-18-dev
-
-      - name: Transaction - reproduce unpatched, apply patch, replay patched
-        env:
-          BASH_ENV: /dev/null
+      - name: Install shellcheck
         run: |
           set -euo pipefail
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-          source .github/scripts/sanitize-sed.sh
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libimage-exiftool-perl shellcheck
 
-          chmod +x .github/scripts/iccdev-afl-fromxml-regression.sh
-          .github/scripts/iccdev-afl-fromxml-regression.sh
-
-      - name: Summarize regression
-        if: always()
-        env:
-          BASH_ENV: /dev/null
+      - name: Validate AFL shell scripts
         run: |
           set -euo pipefail
-          git config --global credential.helper ""
-          unset GITHUB_TOKEN || true
-          source .github/scripts/sanitize-sed.sh
+          shellcheck afl/report.sh afl/run-all.sh afl/status.sh afl/targets.sh \
+            .github/scripts/validate-afl-jpeg-seeds.sh
+          bash -n afl/*.sh
 
-          REPORT_FILE="$WORK_ROOT/transaction.md"
-          if [ ! -r "$REPORT_FILE" ]; then
-            {
-              echo "### iccFromXml AFL regression"
-              echo ""
-              echo "[FAIL] transaction report was not generated"
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
+      - name: Validate JPEG AFL seed policy
+        run: |
+          set -euo pipefail
+          .github/scripts/validate-afl-jpeg-seeds.sh
 
-          while IFS= read -r line; do
-            sanitize_line "$line"
-            echo ""
-          done < "$REPORT_FILE" >> "$GITHUB_STEP_SUMMARY"
+      - name: Smoke report pipeline
+        run: |
+          set -euo pipefail
+          ./afl/report.sh jpegdump --stats-only --report-root /tmp/afl-report-smoke
+          test -s /tmp/afl-report-smoke/index.md
+          test -s /tmp/afl-report-smoke/status.json
+          test -s /tmp/afl-report-smoke/targets.tsv
+          test -s /tmp/afl-report-smoke/summary.tsv
+          ./afl/run-all.sh jpegdump --dry-run --seconds 1 --no-report

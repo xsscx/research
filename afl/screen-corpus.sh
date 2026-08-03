@@ -106,6 +106,7 @@ if ! afl_configure_target "$TARGET"; then
     afl_print_targets >&2
     exit 1
 fi
+require_uint "SEED_FIND_MAXDEPTH" "${SEED_FIND_MAXDEPTH:-1}"
 if [[ ! -x "$BINARY" ]]; then
     echo "ERROR: Binary not found: $BINARY" >&2
     echo "Run ./afl/build.sh first" >&2
@@ -241,6 +242,7 @@ echo "    Target:      $TARGET"
 echo "    Source:      $INPUT_DIR"
 echo "    Output:      $OUT_DIR"
 echo "    Max bytes:   ${SEED_MAX_BYTES:-0}"
+echo "    Max depth:   ${SEED_FIND_MAXDEPTH:-1}"
 echo "    Max exec ms: $SCREEN_MAX_EXEC_MS"
 
 if [[ "$KEEP_ORDER" == "random" ]]; then
@@ -270,7 +272,7 @@ while IFS= read -r -d '' seed_file; do
         break
     fi
 done < <(
-    find "$INPUT_DIR" -maxdepth 1 \( -type f -o -type l \) ! -name 'README*' -print0 2>/dev/null | "${FIND_SORT[@]}"
+    find "$INPUT_DIR" -maxdepth "${SEED_FIND_MAXDEPTH:-1}" \( -type f -o -type l \) ! -name 'README*' -print0 2>/dev/null | "${FIND_SORT[@]}"
 )
 
 echo "[OK] kept $KEPT_COUNT of $SOURCE_COUNT inspected seed(s)"

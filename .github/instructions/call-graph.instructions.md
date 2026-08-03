@@ -1,3 +1,7 @@
+---
+applyTo: "call-graph/**,docs/callgraph/**"
+---
+
 # call-graph/ - Path-Specific Instructions
 
 ## What This Is

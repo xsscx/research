@@ -493,12 +493,7 @@ python3 docs/iccDEV/specifications/render_iccmax_srgbencoding_poster_v7.py</pre>
 
         <article class="note-card">
           <h3>Validation evidence</h3>
-          <pre>python3 - <<'PY'
-import asyncio, sys
-sys.path.insert(0, 'mcp-server')
-from icc_profile_mcp import full_analysis
-print(asyncio.run(full_analysis('test-profiles/sRgbEncoding.icc', engine='v1')))
-PY</pre>
+          <pre>iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile test-profiles/sRgbEncoding.icc</pre>
           <p class="caption">
             The key line in the local output is: <code>Validation Status: OK -
             Profile conforms to ICC specification</code>.

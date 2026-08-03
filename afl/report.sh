@@ -160,6 +160,7 @@ update_latest_report_link
 STATUS_JSON="$REPORT_ROOT/status.json"
 INDEX_MD="$REPORT_ROOT/index.md"
 TARGETS_TSV="$REPORT_ROOT/targets.tsv"
+SUMMARY_TSV="$REPORT_ROOT/summary.tsv"
 TARGET_ROWS_DIR="$REPORT_ROOT/target-rows"
 
 if [[ -n "$TARGET_FILTER" ]]; then
@@ -341,6 +342,43 @@ while IFS= read -r row_file; do
     cat "$row_file" >> "$TARGETS_TSV"
 done < <(find "$TARGET_ROWS_DIR" -maxdepth 1 -type f -name '*.tsv' | sort)
 
+write_summary_tsv() {
+    {
+        printf 'metric\tvalue\n'
+        printf 'targets_total\t%s\n' "$(tail -n +2 "$TARGETS_TSV" | wc -l)"
+        awk -F '\t' '
+            NR > 1 {
+                state[$2]++
+                if ($5 != "") maps++
+                if ($6 != "") triage++
+                if ($7 != "") coverage++
+                if ($8 != "") reachability++
+                if ($14 != "") profdata++
+            }
+            END {
+                printf "targets_reported\t%d\n", state["reported"] + 0
+                printf "targets_not_started\t%d\n", state["not_started"] + 0
+                printf "targets_not_configured\t%d\n", state["not_configured"] + 0
+                printf "map_artifacts\t%d\n", maps + 0
+                printf "triage_artifacts\t%d\n", triage + 0
+                printf "coverage_artifacts\t%d\n", coverage + 0
+                printf "reachability_artifacts\t%d\n", reachability + 0
+                printf "profdata_artifacts\t%d\n", profdata + 0
+            }
+        ' "$TARGETS_TSV"
+        printf 'coverage_enabled\t%s\n' "$RUN_COVERAGE"
+        printf 'reachability_enabled\t%s\n' "$RUN_REACHABILITY"
+        printf 'map_enabled\t%s\n' "$RUN_MAPS"
+        printf 'triage_enabled\t%s\n' "$RUN_TRIAGE"
+        printf 'coverage_jobs\t%s\n' "$JOBS"
+        printf 'target_jobs\t%s\n' "$TARGET_JOBS"
+        printf 'target_timeout_seconds\t%s\n' "$TARGET_TIMEOUT"
+        printf 'coverage_timeout_seconds\t%s\n' "$COVERAGE_TIMEOUT"
+    } > "$SUMMARY_TSV"
+}
+
+write_summary_tsv
+
 if [[ "$target_failures" -ne 0 ]]; then
     echo "WARN: one or more target report jobs failed; see logs under $REPORT_ROOT/logs" >&2
 fi
@@ -354,6 +392,7 @@ fi
     echo "- Report root: $REPORT_ROOT"
     echo "- Status JSON: $STATUS_JSON"
     echo "- Target TSV: $TARGETS_TSV"
+    echo "- Summary TSV: $SUMMARY_TSV"
     if [[ "$RUN_MAPS" -eq 0 && "$RUN_TRIAGE" -eq 0 && "$RUN_COVERAGE" -eq 0 ]]; then
         echo "- Mode: stats-only"
     elif [[ "$MARKED_ONLY" -eq 1 ]]; then
@@ -366,6 +405,14 @@ fi
         echo "- Coverage timeout: ${COVERAGE_TIMEOUT}s"
         echo "- Target timeout: $([[ "$TARGET_TIMEOUT" -gt 0 ]] && printf '%ss' "$TARGET_TIMEOUT" || printf 'disabled')"
     fi
+    echo ""
+    echo "## Summary"
+    echo ""
+    echo "| Metric | Value |"
+    echo "|---|---:|"
+    tail -n +2 "$SUMMARY_TSV" | while IFS=$'\t' read -r metric value; do
+        printf "| \`%s\` | %s |\n" "$metric" "$value"
+    done
     echo ""
     echo "| Target | State | Stats | Map | Triage | Coverage | Reachability | Runtime lists | Profdata |"
     echo "|---|---|---|---|---|---|---|---|---|"
@@ -398,3 +445,4 @@ echo "[OK] AFL report complete"
 echo "     Index:  $INDEX_MD"
 echo "     Status: $STATUS_JSON"
 echo "     TSV:    $TARGETS_TSV"
+echo "     Summary: $SUMMARY_TSV"

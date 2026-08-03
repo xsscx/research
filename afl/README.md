@@ -162,6 +162,20 @@ argument variants that share the same binary. The runtime lists come from each
 target's `coverage.json` and reflect the actual AFL queue replay for that
 variant.
 
+## JPEG Seed Policy
+
+The `jpegdump` and `jpegdump-inject` compatibility lanes fuzz JPEG media only.
+They seed up to 200 files from `fuzz/graphics/jpg`, and `afl/start.sh` rejects
+raw `.icc` files and JPEGs without an embedded ICC profile by checking
+`exiftool -b -ICC_Profile`. Use ICC-profile corpora only for ICC-profile targets
+such as `dump`, `toxml`, `pawgreport`, or `applyprofiles`.
+
+Validate the contract after seed changes:
+
+```bash
+.github/scripts/validate-afl-jpeg-seeds.sh
+```
+
 Durable run summaries live in `afl/reports/`. Generated coverage HTML, JSON,
 profdata, AFL queues, and minimized corpora live under
 `afl/reports/generated/` by default and are ignored by git. There is no

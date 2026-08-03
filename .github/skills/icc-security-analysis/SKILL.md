@@ -1,7 +1,7 @@
 ---
 name: icc-security-analysis
 description: >
-  Full ICC color profile security analysis using MCP tools or CLI.
+  Full ICC color profile security analysis using CLI tools.
   Runs structural inspection, registry-backed security scan, round-trip
   validation, and generates findings report. Supports ICC profiles, TIFF,
   PNG, and JPEG with embedded ICC extraction.
@@ -21,57 +21,44 @@ Analyze ICC color profiles against ICC.1-2022-05 and ICC.2-2023 specifications,
 detecting CVE patterns, CWE violations, malformed structures, and exploitation
 vectors. Supports binary ICC profiles and image files with embedded ICC data.
 
-## Workflow (MCP Tools)
+## Workflow
 
 ### 1. Structural Inspection
 
-Call `inspect_profile` for header, tag table, and field values.
-Identify: profile class, color space, PCS, version, creator, notable tags.
+Use `iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile` for header, tag table,
+and field values. Identify profile class, color space, PCS, version, creator,
+and notable tags.
 
-### 2. Security Scan
+### 2. Round-Trip and Representation Checks
 
-Call `analyze_security` for the registry-backed heuristic scan.
-Do not hardcode heuristic totals -- use registry or tool output for counts.
+Use active `iccDEV/Build/Tools/` CLIs for round-trip and representation checks.
+Do not hardcode heuristic totals; cite tool output or checked-in registry data.
 
-### 3. Round-Trip Validation
-
-Call `validate_roundtrip` for AToB/BToA tag pair completeness.
-
-### 4. Optional Deep Analysis
-
-- `profile_to_xml` -- when binary structure alone is insufficient
-- `analyze_security_report` -- compact PAWG-oriented output
-- `analyze_security_json` -- machine-readable structured output
-- `full_analysis` -- all modes combined
-
-For profile-representation mutation outside MCP, use ColorBleed:
+For profile-representation mutation, use ColorBleed:
 `colorbleed_tools/iccToXml_unsafe`, `colorbleed_tools/iccFromXml_unsafe`,
 `colorbleed_tools/iccToJson_unsafe`, and `colorbleed_tools/iccFromJson_unsafe`.
 Use `colorbleed_tools/qa-roundtrip-colorbleed.sh` for the full ICC -> XML/JSON
 -> ICC -> XML converter sweep. Do not use `-sort` with `iccToJson_unsafe`
 during ColorBleed QA until that wrapper path is sanitizer-clean.
 
-### 5. Report
+### 3. Report
 
 Summarize findings by severity and heuristic ID. Note round-trip completeness
 and any structural anomalies. For container files (TIFF/PNG/JPEG), state
 whether an embedded ICC profile was extracted.
 
-## Workflow (CLI)
+## CLI Commands
 
 ```bash
-# Full analysis with ASAN instrumentation
-ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-  ./iccanalyzer-lite/iccanalyzer-lite -a <profile.icc>
+# Header and tag inspection
+iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
 
-# Structured JSON output
-./iccanalyzer-lite/iccanalyzer-lite --json <profile.icc>
+# XML/JSON representation checks
+iccDEV/Build/Tools/IccToXml/IccToXml <profile.icc> /tmp/profile.xml
+iccDEV/Build/Tools/IccToJson/IccToJson <profile.icc> /tmp/profile.json
 
-# Severity-sorted report
-./iccanalyzer-lite/iccanalyzer-lite --report <profile.icc>
-
-# Automated script (runs all modes, writes to analysis-reports/)
-.github/scripts/analyze-profile.sh test-profiles/<filename>.icc
+# Round-trip through XML
+iccDEV/Build/Tools/IccFromXml/IccFromXml /tmp/profile.xml /tmp/roundtrip.icc
 ```
 
 ## ICC.1-2022-05 Quick Reference

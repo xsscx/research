@@ -1,7 +1,13 @@
 # Fuzzer Map
 
+This map separates library-level CFL harnesses from AFL++ CLI lanes. AFL lanes
+use real tool argv shapes from `afl/targets.sh`; injection lanes fuzz embedded
+ICC profile bytes through fixed media, while dump lanes fuzz the media file
+itself.
+
 ```mermaid
 graph LR
+    subgraph CFL["CFL LibFuzzer harnesses"]
     fuzzer_icc_applynamedcmm_fuzzer["applynamedcmm"]:::fuzzer
     comp_iccdev_tools_IccApplyNamedCmm(["IccApplyNamedCmm"]):::tool
     fuzzer_icc_applynamedcmm_fuzzer -->|75%| comp_iccdev_tools_IccApplyNamedCmm
@@ -37,7 +43,37 @@ graph LR
     fuzzer_icc_v5dspobs_fuzzer["v5dspobs"]:::fuzzer
     comp_iccdev_tools_IccV5DspObsToV4Dsp(["IccV5DspObsToV4Dsp"]):::tool
     fuzzer_icc_v5dspobs_fuzzer --> comp_iccdev_tools_IccV5DspObsToV4Dsp
+    end
+
+    subgraph AFL["AFL++ CLI lanes"]
+    afl_jpegdump["jpegdump: JPEG media seeds"]:::afl
+    afl_jpegdump_inject["jpegdump-inject: ICC profile injection"]:::afl
+    afl_pngdump["pngdump: PNG media seeds"]:::afl
+    afl_pngdump_inject["pngdump-inject: ICC profile injection"]:::afl
+    afl_tiffdump["tiffdump: TIFF media seeds"]:::afl
+    afl_tiffdump_extract["tiffdump-extract: TIFF saved ICC extraction"]:::afl
+    afl_report["report.sh: status, map, triage, coverage"]:::report
+    afl_coverage["coverage.sh: cov-analysis and reachability"]:::report
+    afl_reset["clean baseline: clear generated reports, tmp, profile counters"]:::report
+    afl_qa["QA rerun: fresh queues and reports"]:::report
+    end
+
+    comp_iccdev_tools_IccJpegDump(["IccJpegDump"]):::tool
+    comp_iccdev_tools_IccPngDump(["IccPngDump"]):::tool
+    comp_iccdev_tools_IccTiffDump(["IccTiffDump"]):::tool
+
+    afl_jpegdump --> comp_iccdev_tools_IccJpegDump
+    afl_jpegdump_inject --> comp_iccdev_tools_IccJpegDump
+    afl_pngdump --> comp_iccdev_tools_IccPngDump
+    afl_pngdump_inject --> comp_iccdev_tools_IccPngDump
+    afl_tiffdump --> comp_iccdev_tools_IccTiffDump
+    afl_tiffdump_extract --> comp_iccdev_tools_IccTiffDump
+    afl_report --> afl_coverage
+    afl_coverage --> afl_reset
+    afl_reset --> afl_qa
 
     classDef fuzzer fill:#1565c0,color:#fff,stroke:#0d47a1
+    classDef afl fill:#6a1b9a,color:#fff,stroke:#4a148c
     classDef tool fill:#2e7d32,color:#fff,stroke:#1b5e20
+    classDef report fill:#455a64,color:#fff,stroke:#263238
 ```

@@ -112,11 +112,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       'afl/**' \
       'cfl/**' \
       'colorbleed_tools/**' \
-      'Dockerfile*' \
-      'Dockerfile.*' \
-      'docs/**' \
-      'iccanalyzer-lite/**' \
-      'mcp-server/**' 2>/dev/null || true)"
+      'docs/**' 2>/dev/null || true)"
   else
     maintainer_changes="$(git diff-tree --no-commit-id --name-only -r "$local_sha" -- \
       '.github/**' \
@@ -124,11 +120,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       'afl/**' \
       'cfl/**' \
       'colorbleed_tools/**' \
-      'Dockerfile*' \
-      'Dockerfile.*' \
-      'docs/**' \
-      'iccanalyzer-lite/**' \
-      'mcp-server/**' 2>/dev/null || true)"
+      'docs/**' 2>/dev/null || true)"
   fi
   if [ -n "$maintainer_changes" ]; then
     warn "Push changes maintainer-owned infrastructure paths; confirm reviewer coverage."

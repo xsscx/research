@@ -99,6 +99,12 @@ Compare file counts (local must be >= source) before swapping directories.
 - ALL batch operations MUST use all available CPU cores
 - Use existing `.github/scripts/corpus-merge.sh` -- do NOT create custom scripts
 - Only corpus dirs matching `cfl/fuzzers.sh` are runnable; `corpus-xml` is a staging area
+- AFL `jpegdump` and `jpegdump-inject` seed only up to 200 `.jpg`/`.jpeg` files
+  from `fuzz/graphics/jpg` with extractable embedded ICC profiles; never seed
+  those lanes with raw `.icc` files.
+- On repeated correction or wrap-up requests, skip broad corpus sweeps. Make
+  the named fix, run the narrow seed validator or seed-only check, then commit
+  and push if requested.
 
 ## References
 

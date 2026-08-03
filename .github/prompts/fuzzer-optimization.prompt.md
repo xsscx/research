@@ -11,6 +11,11 @@ documents input format, coverage gaps, input crafting, and dictionary focus.
 Use this when a fuzzer's coverage has plateaued and you need to identify which code paths are
 unreachable, which need new seeds, and which need dictionary tokens.
 
+If this prompt is used for a repeated correction or wrap-up request, do not run
+a full optimization pass. Patch the named fuzzer policy or script, run the
+targeted validator or seed-only command that proves the fix, then commit and
+push if requested.
+
 ## Prerequisites
 - Fuzzers built: `ls cfl/bin/icc_*_fuzzer | wc -l` -> 19
 - Coverage HTML: `coverage-report/html/` (paths reflect build directory structure)
@@ -64,6 +69,8 @@ python3 xnuimagetools/contrib/scripts/extract-icc-seeds.py \
 ```
 
 Targets: ICC profiles -> profile/dump/deep_dump/toxml fuzzers; TIFF files -> tiffdump/specsep fuzzers.
+For AFL `jpegdump` and `jpegdump-inject`, seed only `.jpg`/`.jpeg` files with
+embedded ICC profiles from `fuzz/graphics/jpg`; do not use raw `.icc` seeds.
 
 ---
 

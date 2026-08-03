@@ -1,6 +1,6 @@
-# Doxyfile — ICC Security Research
+# Doxyfile -- ICC Security Research
 # Generated for xsscx/research repository
-# Covers: iccanalyzer-lite (C++), CFL fuzzers (C++), MCP server (Python)
+# Covers: CFL fuzzers (C++), colorbleed tools (C++), and docs
 #
 # Build:   cd docs/doxygen && doxygen Doxyfile
 # Output:  docs/doxygen/html/index.html
@@ -10,17 +10,15 @@
 # ---------------------------------------------------------------------------
 PROJECT_NAME           = "ICC Security Research"
 PROJECT_NUMBER         = "v3.6.1"
-PROJECT_BRIEF          = "148-heuristic ICC profile security analyzer, 18 LibFuzzer harnesses, MCP server"
+PROJECT_BRIEF          = "ICC profile fuzzing, unsafe converter, and research docs"
 PROJECT_LOGO           =
 OUTPUT_DIRECTORY       = docs/doxygen
 OUTPUT_LANGUAGE        = English
 
 # ---------------------------------------------------------------------------
-# Input — all source components
+# Input -- all source components
 # ---------------------------------------------------------------------------
-INPUT                  = iccanalyzer-lite \
-                         cfl \
-                         mcp-server \
+INPUT                  = cfl \
                          colorbleed_tools \
                          README.md \
                          docs
@@ -32,10 +30,7 @@ RECURSIVE              = YES
 FILE_PATTERNS          = *.cpp *.h *.py *.md
 
 # Exclude build artifacts, tests corpus, third-party code, and large dirs
-EXCLUDE                = ../../iccanalyzer-lite/tests/corpus \
-                         ../../iccanalyzer-lite/codeql-queries \
-                         ../../iccanalyzer-lite/iccDEV \
-                         ../../cfl/iccDEV \
+EXCLUDE                = ../../cfl/iccDEV \
                          ../../cfl/bin \
                          ../../cfl/corpus-icc_profile_fuzzer \
                          ../../cfl/corpus-icc_toxml_fuzzer \
@@ -66,7 +61,7 @@ EXCLUDE_PATTERNS       = */build/* */Build/* */.git/* */node_modules/* *__pycach
 USE_MDFILE_AS_MAINPAGE = ../../README.md
 
 # ---------------------------------------------------------------------------
-# Build — extract everything, including undocumented entities
+# Build -- extract everything, including undocumented entities
 # ---------------------------------------------------------------------------
 EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = YES
@@ -106,7 +101,7 @@ MARKDOWN_SUPPORT       = YES
 AUTOLINK_SUPPORT       = YES
 
 # ---------------------------------------------------------------------------
-# HTML output — interactive, searchable, dark-theme friendly
+# HTML output -- interactive, searchable, dark-theme friendly
 # ---------------------------------------------------------------------------
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
@@ -132,13 +127,13 @@ FORMULA_FONTSIZE       = 12
 USE_MATHJAX            = NO
 
 # ---------------------------------------------------------------------------
-# Graphs — interactive SVG with Graphviz
+# Graphs -- interactive SVG with Graphviz
 # ---------------------------------------------------------------------------
 HAVE_DOT               = YES
 DOT_NUM_THREADS        = 8
 
-# All graph types enabled (except per-function call/caller — too many SVGs)
-# CLASS_DIAGRAMS removed (obsolete — use CLASS_GRAPH instead)
+# All graph types enabled (except per-function call/caller -- too many SVGs)
+# CLASS_DIAGRAMS removed (obsolete -- use CLASS_GRAPH instead)
 CLASS_GRAPH            = YES
 COLLABORATION_GRAPH    = YES
 GROUP_GRAPHS           = YES
@@ -164,7 +159,7 @@ UML_LIMIT_NUM_FIELDS   = 20
 TEMPLATE_RELATIONS     = YES
 
 # ---------------------------------------------------------------------------
-# Other output formats — disable for now
+# Other output formats -- disable for now
 # ---------------------------------------------------------------------------
 GENERATE_LATEX         = NO
 GENERATE_XML           = NO
@@ -173,18 +168,16 @@ GENERATE_MAN           = NO
 GENERATE_DOCBOOK       = NO
 
 # ---------------------------------------------------------------------------
-# Preprocessing — handle iccDEV and analyzer macros
+# Preprocessing -- handle iccDEV macros
 # ---------------------------------------------------------------------------
 ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = NO
 SEARCH_INCLUDES        = YES
-INCLUDE_PATH           = iccanalyzer-lite \
-                         iccDEV/IccProfLib \
+INCLUDE_PATH           = iccDEV/IccProfLib \
                          iccDEV/IccXML/IccLibXML
 
-PREDEFINED             = ICCANALYZER_LITE=1 \
-                         __attribute__(x)= \
+PREDEFINED             = __attribute__(x)= \
                          __cplusplus=201703L
 
 # ---------------------------------------------------------------------------

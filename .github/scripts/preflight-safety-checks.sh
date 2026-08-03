@@ -214,7 +214,7 @@ run_workflow_risk_subset() {
       /^[[:space:]]*-?[[:space:]]*uses:[[:space:]]/ {
         sub(/.*uses:[[:space:]]*/, "")
         gsub(/["'\''"]/, "")
-        if ($0 !~ /^#/ && $0 !~ /docker:\/\// && $0 !~ /^\.\/\.github\/workflows\//) print
+        if ($0 !~ /^#/ && $0 !~ /docker:\/\// && $0 !~ /^\.\/\.github\/workflows\// && $0 !~ /^\.\/\.github\/actions\//) print
       }
     ' "$wf")
 

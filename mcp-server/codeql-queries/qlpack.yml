@@ -1,5 +1,0 @@
-name: icc-mcp-server/security-queries
-version: 1.0.0
-library: false
-dependencies:
-  codeql/python-all: "*"

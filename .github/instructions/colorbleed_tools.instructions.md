@@ -61,15 +61,6 @@ Do not pass `-sort` to `iccToJson_unsafe` in ColorBleed QA. The wrapper rejects
 that option with exit code 64 until the sorted JSON writer path is
 sanitizer-clean.
 
-## Integration with MCP Server
-
-The MCP server's `profile_to_xml` and `upload_and_analyze` tools use these binaries:
-```python
-# In mcp-server/icc_profile_mcp.py
-ICCTOXML = "colorbleed_tools/iccToXml_unsafe"
-ICCFROMXML = "colorbleed_tools/iccFromXml_unsafe"
-```
-
 ## Integration with iccanalyzer-lite
 
 The analyzer's `-r` (round-trip) mode uses `iccToXml_unsafe` to convert profiles

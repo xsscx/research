@@ -16,6 +16,15 @@ dictionary entries to increase code coverage for the CFL LibFuzzer harnesses.
 
 ## Workflow
 
+If the request is a repeated correction or wrap-up, do not regenerate coverage
+or sweep corpora. Make the specific correction, run the narrow validation that
+proves it, and commit/push if requested.
+
+Before changing AFL JPEG lanes, preserve their seed contract: `jpegdump` and
+`jpegdump-inject` take only up to 200 `.jpg`/`.jpeg` seeds from
+`fuzz/graphics/jpg` that have extractable embedded ICC profiles. Do not seed
+those targets with raw `.icc` files.
+
 ### 1. Generate Coverage Report
 ```bash
 # Merge all profraw files
