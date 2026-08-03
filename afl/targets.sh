@@ -87,7 +87,7 @@ afl_print_targets() {
     echo "  fromxml          - iccFromXml (ICC XML -> binary)"
     echo "  fromxml-noid     - iccFromXml (-noid save policy)"
     echo "  jpegdump         - iccJpegDump (JPEG -> ICC extraction)"
-    echo "  jpegdump-inject  - iccJpegDump (JPEG+ICC extraction compatibility lane)"
+    echo "  jpegdump-inject  - iccJpegDump (--write-icc injection lane)"
     echo "  pawgreport       - iccPawgReport (PAWG profile assessment)"
     echo "  pawgreport-fast  - iccPawgReport (small/no-trim profile assessment lane)"
     echo "  pawgreport-read  - iccPawgReport (--read eager-load assessment lane)"
@@ -648,8 +648,9 @@ afl_configure_target() {
             )
             if [[ "$target" == "jpegdump-inject" ]]; then
                 AFL_DIR="$AFL_BASE/afl-jpegdump-inject"
-                TARGET_NOTE="JPEG extraction compatibility lane: only .jpg/.jpeg media with embedded ICC profiles are accepted; raw ICC profile seeds are rejected."
-                AFL_ARGS=("@@" "${tmp_prefix}.icc")
+                REQUIRED_FILES=("$srgb_profile")
+                TARGET_NOTE="JPEG injection lane: fuzzed JPEG input with a fixed ICC profile supplied through --write-icc; only .jpg/.jpeg media with embedded ICC profiles are accepted."
+                AFL_ARGS=("@@" "--write-icc" "$srgb_profile" "--output" "${tmp_prefix}.jpg")
             else
                 TARGET_NOTE="JPEG dump lane: only .jpg/.jpeg media with embedded ICC profiles are accepted; raw ICC profile seeds are rejected."
                 AFL_ARGS=("@@" "${tmp_prefix}.icc")
