@@ -6,3 +6,7 @@ src:*/sources/zlib/*.c
 # zlib intentionally narrows internal values to its fixed-width table types.
 [implicit-integer-conversion]
 src:*/sources/zlib/*.c
+
+# libtiff's LZW bit accumulator intentionally discards emitted high bits.
+[unsigned-shift-base]
+src:*/sources/libtiff/libtiff/tif_lzw.c
