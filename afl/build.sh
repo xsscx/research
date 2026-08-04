@@ -15,6 +15,8 @@ ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
 BUILD_DIR="${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL}"
 CMAKE_DIR="$ICCDEV_DIR/Build/Cmake"
 BIN_DIR="${AFL_BIN_DIR:-$SCRIPT_DIR/bin}"
+THIRD_PARTY_DIR="$SCRIPT_DIR/third_party"
+THIRD_PARTY_PREFIX="${AFL_THIRD_PARTY_PREFIX:-$THIRD_PARTY_DIR/install}"
 JOBS=$(nproc)
 PATCH_DIR="$REPO_ROOT/afl/patches"
 APPLY_PATCHES="${AFL_APPLY_PATCHES:-0}"
@@ -28,12 +30,14 @@ AFL_CTX_BUILD=0
 AFL_NGRAM_SIZE_VAL="${AFL_NGRAM_SIZE:-}"
 AFL_LINK_MODE="${AFL_LINK_MODE:-static}"
 AFL_UBSAN_IGNORELIST="${AFL_UBSAN_IGNORELIST:-.github/ci/ubsan-ignorelist.txt}"
+CLEAN_THIRD_PARTY=0
 
 usage() {
     sed -n '2,8p' "$0" | sed 's/^# \?//'
     echo ""
     echo "Options:"
     echo "  --clean           remove Build-AFL before building"
+    echo "  --clean-third-party rebuild all AFL-instrumented dependencies"
     echo "  --no-patches      build upstream iccDEV without AFL patches (default)"
     echo "  --patches         apply afl/patches before building; failed patches warn and continue"
     echo "  --patch [DIR|FILE] apply all AFL patches, a patch directory, or one patch file"
@@ -51,6 +55,7 @@ usage() {
     echo "Environment:"
     echo "  AFL_BUILD_DIR     override build directory"
     echo "  AFL_BIN_DIR       override deployed binary directory"
+    echo "  AFL_THIRD_PARTY_PREFIX override the dependency install prefix"
     echo "  AFL_ICCDEV_BRANCH default --branch value"
     echo "  AFL_CLANG_FAST    override the afl-clang-fast wrapper path"
     echo "  AFL_CLANG_FASTXX  override the afl-clang-fast++ wrapper path"
@@ -61,6 +66,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --clean|clean)
             CLEAN=1
+            shift
+            ;;
+        --clean-third-party)
+            CLEAN_THIRD_PARTY=1
             shift
             ;;
         --patches)
@@ -304,7 +313,7 @@ if [[ "$REFRESH_ICCDEV" = "1" ]]; then
     else
         echo "[*] Refreshing AFL iccDEV checkout from origin/master..."
         git -C "$ICCDEV_DIR" fetch origin master
-        git -C "$ICCDEV_DIR" reset --hard origin/master
+        git -C "$ICCDEV_DIR" reset --hard FETCH_HEAD
     fi
     git -C "$ICCDEV_DIR" clean -fd
 else
@@ -378,6 +387,24 @@ if ! select_afl_toolchain; then
     exit 1
 fi
 
+echo "[*] Building AFL-instrumented third-party dependencies..."
+THIRD_PARTY_ARGS=()
+if [[ "$CLEAN_THIRD_PARTY" == "1" ]]; then
+    THIRD_PARTY_ARGS+=(--clean)
+fi
+env \
+    AFL_CC="$AFL_CC_BACKEND" \
+    AFL_CXX="$AFL_CXX_BACKEND" \
+    AFL_USE_ASAN=1 \
+    AFL_USE_UBSAN=1 \
+    CC="$AFL_CLANG_FAST_BIN" \
+    CXX="$AFL_CLANG_FASTXX_BIN" \
+    AR="$AFL_LLVM_AR" \
+    RANLIB="$AFL_LLVM_RANLIB" \
+    NM="$AFL_LLVM_NM" \
+    AFL_THIRD_PARTY_PREFIX="$THIRD_PARTY_PREFIX" \
+    "$THIRD_PARTY_DIR/build.sh" "${THIRD_PARTY_ARGS[@]}"
+
 # Clean build if requested
 if [[ "$CLEAN" == "1" ]]; then
     echo "[*] Cleaning Build-AFL directory..."
@@ -401,6 +428,7 @@ echo "    Link mode: $AFL_LINK_MODE"
 echo "    AFL backend: $AFL_CC_BACKEND / $AFL_CXX_BACKEND"
 echo "    AFL wrapper: $AFL_CLANG_FAST_BIN / $AFL_CLANG_FASTXX_BIN"
 echo "    LLVM binutils: $AFL_LLVM_AR / $AFL_LLVM_RANLIB / $AFL_LLVM_NM"
+echo "    Third-party prefix: $THIRD_PARTY_PREFIX"
 if [[ -n "$ICCDEV_BRANCH" ]]; then
     echo "    Branch: $ICCDEV_BRANCH"
 fi
@@ -416,10 +444,6 @@ if [[ -n "$AFL_UBSAN_IGNORELIST" ]]; then
         echo "    UBSAN ignorelist: not found ($AFL_UBSAN_IGNORELIST)"
     fi
 fi
-
-# Detect multiarch include/lib paths. Ubuntu puts some headers in /usr/include/<arch>/.
-ARCH_INCLUDE="/usr/include/$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu)"
-ARCH_LIB="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu)"
 
 AFL_BUILD_ENV=(AFL_USE_ASAN=1 AFL_USE_UBSAN=1)
 AFL_ENABLE_SHARED_LIBS="OFF"
@@ -450,22 +474,29 @@ env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_B
     -DCMAKE_CXX_COMPILER_AR="$AFL_LLVM_AR" \
     -DCMAKE_CXX_COMPILER_RANLIB="$AFL_LLVM_RANLIB" \
     -DCMAKE_BUILD_TYPE=Debug \
-    -DCMAKE_C_FLAGS="-g -O0 -I${ARCH_INCLUDE}" \
-    -DCMAKE_CXX_FLAGS="-g -O0 -I${ARCH_INCLUDE}" \
+    -DCMAKE_PREFIX_PATH="$THIRD_PARTY_PREFIX" \
+    -DCMAKE_C_FLAGS="-g -O0" \
+    -DCMAKE_CXX_FLAGS="-g -O0" \
     -DENABLE_SANITIZERS=ON \
     -DSANITIZER_RECOVER=OFF \
     -DENABLE_TOOLS=ON \
+    -DENABLE_WXWIDGETS=OFF \
     "${UBSAN_IGNORELIST_ARGS[@]}" \
     -DENABLE_SHARED_LIBS="$AFL_ENABLE_SHARED_LIBS" \
     -DENABLE_STATIC_LIBS=ON \
-    -DTIFF_INCLUDE_DIR="$ARCH_INCLUDE" \
-    -DTIFF_LIBRARY="$ARCH_LIB/libtiff.so" \
-    -DZLIB_INCLUDE_DIR=/usr/include \
-    -DZLIB_LIBRARY="$ARCH_LIB/libz.so" \
-    -DPNG_PNG_INCLUDE_DIR=/usr/include \
-    -DPNG_LIBRARY="$ARCH_LIB/libpng.so" \
-    -DJPEG_INCLUDE_DIR=/usr/include \
-    -DJPEG_LIBRARY="$ARCH_LIB/libjpeg.so"
+    -DLibXml2_ROOT="$THIRD_PARTY_PREFIX" \
+    -DLIBXML2_INCLUDE_DIR="$THIRD_PARTY_PREFIX/include/libxml2" \
+    -DLIBXML2_LIBRARY="$THIRD_PARTY_PREFIX/lib/libxml2.a" \
+    -Dnlohmann_json_DIR="$THIRD_PARTY_PREFIX/share/cmake/nlohmann_json" \
+    -DTIFF_INCLUDE_DIR="$THIRD_PARTY_PREFIX/include" \
+    -DTIFF_LIBRARY:STRING="$THIRD_PARTY_PREFIX/lib/libtiff.a;$THIRD_PARTY_PREFIX/lib/libjpeg.a;$THIRD_PARTY_PREFIX/lib/libz.a" \
+    -DZLIB_ROOT="$THIRD_PARTY_PREFIX" \
+    -DZLIB_INCLUDE_DIR="$THIRD_PARTY_PREFIX/include" \
+    -DZLIB_LIBRARY="$THIRD_PARTY_PREFIX/lib/libz.a" \
+    -DPNG_PNG_INCLUDE_DIR="$THIRD_PARTY_PREFIX/include" \
+    -DPNG_LIBRARY="$THIRD_PARTY_PREFIX/lib/libpng.a" \
+    -DJPEG_INCLUDE_DIR="$THIRD_PARTY_PREFIX/include" \
+    -DJPEG_LIBRARY="$THIRD_PARTY_PREFIX/lib/libjpeg.a"
 
 echo "[*] Building with $JOBS cores..."
 env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_BACKEND" "${AFL_BUILD_ENV[@]}" cmake --build "$BUILD_DIR" --parallel "$JOBS"
@@ -478,6 +509,16 @@ if ! grep -q '^SANITIZER_RECOVER:BOOL=OFF$' "$BUILD_DIR/CMakeCache.txt"; then
     echo "[FAIL] CMake cache does not enforce fatal sanitizer findings"
     exit 1
 fi
+if grep -E '^(LIBXML2_LIBRARY|PNG_LIBRARY|TIFF_LIBRARY|JPEG_LIBRARY|ZLIB_LIBRARY):.*=/usr/' "$BUILD_DIR/CMakeCache.txt"; then
+    echo "[FAIL] CMake cache selected a system third-party library"
+    exit 1
+fi
+for dependency in libxml2.a libpng.a libtiff.a libjpeg.a libz.a; do
+    if [[ ! -f "$THIRD_PARTY_PREFIX/lib/$dependency" ]]; then
+        echo "[FAIL] Missing AFL third-party archive: $THIRD_PARTY_PREFIX/lib/$dependency"
+        exit 1
+    fi
+done
 
 echo ""
 echo "[OK] AFL-instrumented iccDEV built successfully"

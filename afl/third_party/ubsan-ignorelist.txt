@@ -1,0 +1,8 @@
+# libpng and zlib use modular unsigned arithmetic intentionally.
+[unsigned-integer-overflow]
+src:*/pngrutil.c
+src:*/sources/zlib/*.c
+
+# zlib intentionally narrows internal values to its fixed-width table types.
+[implicit-integer-conversion]
+src:*/sources/zlib/*.c
