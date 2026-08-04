@@ -15,9 +15,10 @@ Current patches:
 - `004-applyprofiles-tiff-sample-count-bounds.patch` rejects malformed TIFF
   sample counts before `iccApplyProfiles` strip de-planarization can copy past
   the strip buffer.
-- `005-fromxml-formula-functiontype-bounds.patch` rejects malformed formula
-  curve segment `Reserved2` and `FunctionType` values before `iccFromXml`
-  can narrow overflowing `atoi()` results into 16-bit fields.
+
+The former `005-fromxml-formula-functiontype-bounds.patch` is no longer in the
+AFL stack because upstream commit `1065ec1` includes the complete strict-width
+formula-segment attribute parsing fix.  The older CFL checkout retains its copy.
 
 Patch failures warn and the build continues so older or newer iccDEV snapshots
 can still be tested.
