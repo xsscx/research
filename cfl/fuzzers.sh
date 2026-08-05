@@ -17,6 +17,7 @@ CFL_FUZZERS=(
   icc_link_fuzzer
   icc_pawgreport_fuzzer
   icc_pngdump_fuzzer
+  icc_profilevisualize_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
   icc_tiffdump_fuzzer
@@ -58,6 +59,7 @@ cfl_normalize_fuzzer() {
     link) name="icc_link_fuzzer" ;;
     pawg|pawgreport) name="icc_pawgreport_fuzzer" ;;
     png|pngdump) name="icc_pngdump_fuzzer" ;;
+    profilevisualize|profile-visualize|visualize) name="icc_profilevisualize_fuzzer" ;;
     roundtrip) name="icc_roundtrip_fuzzer" ;;
     specsep) name="icc_specsep_fuzzer" ;;
     tiffdump) name="icc_tiffdump_fuzzer" ;;

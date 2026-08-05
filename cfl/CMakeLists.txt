@@ -14,6 +14,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ${CMAKE_SOURCE_DIR}/../../IccXML/IccLibXML
     ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccCommon
     ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccApplyProfiles
+    ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccProfilePlot
     ${CMAKE_SOURCE_DIR}/../../IccConnect/IccLibConnect
     ${CMAKE_SOURCE_DIR}/../../IccJSON/IccLibJSON
     ${CMAKE_BINARY_DIR}/IccConnect
@@ -59,6 +60,17 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_link_options(icc_dump_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_dump_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_dump_fuzzer IccProfLib2)
+
+  # Data-first profile visualization fuzzer. Compile IccVizModel.cpp as a
+  # separate translation unit so this target exercises the public API boundary.
+  add_executable(icc_profilevisualize_fuzzer
+    icc_profilevisualize_fuzzer.cpp
+    ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccProfilePlot/IccVizModel.cpp
+  )
+  target_compile_options(icc_profilevisualize_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+  target_link_options(icc_profilevisualize_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+  target_include_directories(icc_profilevisualize_fuzzer PRIVATE ${FUZZER_INCLUDES})
+  target_link_libraries(icc_profilevisualize_fuzzer IccProfLib2)
 
   # Link fuzzer
   add_executable(icc_link_fuzzer icc_link_fuzzer.cpp)
@@ -182,7 +194,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   endif()
 
   message(STATUS "Fuzzing harnesses configured:")
-  message(STATUS "  Core: v5dspobs, roundtrip, dump, link, fromcube (5)")
+  message(STATUS "  Core: v5dspobs, roundtrip, dump, link, fromcube, profilevisualize (6)")
   message(STATUS "  Apply: applynamedcmm, applyprofiles, applyprofiles-row, applysearch, applysearch-weight (5)")
   if(TARGET IccConnect2-static)
     message(STATUS "  Connect: connect (1)")

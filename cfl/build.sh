@@ -7,7 +7,7 @@
 #
 # Usage:  ./build.sh                         # build all fuzzers against upstream master
 #         ./build.sh clean                   # remove build artifacts and start fresh
-#         ./build.sh --branch ci-qa-flags --refresh-iccdev
+#         ./build.sh --branch ci-qa-issue-1975 --refresh-iccdev
 #         ./build.sh --no-patches --refresh-iccdev
 #
 # Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev, libtiff-dev, zlib,
@@ -46,6 +46,7 @@ INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccCommon"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccPawgReport"
+INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccProfilePlot"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccConnect/IccLibConnect"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccJSON/IccLibJSON"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$BUILD_DIR/IccConnect -I$BUILD_DIR/IccJSON"
@@ -111,6 +112,11 @@ REPORT_FUZZERS=(
   icc_pawgreport_fuzzer
 )
 
+# Data-first profile visualization API fuzzer.
+PROFILE_VISUALIZE_FUZZERS=(
+  icc_profilevisualize_fuzzer
+)
+
 TIFFIMG_SRC="$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp"
 TIFFIMG_OBJ="$SCRIPT_DIR/.build_tmp/TiffImg.o"
 TIFF_CFLAGS="$(pkg-config --cflags libtiff-4 2>/dev/null || true)"
@@ -120,6 +126,8 @@ PNG_LIBS="$(pkg-config --libs libpng 2>/dev/null || echo '-lpng')"
 ZLIB_LIBS="$(pkg-config --libs zlib 2>/dev/null || echo '-lz')"
 PAWG_SRC="$ICCDEV_DIR/Tools/CmdLine/IccPawgReport/PawgReport.cpp"
 PAWG_OBJ="$SCRIPT_DIR/.build_tmp/PawgReport.o"
+ICC_VIZ_MODEL_SRC="$ICCDEV_DIR/Tools/CmdLine/IccProfilePlot/IccVizModel.cpp"
+ICC_VIZ_MODEL_OBJ="$SCRIPT_DIR/.build_viz_tmp/IccVizModel.o"
 INCLUDE_FLAGS="$INCLUDE_FLAGS $PNG_CFLAGS"
 
 banner() {
@@ -246,7 +254,8 @@ fi
 
 if [ "${CLEAN:-0}" = "1" ]; then
   banner "Cleaning build artifacts"
-  rm -rf "$OUTPUT_DIR" "$ICCDEV_DIR" "$SCRIPT_DIR/.build_tmp"
+  rm -rf "$OUTPUT_DIR" "$ICCDEV_DIR" "$SCRIPT_DIR/.build_tmp" \
+    "$SCRIPT_DIR/.build_viz_tmp"
   echo "[OK] Clean complete"
   exit 0
 fi
@@ -539,6 +548,26 @@ if [ -f "$PAWG_SRC" ]; then
   wait
 else
   echo "  SKIP (PawgReport.cpp not found)"
+  echo "SKIP" >> "$BUILD_RESULTS"
+fi
+
+echo ""
+echo "Profile visualization fuzzers:"
+if [ -f "$ICC_VIZ_MODEL_SRC" ]; then
+  mkdir -p "$(dirname "$ICC_VIZ_MODEL_OBJ")"
+  echo "  Compiling IccVizModel.o..."
+  # Compile the public model separately so the harness proves that the header
+  # and implementation remain consumable across translation units.
+  # shellcheck disable=SC2086
+  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+    -c "$ICC_VIZ_MODEL_SRC" -o "$ICC_VIZ_MODEL_OBJ" 2>&1
+  for f in "${PROFILE_VISUALIZE_FUZZERS[@]}"; do
+    build_fuzzer "$f" "$ICC_VIZ_MODEL_OBJ" &
+  done
+  wait
+  rm -rf "$SCRIPT_DIR/.build_viz_tmp"
+else
+  echo "  SKIP (IccVizModel.cpp not found)"
   echo "SKIP" >> "$BUILD_RESULTS"
 fi
 

@@ -52,6 +52,18 @@ Do not commit raw runtime bulk:
 - large `cfl/corpus-*` runtime output
 - logs, `.profraw`, and `.profdata`
 
+## Profile Visualization Harness
+
+- Build `icc_profilevisualize_fuzzer` against the public
+  `Tools/CmdLine/IccProfilePlot/IccVizModel.hpp` API.
+- Compile `IccVizModel.cpp` as a separate translation unit. Do not include
+  `iccProfileVisualize.cpp` from the harness or depend on private
+  `processLuts()` linkage.
+- Keep PDF/TIFF/SVG writer and argv/filesystem coverage in the tool-level AFL
+  lane; CFL owns the in-memory `Enumerate` and `Render*` data-model surface.
+- Validate compatibility with `cfl/build.sh --branch ci-qa-issue-1975
+  --no-patches --refresh-iccdev` while issue #1975 is active.
+
 If a generated file should travel to another VM, promote it to a stable
 fixture path and document the repro. Do not commit bulk run state just because
 it exists locally.

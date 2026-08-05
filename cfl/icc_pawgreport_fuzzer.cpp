@@ -81,13 +81,13 @@ static void run_report_quietly(const char *path)
             close(savedStdout);
         if (devNull >= 0)
             close(devNull);
-        (void)DumpPawgReport(path, false, true);
+        (void)DumpPawgReport(path, true);
         return;
     }
 
     dup2(devNull, STDOUT_FILENO);
     close(devNull);
-    (void)DumpPawgReport(path, false, true);
+    (void)DumpPawgReport(path, true);
     fflush(stdout);
     dup2(savedStdout, STDOUT_FILENO);
     close(savedStdout);

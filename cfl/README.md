@@ -78,6 +78,7 @@ Current harness areas:
 | Profile linking | `icc_link_fuzzer` |
 | PAWG report generation | `icc_pawgreport_fuzzer` |
 | PNG ICC extraction | `icc_pngdump_fuzzer` |
+| Profile visualization data model | `icc_profilevisualize_fuzzer` |
 | Read/write round trip | `icc_roundtrip_fuzzer` |
 | Spectral separation | `icc_specsep_fuzzer` |
 | TIFF ICC extraction | `icc_tiffdump_fuzzer` |
@@ -95,9 +96,18 @@ expected XML serialization diagnostics such as non-XML tag notices from
 dominating logs while preserving libFuzzer progress and sanitizer reports on
 stderr.
 
-`icc_profilevisualize_fuzzer` is retired in `cfl/retired/`. The harness targets
-a very new external tool surface and currently does not build against refreshed
-upstream `iccDEV` because its expected `processLuts` entry point is not exposed.
+`icc_profilevisualize_fuzzer` targets the public, data-first `IccVizModel` API
+from `Tools/CmdLine/IccProfilePlot`. The build compiles `IccVizModel.cpp`
+separately and links the harness through `IccVizModel.hpp`; it does not include
+the CLI implementation or depend on the private, file-writing `processLuts()`
+function. Use the issue #1975 compatibility baseline locally with:
+
+```bash
+cd cfl
+./build.sh --branch ci-qa-issue-1975 --no-patches --refresh-iccdev
+ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1 \
+  ./bin/icc_profilevisualize_fuzzer -runs=1 corpus/
+```
 
 ## Patch Stack
 
