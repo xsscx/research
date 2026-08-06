@@ -12,8 +12,11 @@ REPORT_ROOT="${AFL_RUN_ALL_REPORT_ROOT:-$AFL_BASE/reports/generated/afl-report-$
 JOBS="${AFL_RUN_ALL_JOBS:-2}"
 REPORT_TARGET_TIMEOUT="${AFL_RUN_ALL_REPORT_TARGET_TIMEOUT:-${AFL_REPORT_TARGET_TIMEOUT:-3600}}"
 PARALLEL="${AFL_RUN_ALL_PARALLEL:-1}"
+PARALLEL_EXPLICIT=0
+MODE="${AFL_RUN_ALL_MODE:-default}"
+STRATEGY="${AFL_RUN_ALL_STRATEGY:-}"
 SCHEDULE="${AFL_RUN_ALL_SCHEDULE:-}"
-MOPT_SECS="${AFL_RUN_ALL_MOPT_SECS:-}"
+MOPT="${AFL_RUN_ALL_MOPT:-0}"
 FRESH_MODE="${AFL_RUN_ALL_FRESH:-1}"
 RESEED="${AFL_RUN_ALL_RESEED:-0}"
 CMPLOG_AUTO="${AFL_RUN_ALL_CMPLOG_AUTO:-0}"
@@ -38,8 +41,11 @@ usage() {
     echo "  --jobs N          report coverage replay/build jobs; default ${JOBS}"
     echo "  --report-target-timeout N  per-target report coverage timeout in seconds; 0 disables; default ${REPORT_TARGET_TIMEOUT}"
     echo "  --parallel N      AFL instances per target; default ${PARALLEL}"
+    echo "  --mode NAME       start.sh campaign preset"
+    echo "  --strategy NAME   set AFL mutation strategy: explore, exploit, or switch seconds"
     echo "  --schedule NAME   set AFL_POWER_SCHEDULE, for example rare or explore"
-    echo "  --mopt-secs N     set AFL_MOPT_SECS for each target"
+    echo "  --mopt            enable MOpt adaptive mutation"
+    echo "  --mopt-secs N     deprecated alias for --mopt"
     echo "  --fresh           archive input/output before each target; default"
     echo "  --resume          resume existing queues instead of archiving outputs"
     echo "  --reseed          add configured target seeds before starting each target"
@@ -47,7 +53,7 @@ usage() {
     echo "  --testcache-size N  set AFL_TESTCACHE_SIZE in MB; default ${TESTCACHE_SIZE}"
     echo "  --seed-limit N    override per-directory seed sample size"
     echo "  --seed-max-bytes N  override target maximum seed size"
-    echo "  --coverage-boost  preset: --resume --reseed --cmplog-auto --schedule rare --mopt-secs 0"
+    echo "  --coverage-boost  preset: --resume --reseed --mode cmplog --mopt"
     echo "  --not-started     run only targets without existing fuzzer_stats"
     echo "  --low-coverage N  run only targets with best bitmap coverage below N percent"
     echo "  --no-report       run fuzzers only"
@@ -137,15 +143,19 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             PARALLEL="$2"
+            PARALLEL_EXPLICIT=1
             shift 2
             ;;
+        --mode) MODE="${2:-}"; shift 2 ;;
+        --strategy) STRATEGY="${2:-}"; shift 2 ;;
         --schedule) SCHEDULE="${2:-}"; shift 2 ;;
+        --mopt) MOPT=1; shift ;;
         --mopt-secs)
             if [[ $# -lt 2 || ! "$2" =~ ^[0-9]+$ ]]; then
                 echo "ERROR: --mopt-secs requires a non-negative integer" >&2
                 exit 1
             fi
-            MOPT_SECS="$2"
+            MOPT=1
             shift 2
             ;;
         --fresh) FRESH_MODE=1; shift ;;
@@ -180,8 +190,8 @@ while [[ $# -gt 0 ]]; do
             FRESH_MODE=0
             RESEED=1
             CMPLOG_AUTO=1
-            [[ -z "$SCHEDULE" ]] && SCHEDULE="rare"
-            [[ -z "$MOPT_SECS" ]] && MOPT_SECS="0"
+            [[ "$MODE" == "default" ]] && MODE="cmplog"
+            MOPT=1
             shift
             ;;
         --not-started) FILTER_NOT_STARTED=1; shift ;;
@@ -201,6 +211,37 @@ while [[ $# -gt 0 ]]; do
         *) TARGET_FILTER="$1"; shift ;;
     esac
 done
+
+case "$MODE" in
+    default|explore|exploit|rare|fast|cmplog|diverse|mopt)
+        ;;
+    *)
+        echo "ERROR: unknown campaign mode: $MODE" >&2
+        exit 1
+        ;;
+esac
+if [[ -n "$STRATEGY" &&
+      "$STRATEGY" != "explore" &&
+      "$STRATEGY" != "exploit" &&
+      ! "$STRATEGY" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: strategy must be explore, exploit, or switch seconds: $STRATEGY" >&2
+    exit 1
+fi
+case "$SCHEDULE" in
+    ""|explore|fast|exploit|seek|rare|mmopt|coe|lin|quad)
+        ;;
+    *)
+        echo "ERROR: unsupported AFL++ power schedule: $SCHEDULE" >&2
+        exit 1
+        ;;
+esac
+if [[ "$MODE" == "diverse" && ( -n "$STRATEGY" || -n "$SCHEDULE" ) ]]; then
+    echo "ERROR: diverse mode cannot be combined with --strategy or --schedule" >&2
+    exit 1
+fi
+if [[ "$MODE" == "diverse" && "$PARALLEL_EXPLICIT" -eq 0 ]]; then
+    PARALLEL=8
+fi
 
 if [[ -n "$TARGET_FILTER" ]] && ! target_known "$TARGET_FILTER"; then
     echo "ERROR: Unknown target '$TARGET_FILTER'" >&2
@@ -238,6 +279,7 @@ echo "[*] AFL run-all"
 echo "    Targets: ${#targets[@]}"
 echo "    Seconds: $SECONDS_PER_TARGET per target"
 echo "    Parallel: $PARALLEL instance(s)"
+echo "    Campaign mode: $MODE"
 if [[ "$FRESH_MODE" -eq 0 ]]; then
     echo "    Mode: resume existing queues"
 else
@@ -246,8 +288,11 @@ fi
 if [[ -n "$SCHEDULE" ]]; then
     echo "    Schedule: $SCHEDULE"
 fi
-if [[ -n "$MOPT_SECS" ]]; then
-    echo "    MOpt: $MOPT_SECS"
+if [[ -n "$STRATEGY" ]]; then
+    echo "    Strategy: $STRATEGY"
+fi
+if [[ "$MOPT" -ne 0 ]]; then
+    echo "    MOpt: enabled"
 fi
 if [[ "$RESEED" -ne 0 ]]; then
     echo "    Reseed: enabled"
@@ -269,12 +314,15 @@ echo "    Report root: $REPORT_ROOT"
 
 for target in "${targets[@]}"; do
     log="$REPORT_ROOT/logs/$target-fuzz.log"
-    cmd=(env AFL_BASE="$AFL_BASE" AFL_FRESH="$FRESH_MODE" AFL_RESEED="$RESEED" AFL_RUN_TIME="$SECONDS_PER_TARGET" AFL_NO_UI=1 AFL_TESTCACHE_SIZE="$TESTCACHE_SIZE")
+    cmd=(env AFL_BASE="$AFL_BASE" AFL_FRESH="$FRESH_MODE" AFL_RESEED="$RESEED" AFL_RUN_TIME="$SECONDS_PER_TARGET" AFL_NO_UI=1 AFL_TESTCACHE_SIZE="$TESTCACHE_SIZE" AFL_CAMPAIGN_MODE="$MODE")
+    if [[ -n "$STRATEGY" ]]; then
+        cmd+=(AFL_MUTATION_STRATEGY="$STRATEGY")
+    fi
     if [[ -n "$SCHEDULE" ]]; then
         cmd+=(AFL_POWER_SCHEDULE="$SCHEDULE")
     fi
-    if [[ -n "$MOPT_SECS" ]]; then
-        cmd+=(AFL_MOPT_SECS="$MOPT_SECS")
+    if [[ "$MOPT" -ne 0 ]]; then
+        cmd+=(AFL_MOPT=1)
     fi
     if [[ "$CMPLOG_AUTO" -ne 0 ]]; then
         cmd+=(AFL_CMPLOG_AUTO=1 AFL_CMPLOG_ONLY_NEW="${AFL_CMPLOG_ONLY_NEW:-1}")

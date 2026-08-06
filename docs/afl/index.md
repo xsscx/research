@@ -57,6 +57,26 @@ XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile
 visualization, profile linking, and CMM apply flows. Run `./afl/start.sh --list`
 for the exact list in the active checkout.
 
+## Campaign Modes
+
+`afl/start.sh` provides named AFL++ 5.x campaign modes so mutation strategy and
+power schedule are selected together:
+
+```bash
+./afl/start.sh dump --mode explore
+./afl/start.sh dump --mode exploit
+./afl/start.sh dump --mode rare
+./afl/start.sh dump --mode fast
+./afl/start.sh dump --mode mopt
+./afl/start.sh fromxml --mode cmplog
+./afl/start.sh dump --mode diverse
+```
+
+The `cmplog` mode requires a matching executable under `afl/bin-cmplog/` or an
+explicit `--cmplog-binary`. The `diverse` mode defaults to eight synchronized
+workers with different explore/exploit strategy and power-schedule pairs. Use
+`--strategy` and `--power-schedule` directly for a custom single strategy.
+
 ## Coverage and Reachability Toolchain
 
 `afl/build.sh` requires `clang-22`/`clang++-22` and AFL++ wrappers rebuilt

@@ -19,8 +19,11 @@ AFL_MAP_SIZE_VAL="${AFL_MAP_SIZE:-1048576}"
 AFL_AUTORESUME_VAL="${AFL_AUTORESUME:-1}"
 AFL_FRESH="${AFL_FRESH:-0}"
 AFL_IMPORT_FIRST_VAL="${AFL_IMPORT_FIRST:-1}"
+AFL_CAMPAIGN_MODE="${AFL_CAMPAIGN_MODE:-default}"
+AFL_MUTATION_STRATEGY="${AFL_MUTATION_STRATEGY:-}"
 AFL_POWER_SCHEDULE="${AFL_POWER_SCHEDULE:-}"
-AFL_MOPT_SECS="${AFL_MOPT_SECS:-}"
+AFL_MOPT_ENABLE="${AFL_MOPT:-0}"
+AFL_MOPT_SECS_LEGACY="${AFL_MOPT_SECS:-}"
 AFL_CMPLOG_BINARY="${AFL_CMPLOG_BINARY:-}"
 AFL_CMPLOG_AUTO="${AFL_CMPLOG_AUTO:-0}"
 AFL_CMPLOG_BIN_DIR="${AFL_CMPLOG_BIN_DIR:-$REPO_ROOT/afl/bin-cmplog}"
@@ -49,6 +52,7 @@ source "$REPO_ROOT/afl/sanitizer-env.sh"
 
 TARGET=""
 PARALLEL=1
+PARALLEL_EXPLICIT=0
 
 usage() {
     echo "Usage: $0 <target> [options]"
@@ -70,8 +74,11 @@ usage() {
     echo "  --cmplog-auto         use matching afl/bin-cmplog binary when available"
     echo "  --cmplog-binary FILE  pass FILE to afl-fuzz -c"
     echo "  --cmplog-opts OPTS    pass OPTS to afl-fuzz -l"
+    echo "  --mode NAME           campaign preset: explore, exploit, rare, fast, cmplog, diverse, or mopt"
+    echo "  --strategy NAME       mutation strategy for afl-fuzz -P: explore, exploit, or switch seconds"
     echo "  --power-schedule NAME pass NAME to afl-fuzz -p"
-    echo "  --mopt-secs SEC       pass SEC to afl-fuzz -L"
+    echo "  --mopt                enable MOpt adaptive mutation with afl-fuzz -L"
+    echo "  --mopt-secs SEC       deprecated alias for --mopt; SEC is ignored by AFL++ 5.x"
     echo "  --exec-limit N        pass N to afl-fuzz -E"
     echo "  --input-format FMT    pass text or binary to afl-fuzz -a"
     echo "  --min-length N        pass N to afl-fuzz -g"
@@ -98,7 +105,7 @@ option_arg() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --parallel) PARALLEL="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --parallel) PARALLEL="$(option_arg "$1" "${2:-}")"; PARALLEL_EXPLICIT=1; shift 2 ;;
         --fresh) AFL_FRESH=1; shift ;;
         --reseed) AFL_RESEED=1; shift ;;
         --seed-only) AFL_SEED_ONLY=1; shift ;;
@@ -122,8 +129,11 @@ while [[ $# -gt 0 ]]; do
         --cmplog-auto) AFL_CMPLOG_AUTO=1; shift ;;
         --cmplog-binary) AFL_CMPLOG_BINARY="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --cmplog-opts) AFL_CMPLOG_OPTS="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --mode) AFL_CAMPAIGN_MODE="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --strategy) AFL_MUTATION_STRATEGY="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --power-schedule) AFL_POWER_SCHEDULE="$(option_arg "$1" "${2:-}")"; shift 2 ;;
-        --mopt-secs) AFL_MOPT_SECS="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --mopt) AFL_MOPT_ENABLE=1; shift ;;
+        --mopt-secs) AFL_MOPT_SECS_LEGACY="$(option_arg "$1" "${2:-}")"; AFL_MOPT_ENABLE=1; shift 2 ;;
         --exec-limit) AFL_EXEC_LIMIT="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --input-format) AFL_INPUT_FORMAT="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --min-length) AFL_MIN_LENGTH="$(option_arg "$1" "${2:-}")"; shift 2 ;;
@@ -148,6 +158,56 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+case "$AFL_CAMPAIGN_MODE" in
+    default)
+        ;;
+    explore)
+        [[ -z "$AFL_MUTATION_STRATEGY" ]] && AFL_MUTATION_STRATEGY=explore
+        [[ -z "$AFL_POWER_SCHEDULE" ]] && AFL_POWER_SCHEDULE=explore
+        ;;
+    exploit)
+        [[ -z "$AFL_MUTATION_STRATEGY" ]] && AFL_MUTATION_STRATEGY=exploit
+        [[ -z "$AFL_POWER_SCHEDULE" ]] && AFL_POWER_SCHEDULE=exploit
+        ;;
+    rare)
+        [[ -z "$AFL_MUTATION_STRATEGY" ]] && AFL_MUTATION_STRATEGY=explore
+        [[ -z "$AFL_POWER_SCHEDULE" ]] && AFL_POWER_SCHEDULE=rare
+        ;;
+    fast)
+        [[ -z "$AFL_MUTATION_STRATEGY" ]] && AFL_MUTATION_STRATEGY=explore
+        [[ -z "$AFL_POWER_SCHEDULE" ]] && AFL_POWER_SCHEDULE=fast
+        ;;
+    cmplog)
+        [[ -z "$AFL_MUTATION_STRATEGY" ]] && AFL_MUTATION_STRATEGY=explore
+        [[ -z "$AFL_POWER_SCHEDULE" ]] && AFL_POWER_SCHEDULE=rare
+        [[ -z "$AFL_CMPLOG_OPTS" ]] && AFL_CMPLOG_OPTS=2AT
+        AFL_CMPLOG_AUTO=1
+        AFL_SPLICE=1
+        ;;
+    diverse)
+        if [[ -n "$AFL_MUTATION_STRATEGY" || -n "$AFL_POWER_SCHEDULE" ]]; then
+            echo "ERROR: diverse mode selects per-instance strategies and schedules; do not combine it with --strategy or --power-schedule" >&2
+            exit 1
+        fi
+        if [[ "$PARALLEL_EXPLICIT" -eq 0 ]]; then
+            PARALLEL=8
+        fi
+        ;;
+    mopt)
+        [[ -z "$AFL_MUTATION_STRATEGY" ]] && AFL_MUTATION_STRATEGY=explore
+        [[ -z "$AFL_POWER_SCHEDULE" ]] && AFL_POWER_SCHEDULE=explore
+        AFL_MOPT_ENABLE=1
+        ;;
+    *)
+        echo "ERROR: unknown campaign mode: $AFL_CAMPAIGN_MODE" >&2
+        exit 1
+        ;;
+esac
+
+if [[ -n "$AFL_MOPT_SECS_LEGACY" ]]; then
+    echo "[WARN] AFL_MOPT_SECS/--mopt-secs is deprecated; AFL++ 5.x uses bare -L" >&2
+fi
 
 read_proc_cmdline() {
     local proc_cmdline="$1"
@@ -337,6 +397,25 @@ fi
 if [[ -n "$AFL_EXEC_LIMIT" ]]; then
     require_uint "AFL_EXEC_LIMIT" "$AFL_EXEC_LIMIT"
 fi
+if [[ -n "$AFL_MUTATION_STRATEGY" &&
+      "$AFL_MUTATION_STRATEGY" != "explore" &&
+      "$AFL_MUTATION_STRATEGY" != "exploit" &&
+      ! "$AFL_MUTATION_STRATEGY" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: mutation strategy must be explore, exploit, or switch seconds: $AFL_MUTATION_STRATEGY" >&2
+    exit 1
+fi
+case "$AFL_POWER_SCHEDULE" in
+    ""|explore|fast|exploit|seek|rare|mmopt|coe|lin|quad)
+        ;;
+    *)
+        echo "ERROR: unsupported AFL++ power schedule: $AFL_POWER_SCHEDULE" >&2
+        exit 1
+        ;;
+esac
+if [[ "$AFL_CAMPAIGN_MODE" == "diverse" && "$PARALLEL" -lt 2 ]]; then
+    echo "ERROR: diverse mode requires at least two AFL instances" >&2
+    exit 1
+fi
 require_uint "AFL_TESTCACHE_SIZE" "$AFL_TESTCACHE_SIZE_VAL"
 if [[ -n "$AFL_MIN_LENGTH" ]]; then
     require_uint "AFL_MIN_LENGTH" "$AFL_MIN_LENGTH"
@@ -403,6 +482,10 @@ if [[ "$AFL_CMPLOG_AUTO" != "0" && -z "$AFL_CMPLOG_BINARY" ]]; then
     else
         echo "[WARN] CmpLog auto requested but matching binary is unavailable: $candidate_cmplog" >&2
     fi
+fi
+if [[ "$AFL_CAMPAIGN_MODE" == "cmplog" && -z "$AFL_CMPLOG_BINARY" ]]; then
+    echo "ERROR: cmplog mode requires a matching executable in $AFL_CMPLOG_BIN_DIR or --cmplog-binary" >&2
+    exit 1
 fi
 
 # Set up AFL directories. AFL_FRESH archives prior local input/output state
@@ -691,11 +774,15 @@ if [[ -n "$AFL_SEED_MAX_BYTES_OVERRIDE" ]]; then
 fi
 echo "[*] Seed order: ${AFL_SEED_ORDER}"
 echo "[*] Parallel:   $PARALLEL instance(s)"
+echo "[*] Mode:       $AFL_CAMPAIGN_MODE"
+if [[ -n "$AFL_MUTATION_STRATEGY" ]]; then
+    echo "[*] Strategy:   $AFL_MUTATION_STRATEGY"
+fi
 if [[ -n "$AFL_POWER_SCHEDULE" ]]; then
     echo "[*] Schedule:   $AFL_POWER_SCHEDULE"
 fi
-if [[ -n "$AFL_MOPT_SECS" ]]; then
-    echo "[*] MOpt:       ${AFL_MOPT_SECS}s"
+if [[ "$AFL_MOPT_ENABLE" != "0" ]]; then
+    echo "[*] MOpt:       enabled"
 fi
 if [[ -n "$AFL_CMPLOG_BINARY" ]]; then
     echo "[*] CMPLOG:     $AFL_CMPLOG_BINARY"
@@ -744,11 +831,14 @@ if [[ "$AFL_SEED_ONLY" == "1" ]]; then
 fi
 
 AFL_COMMON_ARGS=()
+if [[ -n "$AFL_MUTATION_STRATEGY" ]]; then
+    AFL_COMMON_ARGS+=("-P" "$AFL_MUTATION_STRATEGY")
+fi
 if [[ -n "$AFL_POWER_SCHEDULE" ]]; then
     AFL_COMMON_ARGS+=("-p" "$AFL_POWER_SCHEDULE")
 fi
-if [[ -n "$AFL_MOPT_SECS" ]]; then
-    AFL_COMMON_ARGS+=("-L" "$AFL_MOPT_SECS")
+if [[ "$AFL_MOPT_ENABLE" != "0" ]]; then
+    AFL_COMMON_ARGS+=("-L")
 fi
 if [[ -n "$AFL_CMPLOG_BINARY" ]]; then
     if [[ "$AFL_CMPLOG_BINARY" != "0" && "$AFL_CMPLOG_BINARY" != "-" && ! -x "$AFL_CMPLOG_BINARY" ]]; then
@@ -825,6 +915,28 @@ instance_afl_args() {
             INSTANCE_AFL_ARGS+=("$arg")
         fi
     done
+}
+
+instance_campaign_args() {
+    local instance_number="$1"
+    local variant
+
+    INSTANCE_COMMON_ARGS=("${AFL_COMMON_ARGS[@]}")
+    if [[ "$AFL_CAMPAIGN_MODE" != "diverse" ]]; then
+        return
+    fi
+
+    variant=$(( (instance_number - 1) % 8 ))
+    case "$variant" in
+        0) INSTANCE_COMMON_ARGS+=("-P" "explore" "-p" "explore") ;;
+        1) INSTANCE_COMMON_ARGS+=("-P" "explore" "-p" "fast") ;;
+        2) INSTANCE_COMMON_ARGS+=("-P" "exploit" "-p" "exploit") ;;
+        3) INSTANCE_COMMON_ARGS+=("-P" "explore" "-p" "rare") ;;
+        4) INSTANCE_COMMON_ARGS+=("-P" "explore" "-p" "coe") ;;
+        5) INSTANCE_COMMON_ARGS+=("-P" "explore" "-p" "lin") ;;
+        6) INSTANCE_COMMON_ARGS+=("-P" "exploit" "-p" "quad") ;;
+        7) INSTANCE_COMMON_ARGS+=("-P" "explore" "-p" "seek") ;;
+    esac
 }
 
 # Check for existing session (resume)
@@ -909,7 +1021,8 @@ afl_export_fuzz_sanitizer_env
 export -n AFL_AUTORESUME_VAL AFL_BASE AFL_BIN_DIR AFL_CMPLOG_AUTO AFL_CMPLOG_BINARY AFL_CMPLOG_BIN_DIR AFL_CMPLOG_OPTS AFL_DICT AFL_FRESH 2>/dev/null || true
 export -n AFL_DICTIONARY AFL_EXEC_LIMIT AFL_EXTRA_ARGS AFL_EXTRA_DICTS AFL_EXTRA_SEED_DIRS AFL_INPUT_DIR 2>/dev/null || true
 export -n AFL_DICT_OVERRIDE AFL_IMPORT_FIRST_VAL AFL_INPUT_FORMAT AFL_MAX_LENGTH AFL_MIN_LENGTH 2>/dev/null || true
-export -n AFL_MOPT_SECS AFL_POWER_SCHEDULE AFL_RESEED AFL_RUN_TIME AFL_SEED_LIMIT AFL_SEED_MAX_BYTES AFL_SEED_ONLY AFL_SEED_ORDER 2>/dev/null || true
+export -n AFL_CAMPAIGN_MODE AFL_MOPT AFL_MOPT_ENABLE AFL_MOPT_SECS AFL_MOPT_SECS_LEGACY AFL_MUTATION_STRATEGY 2>/dev/null || true
+export -n AFL_POWER_SCHEDULE AFL_RESEED AFL_RUN_TIME AFL_SEED_LIMIT AFL_SEED_MAX_BYTES AFL_SEED_ONLY AFL_SEED_ORDER 2>/dev/null || true
 export -n AFL_SEQUENTIAL_QUEUE AFL_SPLICE AFL_TESTCACHE_SIZE_VAL AFL_TIMEOUT 2>/dev/null || true
 
 if [[ "$PARALLEL" -eq 1 ]]; then
@@ -917,10 +1030,11 @@ if [[ "$PARALLEL" -eq 1 ]]; then
     echo "    Press Ctrl+C to stop"
     echo ""
     cd "$REPO_ROOT"
+    instance_campaign_args 1
     exec afl-fuzz \
         "${INPUT_ARGS[@]}" \
         -o "$AFL_DIR/output" \
-        "${AFL_COMMON_ARGS[@]}" \
+        "${INSTANCE_COMMON_ARGS[@]}" \
         -m none \
         -t "$AFL_TIMEOUT" \
         -- "$BINARY" "${AFL_ARGS[@]}"
@@ -929,11 +1043,12 @@ else
     cd "$REPO_ROOT"
 
     instance_afl_args "main"
+    instance_campaign_args 1
     afl-fuzz \
         "${INPUT_ARGS[@]}" \
         -o "$AFL_DIR/output" \
         -M main \
-        "${AFL_COMMON_ARGS[@]}" \
+        "${INSTANCE_COMMON_ARGS[@]}" \
         -m none \
         -t "$AFL_TIMEOUT" \
         -- "$BINARY" "${INSTANCE_AFL_ARGS[@]}" &
@@ -943,11 +1058,12 @@ else
 
     for i in $(seq 2 "$PARALLEL"); do
         instance_afl_args "secondary_$i"
+        instance_campaign_args "$i"
         afl-fuzz \
             "${INPUT_ARGS[@]}" \
             -o "$AFL_DIR/output" \
             -S "secondary_$i" \
-            "${AFL_COMMON_ARGS[@]}" \
+            "${INSTANCE_COMMON_ARGS[@]}" \
             -m none \
             -t "$AFL_TIMEOUT" \
             -- "$BINARY" "${INSTANCE_AFL_ARGS[@]}" &

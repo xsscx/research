@@ -249,7 +249,28 @@ the target list before launching campaigns.
 Use isolated output directories for each instrumentation strategy:
 
 ```bash
-./afl/start.sh dump --parallel 4 --power-schedule rare --mopt-secs 0
+./afl/start.sh dump --mode explore
+./afl/start.sh dump --mode exploit
+./afl/start.sh dump --mode rare
+./afl/start.sh dump --mode fast
+./afl/start.sh dump --mode mopt
+```
+
+The named modes set both AFL++ mutation strategy (`-P`) and power schedule
+(`-p`) where appropriate. `mopt` emits the AFL++ 5.x bare `-L` flag. For a
+comparison-guided parser campaign, build `afl/bin-cmplog/` first and run:
+
+```bash
+./afl/start.sh fromxml --mode cmplog
+```
+
+`cmplog` selects explore mutation, the rare-edge schedule, `-l 2AT`, splicing,
+and the matching binary from `afl/bin-cmplog/`. For a synchronized eight-worker
+campaign with varied explore/exploit strategies and explore, fast, exploit,
+rare, coe, lin, quad, and seek power schedules, use:
+
+```bash
+./afl/start.sh dump --mode diverse
 ```
 
 The default `applysearch` lane fuzzes the destination ICC profile in the normal
@@ -276,7 +297,7 @@ For slow or nearly converged targets, prefer a fresh lane over repeatedly
 resuming a stale queue:
 
 ```bash
-./afl/start.sh applysearch-cfg --fresh --reseed --power-schedule rare --mopt-secs 0
+./afl/start.sh applysearch-cfg --fresh --reseed --mode rare --mopt
 ./afl/start.sh pawgreport-fast --fresh --map-size 131072
 ./afl/start.sh applysearch-fast --fresh --reseed
 ./afl/start.sh applysearch-hybrid-pcc --fresh --reseed
