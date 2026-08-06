@@ -27,7 +27,7 @@ iccApplyProfiles src_tiff dst_tiff dst_encoding dst_compression dst_planar \
 |----------|----------|-------|
 | `src_tiff` | Yes | Input TIFF path |
 | `dst_tiff` | Yes | Output TIFF path |
-| `dst_encoding` | Yes | `0` same as source, `1` 8-bit, `2` 16-bit, `4` float |
+| `dst_encoding` | Yes | `0` same as source, `1` 8-bit, `2` 16-bit, `3` float |
 | `dst_compression` | Yes | `0` none, `1` LZW |
 | `dst_planar` | Yes | `0` contiguous, `1` separate |
 | `dst_embed_icc` | Yes | `0` no embed, `1` embed output profile |
@@ -56,7 +56,7 @@ iccApplyProfiles input.tiff /tmp/output_16.tiff 2 1 0 0 0 \
   test-profiles/sRGB_D65_MAT.icc 1
 
 # Write float output
-iccApplyProfiles input.tiff /tmp/output_float.tiff 4 0 0 0 0 \
+iccApplyProfiles input.tiff /tmp/output_float.tiff 3 0 0 0 0 \
   test-profiles/sRGB_D65_MAT.icc 0
 
 # Embed the output profile
@@ -112,6 +112,11 @@ Minimal JSON shape:
 Older summaries documented a `srcImageFile` versus `srcImgFile` round-trip
 serialization mismatch in upstream `toJson()` output. Use `srcImageFile` and
 `dstImageFile` in input configs and verify behavior against the current build.
+
+The current upstream CLI usage text incorrectly labels positional encoding `4`
+as `icEncodeFloat`. `CIccCfgImageApply::fromArgs()` implements float as `3`;
+passing `4` falls through to the default 8-bit encoding. The AFL and CFL replay
+commands therefore intentionally use `3` for float TIFF output.
 
 ## TIFF Requirements
 
