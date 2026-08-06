@@ -15,6 +15,9 @@ Current patches:
 - `004-applyprofiles-tiff-sample-count-bounds.patch` rejects malformed TIFF
   sample counts before `iccApplyProfiles` strip de-planarization can copy past
   the strip buffer.
+- `005-applyprofiles-float-encoding-usage.patch` corrects the
+  `iccApplyProfiles` usage text to identify positional encoding `3`, rather
+  than unsupported value `4`, as `icEncodeFloat`.
 
 The former `005-fromxml-formula-functiontype-bounds.patch` is no longer in the
 AFL stack because upstream commit `1065ec1` includes the complete strict-width

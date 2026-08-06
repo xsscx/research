@@ -20,6 +20,7 @@ should link here instead of duplicating the full patch table.
 # Apply one or more selected patches for isolated testing.
 ./cfl/build.sh --refresh-iccdev --patch-file 002-jpegdump-segment-bounds.patch
 ./cfl/build.sh --refresh-iccdev --patch-file 004-applyprofiles-tiff-sample-count-bounds.patch
+./cfl/build.sh --refresh-iccdev --patch-file 005-applyprofiles-float-encoding-usage.patch
 ```
 
 Patch application failures are warnings in patched mode. Non-applicable patches
@@ -41,6 +42,7 @@ depending on the current dirty nested checkouts.
 |-------|------|
 | `002-jpegdump-segment-bounds.patch` | Use subtraction-based JPEG segment bounds checks and one-past-safe payload pointers before reading marker segment data. |
 | `004-applyprofiles-tiff-sample-count-bounds.patch` | Reject malformed TIFF sample counts before `iccApplyProfiles` strip de-planarization can copy past the strip buffer. |
+| `005-applyprofiles-float-encoding-usage.patch` | Correct the `iccApplyProfiles` usage text so positional encoding `3` is documented as `icEncodeFloat`; the parser treats unsupported `4` as the default 8-bit encoding. |
 
 ## Drift Review
 

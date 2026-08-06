@@ -270,6 +270,9 @@ cfl_tool_command() {
     icc_pngdump_fuzzer)
       printf 'iccPngDump %s /tmp/cfl-pngdump.icc\n' "$artifact"
       ;;
+    icc_profilevisualize_fuzzer)
+      printf 'iccProfileVisualize %s\n' "$artifact"
+      ;;
     icc_roundtrip_fuzzer)
       printf 'iccRoundTrip %s /tmp/cfl-roundtrip-out.icc\n' "$artifact"
       ;;
