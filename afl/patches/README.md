@@ -18,7 +18,8 @@ Current patches:
 
 The former `005-fromxml-formula-functiontype-bounds.patch` is no longer in the
 AFL stack because upstream commit `1065ec1` includes the complete strict-width
-formula-segment attribute parsing fix.  The older CFL checkout retains its copy.
+formula-segment attribute parsing fix. The CFL stack retired its duplicate for
+the same reason.
 
 Patch failures warn and the build continues so older or newer iccDEV snapshots
 can still be tested.

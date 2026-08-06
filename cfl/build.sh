@@ -380,7 +380,7 @@ cd "$BUILD_DIR"
 rm -f IccProfLib/libIccProfLib2-static*.a IccXML/libIccXML2-static*.a \
   IccConnect/libIccConnect2-static*.a IccJSON/libIccJSON2-static*.a
 
-cmake Cmake/ \
+cmake -S "$ICCDEV_DIR/Build/Cmake" -B "$BUILD_DIR" \
   -DCMAKE_C_COMPILER="$CC" \
   -DCMAKE_CXX_COMPILER="$CXX" \
   -DCMAKE_C_FLAGS="$CFLAGS_LIB" \

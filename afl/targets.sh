@@ -34,7 +34,6 @@ AFL_TARGETS=(
     jpegdump-inject
     pawgreport
     pawgreport-fast
-    pawgreport-read
     pngdump
     pngdump-inject
     profilevisualize
@@ -90,7 +89,6 @@ afl_print_targets() {
     echo "  jpegdump-inject  - iccJpegDump (--write-icc injection lane)"
     echo "  pawgreport       - iccPawgReport (PAWG profile assessment)"
     echo "  pawgreport-fast  - iccPawgReport (small/no-trim profile assessment lane)"
-    echo "  pawgreport-read  - iccPawgReport (--read eager-load assessment lane)"
     echo "  pngdump          - iccPngDump (PNG -> ICC extraction)"
     echo "  pngdump-inject   - iccPngDump (--write-icc injection lane)"
     echo "  profilevisualize - iccProfileVisualize (ICC profile visualization)"
@@ -656,10 +654,9 @@ afl_configure_target() {
                 AFL_ARGS=("@@" "${tmp_prefix}.icc")
             fi
             ;;
-        pawgreport|pawgreport-fast|pawgreport-read)
+        pawgreport|pawgreport-fast)
             BINARY="$BIN_DIR/iccPawgReport"
             [[ "$target" == "pawgreport-fast" ]] && AFL_DIR="$AFL_BASE/afl-pawgreport-fast"
-            [[ "$target" == "pawgreport-read" ]] && AFL_DIR="$AFL_BASE/afl-pawgreport-read"
             DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
@@ -675,16 +672,7 @@ afl_configure_target() {
                 AFL_FAST_CAL_TARGET=1
                 TARGET_NOTE="Fast PAWG report lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
             fi
-            if [[ "$target" == "pawgreport-read" ]]; then
-                SEED_MAX_BYTES=8192
-                SEED_LIMIT=96
-                AFL_DISABLE_TRIM_TARGET=1
-                AFL_FAST_CAL_TARGET=1
-                TARGET_NOTE="PAWG report eager-read lane: exercises --read plus JSON report emission."
-                AFL_ARGS=("--read" "--json" "@@")
-            else
-                AFL_ARGS=("--json" "@@")
-            fi
+            AFL_ARGS=("--json" "@@")
             ;;
         pngdump|pngdump-inject)
             BINARY="$BIN_DIR/iccPngDump"

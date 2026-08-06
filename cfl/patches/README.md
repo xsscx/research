@@ -1,6 +1,6 @@
 # CFL Patches -- Active Local Build Fixes
 
-Last Updated: 2026-07-24
+Last Updated: 2026-08-06
 
 This directory contains the optional CFL patch stack for the nested
 `InternationalColorConsortium/iccDEV` checkout used by `cfl/build.sh`.
@@ -20,7 +20,6 @@ should link here instead of duplicating the full patch table.
 # Apply one or more selected patches for isolated testing.
 ./cfl/build.sh --refresh-iccdev --patch-file 002-jpegdump-segment-bounds.patch
 ./cfl/build.sh --refresh-iccdev --patch-file 004-applyprofiles-tiff-sample-count-bounds.patch
-./cfl/build.sh --refresh-iccdev --patch-file 005-fromxml-formula-functiontype-bounds.patch
 ```
 
 Patch application failures are warnings in patched mode. Non-applicable patches
@@ -42,7 +41,6 @@ depending on the current dirty nested checkouts.
 |-------|------|
 | `002-jpegdump-segment-bounds.patch` | Use subtraction-based JPEG segment bounds checks and one-past-safe payload pointers before reading marker segment data. |
 | `004-applyprofiles-tiff-sample-count-bounds.patch` | Reject malformed TIFF sample counts before `iccApplyProfiles` strip de-planarization can copy past the strip buffer. |
-| `005-fromxml-formula-functiontype-bounds.patch` | Reject malformed formula curve segment `Reserved2` and `FunctionType` values before XML parsing narrows overflowing `atoi()` results into 16-bit fields. |
 
 ## Drift Review
 
@@ -56,3 +54,8 @@ validated by `.github/scripts/check-afl-cfl-patches.sh`. The prior
 `005-applytolink-bpc-degenerate-lrange.patch` is no longer active because the
 nested `ci-afl-cfl` baseline already rejects degenerate BPC destination L*
 ranges.
+
+The 2026-08-06 review retired
+`005-fromxml-formula-functiontype-bounds.patch` because upstream commit
+`1065ec1` includes the broader strict-width XML attribute parsing fix. Shared
+patches `002` and `004` still apply cleanly to upstream master `a7abbee`.
