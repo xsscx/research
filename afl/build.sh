@@ -393,6 +393,8 @@ if [[ "$CLEAN_THIRD_PARTY" == "1" ]]; then
     THIRD_PARTY_ARGS+=(--clean)
 fi
 env \
+    -u AFL_CLANG_FAST \
+    -u AFL_CLANG_FASTXX \
     AFL_CC="$AFL_CC_BACKEND" \
     AFL_CXX="$AFL_CXX_BACKEND" \
     AFL_USE_ASAN=1 \
