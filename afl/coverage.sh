@@ -324,8 +324,8 @@ echo "[*] Report root: $REPORT_ROOT"
 echo "[*] Link mode:   static"
 echo "[*] Timeout:     ${COVERAGE_TIMEOUT}s"
 
-COV_CC="${AFL_COVERAGE_CC:-$(first_tool clang-22 clang-21 clang)}"
-COV_CXX="${AFL_COVERAGE_CXX:-$(first_tool clang++-22 clang++-21 clang++)}"
+COV_CC="${AFL_COVERAGE_CC:-$(first_tool clang-21 clang)}"
+COV_CXX="${AFL_COVERAGE_CXX:-$(first_tool clang++-21 clang++)}"
 if [[ -z "$COV_CC" || -z "$COV_CXX" ]]; then
     echo "ERROR: clang/clang++ coverage compiler not found" >&2
     exit 1

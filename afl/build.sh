@@ -241,8 +241,8 @@ select_afl_wrappers() {
     if [[ -n "${AFL_CLANG_FAST:-}" ]]; then
         candidates+=("$AFL_CLANG_FAST")
     fi
-    for wrapper in "$HOME"/work/copilot/tools/aflplusplus-llvm22-*/afl-clang-fast \
-        "$HOME"/work/copilot/tools/aflplusplus-llvm22/afl-clang-fast; do
+    for wrapper in "$HOME"/work/copilot/tools/aflplusplus-llvm21-*/afl-clang-fast \
+        "$HOME"/work/copilot/tools/aflplusplus-llvm21/afl-clang-fast; do
         [[ -e "$wrapper" ]] && candidates+=("$wrapper")
     done
     if command -v afl-clang-fast >/dev/null 2>&1; then
@@ -271,17 +271,17 @@ select_afl_wrappers() {
 }
 
 select_afl_toolchain() {
-    AFL_CC_BACKEND="$(first_tool clang-22 || true)"
-    AFL_CXX_BACKEND="$(first_tool clang++-22 || true)"
+    AFL_CC_BACKEND="$(first_tool clang-21 || true)"
+    AFL_CXX_BACKEND="$(first_tool clang++-21 || true)"
     if [[ -z "$AFL_CC_BACKEND" || -z "$AFL_CXX_BACKEND" ]]; then
-        echo "ERROR: clang-22 and clang++-22 are required for AFL builds" >&2
+        echo "ERROR: clang-21 and clang++-21 are required for AFL builds" >&2
         return 1
     fi
-    AFL_LLVM_AR="$(first_tool llvm-ar-22 || true)"
-    AFL_LLVM_RANLIB="$(first_tool llvm-ranlib-22 || true)"
-    AFL_LLVM_NM="$(first_tool llvm-nm-22 || true)"
+    AFL_LLVM_AR="$(first_tool llvm-ar-21 || true)"
+    AFL_LLVM_RANLIB="$(first_tool llvm-ranlib-21 || true)"
+    AFL_LLVM_NM="$(first_tool llvm-nm-21 || true)"
     if [[ -z "$AFL_LLVM_AR" || -z "$AFL_LLVM_RANLIB" || -z "$AFL_LLVM_NM" ]]; then
-        echo "ERROR: llvm-ar-22, llvm-ranlib-22, and llvm-nm-22 are required for AFL LTO builds" >&2
+        echo "ERROR: llvm-ar-21, llvm-ranlib-21, and llvm-nm-21 are required for AFL LTO builds" >&2
         return 1
     fi
 
@@ -382,8 +382,8 @@ fi
 AFL_CLANG_FAST_BIN=""
 AFL_CLANG_FASTXX_BIN=""
 if ! select_afl_toolchain; then
-    echo "ERROR: no afl-clang-fast wrapper can compile with clang-22" >&2
-    echo "       Rebuild AFL++ against llvm-config-22 or set AFL_CLANG_FAST/AFL_CLANG_FASTXX to LLVM 22 wrappers." >&2
+    echo "ERROR: no afl-clang-fast wrapper can compile with clang-21" >&2
+    echo "       Rebuild AFL++ against llvm-config-21 or set AFL_CLANG_FAST/AFL_CLANG_FASTXX to LLVM 21 wrappers." >&2
     exit 1
 fi
 

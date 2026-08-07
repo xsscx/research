@@ -21,11 +21,11 @@ elif [[ $# -gt 0 ]]; then
     exit 2
 fi
 
-CC_BIN="${CC:-clang-22}"
-CXX_BIN="${CXX:-clang++-22}"
-AR_BIN="${AR:-llvm-ar-22}"
-RANLIB_BIN="${RANLIB:-llvm-ranlib-22}"
-NM_BIN="${NM:-llvm-nm-22}"
+CC_BIN="${CC:-clang-21}"
+CXX_BIN="${CXX:-clang++-21}"
+AR_BIN="${AR:-llvm-ar-21}"
+RANLIB_BIN="${RANLIB:-llvm-ranlib-21}"
+NM_BIN="${NM:-llvm-nm-21}"
 SANITIZERS="address,undefined,integer,float-divide-by-zero,float-cast-overflow"
 SAN_FLAGS="-g -O1 -fno-omit-frame-pointer -fsanitize=$SANITIZERS -fno-sanitize-recover=undefined,integer,float-divide-by-zero,float-cast-overflow -fsanitize-ignorelist=$ROOT/ubsan-ignorelist.txt"
 

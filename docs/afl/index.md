@@ -79,20 +79,21 @@ workers with different explore/exploit strategy and power-schedule pairs. Use
 
 ## Coverage and Reachability Toolchain
 
-`afl/build.sh` requires `clang-22`/`clang++-22` and AFL++ wrappers rebuilt
-against LLVM 22. On Ubuntu 26.04 this means installing `clang-22`,
-`llvm-22-tools`, `llvm-22-dev`, and `libclang-rt-22-dev`, then rebuilding AFL++
-with `llvm-config-22`.
+`afl/build.sh` requires `clang-21`/`clang++-21` and AFL++ wrappers rebuilt
+against LLVM 21. On Ubuntu 26.04 this means installing `clang-21`,
+`llvm-21-tools`, `llvm-21-dev`, and `libclang-rt-21-dev`, then rebuilding AFL++
+with `llvm-config-21`.
 
-For source coverage, `afl/coverage.sh` selects `clang-22`/`clang++-22` when
-available and `cov-analysis` then uses the matching `llvm-profdata-22` and
-`llvm-cov-22`. Override with `AFL_COVERAGE_CC` and `AFL_COVERAGE_CXX` only when
-reproducing older LLVM reports.
+For source coverage, `afl/coverage.sh` selects `clang-21`/`clang++-21` and
+`cov-analysis` then uses the matching `llvm-profdata-21` and `llvm-cov-21`.
+Override with `AFL_COVERAGE_CC` and `AFL_COVERAGE_CXX` only when
+running a compatibility experiment or reproducing a report from another LLVM
+major.
 
 For static reachability, rebuild the local analyzer after changing LLVM major:
 
 ```bash
-LLVM_MAJOR=22 bash "$HOME/work/copilot/tools/fuzz-reachability/scripts/setup.sh"
+LLVM_MAJOR=21 bash "$HOME/work/copilot/tools/fuzz-reachability/scripts/setup.sh"
 reachability check-toolchain
 ```
 

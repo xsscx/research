@@ -76,9 +76,9 @@ AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-CMPLOG AFL_BIN_DIR=$PWD/afl/bin-cmplog .
 AFL_BASE=$PWD/afl/cmplog ./afl/start.sh fromcube --fresh --reseed --cmplog-binary $PWD/afl/bin-cmplog/iccFromCube
 ```
 
-`build.sh` requires `clang-22`/`clang++-22` and an AFL++ wrapper rebuilt against
-LLVM 22. Override `AFL_CLANG_FAST` or `AFL_CLANG_FASTXX` only when pointing at a
-different LLVM 22 wrapper install.
+`build.sh` requires `clang-21`/`clang++-21` and an AFL++ wrapper rebuilt against
+LLVM 21. Override `AFL_CLANG_FAST` or `AFL_CLANG_FASTXX` only when pointing at a
+different LLVM 21 wrapper install.
 
 ## Review-Driven Improvements
 
@@ -137,7 +137,7 @@ static reachability analyzer on the same LLVM major as source coverage; rebuild
 the local tool with:
 
 ```bash
-LLVM_MAJOR=22 bash "$HOME/work/copilot/tools/fuzz-reachability/scripts/setup.sh"
+LLVM_MAJOR=21 bash "$HOME/work/copilot/tools/fuzz-reachability/scripts/setup.sh"
 reachability check-toolchain
 ```
 

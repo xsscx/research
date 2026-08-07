@@ -57,10 +57,10 @@ and a profile-counter `find` pass to verify the baseline before rerunning
 `./afl/start.sh` or `./afl/report.sh`.
 
 Coverage reports should record the LLVM major used for both source coverage and
-static reachability. On this VM the expected path is Clang/LLVM 22:
-`afl/coverage.sh` auto-selects `clang-22`/`clang++-22`, `cov-analysis` uses
-`llvm-profdata-22`/`llvm-cov-22`, and `reachability check-toolchain` should
-report `analyzer toolchain on LLVM 22`.
+static reachability. On this VM the default path is Clang/LLVM 21:
+`afl/coverage.sh` selects `clang-21`/`clang++-21`, `cov-analysis` uses
+`llvm-profdata-21`/`llvm-cov-21`, and `reachability check-toolchain` should
+report `analyzer toolchain on LLVM 21`.
 
 Use `afl/dashboard/report-viewer/` for the static AFL report UI. The launcher
 serves the local `afl/` tree and opens the latest generated report unless a
