@@ -105,6 +105,7 @@ configure_build_install zlib \
 configure_build_install libjpeg-turbo \
     -DENABLE_SHARED=OFF \
     -DENABLE_STATIC=ON \
+    -DWITH_SIMD=OFF \
     -DWITH_TOOLS=OFF \
     -DWITH_TESTS=OFF \
     -DWITH_TURBOJPEG=OFF

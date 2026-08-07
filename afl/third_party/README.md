@@ -11,6 +11,10 @@ Sanitizer, IntegerSanitizer, float-divide-by-zero, and float-cast-overflow.
 nlohmann-json is header-only and receives the same AFL and sanitizer flags when
 iccDEV compiles it.
 
+The libjpeg-turbo build disables hand-written SIMD assembly so JPEG processing
+stays in compiler-instrumented C code. This also means NASM is not required for
+the AFL build.
+
 Run a clean dependency rebuild directly with:
 
 ```bash
