@@ -1,6 +1,6 @@
 # CFL - LibFuzzer Harnesses for iccDEV
 
-Last updated: 2026-07-20
+Last updated: 2026-08-07
 
 `cfl/` contains the LibFuzzer side of the iccDEV fuzzing workflow: active
 harnesses, sanitizer builds, dictionaries, seed material, and an optional patch
@@ -10,6 +10,9 @@ Use `cfl/patches/README.md` as the source of truth for the current patch list.
 Use `cfl/fuzzers.sh` as the source of truth for the current fuzzer list.
 
 ## Fast Path
+
+The default CFL toolchain is `clang-21`/`clang++-21`. Set `CC` and `CXX` only
+for an explicit compatibility experiment with another matching Clang runtime.
 
 ```bash
 # Build current upstream master without CFL patches. This is the default.

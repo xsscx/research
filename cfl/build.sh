@@ -10,8 +10,8 @@
 #         ./build.sh --branch ci-qa-issue-1975 --refresh-iccdev
 #         ./build.sh --no-patches --refresh-iccdev
 #
-# Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev, libtiff-dev, zlib,
-#               libclang-rt-<ver>-dev (provides ASan/UBSan runtime)
+# Requirements: clang-21/clang++-21, cmake 3.15+, libxml2-dev, libtiff-dev,
+#               zlib, libclang-rt-21-dev (provides ASan/UBSan runtime)
 
 set -euo pipefail
 
@@ -23,8 +23,8 @@ PROFRAW_DIR="$SCRIPT_DIR/profraw"
 PATCH_DIR="$SCRIPT_DIR/patches"
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
-CC="${CC:-clang}"
-CXX="${CXX:-clang++}"
+CC="${CC:-clang-21}"
+CXX="${CXX:-clang++-21}"
 APPLY_PATCHES="${CFL_APPLY_PATCHES:-0}"
 REFRESH_ICCDEV="${CFL_REFRESH_ICCDEV:-0}"
 PATCH_WX="${CFL_PATCH_WX:-0}"
