@@ -54,6 +54,13 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_include_directories(icc_roundtrip_fuzzer PRIVATE ${FUZZER_INCLUDES})
   target_link_libraries(icc_roundtrip_fuzzer IccProfLib2)
 
+  # Unrestricted, in-memory IccProfLib API fuzzer
+  add_executable(icc_proflib_fuzzer icc_proflib_fuzzer.cpp)
+  target_compile_options(icc_proflib_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+  target_link_options(icc_proflib_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+  target_include_directories(icc_proflib_fuzzer PRIVATE ${FUZZER_INCLUDES})
+  target_link_libraries(icc_proflib_fuzzer IccProfLib2)
+
   # Dump fuzzer
   add_executable(icc_dump_fuzzer icc_dump_fuzzer.cpp)
   target_compile_options(icc_dump_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
@@ -194,7 +201,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   endif()
 
   message(STATUS "Fuzzing harnesses configured:")
-  message(STATUS "  Core: v5dspobs, roundtrip, dump, link, fromcube, profilevisualize (6)")
+  message(STATUS "  Core: proflib, v5dspobs, roundtrip, dump, link, fromcube, profilevisualize (7)")
   message(STATUS "  Apply: applynamedcmm, applyprofiles, applyprofiles-row, applysearch, applysearch-weight (5)")
   if(TARGET IccConnect2-static)
     message(STATUS "  Connect: connect (1)")

@@ -64,6 +64,7 @@ LIB_JSON="$BUILD_DIR/IccJSON/libIccJSON2-static.a"
 
 # Core fuzzers (IccProfLib only), mapped to upstream iccDEV tools.
 CORE_FUZZERS=(
+  icc_proflib_fuzzer
   icc_v5dspobs_fuzzer
   icc_roundtrip_fuzzer
   icc_dump_fuzzer

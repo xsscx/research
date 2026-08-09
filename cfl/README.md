@@ -82,6 +82,7 @@ Current harness areas:
 | PAWG report generation | `icc_pawgreport_fuzzer` |
 | PNG ICC extraction | `icc_pngdump_fuzzer` |
 | Profile visualization data model | `icc_profilevisualize_fuzzer` |
+| Unrestricted IccProfLib API | `icc_proflib_fuzzer` |
 | Read/write round trip | `icc_roundtrip_fuzzer` |
 | Spectral separation | `icc_specsep_fuzzer` |
 | TIFF ICC extraction | `icc_tiffdump_fuzzer` |
@@ -111,6 +112,13 @@ cd cfl
 ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1 \
   ./bin/icc_profilevisualize_fuzzer -runs=1 corpus/
 ```
+
+`icc_proflib_fuzzer` is the direct library lane. It passes the complete input
+buffer to IccProfLib without a minimum profile size or command-line semantic
+gates, selects among lazy, sub-profile, eager, and validating memory readers,
+then exercises every discovered tag, profile validation, PCC accessors, copy
+construction, and serialization. The `profile`, `proflib`, and `iccproflib`
+aliases select it in the CFL scripts.
 
 ## Patch Stack
 

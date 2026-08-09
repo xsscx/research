@@ -18,6 +18,7 @@ CFL_FUZZERS=(
   icc_pawgreport_fuzzer
   icc_pngdump_fuzzer
   icc_profilevisualize_fuzzer
+  icc_proflib_fuzzer
   icc_roundtrip_fuzzer
   icc_specsep_fuzzer
   icc_tiffdump_fuzzer
@@ -60,6 +61,7 @@ cfl_normalize_fuzzer() {
     pawg|pawgreport) name="icc_pawgreport_fuzzer" ;;
     png|pngdump) name="icc_pngdump_fuzzer" ;;
     profilevisualize|profile-visualize|visualize) name="icc_profilevisualize_fuzzer" ;;
+    profile|proflib|iccproflib) name="icc_proflib_fuzzer" ;;
     roundtrip) name="icc_roundtrip_fuzzer" ;;
     specsep) name="icc_specsep_fuzzer" ;;
     tiffdump) name="icc_tiffdump_fuzzer" ;;
@@ -152,6 +154,7 @@ cfl_resolve_dict() {
   case "$fuzzer" in
     icc_connect_fuzzer) mapped="icc_cfg.dict" ;;
     icc_fromjson_fuzzer) mapped="icc_json.dict" ;;
+    icc_proflib_fuzzer) mapped="icc_core.dict" ;;
     icc_roundtrip_fuzzer) mapped="icc_core.dict" ;;
     icc_tojson_fuzzer) mapped="icc_core.dict" ;;
     icc_toxml_fuzzer) mapped="icc_xml_consolidated.dict" ;;
@@ -272,6 +275,9 @@ cfl_tool_command() {
       ;;
     icc_profilevisualize_fuzzer)
       printf 'iccProfileVisualize %s\n' "$artifact"
+      ;;
+    icc_proflib_fuzzer)
+      printf 'ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1 cfl/bin/icc_proflib_fuzzer -runs=1 %s\n' "$artifact"
       ;;
     icc_roundtrip_fuzzer)
       printf 'iccRoundTrip %s /tmp/cfl-roundtrip-out.icc\n' "$artifact"
