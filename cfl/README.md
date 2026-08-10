@@ -3,28 +3,19 @@
 Last updated: 2026-08-07
 
 `cfl/` contains the LibFuzzer side of the iccDEV fuzzing workflow: active
-harnesses, sanitizer builds, dictionaries, seed material, and an optional patch
-stack used only for explicit patched-vs-upstream A/B testing.
+harnesses, sanitizer builds, dictionaries, and seed material. It builds
+upstream `master` without local source patches.
 
-Use `cfl/patches/README.md` as the source of truth for the current patch list.
 Use `cfl/fuzzers.sh` as the source of truth for the current fuzzer list.
 
 ## Fast Path
 
-The default CFL toolchain is `clang-21`/`clang++-21`. Set `CC` and `CXX` only
+The default CFL toolchain is `clang-22`/`clang++-22`. Set `CC` and `CXX` only
 for an explicit compatibility experiment with another matching Clang runtime.
 
 ```bash
-# Build current upstream master without CFL patches. This is the default.
+# Build current upstream master.
 cd cfl && ./build.sh --refresh-iccdev
-cd cfl && ./build.sh --no-patches --refresh-iccdev
-
-# Build current upstream master with the CFL patch stack for A/B testing.
-cd cfl && ./build.sh --patches --refresh-iccdev
-
-# Build one selected patch for an isolated A/B check.
-cd cfl && ./build.sh --refresh-iccdev \
-  --patch-file 053-formulacurve-describe-format-specifiers.patch
 
 # Smoke-test all fuzzers from local corpora.
 cd cfl && ./fuzz-local.sh -t 60 -w 1
@@ -32,19 +23,6 @@ cd cfl && ./fuzz-local.sh -t 60 -w 1
 # Run longer fuzzing on mounted storage.
 cd cfl && ./fuzz-local.sh -t 14400 -w 4 -r /mnt/g/fuzz-ssd
 ```
-
-## A/B Testing Model
-
-| Mode | Command | Purpose |
-|------|---------|---------|
-| Upstream | `./build.sh --refresh-iccdev` | Baseline current iccDEV behavior |
-| Upstream explicit | `./build.sh --no-patches --refresh-iccdev` | Same as default, useful in A/B logs |
-| Patched stack | `./build.sh --patches --refresh-iccdev` | CFL hardening stack for comparison |
-| Single patch | `./build.sh --patch-file NAME.patch --refresh-iccdev` | Isolate one candidate fix |
-
-Keep the same corpus, timeout, worker count, sanitizer options, and machine
-class across A/B runs. Compare crashes, sanitizer findings, timeouts, OOMs, and
-coverage from the status scripts rather than ad hoc log scraping.
 
 Useful status commands:
 
@@ -108,7 +86,7 @@ function. Use the issue #1975 compatibility baseline locally with:
 
 ```bash
 cd cfl
-./build.sh --branch ci-qa-issue-1975 --no-patches --refresh-iccdev
+./build.sh --branch ci-qa-issue-1975 --refresh-iccdev
 ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1 \
   ./bin/icc_profilevisualize_fuzzer -runs=1 corpus/
 ```
@@ -120,33 +98,15 @@ then exercises every discovered tag, profile validation, PCC accessors, copy
 construction, and serialization. The `profile`, `proflib`, and `iccproflib`
 aliases select it in the CFL scripts.
 
-## Patch Stack
+## Upstream Baseline
 
-`cfl/patches/` is an optional patch stack. `cfl/retired-patches/` preserves
-accepted, superseded, or obsolete patches for audit history. Plain `build.sh`
-does not apply patches; pass `--patches` or `--patch-file` when an A/B run
-intentionally needs patched source.
-
-```bash
-cd cfl && ./build.sh --patches --refresh-iccdev
-cd cfl && ./build.sh --no-patches --refresh-iccdev
-cd cfl && ./build.sh --patch-file 001-json-config-parser-no-sanitize.patch
-```
-
-Patch application failures are warnings in patched mode. Non-applicable patches
-are skipped so stale local patch stacks do not block AFL/CFL builds. After
-refreshing the nested `iccDEV` checkout, remove stale build output before
-judging build or sanitizer failures:
-
-Validate patch syntax and drift before commit:
-
-```bash
-.github/scripts/check-afl-cfl-patches.sh
-```
+`cfl/patches/` has no active patches. `cfl/retired-patches/` preserves
+superseded patches for audit history. After refreshing the nested `iccDEV`
+checkout, remove stale build output before judging build or sanitizer failures:
 
 ```bash
 rm -rf cfl/iccDEV/Build cfl/build cfl/bin
-cd cfl && ./build.sh --patches --refresh-iccdev
+cd cfl && ./build.sh --refresh-iccdev
 ```
 
 ## What Belongs In Git
@@ -156,7 +116,7 @@ Track reusable inputs and source needed to reproduce runs on another VM:
 | Track | Examples |
 |-------|----------|
 | Harness and build source | `cfl/*.cpp`, `cfl/*.h`, `cfl/*.sh`, `CMakeLists.txt`, `Dockerfile` |
-| Patch source | `cfl/patches/*.patch`, `cfl/retired-patches/*.patch` |
+| Retired patch history | `cfl/retired-patches/*.patch` |
 | Dictionaries | `cfl/*.dict`, curated AFL target dictionaries |
 | Minimal seed fixtures | `cfl/corpus/`, `cfl/seeds-*`, small named fixtures |
 | Promoted repro artifacts | Files moved to `test-profiles/`, `fuzz/`, or `docs/pocs/` with evidence |
@@ -227,7 +187,7 @@ needed.
 
 | Doc | Use |
 |-----|-----|
-| `cfl/patches/README.md` | Current active patch stack |
+| `cfl/patches/README.md` | Zero-patch inventory |
 | `docs/Testing/CFL_MANUAL_FUZZER_COMMANDS.md` | Per-fuzzer maintainer one-liners |
 | `docs/afl/index.md` | AFL++ tool-level fuzzing |
 | `docs/Testing/FUZZ_CFL_INVENTORY.md` | Fuzzing asset and tracking policy |

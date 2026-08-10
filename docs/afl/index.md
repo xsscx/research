@@ -1,7 +1,7 @@
 # AFL++ Tool Fuzzing
 
 `afl/` fuzzes real iccDEV command-line tools with AFL++ instrumentation. This
-complements `cfl/`, which uses LibFuzzer harnesses and optional patch stacks.
+complements `cfl/`, which uses LibFuzzer harnesses.
 
 Use `afl/targets.sh` as the source of truth for available targets.
 
@@ -48,9 +48,7 @@ directories exist. Override the sweep inputs with colon-separated
 - the dictionary copied into the per-target directory
 - any fixed arguments needed to drive multi-argument tools
 
-`./afl/build.sh` defaults to an unpatched upstream iccDEV checkout. Use
-`./afl/build.sh --patches` to apply the local AFL patch stack from
-`afl/patches/` before building instrumented tools.
+`./afl/build.sh` builds the current upstream `master` checkout.
 
 The current target list includes tool-level coverage for profile dumping,
 XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile

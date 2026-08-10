@@ -63,21 +63,9 @@ copy-paste one-line replays using canonical `iccDEV/Build/Tools` binaries.
 It includes the JSON config, JPEG APP2, applyprofiles CAM/encoding,
 applyprofiles hybrid embedded, and older timeout-only marked artifacts.
 
-Patch coverage after the 2026-07-24 sweep:
-
-- `001-json-config-parser-no-sanitize.patch` covers the marked
-  `applynamedcmm-cfg` JSON parser sanitizer class in patched AFL/CFL builds.
-- `002-jpegdump-segment-bounds.patch` covers the marked `jpegdump` segment
-  bounds assertion class in patched AFL/CFL builds.
-- `003-applyprofiles-cam-encoding-div-zero.patch` covers the marked
-  `applyprofiles` CAM inverse and encoding surround-ratio division-by-zero
-  classes in patched AFL/CFL builds.
-- `004-applyprofiles-tiff-sample-count-bounds.patch` covers the marked
-  `applyprofiles-hybrid-embedded` malformed TIFF sample-count
-  heap-buffer-overflow class in patched AFL/CFL builds.
-- `005-applytolink-bpc-degenerate-lrange.patch` covers the live
-  `applytolink` BPC destination L* range division-by-zero class in patched
-  AFL/CFL builds.
+The 2026-07-24 sweep used local patches for comparison. Those patches are now
+retired; current AFL and CFL builds use upstream `master` without local source
+patches.
 
 ## 2026-07-24 -- live iccApplyToLink BPC L* range UBSAN
 

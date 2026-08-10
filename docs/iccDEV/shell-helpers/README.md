@@ -45,7 +45,7 @@ three components:
 | Component | iccDEV Usage | Build |
 |-----------|-------------|-------|
 | `iccanalyzer-lite/` | Links unpatched upstream IccProfLib + IccLibXML | `./build.sh` |
-| `cfl/` | Clones iccDEV, applies the active CFL patch set, builds the current fuzzer set | `./build.sh` |
+| `cfl/` | Clones upstream iccDEV `master` and builds the current fuzzer set | `./build.sh` |
 | `colorbleed_tools/` | Links unpatched upstream for ICC XML/JSON conversion | `make setup && make qa` |
 
 The iccDEV checkout at `iccDEV/Build/` provides the **unpatched reference tools** used

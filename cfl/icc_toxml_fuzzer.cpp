@@ -68,6 +68,8 @@ static void suppress_upstream_stdout(void) {
 }
 
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
+  (void)argc;
+  (void)argv;
   suppress_upstream_stdout();
 
   // Match tool lines 23-24: register XML factories

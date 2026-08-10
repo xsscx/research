@@ -53,7 +53,8 @@
 
 // Suppress libxml2 errors during fuzzing
 static void suppressXmlErrors(void *ctx, const char *msg, ...) {
-  // Silent
+  (void)ctx;
+  (void)msg;
 }
 
 static xmlParserInputPtr blockExternalEntity(const char *URL,

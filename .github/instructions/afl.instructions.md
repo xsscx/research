@@ -29,7 +29,6 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 
 ```bash
 ./afl/build.sh          # default: unpatched upstream iccDEV
-./afl/build.sh --patches # optional AFL-local patch stack
 ./afl/start.sh --list
 ./afl/start.sh dump
 ./afl/start.sh toxml --parallel 4
@@ -77,14 +76,6 @@ LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
 ```
 
 Adjust the tool and arguments to match the AFL target.
-
-## Patch Checks
-
-After editing `afl/patches/*.patch`, run
-`.github/scripts/check-afl-cfl-patches.sh`. The checker applies each AFL patch
-to a fresh temporary clone of `afl/iccDEV`, so invalid zero-context diffs,
-stale paths, and already-applied nested worktree state are caught before
-building.
 
 ## Corpus Minimization
 

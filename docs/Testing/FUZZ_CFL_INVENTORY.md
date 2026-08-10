@@ -9,7 +9,7 @@ as corpora grow.
 | Path | Role |
 |------|------|
 | `afl/` | AFL++ tooling for real iccDEV CLI binaries |
-| `cfl/` | LibFuzzer harnesses, patch stack, dictionaries, and curated seeds |
+| `cfl/` | LibFuzzer harnesses, dictionaries, and curated seeds |
 | `fuzz/` | Shared malicious inputs, signatures, PoCs, and reusable corpus material |
 | `test-profiles/` | Stable ICC and image fixtures used by tools and tests |
 | `extended-test-profiles/` | Larger reusable profile corpus |
@@ -22,7 +22,7 @@ Track files that make another VM reproducible:
 | Track | Examples |
 |-------|----------|
 | Source and orchestration | `afl/*.sh`, `afl/targets.sh`, `cfl/*.sh`, `cfl/*.cpp`, `cfl/*.h` |
-| Patch source | `cfl/patches/*.patch`, `cfl/retired-patches/*.patch` |
+| Retired patch history | `cfl/retired-patches/*.patch` |
 | Dictionaries | `cfl/*.dict`, curated per-target AFL dictionaries |
 | Curated seeds | `cfl/corpus/`, small `cfl/seeds-*` fixtures, `test-profiles/` |
 | Promoted findings | Named repro files in `fuzz/`, `test-profiles/`, or `docs/pocs/` |
@@ -52,23 +52,13 @@ Before adding a generated seed or artifact:
 2. Put it in the narrowest reusable path: `test-profiles/`, `fuzz/`, or
    `docs/pocs/`.
 3. Record the exact replay command and sanitizer options.
-4. State whether it is for upstream baseline, patched stack, or single-patch
-   A/B testing.
+4. State the upstream commit and tool configuration used to validate it.
 5. Keep logs and profiler output out of the commit unless the artifact itself
    is the subject of the change.
 
-## A/B Run Notes
+## Run Notes
 
-Use the same corpus, timeout, workers, sanitizer options, and host class when
-comparing modes:
-
-```bash
-cd cfl && ./build.sh --no-patches --refresh-iccdev
-cd cfl && ./build.sh --patches --refresh-iccdev
-cd cfl && ./build.sh --refresh-iccdev --patch-file NAME.patch
-```
-
-Use status JSON for comparison inputs:
+Build and run against upstream `master`. Use status JSON for comparison inputs:
 
 ```bash
 cd cfl && ./status.sh --json | jq .
@@ -81,5 +71,5 @@ cd cfl && ./status.sh --json | jq .
 |-----|-----|
 | `../afl/index.md` | AFL++ workflow |
 | `../../cfl/README.md` | CFL workflow |
-| `../../cfl/patches/README.md` | Active patch stack |
+| `../../cfl/patches/README.md` | Zero-patch inventory |
 | `README.md` | Testing docs index |

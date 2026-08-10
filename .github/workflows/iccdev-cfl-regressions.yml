@@ -39,7 +39,7 @@ concurrency:
 jobs:
   build-and-smoke:
     name: CFL build and profile visualization smoke
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
       run:
@@ -64,9 +64,9 @@ jobs:
           unset GITHUB_TOKEN || true
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            clang-18 \
+            clang-22 \
             cmake \
-            libclang-rt-18-dev \
+            libclang-rt-22-dev \
             libjpeg-dev \
             libpng-dev \
             libssl-dev \
@@ -95,13 +95,13 @@ jobs:
       - name: Build all CFL fuzzers
         env:
           BASH_ENV: /dev/null
-          CC: clang-18
-          CXX: clang++-18
+          CC: clang-22
+          CXX: clang++-22
         run: |
           set -euo pipefail
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          cfl/build.sh --branch "$ICCDEV_REF" --no-patches --refresh-iccdev
+          cfl/build.sh --branch "$ICCDEV_REF" --refresh-iccdev
 
       - name: Smoke profile visualization harness
         env:

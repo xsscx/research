@@ -1,7 +1,7 @@
 #!/bin/bash
 # afl/build.sh - Build iccDEV with AFL++ instrumentation and full sanitizers
 #
-# Usage: ./afl/build.sh [--clean] [--no-patches|--patches] [--refresh-iccdev]
+# Usage: ./afl/build.sh [--clean] [--refresh-iccdev]
 #
 # Builds the full iccDEV library and tools using afl-clang-fast++ with ASan,
 # UBSan, IntegerSanitizer, float-divide-by-zero, and float-cast-overflow.
@@ -18,12 +18,9 @@ BIN_DIR="${AFL_BIN_DIR:-$SCRIPT_DIR/bin}"
 THIRD_PARTY_DIR="$SCRIPT_DIR/third_party"
 THIRD_PARTY_PREFIX="${AFL_THIRD_PARTY_PREFIX:-$THIRD_PARTY_DIR/install}"
 JOBS=$(nproc)
-PATCH_DIR="$REPO_ROOT/afl/patches"
-APPLY_PATCHES="${AFL_APPLY_PATCHES:-0}"
 REFRESH_ICCDEV="${AFL_REFRESH_ICCDEV:-0}"
 KEEP_ICCDEV="${AFL_KEEP_ICCDEV:-0}"
 ICCDEV_BRANCH="${AFL_ICCDEV_BRANCH:-}"
-SELECTED_PATCHES=()
 AFL_CMPLOG_BUILD=0
 AFL_LAF_BUILD=0
 AFL_CTX_BUILD=0
@@ -38,10 +35,6 @@ usage() {
     echo "Options:"
     echo "  --clean           remove Build-AFL before building"
     echo "  --clean-third-party rebuild all AFL-instrumented dependencies"
-    echo "  --no-patches      build upstream iccDEV without AFL patches (default)"
-    echo "  --patches         apply afl/patches before building; failed patches warn and continue"
-    echo "  --patch [DIR|FILE] apply all AFL patches, a patch directory, or one patch file"
-    echo "  --patch-file FILE apply one patch file; may be repeated"
     echo "  --branch NAME     use iccDEV branch NAME; existing checkout stays local-only"
     echo "  --refresh-iccdev  fetch selected branch or origin/master and reset the nested checkout"
     echo "  --keep-iccdev     preserve current afl/iccDEV source edits"
@@ -71,38 +64,6 @@ while [[ $# -gt 0 ]]; do
         --clean-third-party)
             CLEAN_THIRD_PARTY=1
             shift
-            ;;
-        --patches)
-            APPLY_PATCHES=1
-            shift
-            ;;
-        --no-patches)
-            APPLY_PATCHES=0
-            shift
-            ;;
-        --patch-file)
-            if [[ $# -lt 2 ]]; then
-                echo "ERROR: $1 requires a patch path or afl/patches filename"
-                exit 1
-            fi
-            APPLY_PATCHES=selected
-            SELECTED_PATCHES+=("$2")
-            shift 2
-            ;;
-        --patch)
-            if [[ $# -ge 2 && "$2" != --* ]]; then
-                if [[ -d "$2" ]]; then
-                    PATCH_DIR="$(cd "$2" && pwd)"
-                    APPLY_PATCHES=1
-                else
-                    APPLY_PATCHES=selected
-                    SELECTED_PATCHES+=("$2")
-                fi
-                shift 2
-            else
-                APPLY_PATCHES=1
-                shift
-            fi
             ;;
         --branch)
             if [[ $# -lt 2 || "$2" == --* ]]; then
@@ -323,62 +284,6 @@ else
     fi
 fi
 
-if [[ "$APPLY_PATCHES" = "0" ]]; then
-    echo "[*] Patch application disabled for AFL build"
-elif [[ "$APPLY_PATCHES" = "selected" ]]; then
-    PATCH_OK=0
-    PATCH_FAIL=0
-    for p in "${SELECTED_PATCHES[@]}"; do
-        if [[ -f "$p" ]]; then
-            patch_path="$p"
-        elif [[ -f "$PATCH_DIR/$p" ]]; then
-            patch_path="$PATCH_DIR/$p"
-        else
-            echo "[FAIL] Patch not found: $p"
-            exit 1
-        fi
-        pname="$(basename "$patch_path")"
-        if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" >/dev/null 2>&1; then
-            patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$patch_path" >/dev/null 2>&1
-            echo "[OK] Applied: $pname"
-            PATCH_OK=$((PATCH_OK + 1))
-        elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" >/dev/null 2>&1; then
-            echo "[OK] Already applied: $pname"
-            PATCH_OK=$((PATCH_OK + 1))
-        else
-            echo "[WARN] Cannot apply: $pname"
-            PATCH_FAIL=$((PATCH_FAIL + 1))
-        fi
-    done
-    echo "[*] AFL patches: $PATCH_OK OK, $PATCH_FAIL FAIL"
-    if [[ "$PATCH_FAIL" -gt 0 ]]; then
-        echo "[WARN] AFL selected patch application had failures; continuing"
-    fi
-elif [[ -d "$PATCH_DIR" ]] && ls "$PATCH_DIR"/*.patch >/dev/null 2>&1; then
-    PATCH_OK=0
-    PATCH_FAIL=0
-    for p in "$PATCH_DIR"/*.patch; do
-        pname="$(basename "$p")"
-        if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$p" >/dev/null 2>&1; then
-            patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$p" >/dev/null 2>&1
-            echo "[OK] Applied: $pname"
-            PATCH_OK=$((PATCH_OK + 1))
-        elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$p" >/dev/null 2>&1; then
-            echo "[OK] Already applied: $pname"
-            PATCH_OK=$((PATCH_OK + 1))
-        else
-            echo "[WARN] Cannot apply: $pname"
-            PATCH_FAIL=$((PATCH_FAIL + 1))
-        fi
-    done
-    echo "[*] AFL patches: $PATCH_OK OK, $PATCH_FAIL FAIL"
-    if [[ "$PATCH_FAIL" -gt 0 ]]; then
-        echo "[WARN] AFL patch application had failures; continuing"
-    fi
-else
-    echo "[*] No AFL patches to apply"
-fi
-
 AFL_CLANG_FAST_BIN=""
 AFL_CLANG_FASTXX_BIN=""
 if ! select_afl_toolchain; then
@@ -416,13 +321,6 @@ fi
 echo "[*] Configuring iccDEV with AFL++ instrumentation..."
 echo "    Compiler: afl-clang-fast++"
 echo "    Sanitizers: ASAN + UBSAN + integer + float-divide-by-zero + float-cast-overflow"
-if [[ "$APPLY_PATCHES" = "0" ]]; then
-    echo "    Patch mode: unpatched upstream"
-elif [[ "$APPLY_PATCHES" = "selected" ]]; then
-    echo "    Patch mode: selected AFL patch files"
-else
-    echo "    Patch mode: all AFL patches"
-fi
 echo "    Jobs: $JOBS"
 echo "    Build dir: $BUILD_DIR"
 echo "    Bin dir: $BIN_DIR"

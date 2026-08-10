@@ -110,6 +110,8 @@ static bool checked_mul_size(size_t a, size_t b, size_t &out) {
 }
 
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
+    (void)argc;
+    (void)argv;
     TIFFSetErrorHandler(SilentTIFFErrorHandler);
     TIFFSetWarningHandler(SilentTIFFWarningHandler);
     return 0;

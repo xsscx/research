@@ -83,6 +83,8 @@ static void SilentTIFFErrorHandler(const char*, const char*, va_list) {}
 static void SilentTIFFWarningHandler(const char*, const char*, va_list) {}
 
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
+  (void)argc;
+  (void)argv;
   TIFFSetErrorHandler(SilentTIFFErrorHandler);
   TIFFSetWarningHandler(SilentTIFFWarningHandler);
   return 0;

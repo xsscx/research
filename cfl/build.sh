@@ -8,10 +8,9 @@
 # Usage:  ./build.sh                         # build all fuzzers against upstream master
 #         ./build.sh clean                   # remove build artifacts and start fresh
 #         ./build.sh --branch ci-qa-issue-1975 --refresh-iccdev
-#         ./build.sh --no-patches --refresh-iccdev
 #
-# Requirements: clang-21/clang++-21, cmake 3.15+, libxml2-dev, libtiff-dev,
-#               zlib, libclang-rt-21-dev (provides ASan/UBSan runtime)
+# Requirements: clang-22/clang++-22, cmake 3.15+, libxml2-dev, libtiff-dev,
+#               zlib, libclang-rt-22-dev (provides ASan/UBSan runtime)
 
 set -euo pipefail
 
@@ -20,22 +19,18 @@ ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
 BUILD_DIR="$ICCDEV_DIR/Build"
 OUTPUT_DIR="$SCRIPT_DIR/bin"
 PROFRAW_DIR="$SCRIPT_DIR/profraw"
-PATCH_DIR="$SCRIPT_DIR/patches"
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
-CC="${CC:-clang-21}"
-CXX="${CXX:-clang++-21}"
-APPLY_PATCHES="${CFL_APPLY_PATCHES:-0}"
+CC="${CC:-clang-22}"
+CXX="${CXX:-clang++-22}"
 REFRESH_ICCDEV="${CFL_REFRESH_ICCDEV:-0}"
-PATCH_WX="${CFL_PATCH_WX:-0}"
 KEEP_ICCDEV="${CFL_KEEP_ICCDEV:-0}"
 ICCDEV_REF="${CFL_ICCDEV_REF:-master}"
-SELECTED_PATCHES=()
 
 # Sanitizer + debug + instrumentation + coverage flags
-COMMON_CFLAGS="-g -O1 -fno-omit-frame-pointer"
-SANITIZER_FLAGS="-fsanitize=address,undefined -fsanitize=fuzzer-no-link"
-FUZZER_FLAGS="-fsanitize=fuzzer,address,undefined"
+COMMON_CFLAGS="-g3 -O0 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -Werror"
+SANITIZER_FLAGS="-fsanitize=address,undefined,integer,float-divide-by-zero,float-cast-overflow -fsanitize=fuzzer-no-link"
+FUZZER_FLAGS="-fsanitize=fuzzer,address,undefined,integer,float-divide-by-zero,float-cast-overflow"
 COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
 
 CFLAGS_LIB="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
@@ -143,34 +138,10 @@ usage() {
   echo ""
   echo "Options:"
   echo "  clean             remove build artifacts and nested iccDEV checkout"
-  echo "  --no-patches      build against unpatched iccDEV (default)"
-  echo "  --patches         apply cfl/patches before building"
-  echo "  --patch [DIR|FILE] apply all patches, a patch directory, or one patch file"
-  echo "  --patch-file FILE apply one patch file; may be repeated"
   echo "  --branch REF      clone/fetch the named iccDEV branch or tag (default: master)"
   echo "  --ref REF         alias for --branch"
   echo "  --keep-iccdev     preserve current cfl/iccDEV source edits"
   echo "  --refresh-iccdev  fetch the selected iccDEV ref and reset the nested checkout"
-  echo "  --patch-wx        apply the legacy local wxWidgets CMake workaround"
-}
-
-apply_cfl_patch() {
-  local patch_path="$1"
-  local pname
-
-  pname=$(basename "$patch_path")
-  if patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1; then
-    patch --no-backup-if-mismatch -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1
-    echo "[OK] Applied: $pname"
-    return 0
-  elif patch --no-backup-if-mismatch -R --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" > /dev/null 2>&1; then
-    echo "[OK] Already applied: $pname"
-    return 0
-  fi
-
-  echo "[WARN] Skipped non-applicable patch: $pname"
-  patch --no-backup-if-mismatch --dry-run -p1 -d "$ICCDEV_DIR" < "$patch_path" || true
-  return 1
 }
 
 while [[ $# -gt 0 ]]; do
@@ -178,38 +149,6 @@ while [[ $# -gt 0 ]]; do
     clean)
       CLEAN=1
       shift
-      ;;
-    --no-patches)
-      APPLY_PATCHES=0
-      shift
-      ;;
-    --patches)
-      APPLY_PATCHES=1
-      shift
-      ;;
-    --patch-file)
-      if [[ $# -lt 2 ]]; then
-        echo "[FAIL] ERROR: $1 requires a patch path or cfl/patches filename"
-        exit 1
-      fi
-      APPLY_PATCHES=selected
-      SELECTED_PATCHES+=("$2")
-      shift 2
-      ;;
-    --patch)
-      if [[ $# -ge 2 && "$2" != --* ]]; then
-        if [[ -d "$2" ]]; then
-          PATCH_DIR="$(cd "$2" && pwd)"
-          APPLY_PATCHES=1
-        else
-          APPLY_PATCHES=selected
-          SELECTED_PATCHES+=("$2")
-        fi
-        shift 2
-      else
-        APPLY_PATCHES=1
-        shift
-      fi
       ;;
     --branch|--ref)
       if [[ $# -lt 2 || "$2" == --* ]]; then
@@ -225,10 +164,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --refresh-iccdev)
       REFRESH_ICCDEV=1
-      shift
-      ;;
-    --patch-wx)
-      PATCH_WX=1
       shift
       ;;
     -h|--help)
@@ -318,65 +253,15 @@ fi
 echo "Branch: $(cd "$ICCDEV_DIR" && git rev-parse --abbrev-ref HEAD)"
 echo "Commit: $(cd "$ICCDEV_DIR" && git rev-parse --short HEAD)"
 
-# Apply CFL patches if present. Zero patches is valid.
 if [ "$KEEP_ICCDEV" = "1" ]; then
   echo "Preserving current cfl/iccDEV source edits"
 else
   (cd "$ICCDEV_DIR" && git checkout -- . 2>/dev/null)
 fi
 
-if [ "$APPLY_PATCHES" = "0" ]; then
-  echo "Patch application disabled (building current cfl/iccDEV state)"
-elif [ "$APPLY_PATCHES" = "selected" ]; then
-  PATCH_OK=0
-  PATCH_SKIP=0
-  for p in "${SELECTED_PATCHES[@]}"; do
-    if [ -f "$p" ]; then
-      patch_path="$p"
-    elif [ -f "$PATCH_DIR/$p" ]; then
-      patch_path="$PATCH_DIR/$p"
-    else
-      echo "[FAIL] Patch not found: $p"
-      exit 1
-    fi
-
-    if apply_cfl_patch "$patch_path"; then
-      PATCH_OK=$((PATCH_OK + 1))
-    else
-      PATCH_SKIP=$((PATCH_SKIP + 1))
-    fi
-  done
-  echo "Patches: $PATCH_OK OK, $PATCH_SKIP SKIP"
-elif [ -d "$PATCH_DIR" ] && ls "$PATCH_DIR"/*.patch 1>/dev/null 2>&1; then
-  PATCH_OK=0
-  PATCH_SKIP=0
-  for p in "$PATCH_DIR"/*.patch; do
-    if apply_cfl_patch "$p"; then
-      PATCH_OK=$((PATCH_OK + 1))
-    else
-      PATCH_SKIP=$((PATCH_SKIP + 1))
-    fi
-  done
-  echo "Patches: $PATCH_OK OK, $PATCH_SKIP SKIP"
-else
-  echo "No patches to apply (zero-patch mode)"
-fi
-
-banner "Step 2: Optional wxWidgets workaround"
-CMAKELISTS="$ICCDEV_DIR/Build/Cmake/CMakeLists.txt"
-if [ "$PATCH_WX" != "1" ]; then
-  echo "Skipped (unpatched source mode)"
-elif grep -q 'find_package(wxWidgets' "$CMAKELISTS" 2>/dev/null; then
-  sed -i 's/find_package(wxWidgets/#find_package(wxWidgets/' "$CMAKELISTS"
-  sed -i 's/if(wxWidgets_FOUND)/if(FALSE AND wxWidgets_FOUND)/' "$CMAKELISTS"
-  sed -i '/wx_/ s/^/#/' "$CMAKELISTS" 2>/dev/null || true
-  echo "Patched out wxWidgets"
-else
-  echo "Already patched (or not present)"
-fi
-
-banner "Step 3: Build IccProfLib2-static + IccXML2-static"
+banner "Step 2: Build IccProfLib2-static + IccXML2-static"
 mkdir -p "$BUILD_DIR"
+rm -rf "$BUILD_DIR/CMakeCache.txt" "$BUILD_DIR/CMakeFiles"
 cd "$BUILD_DIR"
 rm -f IccProfLib/libIccProfLib2-static*.a IccXML/libIccXML2-static*.a \
   IccConnect/libIccConnect2-static*.a IccJSON/libIccJSON2-static*.a

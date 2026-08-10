@@ -20,7 +20,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 
 | Component | Purpose |
 |-----------|---------|
-| **cfl/** | LibFuzzer harnesses plus an optional security patch stack on a separate iccDEV clone. |
+| **cfl/** | LibFuzzer harnesses on a separate unpatched upstream iccDEV clone. |
 | **colorbleed_tools/** | Intentionally unsafe ICC XML/JSON converters (no ASAN). |
 | **fuzz/** | Curated malicious input files (CVE PoCs, injection sigs, malformed media). |
 | **afl/** | AFL++ tool-level fuzzing of unpatched upstream iccDEV CLI tools. |

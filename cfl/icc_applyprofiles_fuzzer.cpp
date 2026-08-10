@@ -126,6 +126,8 @@ static bool AddPixelBufSlack(size_t& nBytes) {
 }
 
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
+  (void)argc;
+  (void)argv;
   TIFFSetErrorHandler(SilentTIFFErrorHandler);
   TIFFSetWarningHandler(SilentTIFFWarningHandler);
   return 0;
@@ -238,6 +240,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   unsigned int read_sn = SrcImg.GetSamples();
   unsigned int read_sen = SrcImg.GetExtraSamples();
   unsigned int read_sphoto = SrcImg.GetPhoto();
+  (void)read_sphoto;
   unsigned int read_bps = SrcImg.GetBitsPerSample();
   (void)SrcImg.GetCompress();
   (void)SrcImg.GetPlanar();
