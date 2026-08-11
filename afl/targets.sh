@@ -131,6 +131,7 @@ afl_configure_target() {
     local tmp_prefix="$tmp_root/afl-${target}-$$"
     AFL_TMP_PREFIX="$tmp_prefix"
     local rgb_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt"
+    local rgb_16_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-16bit.txt"
     local rgb_float_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-float.txt"
     local srgb_profile
     local fixed_tiff
@@ -222,7 +223,7 @@ afl_configure_target() {
             )
             SEED_MAX_BYTES=1048576
             SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
-            REQUIRED_FILES=("$rgb_data")
+            REQUIRED_FILES=("$rgb_16_data")
             if [[ "$target" == applynamedcmm-cfg || "$target" == namedcmm-cfg ]]; then
                 AFL_DIR="$AFL_BASE/afl-applynamedcmm-cfg"
                 DICT="$REPO_ROOT/cfl/icc_cfg.dict"
@@ -244,7 +245,8 @@ afl_configure_target() {
                 TARGET_NOTE="ApplyNamedCmm JSON config lane: fuzzes the first-class -cfg command-line mode."
                 AFL_ARGS=("-cfg" "@@")
             else
-                AFL_ARGS=("$rgb_data" "0" "0" "@@" "1")
+                TARGET_NOTE="ApplyNamedCmm ICC lane: 16-bit data output with tetrahedral interpolation exercises a different apply path than the former 8-bit linear shape."
+                AFL_ARGS=("$rgb_16_data" "5" "1" "@@" "1")
             fi
             ;;
         applynamedcmm-hybrid-pcc|namedcmm-hybrid-pcc)
@@ -282,15 +284,15 @@ afl_configure_target() {
                     SEED_MAX_BYTES=262144
                     SEED_LIMIT=300
                     SEED_DRY_RUN_TARGET=1
-                    TARGET_NOTE="Fast ApplyProfiles lane: high-value argv shape with only seeds <= 256 KiB copied into a fresh corpus."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
+                    TARGET_NOTE="Fast ApplyProfiles lane: 8-bit, uncompressed, chunky, non-embedded, linear output with only seeds <= 256 KiB copied into a fresh corpus."
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "0" "0" "0" "0" "0" "@@" "1")
                     ;;
                 applyprofiles-deep|profiles-deep)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-deep"
                     SEED_LIMIT=200
                     SEED_DRY_RUN_TARGET=1
-                    TARGET_NOTE="Deep ApplyProfiles lane: high-value argv shape with seeds capped at AFL++'s default 1 MiB testcase limit."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
+                    TARGET_NOTE="Deep ApplyProfiles lane: 8-bit, uncompressed, chunky, non-embedded, linear output with seeds capped at AFL++'s default 1 MiB testcase limit."
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "0" "0" "0" "0" "0" "@@" "1")
                     ;;
                 applyprofiles-cfg|profiles-cfg)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-cfg"
@@ -354,13 +356,13 @@ afl_configure_target() {
                 profiles)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles"
                     SEED_DRY_RUN_TARGET=1
-                    TARGET_NOTE="ApplyProfiles high-value ICC lane: float output, LZW, separated planes, embedded ICC, tetrahedral interpolation, BPC intent."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
+                    TARGET_NOTE="ApplyProfiles ICC lane: 8-bit, uncompressed, chunky, non-embedded, linear output exercises the complementary TIFF path."
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "0" "0" "0" "0" "0" "@@" "1")
                     ;;
                 *)
                     SEED_DRY_RUN_TARGET=1
-                    TARGET_NOTE="ApplyProfiles high-value ICC lane: float output, LZW, separated planes, embedded ICC, tetrahedral interpolation, BPC intent."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
+                    TARGET_NOTE="ApplyProfiles ICC lane: 8-bit, uncompressed, chunky, non-embedded, linear output exercises the complementary TIFF path."
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "0" "0" "0" "0" "0" "@@" "1")
                     ;;
             esac
             ;;
@@ -486,6 +488,7 @@ afl_configure_target() {
                     AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
                 fi
             else
+                REQUIRED_FILES=("$rgb_16_data" "$srgb_profile")
                 SEED_FILES=(
                     "$REPO_ROOT/test-profiles/argbCalc.icc"
                     "$REPO_ROOT/test-profiles/Lab_float-D50_2deg.icc"
@@ -515,7 +518,7 @@ afl_configure_target() {
                     AFL_FAST_CAL_TARGET=1
                     TARGET_NOTE="ApplySearch ICC lane: fuzzes the destination profile with a small screened ICC sample <= 256 KiB and a fixed PCC weight profile, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                 fi
-                AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "@@" "1" "-INIT" "1" "$srgb_profile" "1")
+                AFL_ARGS=("$rgb_16_data" "5" "1" "$srgb_profile" "1" "@@" "1" "-INIT" "1" "$srgb_profile" "1")
             fi
             ;;
         applytolink|applytolink-cube)
@@ -531,8 +534,9 @@ afl_configure_target() {
                 TARGET_NOTE="ApplyToLink .cube lane: link_type=1, precision=4, valid input range 0.0..1.0."
                 AFL_ARGS=("${tmp_prefix}.cube" "1" "2" "4" "AFL" "0.0" "1.0" "0" "0" "@@" "13")
             else
-                TARGET_NOTE="ApplyToLink DeviceLink lane: link_type=0, v5 output, valid input range 0.0..1.0, BPC intent."
-                AFL_ARGS=("${tmp_prefix}.icc" "0" "2" "1" "AFL" "0.0" "1.0" "0" "0" "@@" "40")
+                REQUIRED_FILES=("$srgb_profile")
+                TARGET_NOTE="ApplyToLink DeviceLink lane: 17-point v4 output, source-first tetrahedral interpolation, fuzzed source profile, and fixed sRGB destination profile."
+                AFL_ARGS=("${tmp_prefix}.icc" "0" "17" "0" "AFL DeviceLink" "0.0" "1.0" "1" "1" "@@" "1" "$srgb_profile" "1")
             fi
             ;;
         dump|dump-diag|dump-read)
