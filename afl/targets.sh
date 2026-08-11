@@ -254,9 +254,13 @@ afl_configure_target() {
             AFL_DIR="$AFL_BASE/afl-applynamedcmm-hybrid-pcc"
             DICT="$REPO_ROOT/cfl/icc_applynamedcmm_fuzzer.dict"
             HYBRID_NEEDS_SUPPORT=1
-            SEED_MAX_BYTES=524288
+            SEED_MAX_BYTES=4194304
             SEED_LIMIT=300
             SEED_DRY_RUN_TARGET=1
+            SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+            [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=4194304
+            SEED_FILES=("$HYBRID_CMYK_PROFILE")
+            SEED_EXCLUDE_REGEX='^CMYK_Hybrid_Profile\.icc$'
             SEED_DIRS=(
                 "$HYBRID_ICC_DIR"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -264,8 +268,8 @@ afl_configure_target() {
                 "$REPO_ROOT/extended-test-profiles"
             )
             REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
-            TARGET_NOTE="Hybrid NamedCmm lane: fuzzes the first v5/PCC profile in the issue-1315/1317 command-line shape."
-            AFL_ARGS=("-exportcfganddata" "$HYBRID_CONFIG_DIR/afl-namedcmm-hybrid.json" "$HYBRID_CMYK_DATA" "5" "0" "-ENV:bkgX" "0.0985" "-ENV:bkgY" "0.159" "-ENV:bkgZ" "0.122" "@@" "100092" "-PCC" "$HYBRID_LAB_D50" "-ENV:bkgZ" "0.033" "$HYBRID_LAB_D93" "1000000" "-ENV:bkgY" "0.168" "$HYBRID_CMYK_PROFILE" "1000012" "-PCC" "$HYBRID_LAB_D50")
+            TARGET_NOTE="Hybrid NamedCmm lane: fuzzes the first v5 profile in the upstream QA environment/PCC shape and retains only seeds that build and apply the full transform."
+            AFL_ARGS=("-exportcfganddata" "$HYBRID_CONFIG_DIR/afl-namedcmm-hybrid.json" "$HYBRID_CMYK_DATA" "5" "1" "-ENV:bkgX" "0.0985" "-ENV:bkgY" "0.159" "-ENV:bkgZ" "0.122" "@@" "10003" "-PCC" "$HYBRID_SPEC_ILLUMA" "$HYBRID_SPEC_D50" "3")
             ;;
         applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-cfg|profiles-cfg|applyprofiles-hybrid-embedded|profiles-hybrid-embedded|applyprofiles-hybrid-pcc|profiles-hybrid-pcc|applyprofiles-row|profiles-row)
             BINARY="$BIN_DIR/iccApplyProfiles"
@@ -321,12 +325,13 @@ afl_configure_target() {
                     SEED_MAX_BYTES=3145728
                     SEED_LIMIT=300
                     SEED_DRY_RUN_TARGET=1
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     SEED_FILES=("$HYBRID_MS_TIFF_SEED")
                     SEED_FILE_TYPE_REGEX='^(TIFF image data|Big TIFF image data)'
                     SEED_DIRS=()
                     REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
-                    TARGET_NOTE="Hybrid ApplyProfiles embedded/PCC lane: fuzzes the generated multispectral TIFF source through the known-good embedded/PCC command-line shape."
-                    AFL_ARGS=("@@" "${tmp_prefix}.tif" "1" "1" "0" "1" "1" "-embedded" "10003" "-pcc" "$HYBRID_SPEC_F11" "$HYBRID_SRGB" "1")
+                    TARGET_NOTE="Hybrid ApplyProfiles embedded/PCC lane: fuzzes the generated multispectral TIFF through float, compressed, planar, embedded, tetrahedral, and BPC output paths."
+                    AFL_ARGS=("@@" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "-embedded" "10003" "-PCC" "$HYBRID_SPEC_F11" "$HYBRID_SRGB" "41")
                     ;;
                 applyprofiles-hybrid-pcc|profiles-hybrid-pcc)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-hybrid-pcc"
@@ -334,7 +339,12 @@ afl_configure_target() {
                     SEED_MAX_BYTES=524288
                     SEED_LIMIT=300
                     SEED_DRY_RUN_TARGET=1
-                    SEED_FILES=("$HYBRID_SENTINEL_ICC")
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                    SEED_FILES=(
+                        "$HYBRID_LAB_D50"
+                        "$HYBRID_SPEC_F11"
+                        "$HYBRID_SPEC_ILLUMA"
+                    )
                     SEED_DIRS=(
                         "$HYBRID_ICC_DIR"
                         "$REPO_ROOT/fuzz/graphics/icc"
@@ -342,8 +352,8 @@ afl_configure_target() {
                         "$REPO_ROOT/extended-test-profiles"
                     )
                     REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
-                    TARGET_NOTE="Hybrid ApplyProfiles PCC lane: fuzzes the -pcc profile in the issue-1314/1319 -exportcfg command-line shape."
-                    AFL_ARGS=("-exportcfg" "$HYBRID_CONFIG_DIR/afl-applyprofiles-hybrid.json" "$HYBRID_MS_TIFF" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "-embedded" "3" "-pcc" "$HYBRID_SPEC_F11" "@@" "20")
+                    TARGET_NOTE="Hybrid ApplyProfiles PCC lane: places the fuzzed profile after -PCC and screens for a complete embedded-to-sRGB transform."
+                    AFL_ARGS=("-exportcfg" "$HYBRID_CONFIG_DIR/afl-applyprofiles-hybrid.json" "$HYBRID_MS_TIFF" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "-embedded" "10003" "-PCC" "@@" "$HYBRID_SRGB" "41")
                     ;;
                 applyprofiles-row|profiles-row)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-row"
@@ -356,13 +366,19 @@ afl_configure_target() {
                 profiles)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles"
                     SEED_DRY_RUN_TARGET=1
-                    TARGET_NOTE="ApplyProfiles ICC lane: 8-bit, uncompressed, chunky, non-embedded, linear output exercises the complementary TIFF path."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "0" "0" "0" "0" "0" "@@" "1")
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                    SEED_FILES=("$srgb_profile")
+                    SEED_EXCLUDE_REGEX='^sRGB_v4_ICC_preference\.icc$'
+                    TARGET_NOTE="ApplyProfiles ICC lane: float, compressed, planar, embedded, tetrahedral output with BPC exercises every high-value image argv option."
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
                     ;;
                 *)
                     SEED_DRY_RUN_TARGET=1
-                    TARGET_NOTE="ApplyProfiles ICC lane: 8-bit, uncompressed, chunky, non-embedded, linear output exercises the complementary TIFF path."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "0" "0" "0" "0" "0" "@@" "1")
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                    SEED_FILES=("$srgb_profile")
+                    SEED_EXCLUDE_REGEX='^sRGB_v4_ICC_preference\.icc$'
+                    TARGET_NOTE="ApplyProfiles ICC lane: float, compressed, planar, embedded, tetrahedral output with BPC exercises every high-value image argv option."
+                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
                     ;;
             esac
             ;;
