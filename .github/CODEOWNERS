@@ -2,15 +2,4 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Workflow governance -- all CI changes require owner review
-.github/workflows/ @xsscx
-.github/actions/ @xsscx
-.github/scripts/ @xsscx
-.github/instructions/ @xsscx
-.github/prompts/ @xsscx
-.github/skills/ @xsscx
-.github/hooks/ @xsscx
-.githooks/ @xsscx
-.github/CODEOWNERS @xsscx
-
-# Security-critical components
-cfl/ @xsscx
+.github/workflows/ @xsscx @colourbill-ctrl @ChrisCoxArt
