@@ -58,5 +58,18 @@ fi
 run_test "ncm-19" "Calculator debug option" \
   "$APPLYNCM" -debugcalc "$SRGB_CALC_DATA" 0 0 "$SRGB" 1
 
+# Packed-intent modifiers and profile-sequence controls used by the CLI path.
+run_test "ncm-20" "Disable D2Bx/B2Dx" "$APPLYNCM" "$SRGB_CALC_DATA" 0 0 "$SRGB" 10
+run_test "ncm-21" "Black-point compensation" "$APPLYNCM" "$SRGB_CALC_DATA" 0 0 "$SRGB" 40
+run_test "ncm-22" "Colorimetric-only transform" "$APPLYNCM" "$SRGB_CALC_DATA" 0 0 "$SRGB" 90
+run_test "ncm-23" "Luminance, v5, HToS, named-over-black modifiers" \
+  "$APPLYNCM" "$SRGB_CALC_DATA" 0 0 "$SRGB" 1111003
+run_test "ncm-24" "Luminance, v5, HToS, named-over-gray modifiers" \
+  "$APPLYNCM" "$SRGB_CALC_DATA" 0 0 "$SRGB" 2111003
+run_test "ncm-25" "ICC environment variables" "$APPLYNCM" "$SRGB_CALC_DATA" 0 0 \
+  -ENV:bkgX 0.0985 -ENV:bkgY 0.159 -ENV:bkgZ 0.122 -ENV:ambL 20 "$SRGB" 1
+run_test "ncm-26" "PCC profile" "$APPLYNCM" "$SRGB_CALC_DATA" 0 0 \
+  "$SRGB" 1 -PCC "$SRGB"
+
 print_summary "iccApplyNamedCmm"
 exit "$FAIL"

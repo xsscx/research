@@ -76,6 +76,12 @@ Use `afl/start.sh`'s default map size for these instrumented binaries. A manuall
 fixed 131072-byte map can be smaller than the target reports and forces AFL++ to
 reinitialize the map before fuzzing.
 
+CFL NamedCmm now uses pure ICC inputs and supports corpus-derived multi-megabyte
+limits. Promotion into AFL is intentionally one-way and size-checked: copy only
+a complete ICC file below 1 MiB. Keep larger profiles in CFL, or design a tool
+lane with the large profile fixed and a bounded `@@` companion. Never truncate
+the profile to fit AFL++'s compile-time testcase ceiling.
+
 ```bash
 ./afl/start.sh applynamedcmm-hybrid-chain --run-time 300
 ./afl/start.sh applynamedcmm-cfg --mode rare --run-time 300

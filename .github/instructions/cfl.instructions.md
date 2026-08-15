@@ -75,6 +75,16 @@ cd cfl && ./build.sh --refresh-iccdev
 
 - Use `ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1` for clear
   sanitizer exits.
+- `icc_applynamedcmm_fuzzer` consumes pure raw ICC files. Do not add a control
+  prefix, suffix, or reserved-byte selector. Run
+  `.github/scripts/validate-cfl-applynamedcmm.sh --replay` after building.
+- `fuzz-local.sh` installs `cfl/seeds-applynamedcmm/` into the NamedCmm runtime
+  corpus. Keep the tracked seed directory immutable during fuzzing.
+- Do not add fixed input-size guards to the NamedCmm, Connect, config, or
+  JSON/XML conversion harnesses.
+  `max_len = 0` tells the CFL runners to derive the limit from the largest
+  actual corpus file; use RSS and timeout limits for resource control and
+  include large real inputs when required.
 - Use `LLVM_PROFILE_FILE=/dev/null` when coverage files are not needed.
 - Treat OOM and timeout files as evidence candidates, not automatic commits.
 - Keep one-off run counts in dated reports, not hub docs.

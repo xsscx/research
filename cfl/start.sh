@@ -106,6 +106,7 @@ start_fuzzer() {
 
   corpus=$(cfl_corpus_dir "$SCRIPT_DIR" "$fuzzer")
   mkdir -p "$corpus"
+  cfl_install_curated_seeds "$SCRIPT_DIR" "$fuzzer" "$corpus"
 
   if dict=$(cfl_resolve_dict "$SCRIPT_DIR" "$fuzzer"); then
     dict_args=("-dict=$dict")
@@ -113,7 +114,8 @@ start_fuzzer() {
 
   timeout_value=$(cfl_option_timeout "$SCRIPT_DIR" "$fuzzer")
   rss_limit="${RSS_LIMIT:-$(cfl_option_rss_limit "$SCRIPT_DIR" "$fuzzer")}"
-  max_len="${MAX_LEN:-$(cfl_option_max_len "$SCRIPT_DIR" "$fuzzer")}"
+  max_len="$(cfl_effective_max_len \
+    "${MAX_LEN:-$(cfl_option_max_len "$SCRIPT_DIR" "$fuzzer")}" "$corpus")"
   asan_options="$(cfl_asan_options "$fuzzer")"
 
   cmd=(

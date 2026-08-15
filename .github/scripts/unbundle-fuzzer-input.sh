@@ -978,53 +978,26 @@ unbundle_specsep() {
 
 unbundle_applynamedcmm() {
   copy_icc_profile
-  if [ "$FILE_SIZE" -lt 105 ]; then
-    echo "ERROR: file too small for ApplyNamedCmm control bytes" >&2
+  if [ "$FILE_SIZE" -lt 132 ]; then
+    echo "ERROR: file too small for an ICC profile" >&2
     return 1
   fi
 
-  local ctrl_xform ctrl_flags ctrl_intent ctrl_enc ctrl_pixel n_type intent interp_arg
-  local src_enc dst_enc pixel_mode use_bpc use_luminance use_d2bx use_v5sub packed sig data_file tool
-  read -r ctrl_xform ctrl_flags ctrl_intent ctrl_enc ctrl_pixel < <(od -A n -t u1 -j 100 -N 5 "$CRASH_FILE")
-  n_type=$((ctrl_xform % 10))
-  intent=$((ctrl_intent & 3))
-  if [ $((ctrl_intent & 16)) -ne 0 ]; then
-    interp_arg=1
-  else
-    interp_arg=0
-  fi
-  src_enc=$((ctrl_enc % 7))
-  dst_enc=$(((ctrl_enc >> 4) % 7))
-  pixel_mode=$((ctrl_pixel & 3))
-  use_bpc=$(( (ctrl_flags & 1) ? 1 : 0 ))
-  use_luminance=$(( (ctrl_flags & 2) ? 1 : 0 ))
-  use_d2bx=$(( (ctrl_flags & 4) ? 0 : 1 ))
-  use_v5sub=$(( (ctrl_flags & 8) ? 1 : 0 ))
-  packed=$((n_type * 10 + intent))
-  if [ "$use_luminance" -ne 0 ]; then
-    packed=$((packed + 1000))
-  fi
-  if [ "$use_v5sub" -ne 0 ]; then
-    packed=$((packed + 10000))
-  fi
-  if [ "$use_bpc" -ne 0 ] && [ "$n_type" -ne 4 ]; then
-    echo "  [WARN] BPC flag is set outside packed nType=4; CLI candidate is nearest-effort."
-  fi
-  if [ "$use_d2bx" -eq 0 ] && [ "$n_type" -ne 1 ]; then
-    echo "  [WARN] useD2Bx=false flag is set outside packed nType=1; CLI candidate is nearest-effort."
-  fi
-
+  local intent sig data_file tool
+  intent=$(od -A n -t u4 --endian=big -j 64 -N 4 "$CRASH_FILE" | tr -d ' ')
+  intent=$((intent % 4))
   sig=$(read_sig "$OUT_DIR/profile.icc" 16)
   data_file="$OUT_DIR/named-data.txt"
-  write_legacy_data "$data_file" "$sig" "$src_enc" "$pixel_mode" 128
+  write_legacy_data "$data_file" "$sig" 3 0 128
 
-  echo "Control: n_type=$n_type intent=$intent interpolation=$interp_arg ($(interp_name "$interp_arg")) src_encoding=$src_enc dst_encoding=$dst_enc pixel_mode=$pixel_mode bpc=$use_bpc luminance=$use_luminance use_d2bx=$use_d2bx v5sub=$use_v5sub packed_intent=$packed"
+  echo "Format: one raw ICC profile; no harness control bytes"
   echo "  [OK] Named CMM data: $data_file"
-  echo "CLI reproduction candidate:"
-  echo "  iccApplyNamedCmm $data_file $dst_enc $interp_arg $OUT_DIR/profile.icc $packed"
+  echo "Baseline CLI reproduction candidate:"
+  echo "  iccApplyNamedCmm $data_file 0 1 $OUT_DIR/profile.icc $intent"
+  echo "The fuzzer runs a fixed control matrix; replay the original artifact with the fuzzer first."
 
   tool="$(tool_bin IccApplyNamedCmm iccApplyNamedCmm)"
-  run_if_available "$tool" "$data_file" "$dst_enc" "$interp_arg" "$OUT_DIR/profile.icc" "$packed"
+  run_if_available "$tool" "$data_file" 0 1 "$OUT_DIR/profile.icc" "$intent"
 }
 
 unbundle_connect() {

@@ -1,11 +1,12 @@
 ---
 mode: agent
-description: Per-fuzzer optimization reference for 13 CFL LibFuzzer harnesses
+description: Per-fuzzer optimization reference for the active CFL LibFuzzer harnesses
 ---
 
 # CFL Fuzzer Optimization Guide
 
-Per-fuzzer reference for optimizing the 13 CFL LibFuzzer harnesses. Each entry
+Per-fuzzer reference for optimizing CFL LibFuzzer harnesses. The active
+inventory is always derived from `cfl/fuzzers.sh`; the selected entries below
 documents input format, coverage gaps, input crafting, and dictionary focus.
 
 Use this when a fuzzer's coverage has plateaued and you need to identify which code paths are
@@ -17,7 +18,8 @@ targeted validator or seed-only command that proves the fix, then commit and
 push if requested.
 
 ## Prerequisites
-- Fuzzers built: `ls cfl/bin/icc_*_fuzzer | wc -l` -> 19
+- Active fuzzers: `source cfl/fuzzers.sh; printf '%s\n' "${#CFL_FUZZERS[@]}"`
+- Built fuzzers: `find cfl/bin -maxdepth 1 -type f -name 'icc_*_fuzzer' | wc -l`
 - Coverage HTML: `coverage-report/html/` (paths reflect build directory structure)
 - LLVM tools: `llvm-profdata-18`, `llvm-cov-18`
 - Source: `cfl/icc_*_fuzzer.cpp`, dicts in `cfl/icc_*_fuzzer.dict`
@@ -74,7 +76,7 @@ embedded ICC profiles from `fuzz/graphics/jpg`; do not use raw `.icc` seeds.
 
 ---
 
-## Per-Fuzzer Reference (13 Fuzzers)
+## Selected Per-Fuzzer Reference
 
 | # | Fuzzer | Tool Equivalent | Input | Min/Max | Branch Cov | Key Coverage Area |
 |---|--------|----------------|-------|---------|------------|-------------------|
@@ -99,7 +101,7 @@ embedded ICC profiles from `fuzz/graphics/jpg`; do not use raw `.icc` seeds.
 | v5dspobs | `[4B BE size][display.icc][observer.icc]` |
 | link | `[50% profile1][50% profile2][4B control]` |
 | applyprofiles | `[75% profile][25% control (intent, interp, WxH, pixels)]`; unbundler emits `profile.icc`, generated `source.tiff`, `repro.json`, `control.txt`, and raw `control.bin` |
-| applynamedcmm | `[4B control header][ICC data]` |
+| applynamedcmm | one raw ICC profile; the harness applies a fixed tool-control matrix |
 | specsep | `[1B nFiles][14B TIFF meta][TIFF+ICC data]` |
 
 Unbundle crash files: `.github/scripts/unbundle-fuzzer-input.sh <fuzzer> <crash_file>`.
@@ -119,6 +121,17 @@ is only the exact fuzzer control/pixel seed bytes.
 **tiffdump**: 4215-entry dict combining TIFF 6.0 tags + ICC sigs + corpus tokens.
 
 **cfg_fuzzer**: Tests the JSON config path (`iccApplyNamedCmm -cfg FILE`). Exercises `fromJson()`/`toJson()` round-trip.
+
+**applynamedcmm**: Do not prepend control bytes or modify reserved bytes to
+select behavior. Use pure ICC seeds; the harness deterministically exercises
+transform types, intents, interpolation, hints, environment values, encodings,
+directions, named-color interfaces, and a same-profile chain.
+
+**Large profile/conversion inputs**: The aligned NamedCmm, Connect, config, and
+JSON/XML lanes use repository `max_len=0`; the CFL runners derive the explicit
+limit from the largest corpus file. Retain RSS and timeout limits;
+ICC-to-JSON serialization may amplify multi-megabyte profiles into tens of
+megabytes in memory.
 
 ## Cross-Cutting Optimization Tips
 

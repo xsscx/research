@@ -36,303 +36,301 @@
  */
 
 /** @file
-    File:       icc_applynamedcmm_fuzzer.cpp
-    Contains:   LibFuzzer harness for iccApplyNamedCmm
-    Version:    V2 - rewrite for tool-aligned coverage (2026-03-31)
+    LibFuzzer harness for the iccApplyNamedCmm profile-application path.
 
-    Upstream tool: iccDEV/Tools/CmdLine/IccApplyNamedCmm/iccApplyNamedCmm.cpp
+    Input is one unmodified ICC profile. There is no prefix, suffix, or
+    reserved-byte control channel. Each parseable profile is exercised through
+    a bounded matrix derived from the public positional and JSON controls:
+    transform types, rendering intents, interpolation, BPC, PCS luminance,
+    D2Bx/B2Dx, v5 subprofiles, named-color overprint, environment variables,
+    input direction, encodings, pixel patterns, and a same-profile chain.
 
-    Alignment report: ~/work/copilot/triage-applynamedcmm/results/alignment-report.md
-    V1 retired to:    cfl/retired/icc_applynamedcmm_fuzzer.cpp.retired-20260331
+    Independent PCC files, JSON parsing/export, legacy data parsing, and the
+    calculator debugger require additional inputs or tool-owned I/O. Those are
+    intentionally covered by tool QA and the dedicated icc_cfg_fuzzer.
+ */
 
-    V1 fidelity gap: 100% of crash files were gracefully rejected by the upstream
-    tool (exit 255, zero ASAN/UBSAN). Root causes (D1-D7 in alignment report):
-      D1: PCC self-reference (tool uses SEPARATE file - never self-ref)
-      D2: Intent from profile header (tool decodes packed nIntent from CLI arg)
-      D3: Hardcoded icXformLutColor (tool supports 10 transform types)
-      D4: No BPC/luminance hints (tool creates CIccCreateXformHintManager)
-      D5: No encoding conversion (tool uses To/FromInternalEncoding)
-
-    V2 first finding (2026-03-31): CWE-416 UAF in CIccNamedColorCmm::AddXform()
-    at IccCmm.cpp:10564 - confirmed tool-reachable at iccDEV master HEAD (d5a3dc2).
-    Dual sanitizer manifestation: UBSAN (invalid vptr) masks ASAN (HUAF) by default.
-    Suppress UBSAN vptr to reveal ASAN HUAF. Triggers on nType=5 or nType=6 with
-    cenc/RGB profiles. CFL-078 patch guards delete on cenc class profiles.
-    Ground truth: ~/work/copilot/triage-applynamedcmm/results/ground-truth-ub-cfl078.md
-
-    V2 fixes all 5 divergences. Control bytes from ICC reserved region (100-107,
-    must be 0x00 per ICC.1-2022-05 section7.2.19) drive parameter diversity.
-
-    Control byte layout:
-      data[100]: bits 0-3 -> nType (0-9, maps through tool's switch at line 790)
-      data[101]: bit0=BPC, bit1=luminance, bit2=!useD2Bx, bit3=V5Sub
-      data[102]: bits 0-1 -> intent (0-3), bit4 -> tetrahedral interpolation
-      data[103]: bits 0-2 -> src encoding (0-6), bits 4-6 -> dest encoding (0-6)
-      data[104]: bits 0-1 -> pixel pattern (0=mid, 1=zero, 2=saturated, 3=mixed)
-
-    Gate sequence (matches tool main()):
-      Gate 0:  size [132..1MB]
-      Gate 1:  Write to temp file (CIccFileIO path)
-      Gate 2:  Open profile, extract header fields
-      Gate 3:  srcSpace = profile.colorSpace
-      Gate 4:  bInputProfile = !IsSpacePCS(srcSpace) with abstract exception
-      Gate 5:  CIccNamedColorCmm(srcSpace, icSigUnknownData, bInputProfile)
-      Gate 6:  Build CIccCreateXformHintManager (BPC, luminance)
-      Gate 7:  AddXform(path, intent, interp, pPcc=NULL, xformType, hints, ...)
-      Gate 8:  Begin()
-      Gate 9:  PCS remap (tool lines 469-477)
-      Gate 10: ToInternalEncoding -> Apply -> FromInternalEncoding
-
-    Reference artifacts:
-      call-graph/iccdev/tools/iccApplyNamedCmm-callgraph-enriched.dot (531 edges)
-      call-graph/cfl/icc_applynamedcmm_fuzzer-callgraph.dot (V1: 18 edges)
-      ast-trees/iccdev/iccApplyNamedCmm-ast-summary.txt (67 gates)
-      docs/iccDEV/Tools/iccApplyNamedCmm/README.md (data format, encoding values)
-*/
-
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <cstring>
-#include <cmath>
+
+#include <memory>
+#include <string>
+
 #include "IccCmm.h"
-#include "IccUtil.h"
-#include "IccProfile.h"
+#include "IccCmmConfig.h"
+#include "IccConnect.h"
 #include "IccDefs.h"
-#include "IccApplyBPC.h"
-#include "IccEnvVar.h"
+#include "IccProfile.h"
+#include "IccUtil.h"
 #include "fuzz_utils.h"
 
-// Tool's macro (iccApplyNamedCmm.cpp line 91)
-#define IsSpacePCS(x) ((x)==icSigXYZData || (x)==icSigLabData)
+#define IsSpacePCS(x) ((x) == icSigXYZData || (x) == icSigLabData)
+
+static constexpr size_t kMinProfileSize = 132;
+
+class TempProfile {
+public:
+    TempProfile() {
+        m_path[0] = '\0';
+    }
+
+    ~TempProfile() {
+        if (m_path[0])
+            unlink(m_path);
+    }
+
+    bool Write(const uint8_t *data, size_t size) {
+        if (!fuzz_build_path(m_path, sizeof(m_path), fuzz_tmpdir(),
+                             "/fuzz_applynamedcmm_XXXXXX.icc"))
+            return false;
+
+        int fd = mkstemps(m_path, 4);
+        if (fd < 0) {
+            m_path[0] = '\0';
+            return false;
+        }
+
+        const uint8_t *cursor = data;
+        size_t remaining = size;
+        while (remaining) {
+            ssize_t written = write(fd, cursor, remaining);
+            if (written <= 0) {
+                close(fd);
+                unlink(m_path);
+                m_path[0] = '\0';
+                return false;
+            }
+            cursor += written;
+            remaining -= static_cast<size_t>(written);
+        }
+        close(fd);
+        return true;
+    }
+
+    const char *Path() const {
+        return m_path;
+    }
+
+private:
+    char m_path[512];
+};
+
+static void AddQaEnvironment(CIccCfgProfile &cfg, bool pcc_environment) {
+    icCmmEnvSigMap &env = pcc_environment ? cfg.m_pccEnvVars : cfg.m_iccEnvVars;
+    env[icGetSigVal("bkgX")] = 0.0985f;
+    env[icGetSigVal("bkgY")] = 0.159f;
+    env[icGetSigVal("bkgZ")] = 0.122f;
+    env[icGetSigVal("ambL")] = 20.0f;
+}
+
+static CIccCfgProfilePtr MakeConfig(const char *path, int lut_type,
+                                    icUInt32Number header_intent) {
+    CIccCfgProfilePtr cfg(new CIccCfgProfile());
+    if (!cfg)
+        return cfg;
+
+    cfg->reset();
+    cfg->m_iccFile = path;
+    cfg->m_intent = static_cast<int>((header_intent % 4 +
+                                      static_cast<icUInt32Number>(lut_type)) % 4);
+    cfg->m_interpolation = (lut_type & 1) ? icInterpLinear : icInterpTetrahedral;
+    cfg->m_useD2BxB2Dx = lut_type != 1;
+    cfg->m_adjustPcsLuminance = (lut_type % 3) == 0;
+    cfg->m_useBPC = lut_type == 4;
+    cfg->m_useV5SubProfile = lut_type == 10;
+    cfg->m_useHToS = lut_type == 9;
+
+    if (lut_type == 1) {
+        cfg->m_transform = icXformLutColor;
+        cfg->m_useD2BxB2Dx = false;
+    }
+    else if (lut_type == 3) {
+        cfg->m_transform = icXformLutGamut;
+    }
+    else if (lut_type == 4) {
+        cfg->m_transform = icXformLutColor;
+    }
+    else {
+        cfg->m_transform = static_cast<icXformLutType>(lut_type);
+    }
+
+    if (cfg->m_transform == icXformLutNamedColor ||
+        cfg->m_transform == icXformLutNamedColorimetric ||
+        cfg->m_transform == icXformLutNamedSpectral ||
+        cfg->m_transform == icXformLutNamedDevice) {
+        cfg->m_nOverprint = static_cast<icNamedColorOverprintType>(lut_type % 3);
+    }
+
+    if (lut_type == 0)
+        AddQaEnvironment(*cfg, false);
+    if (lut_type == 10)
+        AddQaEnvironment(*cfg, true);
+
+    return cfg;
+}
+
+static void FillPixel(icFloatNumber *pixel, int samples, int pattern) {
+    for (int i = 0; i < samples; i++) {
+        switch (pattern) {
+        case 0:
+            pixel[i] = 0.0f;
+            break;
+        case 1:
+            pixel[i] = 0.5f;
+            break;
+        case 2:
+            pixel[i] = 1.0f;
+            break;
+        default:
+            pixel[i] = static_cast<icFloatNumber>(i) /
+                       static_cast<icFloatNumber>(samples > 1 ? samples - 1 : 1);
+            break;
+        }
+    }
+}
+
+static void ExerciseApply(CIccNamedColorCmm *cmm, bool b_input_profile) {
+    if (!cmm)
+        return;
+
+    icColorSpaceSignature src_space = cmm->GetSourceSpace();
+    icColorSpaceSignature dst_space = cmm->GetDestSpace();
+    bool clip = true;
+
+    if (b_input_profile && IsSpacePCS(src_space)) {
+        if (src_space == icSigXYZPcsData)
+            src_space = icSigDevXYZData;
+        else if (src_space == icSigLabPcsData)
+            src_space = icSigDevLabData;
+    }
+
+    const int src_samples = icGetSpaceSamples(src_space);
+    const int dst_samples = icGetSpaceSamples(dst_space);
+    if ((src_space != icSigNamedData && (src_samples <= 0 || src_samples > 48)) ||
+        (dst_space != icSigNamedData && (dst_samples <= 0 || dst_samples > 48)))
+        return;
+
+    icFloatNumber pixel[64] = {};
+    icFloatNumber src_pixel[64] = {};
+    icFloatNumber dst_pixel[64] = {};
+    icFloatNumber encoded_pixel[64] = {};
+    char dst_name[256] = {};
+
+    if (src_space == icSigNamedData) {
+        switch (cmm->GetInterface()) {
+        case icApplyNamed2Pixel:
+            if (!cmm->Apply(dst_pixel, "FuzzTestColor", 1.0f)) {
+                for (int encoding = icEncodeValue; encoding <= icEncode16BitV2; encoding++) {
+                    CIccCmm::FromInternalEncoding(dst_space,
+                                                  static_cast<icFloatColorEncoding>(encoding),
+                                                  encoded_pixel, dst_pixel,
+                                                  encoding != icEncodeFloat);
+                }
+            }
+            break;
+        case icApplyNamed2Named:
+            cmm->Apply(dst_name, "FuzzTestColor", 1.0f);
+            break;
+        default:
+            break;
+        }
+        return;
+    }
+
+    for (int pattern = 0; pattern < 4; pattern++) {
+        FillPixel(pixel, src_samples, pattern);
+        for (int encoding = icEncodeValue; encoding <= icEncode16BitV2; encoding++) {
+            icFloatColorEncoding src_encoding = static_cast<icFloatColorEncoding>(encoding);
+            clip = true;
+            if (b_input_profile &&
+                (src_encoding == icEncodeFloat || src_encoding == icEncodeUnitFloat ||
+                 src_encoding == icEncodePercent)) {
+                clip = false;
+            }
+            if (CIccCmm::ToInternalEncoding(src_space, src_encoding, src_pixel, pixel, clip))
+                continue;
+
+            switch (cmm->GetInterface()) {
+            case icApplyPixel2Pixel:
+                if (!cmm->Apply(dst_pixel, src_pixel)) {
+                    CIccCmm::FromInternalEncoding(dst_space, src_encoding,
+                                                  encoded_pixel, dst_pixel);
+                }
+                break;
+            case icApplyPixel2Named:
+                cmm->Apply(dst_name, src_pixel);
+                break;
+            default:
+                break;
+            }
+        }
+    }
+}
+
+static void ExerciseConfig(const char *path, const CIccCfgProfilePtr &cfg,
+                           icColorSpaceSignature src_space,
+                           icColorSpaceSignature profile_color_space,
+                           icProfileClassSignature device_class,
+                           bool add_second_stage) {
+    if (!cfg)
+        return;
+
+    CIccCfgProfileSequence sequence;
+    sequence.m_profiles.push_back(cfg);
+    if (add_second_stage) {
+        CIccCfgProfilePtr second = MakeConfig(path, 0, cfg->m_intent);
+        if (second)
+            sequence.m_profiles.push_back(second);
+    }
+
+    bool b_input_profile = !IsSpacePCS(src_space);
+    if (!b_input_profile && device_class != icSigAbstractClass &&
+        IsSpacePCS(profile_color_space))
+        b_input_profile = true;
+
+    std::string error;
+    std::unique_ptr<CIccConnectCmm> connection(
+        CIccConnectCmm::CreateNamed(sequence, src_space, b_input_profile, &error));
+    if (connection)
+        ExerciseApply(connection->GetNamedCmm(), b_input_profile);
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-    // --- Gate 0: Size bounds ---
-    if (size < 132 || size > 1024 * 1024)
+    if (!data || size < kMinProfileSize)
         return 0;
 
-    // --- Extract control bytes from ICC reserved region (bytes 100-107) ---
-    // ICC.1-2022-05 section7.2.19: bytes 100-127 must be zero in conforming profiles.
-    // Fuzz mutators naturally set these to non-zero, providing control diversity.
-    uint8_t ctrl_xform  = data[100];  // transform type selector
-    uint8_t ctrl_flags  = data[101];  // hint/flag bits
-    uint8_t ctrl_intent = data[102];  // intent + interpolation
-    uint8_t ctrl_enc    = data[103];  // encoding types
-    uint8_t ctrl_pixel  = data[104];  // pixel pattern selector
-
-    // --- Gate 1: Write to temp file (CIccFileIO path) ---
-    char tmp_path[512];
-    if (!fuzz_build_path(tmp_path, sizeof(tmp_path), fuzz_tmpdir(),
-                         "/fuzz_applynamedcmm.icc"))
+    TempProfile profile_file;
+    if (!profile_file.Write(data, size))
         return 0;
 
-    int fd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-    if (fd < 0) return 0;
-    ssize_t written = write(fd, data, size);
-    close(fd);
-    if (written != (ssize_t)size) {
-        unlink(tmp_path);
+    std::unique_ptr<CIccProfile> profile(OpenIccProfile(profile_file.Path()));
+    if (!profile)
         return 0;
-    }
 
-    // --- Gate 2: Open profile to extract header fields (tool line 330) ---
-    CIccProfile *pProf = OpenIccProfile(tmp_path);
-    if (!pProf) {
-        unlink(tmp_path);
+    const icColorSpaceSignature color_space = profile->m_Header.colorSpace;
+    const icColorSpaceSignature pcs = profile->m_Header.pcs;
+    const icProfileClassSignature device_class = profile->m_Header.deviceClass;
+    const icUInt32Number header_intent = profile->m_Header.renderingIntent;
+    profile.reset();
+
+    if (icGetSpaceSamples(color_space) == 0 && color_space != icSigNamedData)
         return 0;
+
+    for (int lut_type = icXformLutMinimum; lut_type <= icXformLutMaximum; lut_type++) {
+        CIccCfgProfilePtr cfg = MakeConfig(profile_file.Path(), lut_type, header_intent);
+        icColorSpaceSignature src_space = color_space;
+        if (lut_type >= icXformLutNamedColorimetric)
+            src_space = icSigNamedData;
+        else if ((lut_type == icXformLutColorimetric || lut_type == icXformLutSpectral) &&
+                 IsSpacePCS(pcs))
+            src_space = pcs;
+        ExerciseConfig(profile_file.Path(), cfg, src_space, color_space,
+                       device_class, false);
     }
 
-    icColorSpaceSignature colorSpace = pProf->m_Header.colorSpace;
-    icProfileClassSignature deviceClass = pProf->m_Header.deviceClass;
-    delete pProf;
-    pProf = nullptr;
-
-    // --- Gate 3: srcSpace = profile.colorSpace (tool line 321) ---
-    // Tool reads srcSpace from data file; a correctly-paired data file declares
-    // the profile's own colorSpace, so we use it directly.
-    icColorSpaceSignature srcSpace = colorSpace;
-    icUInt32Number nSrcSamples = icGetSpaceSamples(srcSpace);
-    if (nSrcSamples == 0 && srcSpace != icSigNamedData) {
-        unlink(tmp_path);
-        return 0;
-    }
-
-    // --- Gate 4: bInputProfile (tool lines 327-336) ---
-    bool bInputProfile = !IsSpacePCS(srcSpace);
-    if (!bInputProfile) {
-        if (deviceClass != icSigAbstractClass && IsSpacePCS(colorSpace))
-            bInputProfile = true;
-    }
-
-    // --- Gate 5: Construct CIccNamedColorCmm (tool line 339) ---
-    CIccNamedColorCmm namedCmm(srcSpace, icSigUnknownData, bInputProfile);
-
-    // --- Gate 6: Derive AddXform parameters from control bytes ---
-    // Matches tool's nIntent decoding at IccCmmConfig.cpp lines 783-808:
-    //   nType = abs(nIntent) / 10
-    //   switch(nType): 1->!D2Bx, 3->Gamut, 4->BPC, default->passthrough
-
-    icRenderingIntent intent = (icRenderingIntent)(ctrl_intent & 0x3);
-    icXformInterp interp = (ctrl_intent & 0x10) ? icInterpTetrahedral : icInterpLinear;
-
-    int nType = ctrl_xform % 10;
-    bool useBPC = false;
-    bool useD2BxB2Dx = true;
-    icXformLutType xformType;
-
-    switch (nType) {
-    case 1:
-        useD2BxB2Dx = false;
-        xformType = icXformLutColor;
-        break;
-    case 3:
-        xformType = icXformLutGamut;
-        break;
-    case 4:
-        useBPC = true;
-        xformType = icXformLutColor;
-        break;
-    default:
-        // Direct passthrough - exercises all 10 transform types including
-        // icXformLutNamedColor(1), icXformLutColorimetric(2),
-        // icXformLutSpectral(3), icXformLutMCS(4), icXformLutPreview(5),
-        // icXformLutGamut(6), icXformLutBRDFParam(7), icXformLutBRDFDirect(8),
-        // icXformLutBRDFMcsParam(9)
-        xformType = (icXformLutType)nType;
-        break;
-    }
-
-    // Additional flags from ctrl_flags (tool lines 786-789)
-    if (ctrl_flags & 0x01) useBPC = true;
-    bool adjustPcsLuminance = (ctrl_flags & 0x02) != 0;
-    if (ctrl_flags & 0x04) useD2BxB2Dx = false;
-    bool useV5SubProfile = (ctrl_flags & 0x08) != 0;
-
-    // Build hint manager (tool lines 393-403)
-    CIccCreateXformHintManager Hint;
-    if (useBPC)
-        Hint.AddHint(new CIccApplyBPCHint());
-    if (adjustPcsLuminance)
-        Hint.AddHint(new CIccLuminanceMatchingHint());
-
-    // --- Gate 7: AddXform (tool lines 423-430) ---
-    // PCC is NULL - tool uses a SEPARATE file for PCC, never self-reference.
-    // V1 used the same file as both profile and PCC, causing 100% of crashes
-    // to activate the PCC self-reference path (D1 in alignment report).
-    icStatusCMM stat = namedCmm.AddXform(
-        tmp_path,
-        intent,
-        interp,
-        nullptr,           // pPcc - NULL (no self-reference)
-        xformType,
-        useD2BxB2Dx,
-        &Hint,
-        useV5SubProfile
-    );
-
-    if (stat != icCmmStatOk) {
-        unlink(tmp_path);
-        return 0;
-    }
-
-    // --- Gate 8: Begin() (tool line 437) ---
-    stat = namedCmm.Begin();
-    if (stat != icCmmStatOk) {
-        unlink(tmp_path);
-        return 0;
-    }
-
-    // --- Gate 9: Post-Begin space handling (tool lines 469-477) ---
-    icColorSpaceSignature SrcspaceSig = namedCmm.GetSourceSpace();
-    icColorSpaceSignature DestspaceSig = namedCmm.GetDestSpace();
-
-    // Tool remaps PCS to device space to avoid interpreting device data as PCS
-    bool bClip = true;
-    if (bInputProfile && IsSpacePCS(SrcspaceSig)) {
-        if (SrcspaceSig == icSigXYZPcsData)
-            SrcspaceSig = icSigDevXYZData;
-        else if (SrcspaceSig == icSigLabPcsData)
-            SrcspaceSig = icSigDevLabData;
-        bClip = false;  // float encoding -> no clip
-    }
-
-    nSrcSamples = icGetSpaceSamples(SrcspaceSig);
-    icUInt32Number nDestSamples = icGetSpaceSamples(DestspaceSig);
-
-    if (nSrcSamples == 0 || nSrcSamples > 48 || nDestSamples == 0 || nDestSamples > 48) {
-        unlink(tmp_path);
-        return 0;
-    }
-
-    // --- Derive encoding types (tool lines 319, 449-451) ---
-    static const icFloatColorEncoding kEncodings[] = {
-        icEncodeValue, icEncodePercent, icEncodeUnitFloat, icEncodeFloat,
-        icEncode8Bit, icEncode16Bit, icEncode16BitV2
-    };
-    icFloatColorEncoding srcEncoding = kEncodings[ctrl_enc % 7];
-    icFloatColorEncoding destEncoding = kEncodings[(ctrl_enc >> 4) % 7];
-
-    if (SrcspaceSig == icSigNamedData)
-        srcEncoding = icEncodeValue;
-    if (DestspaceSig == icSigNamedData)
-        destEncoding = icEncodeValue;
-
-    // --- Gate 10: Apply (tool lines 496-563) ---
-    icFloatNumber SrcPixel[64] = {};
-    icFloatNumber DestPixel[64] = {};
-    icFloatNumber Pixel[64] = {};
-    char DestNameBuf[256] = {};
-
-    // Synthesize test pixel data - pattern from ctrl_pixel
-    // Tool reads from data file; we synthesize representative values.
-    switch (ctrl_pixel & 0x3) {
-    case 0:  // Midrange
-        for (icUInt32Number i = 0; i < nSrcSamples; i++) Pixel[i] = 0.5f;
-        break;
-    case 1:  // Zero/black
-        for (icUInt32Number i = 0; i < nSrcSamples; i++) Pixel[i] = 0.0f;
-        break;
-    case 2:  // Saturated/white
-        for (icUInt32Number i = 0; i < nSrcSamples; i++) Pixel[i] = 1.0f;
-        break;
-    case 3:  // Per-channel gradient
-        for (icUInt32Number i = 0; i < nSrcSamples; i++)
-            Pixel[i] = (float)i / (float)(nSrcSamples > 1 ? nSrcSamples - 1 : 1);
-        break;
-    }
-
-    switch (namedCmm.GetInterface()) {
-    case icApplyPixel2Pixel:
-        // Tool lines 530-546: ToInternalEncoding -> Apply -> FromInternalEncoding
-        if (CIccCmm::ToInternalEncoding(SrcspaceSig, srcEncoding, SrcPixel, Pixel, bClip))
-            break;
-        namedCmm.Apply(DestPixel, SrcPixel);
-        CIccCmm::FromInternalEncoding(DestspaceSig, destEncoding, DestPixel, DestPixel);
-        break;
-
-    case icApplyPixel2Named:
-        // Tool lines 547-555
-        if (CIccCmm::ToInternalEncoding(SrcspaceSig, srcEncoding, SrcPixel, Pixel, bClip))
-            break;
-        namedCmm.Apply(DestNameBuf, SrcPixel);
-        break;
-
-    case icApplyNamed2Pixel:
-        // Tool lines 480-504
-        namedCmm.Apply(DestPixel, "FuzzTestColor", 1.0f);
-        CIccCmm::FromInternalEncoding(DestspaceSig, destEncoding, DestPixel, DestPixel);
-        break;
-
-    case icApplyNamed2Named:
-        // Tool lines 505-517
-        namedCmm.Apply(DestNameBuf, "FuzzTestColor", 1.0f);
-        break;
-
-    default:
-        break;
-    }
-
-    unlink(tmp_path);
+    CIccCfgProfilePtr chain_cfg = MakeConfig(profile_file.Path(), 0, header_intent);
+    ExerciseConfig(profile_file.Path(), chain_cfg, color_space, color_space,
+                   device_class, true);
     return 0;
 }

@@ -47,13 +47,6 @@
 #include "IccProfile.h"
 #include "IccCmm.h"
 
-// Max input size - JSON configs are typically small (1-50KB)
-// Cap at 256KB to prevent OOM from giant string values
-static constexpr size_t kMaxInputSize = 256 * 1024;
-
-// Max colorData entries to prevent timeout from O(n) loops
-static constexpr size_t kMaxColorDataEntries = 500;
-
 // ===============================================================
 // Phase 2: Exercise all 3 top-level config fromJson() paths
 // ===============================================================
@@ -141,13 +134,6 @@ static void FuzzCreateLink(const json& j) {
 }
 
 static void FuzzColorData(const json& j) {
-  // Guard: cap array size to prevent timeout
-  if (j.is_object()) {
-    auto it = j.find("data");
-    if (it != j.end() && it->is_array() && it->size() > kMaxColorDataEntries)
-      return;
-  }
-
   CIccCfgColorData cfg;
   cfg.fromJson(j, true);
 
@@ -177,7 +163,7 @@ static void FuzzDataEntry(const json& j) {
 // ===============================================================
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (size < 2 || size > kMaxInputSize)
+  if (size < 2)
     return 0;
 
   // First byte selects config class, rest is JSON

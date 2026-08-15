@@ -44,6 +44,17 @@ Existing ignored runtime trees in this checkout are large enough that blanket
 tracking would add noise. Promote selected artifacts instead of committing raw
 run directories.
 
+The NamedCmm lane keeps pure ICC fixtures in `cfl/seeds-applynamedcmm/`.
+`cfl/fuzz-local.sh` copies them into
+`cfl/corpus-icc_applynamedcmm_fuzzer/` before a run. The source fixtures have no
+harness-control prefix or suffix and must not be used as mutable runtime
+storage.
+
+The aligned NamedCmm, Connect, config, and JSON/XML conversion harnesses use
+`max_len = 0`: the CFL runners pass the largest corpus-file size instead of a
+repository ceiling. Include large real profiles for large-input testing; RSS
+and timeout settings remain active.
+
 ## Promotion Checklist
 
 Before adding a generated seed or artifact:

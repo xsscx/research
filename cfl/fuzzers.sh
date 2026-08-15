@@ -145,6 +145,38 @@ cfl_corpus_dir() {
   printf '%s\n' "$script_dir/corpus-$fuzzer"
 }
 
+cfl_curated_seed_dir() {
+  local script_dir="$1"
+  local fuzzer="$2"
+
+  case "$fuzzer" in
+    icc_applynamedcmm_fuzzer)
+      printf '%s\n' "$script_dir/seeds-applynamedcmm"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+cfl_install_curated_seeds() {
+  local script_dir="$1"
+  local fuzzer="$2"
+  local corpus_dir="$3"
+  local seed_dir
+  local target
+
+  if ! seed_dir="$(cfl_curated_seed_dir "$script_dir" "$fuzzer")" ||
+     [[ ! -d "$seed_dir" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r -d '' seed; do
+    target="$corpus_dir/$(basename "$seed")"
+    cp "$seed" "$target"
+  done < <(find "$seed_dir" -maxdepth 1 -type f -print0)
+}
+
 cfl_resolve_dict() {
   local script_dir="$1"
   local fuzzer="$2"
@@ -179,7 +211,22 @@ cfl_option_timeout() {
 }
 
 cfl_option_max_len() {
-  cfl_option_value "$1" "$2" max_len 5242880
+  cfl_option_value "$1" "$2" max_len 0
+}
+
+cfl_effective_max_len() {
+  local configured="$1"
+  local corpus_dir="$2"
+  local largest
+
+  if [[ "$configured" -gt 0 ]]; then
+    printf '%s\n' "$configured"
+    return 0
+  fi
+
+  largest="$(find "$corpus_dir" -maxdepth 1 -type f -printf '%s\n' 2>/dev/null |
+    awk '$1 > largest { largest = $1 } END { if (largest) print largest }')"
+  printf '%s\n' "${largest:-1048576}"
 }
 
 cfl_option_rss_limit() {

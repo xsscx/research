@@ -26,6 +26,7 @@ WARNINGS=0
 SKIPPED=0
 AFL_JPEG_SEED_PATTERN='afl/targets.sh\|afl/start.sh\|afl/README.md\|\.github/scripts/validate-afl-jpeg-seeds.sh\|\.github/instructions/afl.instructions.md\|\.github/instructions/fuzz.instructions.md\|\.github/prompts/.*fuzzer.*\.prompt.md\|\.github/skills/corpus-management/SKILL.md\|AGENTS.md\|\.github/copilot-instructions.md'
 AFL_NAMEDCMM_PATTERN='afl/targets.sh\|afl/start.sh\|afl/README.md\|docs/afl/index.md\|\.github/scripts/validate-afl-applynamedcmm-targets.sh\|\.github/instructions/afl.instructions.md'
+CFL_NAMEDCMM_PATTERN='cfl/icc_applynamedcmm_fuzzer.cpp\|cfl/fuzzers.sh\|cfl/fuzz-local.sh\|cfl/seeds-applynamedcmm/\|\.github/scripts/validate-cfl-applynamedcmm.sh\|\.github/instructions/cfl.instructions.md'
 
 echo -e "${BOLD}+--------------------------------------------------+${NC}"
 echo -e "${BOLD}|         PRE-PUSH VALIDATION GATE                |${NC}"
@@ -80,9 +81,28 @@ fi
 echo ""
 
 # ---------------------------------------------------
-# GATE 2: AFL JPEG seed policy
+# GATE 2: CFL ApplyNamedCmm input and seed contracts
 # ---------------------------------------------------
-echo -e "${BOLD}[GATE 2] AFL JPEG seed policy${NC}"
+echo -e "${BOLD}[GATE 2] CFL ApplyNamedCmm contracts${NC}"
+
+if has_changes "$CFL_NAMEDCMM_PATTERN"; then
+  if .github/scripts/validate-cfl-applynamedcmm.sh; then
+    echo -e "  ${GREEN}CFL ApplyNamedCmm contracts OK${NC}"
+  else
+    echo -e "  ${RED}CFL ApplyNamedCmm contracts FAILED${NC}"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  echo -e "  ${YELLOW}(no CFL ApplyNamedCmm contract changes - skipped)${NC}"
+  SKIPPED=$((SKIPPED + 1))
+fi
+
+echo ""
+
+# ---------------------------------------------------
+# GATE 3: AFL JPEG seed policy
+# ---------------------------------------------------
+echo -e "${BOLD}[GATE 3] AFL JPEG seed policy${NC}"
 
 if has_changes "$AFL_JPEG_SEED_PATTERN"; then
   if .github/scripts/validate-afl-jpeg-seeds.sh; then
@@ -99,9 +119,9 @@ fi
 echo ""
 
 # ---------------------------------------------------
-# GATE 3: Documentation and repository state
+# GATE 4: Documentation and repository state
 # ---------------------------------------------------
-echo -e "${BOLD}[GATE 3] Consistency checks${NC}"
+echo -e "${BOLD}[GATE 4] Consistency checks${NC}"
 
 # 3a. Git status clean
 echo -n "  Working tree: "

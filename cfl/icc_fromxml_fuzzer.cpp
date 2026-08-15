@@ -126,7 +126,7 @@ static void ExerciseFromXmlToolPath(const char *inputPath,
 
 // FUZZER HARNESS - Minimal wrapper around tool code
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (size < 10 || size > 10 * 1024 * 1024) return 0;
+  if (size < 10) return 0;
 
   // Write fuzzer data to temp file (replaces argv[1])
   const char *tmpdir = fuzz_tmpdir();

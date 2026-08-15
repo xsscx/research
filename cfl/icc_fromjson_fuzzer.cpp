@@ -18,8 +18,6 @@
 #include "IccProfileJson.h"
 #include "IccTagJsonFactory.h"
 
-static constexpr size_t kMaxJsonInputSize = 256 * 1024;
-
 struct IccJsonFactories {
   IccJsonFactories() {
     CIccTagCreator::PushFactory(new (std::nothrow) CIccTagJsonFactory());
@@ -69,7 +67,7 @@ static void ExerciseProfileJson(const IccJson &root) {
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (!data || size < 2 || size > kMaxJsonInputSize)
+  if (!data || size < 2)
     return 0;
 
   IccJson root;

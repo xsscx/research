@@ -68,6 +68,27 @@ Current harness areas:
 | XML export | `icc_toxml_fuzzer` |
 | v5 display observer conversion | `icc_v5dspobs_fuzzer` |
 
+`icc_applynamedcmm_fuzzer` accepts one raw ICC profile with no control prefix,
+suffix, or reserved-byte selector. For each parseable profile it runs a bounded
+matrix of the NamedCmm transform, intent, interpolation, hint, environment,
+encoding, direction, named-color, and same-profile-chain paths. The tracked
+profiles in `cfl/seeds-applynamedcmm/` are copied into the runtime
+`cfl/corpus-icc_applynamedcmm_fuzzer/` directory by `fuzz-local.sh`; the tracked
+seed directory is never used as mutable runtime storage. Validate the contract
+with `.github/scripts/validate-cfl-applynamedcmm.sh --replay` after building.
+
+An independent PCC needs a second profile and is intentionally outside this
+single-file contract. JSON parsing/export and calculator-debug output are owned
+by `icc_cfg_fuzzer` and tool QA respectively.
+
+The NamedCmm, Connect, config, and JSON/XML conversion harnesses do not impose
+a fixed input-size ceiling. Their `.options` use `max_len = 0`, so the CFL
+runners derive and pass the largest supplied corpus-file size without a
+repository ceiling; add representative large profiles when testing those
+lanes. Keep RSS and per-input timeouts as the resource controls. This matters
+for conversion lanes: a 3.8 MiB ICC QA input has been observed to serialize to
+more than 85 MiB of JSON.
+
 `icc_fromxml_fuzzer` now follows the `iccFromXml` CLI envelope for the default
 import path, `-noid`, and `-v=<schema>` validation path on each parseable XML
 input. The CFL build also verifies `IccXML` coverage instrumentation so XML

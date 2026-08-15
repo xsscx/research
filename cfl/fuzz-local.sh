@@ -137,6 +137,7 @@ for f in "${FUZZERS[@]}"; do
     corpus="$STORAGE_DIR/corpus-${f}"
   fi
   mkdir -p "$corpus"
+  cfl_install_curated_seeds "$SCRIPT_DIR" "$f" "$corpus"
 
   dict=""
   if dict_candidate="$(cfl_resolve_dict "$DICT_DIR" "$f")"; then
@@ -151,7 +152,8 @@ for f in "${FUZZERS[@]}"; do
 
   FUZZER_TIMEOUT="$(cfl_option_timeout "$SCRIPT_DIR" "$f")"
   FUZZER_RSS="${RSS_LIMIT:-$(cfl_option_rss_limit "$SCRIPT_DIR" "$f")}"
-  FUZZER_MAX_LEN="$(cfl_option_max_len "$SCRIPT_DIR" "$f")"
+  FUZZER_MAX_LEN="$(cfl_effective_max_len \
+    "$(cfl_option_max_len "$SCRIPT_DIR" "$f")" "$corpus")"
   FUZZER_ASAN="$(cfl_asan_options "$f")"
 
   echo "[${TOTAL}/${#FUZZERS[@]}] $f workers=$WORKERS time=${FUZZ_SECONDS}s timeout=${FUZZER_TIMEOUT}s rss=${FUZZER_RSS}MB max_len=${FUZZER_MAX_LEN} dict=$(basename "${dict:-none}")"

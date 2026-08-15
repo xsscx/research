@@ -32,7 +32,14 @@ Command modes:
 |------|---------|---------------|
 | Smoke | Fast maintainer start check through `fuzz-local.sh` | `cd cfl && ./fuzz-local.sh -t 30 -w 1 <alias>` |
 | Explore | Longer coverage-guided run with value profiling | direct fuzzer, dictionary, corpus, 10 minutes |
-| Rare | Larger inputs or focused flags to shake out slow branches | direct fuzzer with `-entropic=1`, `-reduce_inputs=0`, larger `-max_len` |
+| Rare | Larger inputs or focused flags to shake out slow branches | representative large corpus plus `-entropic=1`, `-reduce_inputs=0` |
+
+For ICC and JSON/XML conversion lanes, the checked-in `max_len=0` is resolved
+by `fuzz-local.sh` and `start.sh` to the largest corpus-file size. Seed
+representative large inputs rather than imposing a repository ceiling; RSS and
+per-input timeout limits still bound resource use. For a direct binary command,
+replace `-max_len=0` with the largest corpus or artifact size because LibFuzzer
+itself may otherwise fall back to 1 MiB.
 | Exploit repro | Deterministic sanitizer reproduction/minimization of a finding | direct fuzzer with `-runs=1` or `-minimize_crash=1 <artifact>` |
 
 Use `LLVM_PROFILE_FILE=/dev/null` unless you are collecting coverage. For
@@ -45,11 +52,16 @@ Replace `<artifact>` with a crash, leak, OOM, timeout, or slow-unit file from
 
 ### `icc_applynamedcmm_fuzzer`
 
+Input is one raw ICC profile. Do not prepend control bytes or modify the ICC
+reserved header bytes to select behavior; the harness applies its fixed
+tool-control matrix to every parseable profile. `fuzz-local.sh` installs the
+tracked `cfl/seeds-applynamedcmm/` files into the mutable runtime corpus.
+
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 namedcmm
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_applynamedcmm_fuzzer -max_total_time=600 -timeout=120 -rss_limit_mb=6144 -max_len=2097152 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_applynamedcmm_fuzzer.dict cfl/corpus-icc_applynamedcmm_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_applynamedcmm_fuzzer -max_total_time=900 -timeout=120 -rss_limit_mb=6144 -max_len=2097152 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_applynamedcmm_fuzzer.dict cfl/corpus-icc_applynamedcmm_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_applynamedcmm_fuzzer -runs=1 -timeout=120 -rss_limit_mb=6144 -max_len=2097152 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_applynamedcmm_fuzzer -max_total_time=600 -timeout=120 -rss_limit_mb=6144 -max_len=0 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_applynamedcmm_fuzzer.dict cfl/corpus-icc_applynamedcmm_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_applynamedcmm_fuzzer -max_total_time=900 -timeout=120 -rss_limit_mb=6144 -max_len=0 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_applynamedcmm_fuzzer.dict cfl/corpus-icc_applynamedcmm_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_applynamedcmm_fuzzer -runs=1 -timeout=120 -rss_limit_mb=6144 -max_len=0 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 ### `icc_applyprofiles_fuzzer`
@@ -92,18 +104,18 @@ ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_applysearch_wei
 
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 connect
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_connect_fuzzer -max_total_time=600 -timeout=45 -rss_limit_mb=4096 -max_len=1048576 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_cfg.dict cfl/corpus-icc_connect_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_connect_fuzzer -max_total_time=900 -timeout=45 -rss_limit_mb=4096 -max_len=1048576 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_cfg.dict cfl/corpus-icc_connect_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_connect_fuzzer -runs=1 -timeout=45 -rss_limit_mb=4096 -max_len=1048576 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_connect_fuzzer -max_total_time=600 -timeout=45 -rss_limit_mb=4096 -max_len=0 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_cfg.dict cfl/corpus-icc_connect_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_connect_fuzzer -max_total_time=900 -timeout=45 -rss_limit_mb=4096 -max_len=0 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_cfg.dict cfl/corpus-icc_connect_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_connect_fuzzer -runs=1 -timeout=45 -rss_limit_mb=4096 -max_len=0 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 ### `icc_cfg_fuzzer`
 
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 cfg
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_cfg_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=5242880 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_cfg_fuzzer.dict cfl/corpus-icc_cfg_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_cfg_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=4096 -max_len=5242880 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_cfg_fuzzer.dict cfl/corpus-icc_cfg_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_cfg_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=5242880 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_cfg_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=0 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_cfg_fuzzer.dict cfl/corpus-icc_cfg_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_cfg_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=4096 -max_len=0 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_cfg_fuzzer.dict cfl/corpus-icc_cfg_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_cfg_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=0 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 ### `icc_dump_fuzzer`
@@ -128,9 +140,9 @@ ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromcube_fuzzer
 
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 json
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromjson_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=2048 -max_len=262144 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_json.dict cfl/corpus-icc_fromjson_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromjson_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=2048 -max_len=262144 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_json.dict cfl/corpus-icc_fromjson_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromjson_fuzzer -runs=1 -timeout=30 -rss_limit_mb=2048 -max_len=262144 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromjson_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=2048 -max_len=0 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_json.dict cfl/corpus-icc_fromjson_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromjson_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=2048 -max_len=0 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_json.dict cfl/corpus-icc_fromjson_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromjson_fuzzer -runs=1 -timeout=30 -rss_limit_mb=2048 -max_len=0 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 ### `icc_fromxml_fuzzer`
@@ -140,9 +152,9 @@ argv modes for each parseable XML input.
 
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 fromxml
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromxml_fuzzer -max_total_time=600 -timeout=25 -rss_limit_mb=8192 -max_len=5242880 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_fromxml_fuzzer.dict cfl/corpus-icc_fromxml_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromxml_fuzzer -max_total_time=900 -timeout=25 -rss_limit_mb=8192 -max_len=5242880 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_fromxml_fuzzer.dict cfl/corpus-icc_fromxml_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromxml_fuzzer -runs=1 -timeout=25 -rss_limit_mb=8192 -max_len=5242880 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromxml_fuzzer -max_total_time=600 -timeout=25 -rss_limit_mb=8192 -max_len=0 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_fromxml_fuzzer.dict cfl/corpus-icc_fromxml_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromxml_fuzzer -max_total_time=900 -timeout=25 -rss_limit_mb=8192 -max_len=0 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_fromxml_fuzzer.dict cfl/corpus-icc_fromxml_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_fromxml_fuzzer -runs=1 -timeout=25 -rss_limit_mb=8192 -max_len=0 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 ### `icc_jpegdump_fuzzer`
@@ -212,9 +224,9 @@ ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tiffdump_fuzzer
 
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 tojson
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tojson_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=1048576 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_tojson_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tojson_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=4096 -max_len=1048576 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_tojson_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tojson_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=1048576 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tojson_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=0 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_tojson_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tojson_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=4096 -max_len=0 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_tojson_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tojson_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=0 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 ### `icc_toxml_fuzzer`
@@ -225,9 +237,9 @@ progress and sanitizer reports still print on stderr.
 
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 toxml
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_toxml_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=8192 -max_len=5242880 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_toxml_fuzzer.dict cfl/corpus-icc_toxml_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_toxml_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=8192 -max_len=5242880 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_toxml_fuzzer.dict cfl/corpus-icc_toxml_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_toxml_fuzzer -runs=1 -timeout=30 -rss_limit_mb=8192 -max_len=5242880 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_toxml_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=8192 -max_len=0 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_toxml_fuzzer.dict cfl/corpus-icc_toxml_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_toxml_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=8192 -max_len=0 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_toxml_fuzzer.dict cfl/corpus-icc_toxml_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_toxml_fuzzer -runs=1 -timeout=30 -rss_limit_mb=8192 -max_len=0 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 ### `icc_v5dspobs_fuzzer`

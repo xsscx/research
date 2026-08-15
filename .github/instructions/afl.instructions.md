@@ -56,6 +56,12 @@ pass the target dry run with exit 0. AFL++ 5.x otherwise partially reads larger
 seed files at its testcase ceiling. Use a per-process scratch path for exported
 JSON; never make parallel workers overwrite one fixed config path.
 
+Do not copy CFL's corpus-derived large-input policy into AFL++. CFL NamedCmm
+seeds are pure ICC files, but only complete files below 1 MiB may be promoted
+to an AFL `@@` corpus with this build. Keep larger profiles in CFL, or add an
+explicit AFL lane that holds the large profile fixed and fuzzes a bounded
+companion input; never truncate a CFL profile for promotion.
+
 Do not hardcode `AFL_MAP_SIZE=131072` for NamedCMM lanes. Use `afl/start.sh`'s
 default unless the current instrumented binary has been measured explicitly;
 the target map can exceed 131072 bytes.

@@ -49,6 +49,17 @@ ASAN_OPTIONS=detect_leaks=0 LLVM_PROFILE_FILE=/dev/null \
 
 Special flags: `icc_link_fuzzer` needs `quarantine_size_mb=256`.
 
+`fuzz-local.sh` copies the pure ICC fixtures from `cfl/seeds-applynamedcmm/`
+into the NamedCmm runtime corpus before executing that target. Never fuzz the
+tracked seed directory in place, and never prepend harness controls to those
+profiles.
+
+For the aligned NamedCmm, Connect, config, and JSON/XML conversion lanes, keep
+`max_len = 0`; the CFL runners derive the explicit runtime limit from the
+largest corpus file. Put representative large inputs in the corpus instead of
+adding a fixed size ceiling. Bound resource use with the existing RSS and
+per-input timeout settings.
+
 ### 3. Collect Coverage
 
 ```bash

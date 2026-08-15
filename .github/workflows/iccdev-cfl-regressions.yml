@@ -16,12 +16,14 @@ on:
     branches: [main]
     paths:
       - '.github/instructions/cfl.instructions.md'
+      - '.github/scripts/validate-cfl-applynamedcmm.sh'
       - '.github/workflows/iccdev-cfl-regressions.yml'
       - 'cfl/**'
   pull_request:
     branches: [main]
     paths:
       - '.github/instructions/cfl.instructions.md'
+      - '.github/scripts/validate-cfl-applynamedcmm.sh'
       - '.github/workflows/iccdev-cfl-regressions.yml'
       - 'cfl/**'
   workflow_dispatch:
@@ -38,7 +40,7 @@ concurrency:
 
 jobs:
   build-and-smoke:
-    name: CFL build and profile visualization smoke
+    name: CFL build and focused smoke
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -83,14 +85,20 @@ jobs:
           set -euo pipefail
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          shellcheck cfl/build.sh cfl/fuzzers.sh
-          bash -n cfl/build.sh cfl/fuzzers.sh
+          shellcheck cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
+            .github/scripts/validate-cfl-applynamedcmm.sh
+          bash -n cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
+            .github/scripts/validate-cfl-applynamedcmm.sh
           source cfl/fuzzers.sh
-          test "$(cfl_list_fuzzers | wc -l)" -eq 22
+          test "$(cfl_list_fuzzers | wc -l)" -eq "${#CFL_FUZZERS[@]}"
+          test "${#CFL_FUZZERS[@]}" -gt 0
           test "$(cfl_normalize_fuzzer visualize)" = \
             icc_profilevisualize_fuzzer
           test "$(file -b --mime-encoding \
             cfl/icc_profilevisualize_fuzzer.cpp)" = us-ascii
+          test "$(file -b --mime-encoding \
+            cfl/icc_applynamedcmm_fuzzer.cpp)" = us-ascii
+          .github/scripts/validate-cfl-applynamedcmm.sh
 
       - name: Build all CFL fuzzers
         env:
@@ -115,3 +123,15 @@ jobs:
           unset GITHUB_TOKEN || true
           timeout 120s cfl/bin/icc_profilevisualize_fuzzer \
             -runs=1 cfl/corpus/
+
+      - name: Replay ApplyNamedCmm curated seeds
+        env:
+          BASH_ENV: /dev/null
+          ASAN_OPTIONS: detect_leaks=0,halt_on_error=1,abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1,abort_on_error=1,print_stacktrace=1
+          LLVM_PROFILE_FILE: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          .github/scripts/validate-cfl-applynamedcmm.sh --replay

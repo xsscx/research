@@ -64,7 +64,6 @@ CORE_FUZZERS=(
   icc_roundtrip_fuzzer
   icc_dump_fuzzer
   icc_link_fuzzer
-  icc_applynamedcmm_fuzzer
   icc_fromcube_fuzzer
   icc_applysearch_fuzzer
   icc_applysearch_weight_fuzzer
@@ -72,6 +71,7 @@ CORE_FUZZERS=(
 
 # IccConnect library fuzzers.
 CONNECT_FUZZERS=(
+  icc_applynamedcmm_fuzzer
   icc_connect_fuzzer
 )
 

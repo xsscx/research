@@ -19,8 +19,6 @@
 #include "IccUtil.h"
 #include "fuzz_utils.h"
 
-static constexpr size_t kMaxConnectInputSize = 1024 * 1024;
-
 static bool WriteTempProfile(const uint8_t *data, size_t size, char *path, size_t path_size) {
   if (!fuzz_build_path(path, path_size, fuzz_tmpdir(), "/fuzz_connect_XXXXXX.icc"))
     return false;
@@ -84,7 +82,7 @@ static void ExerciseApply(CIccConnectCmm *conn, uint8_t seed, uint8_t mode) {
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (!data || size < 136 || size > kMaxConnectInputSize)
+  if (!data || size < 136)
     return 0;
 
   const size_t profile_size = size - 4;

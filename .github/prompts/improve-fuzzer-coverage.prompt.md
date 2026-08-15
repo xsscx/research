@@ -91,7 +91,7 @@ for fuzzer in deep_dump profile dump; do
   ASAN_OPTIONS=detect_leaks=0 \
   LLVM_PROFILE_FILE="/mnt/g/fuzz-ssd/profraw/icc_${fuzzer}_fuzzer_%m_%p.profraw" \
     "$BIN" -max_total_time=60 -detect_leaks=0 -timeout=30 -rss_limit_mb=4096 \
-    -use_value_profile=1 -max_len=5242880 \
+    -use_value_profile=1 -max_len=0 \
     -dict="cfl/icc_${fuzzer}_fuzzer.dict" \
     "$CORPUS/" > /tmp/fuzz_${fuzzer}.log 2>&1 &
 done
@@ -241,14 +241,22 @@ trigger the CMM pipeline (AddXform->Begin->Apply). Seed corpora need matched pai
 |--------|--------|----------|
 | `icc_link_fuzzer` | profile1 + profile2 + 4 ctrl bytes | 258 |
 | `icc_applyprofiles_fuzzer` | 75% profile + 25% control [intent, interp, unused, flags] | 200 |
-| `icc_applynamedcmm_fuzzer` | 4-byte header [flags, intent, extra1, extra2] + profile | 132 |
+| `icc_applynamedcmm_fuzzer` | one raw ICC profile; fixed internal control matrix | 132 |
 | `icc_apply_fuzzer` | entire input is one ICC profile | 130 |
 
 **Link fuzzer ctrl byte bits (size-3)**: 0x01=firstTransform, 0x02=noD2Bx, 0x04=BPC, 0x08=luminance,
 0x10=subProfile, bits5-7=lutType(0-7). **ctrl2 byte (size-4)**: 0x01=saveLink, 0x02=envVars, bits2-3=gridSize.
 
-**ApplyNamedCmm flags byte bits**: 0x01=BPC, 0x02=D2Bx, 0x04=luminance, 0x08=subProfile,
-0x10=tetrahedral, 0x40=pccEnvVars, 0x80=envVars. **Intent byte**: bits0-1=intent, bits4-6=nType, bit7=HToS.
+**ApplyNamedCmm**: Keep seeds as pure ICC files. Do not add a control prefix,
+suffix, or reserved-byte selector; the harness applies a bounded matrix of the
+tool-reachable controls to each parseable profile.
+
+**Large ICC and conversion inputs**: In the aligned NamedCmm, Connect, config,
+and JSON/XML conversion lanes, do not enforce a fixed harness-side size
+ceiling. Use repository `max_len=0`; the CFL runners derive the explicit limit
+from the largest corpus file. Seed representative large files. JSON
+serialization can amplify a multi-megabyte ICC input into tens of megabytes,
+so retain RSS and timeout limits as the resource controls.
 
 **For detailed per-fuzzer documentation** (input formats, coverage gaps, dead code, seed strategies,
 tool fidelity, dict syntax), see `fuzzer-optimization.prompt.md`.

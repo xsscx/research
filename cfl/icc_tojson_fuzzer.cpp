@@ -18,8 +18,6 @@
 #include "IccTagJsonFactory.h"
 #include "fuzz_utils.h"
 
-static constexpr size_t kMaxIccInputSize = 1024 * 1024;
-
 struct IccToJsonFactories {
   IccToJsonFactories() {
     CIccTagCreator::PushFactory(new (std::nothrow) CIccTagJsonFactory());
@@ -30,7 +28,7 @@ struct IccToJsonFactories {
 static IccToJsonFactories g_factories;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (!data || size < 132 || size > kMaxIccInputSize)
+  if (!data || size < 132)
     return 0;
 
   CIccMemIO mem;
