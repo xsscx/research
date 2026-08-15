@@ -4,6 +4,7 @@
 AFL_TARGETS=(
     applynamedcmm
     applynamedcmm-cfg
+    applynamedcmm-hybrid-chain
     applynamedcmm-hybrid-pcc
     applyprofiles
     applyprofiles-fast
@@ -59,6 +60,7 @@ afl_print_targets() {
     echo "Available targets:"
     echo "  applynamedcmm    - iccApplyNamedCmm (fixed data, fuzz ICC profile)"
     echo "  applynamedcmm-cfg - iccApplyNamedCmm (-cfg JSON config lane)"
+    echo "  applynamedcmm-hybrid-chain - iccApplyNamedCmm (fixed v5 profile, fuzz second profile)"
     echo "  applynamedcmm-hybrid-pcc - iccApplyNamedCmm hybrid v5/PCC lane"
     echo "  applyprofiles    - iccApplyProfiles (fixed TIFF, fuzz ICC profile)"
     echo "  applyprofiles-fast - iccApplyProfiles (small ICC profile lane)"
@@ -249,27 +251,45 @@ afl_configure_target() {
                 AFL_ARGS=("$rgb_16_data" "5" "1" "@@" "1")
             fi
             ;;
+        applynamedcmm-hybrid-chain|namedcmm-hybrid-chain)
+            BINARY="$BIN_DIR/iccApplyNamedCmm"
+            AFL_DIR="$AFL_BASE/afl-applynamedcmm-hybrid-chain"
+            DICT="$REPO_ROOT/cfl/icc_applynamedcmm_fuzzer.dict"
+            HYBRID_NEEDS_SUPPORT=1
+            SEED_MAX_BYTES=1048576
+            SEED_LIMIT=200
+            SEED_DRY_RUN_TARGET=1
+            SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+            SEED_DIRS=(
+                "$REPO_ROOT/iccDEV/Testing/reg"
+                "$HYBRID_ICC_DIR"
+                "$REPO_ROOT/fuzz/graphics/icc"
+                "$REPO_ROOT/test-profiles"
+                "$REPO_ROOT/extended-test-profiles"
+            )
+            SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
+            REQUIRED_FILES=("$HYBRID_CMYK_DATA" "$HYBRID_CMYK_PROFILE")
+            TARGET_NOTE="Hybrid NamedCmm chain lane: exports embedded data, applies the fixed CMYK v5 profile with intent 10003, then fuzzes the second profile with no-D2Bx intent 10."
+            AFL_ARGS=("-exportcfganddata" "${tmp_prefix}.json" "$HYBRID_CMYK_DATA" "3" "1" "$HYBRID_CMYK_PROFILE" "10003" "@@" "10")
+            ;;
         applynamedcmm-hybrid-pcc|namedcmm-hybrid-pcc)
             BINARY="$BIN_DIR/iccApplyNamedCmm"
             AFL_DIR="$AFL_BASE/afl-applynamedcmm-hybrid-pcc"
             DICT="$REPO_ROOT/cfl/icc_applynamedcmm_fuzzer.dict"
             HYBRID_NEEDS_SUPPORT=1
-            SEED_MAX_BYTES=4194304
+            SEED_MAX_BYTES=1048576
             SEED_LIMIT=300
             SEED_DRY_RUN_TARGET=1
             SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-            [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=4194304
-            SEED_FILES=("$HYBRID_CMYK_PROFILE")
-            SEED_EXCLUDE_REGEX='^CMYK_Hybrid_Profile\.icc$'
             SEED_DIRS=(
                 "$HYBRID_ICC_DIR"
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/extended-test-profiles"
             )
-            REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
-            TARGET_NOTE="Hybrid NamedCmm lane: fuzzes the first v5 profile in the upstream QA environment/PCC shape and retains only seeds that build and apply the full transform."
-            AFL_ARGS=("-exportcfganddata" "$HYBRID_CONFIG_DIR/afl-namedcmm-hybrid.json" "$HYBRID_CMYK_DATA" "5" "1" "-ENV:bkgX" "0.0985" "-ENV:bkgY" "0.159" "-ENV:bkgZ" "0.122" "@@" "10003" "-PCC" "$HYBRID_SPEC_ILLUMA" "$HYBRID_SPEC_D50" "3")
+            REQUIRED_FILES=("$HYBRID_CMYK_DATA" "$HYBRID_CMYK_PROFILE" "$HYBRID_SPEC_D50")
+            TARGET_NOTE="Hybrid NamedCmm PCC lane: applies the fixed CMYK v5 profile with environment variables, fuzzes its PCC profile, and retains only seeds that build and apply the full transform."
+            AFL_ARGS=("-exportcfganddata" "${tmp_prefix}.json" "$HYBRID_CMYK_DATA" "5" "1" "-ENV:bkgX" "0.0985" "-ENV:bkgY" "0.159" "-ENV:bkgZ" "0.122" "$HYBRID_CMYK_PROFILE" "10003" "-PCC" "@@" "$HYBRID_SPEC_D50" "3")
             ;;
         applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-cfg|profiles-cfg|applyprofiles-hybrid-embedded|profiles-hybrid-embedded|applyprofiles-hybrid-pcc|profiles-hybrid-pcc|applyprofiles-row|profiles-row)
             BINARY="$BIN_DIR/iccApplyProfiles"

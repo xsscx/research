@@ -118,7 +118,7 @@ is only the exact fuzzer control/pixel seed bytes.
 
 **tiffdump**: 4215-entry dict combining TIFF 6.0 tags + ICC sigs + corpus tokens.
 
-**cfg_fuzzer**: Tests JSON config path (`iccApplyNamedCmm --json`). Exercises `fromJson()`/`toJson()` round-trip.
+**cfg_fuzzer**: Tests the JSON config path (`iccApplyNamedCmm -cfg FILE`). Exercises `fromJson()`/`toJson()` round-trip.
 
 ## Cross-Cutting Optimization Tips
 

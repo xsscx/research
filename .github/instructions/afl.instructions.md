@@ -40,6 +40,25 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 .github/scripts/validate-afl-jpeg-seeds.sh
 ```
 
+## iccApplyNamedCmm CLI Shapes
+
+Keep distinct AFL targets for the one-profile legacy-data lane, `-cfg` JSON,
+the fixed-v5-then-fuzzed-profile hybrid chain, and the fixed-v5/fuzzed-PCC
+hybrid chain. Use `applynamedcmm-hybrid-chain` for this argv shape:
+
+```text
+-exportcfganddata OUT DATA 3 1 FIXED_CMYK_V5 10003 @@ 10
+```
+
+NamedCMM hybrid seeds must be complete ICC files smaller than 1 MiB and must
+pass the target dry run with exit 0. AFL++ 5.x otherwise partially reads larger
+seed files at its testcase ceiling. Use a per-process scratch path for exported
+JSON; never make parallel workers overwrite one fixed config path.
+
+Do not hardcode `AFL_MAP_SIZE=131072` for NamedCMM lanes. Use `afl/start.sh`'s
+default unless the current instrumented binary has been measured explicitly;
+the target map can exceed 131072 bytes.
+
 ## Tracking Policy
 
 Track reusable AFL assets:

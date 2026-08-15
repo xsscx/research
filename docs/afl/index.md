@@ -55,6 +55,33 @@ XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile
 visualization, profile linking, and CMM apply flows. Run `./afl/start.sh --list`
 for the exact list in the active checkout.
 
+### iccApplyNamedCmm argv lanes
+
+Use separate targets for materially different command-line parsers and transform
+shapes:
+
+- `applynamedcmm` fuzzes one profile after fixed legacy RGB data arguments.
+- `applynamedcmm-cfg` fuzzes the JSON document consumed by `-cfg`.
+- `applynamedcmm-hybrid-chain` applies the fixed CMYK v5 profile at intent
+  `10003`, then fuzzes a second profile at intent `10` while exercising
+  `-exportcfganddata`.
+- `applynamedcmm-hybrid-pcc` applies the fixed CMYK v5 profile and fuzzes its
+  PCC profile, covering `-ENV` and `-PCC` parsing.
+
+The NamedCMM hybrid lanes admit only complete ICC files smaller than AFL++'s
+1 MiB testcase ceiling and dry-run each seed to require exit 0. This avoids
+AFL++ silently fuzzing a partial read of a larger profile. Export paths use the
+target scratch prefix so parallel workers do not overwrite one shared JSON file.
+Use `afl/start.sh`'s default map size for these instrumented binaries. A manually
+fixed 131072-byte map can be smaller than the target reports and forces AFL++ to
+reinitialize the map before fuzzing.
+
+```bash
+./afl/start.sh applynamedcmm-hybrid-chain --run-time 300
+./afl/start.sh applynamedcmm-cfg --mode rare --run-time 300
+bash .github/scripts/test-iccApplyNamedCmm.sh --quick --asan
+```
+
 ## Campaign Modes
 
 `afl/start.sh` provides named AFL++ 5.x campaign modes so mutation strategy and

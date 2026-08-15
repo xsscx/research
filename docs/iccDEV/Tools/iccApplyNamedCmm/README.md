@@ -6,7 +6,11 @@ Supports chained profile transforms, multiple encoding formats, and interpolatio
 ## Usage
 
 ```
-iccApplyNamedCmm {-debugcalc} data_file_path final_data_encoding{:FmtPrecision{:FmtDigits}} interpolation {{-ENV:Name value} profile_file_path Rendering_intent {-PCC connection_conditions_path}}
+iccApplyNamedCmm [-exportcfg config_path | -exportcfganddata config_path] \
+  [-debugcalc] data_file_path \
+  final_data_encoding[:FmtPrecision[:FmtDigits]] interpolation \
+  [[-ENV:SIG value] profile_file_path Rendering_intent \
+  [-PCC connection_conditions_path]]...
 ```
 
 Or with a JSON config file:
@@ -14,6 +18,11 @@ Or with a JSON config file:
 ```
 iccApplyNamedCmm -cfg config_file_path
 ```
+
+`-cfg` must be the only option and accepts exactly one path. In positional mode,
+an export option must precede `-debugcalc`. Each `-ENV:SIG` belongs before its
+profile, each `-PCC` belongs after that profile and intent, and `SIG` must contain
+exactly four characters.
 
 ### Arguments
 
@@ -26,7 +35,9 @@ iccApplyNamedCmm -cfg config_file_path
 | `profile_file_path` | **Required** | Path to ICC profile |
 | `Rendering_intent` | **Required** | 0=Perceptual, 1=Relative, 2=Saturation, 3=Absolute |
 | `-PCC path` | Optional | Profile Connection Conditions file |
-| `-ENV:Name value` | Optional | Environment variable for transform |
+| `-ENV:SIG value` | Optional | Four-character environment signature and value for the next transform |
+| `-exportcfg path` | Optional | Export the parsed configuration before applying it |
+| `-exportcfganddata path` | Optional | Export configuration with input data embedded |
 | `-cfg path` | Optional | JSON configuration file |
 
 ### Encoding Values
@@ -34,23 +45,27 @@ iccApplyNamedCmm -cfg config_file_path
 | Code | Name | Description |
 |------|------|-------------|
 | 0 | icEncodeValue | Converts to/from Lab encoding when samples=3 |
-| 1 | icEncodePercent | Percentage values (0–100) |
-| 2 | icEncodeUnitFloat | Unit float (0.0–1.0, may clip) |
+| 1 | icEncodePercent | Percentage values (0-100) |
+| 2 | icEncodeUnitFloat | Unit float (0.0-1.0, may clip) |
 | 3 | icEncodeFloat | Unclamped float values |
-| 4 | icEncode8Bit | 8-bit integer (0–255) |
-| 5 | icEncode16Bit | 16-bit integer (0–65535) |
+| 4 | icEncode8Bit | 8-bit integer (0-255) |
+| 5 | icEncode16Bit | 16-bit integer (0-65535) |
 | 6 | icEncode16BitV2 | 16-bit v2 encoding |
+
+Encoding support depends on the destination color space. In particular, an XYZ
+destination rejects encoding 4 and a Lab destination rejects encoding 1. A
+profile chain that ends in RGB can use encoding 4.
 
 ### Encoding Precision Format
 
-`encoding:precision:digits` — e.g., `0:8:12` means encoding=0, 8 digits after decimal, 12 total.
+`encoding:precision:digits` - e.g., `0:8:12` means encoding=0, 8 digits after decimal, 12 total.
 
 ### Exit Codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 255 (-1) | Transform error (incompatible encoding, profile, or data format) |
+| 1 | Graceful parse, profile, encoding, or transform failure |
 
 ## Data File Format
 
@@ -94,8 +109,17 @@ iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 2 0 \
 iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 3 0 \
   test-profiles/sRGB_D65_MAT.icc 1
 
+# Encoding 4: icEncode8Bit (second profile makes RGB the destination)
+iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 4 0 \
+  test-profiles/sRGB_D65_MAT.icc 1 \
+  test-profiles/sRGB_D65_MAT.icc 1
+
 # Encoding 5: icEncode16Bit
 iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 5 0 \
+  test-profiles/sRGB_D65_MAT.icc 1
+
+# Encoding 6: icEncode16BitV2
+iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 6 0 \
   test-profiles/sRGB_D65_MAT.icc 1
 
 # Encoding with precision format (8 decimal digits, 12 total)
@@ -103,8 +127,8 @@ iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0:8:12 0 \
   test-profiles/sRGB_D65_MAT.icc 1
 ```
 
-> **Note**: Encoding 4 (icEncode8Bit) may return exit 255 for some profile/data
-> combinations. This is a known tool limitation, not a crash.
+> **Note**: The one-profile sRGB example ends in XYZ, which rejects encoding 4.
+> Add a second sRGB profile so the chain ends in RGB when testing 8-bit output.
 
 ### Tetrahedral interpolation
 
@@ -132,7 +156,7 @@ iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0 0 \
 ### Packed `Rendering_intent` Encoding
 
 The `Rendering_intent` argument supports an extended packed encoding that controls
-transform behavior beyond the basic 0–3 intent values. The tool decodes the integer
+transform behavior beyond the basic 0-3 intent values. The tool decodes the integer
 value using successive modular arithmetic:
 
 ```
@@ -145,8 +169,8 @@ Rendering_intent = [useHToS * 100000] + [useV5SubProfile * 10000]
 | 100000s | useHToS | 0=off, 1=on (then mod 100000) |
 | 10000s | useV5SubProfile | 0=off, 1=on (then mod 10000) |
 | 1000s | adjustPcsLuminance | 0=off, 1=on (then mod 1000) |
-| 10s | nType | 0–9 (transform type selector) |
-| 1s | intent | 0–3 (rendering intent) |
+| 10s | nType | 0-9 (transform type selector) |
+| 1s | intent | 0-3 (rendering intent) |
 
 **nType Values:**
 
@@ -159,7 +183,7 @@ Rendering_intent = [useHToS * 100000] + [useV5SubProfile * 10000]
 | 4 | BPC (Black Point Compensation) | icXformLutColor + BPC hint |
 | 5 | BRDF/MCS Parameter | icXformLutBRDFMcsParam |
 | 6 | MCS | icXformLutMCS |
-| 7–9 | Passthrough | (icXformLutType)nType |
+| 7-9 | Passthrough | (icXformLutType)nType |
 
 **Examples:**
 
@@ -180,12 +204,12 @@ iccApplyNamedCmm data.txt 0 0 profile.icc 1001
 iccApplyNamedCmm data.txt 0 0 profile.icc 10001
 ```
 
-> **Source**: `IccCmmConfig.cpp:780-808` — `CIccCfgProfile::fromLegacy()` decoder.
+> **Source**: `CIccCfgProfileSequence::fromArgs()` in `IccCmmConfig.cpp`.
 
 ### Chained profile transforms
 
 ```bash
-# sRGB → sRGB (identity check with chained transforms)
+# sRGB -> sRGB (identity check with chained transforms)
 iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0 0 \
   test-profiles/sRGB_D65_MAT.icc 1 \
   test-profiles/sRGB_D65_MAT.icc 1
@@ -198,8 +222,8 @@ iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-cmyk-percent.txt 0 0 \
   test-profiles/CMYK-3DLUTs2.icc 1
 ```
 
-> **Note**: CMYK→Lab transforms output Lab values. Use encoding 0 (icEncodeValue) or
-> 3 (icEncodeFloat) — encoding 1 (icEncodePercent) returns exit 255 for this combination.
+> **Note**: CMYK->Lab transforms output Lab values. Use encoding 0 (icEncodeValue) or
+> 3 (icEncodeFloat); encoding 1 (icEncodePercent) exits 1 for this combination.
 
 ### Float and 16-bit data formats
 
@@ -227,10 +251,10 @@ Provided in `docs/iccDEV/Tools/test-data/`:
 
 | File | Color Space | Encoding | Samples |
 |------|-------------|----------|---------|
-| `test-data-rgb-8bit.txt` | RGB | 8-bit (0–255) | 11 (white, black, grays, primaries, secondaries) |
-| `test-data-rgb-16bit.txt` | RGB | 16-bit (0–65535) | 6 |
-| `test-data-rgb-float.txt` | RGB | Float (0.0–1.0) | 8 |
-| `test-data-cmyk-percent.txt` | CMYK | Percent (0–100) | 10 |
+| `test-data-rgb-8bit.txt` | RGB | 8-bit (0-255) | 11 (white, black, grays, primaries, secondaries) |
+| `test-data-rgb-16bit.txt` | RGB | 16-bit (0-65535) | 6 |
+| `test-data-rgb-float.txt` | RGB | Float (0.0-1.0) | 8 |
+| `test-data-cmyk-percent.txt` | CMYK | Percent (0-100) | 10 |
 | `test-data-lab-float.txt` | Lab | Float | 9 |
 
 ## JSON Configuration (`-cfg`)
@@ -290,12 +314,12 @@ Numeric values (0, 1, 2...) are silently rejected as `icEncodeUnknown`.
 | String | Enum | Range |
 |--------|------|-------|
 | `"value"` | icEncodeValue | Normalized (Lab conversion for 3-ch) |
-| `"percent"` | icEncodePercent | 0–100 |
-| `"unitFloat"` | icEncodeUnitFloat | 0.0–1.0 (clips) |
+| `"percent"` | icEncodePercent | 0-100 |
+| `"unitFloat"` | icEncodeUnitFloat | 0.0-1.0 (clips) |
 | `"float"` | icEncodeFloat | Unbounded |
-| `"8Bit"` | icEncode8Bit | 0–255 |
-| `"16Bit"` | icEncode16Bit | 0–65535 |
-| `"16BitV2"` | icEncode16BitV2 | 0–65535 |
+| `"8Bit"` | icEncode8Bit | 0-255 |
+| `"16Bit"` | icEncode16Bit | 0-65535 |
+| `"16BitV2"` | icEncode16BitV2 | 0-65535 |
 
 **Data type** (`dataFiles.srcType`, `dataFiles.dstType`):
 
@@ -305,7 +329,7 @@ Numeric values (0, 1, 2...) are silently rejected as `icEncodeUnknown`.
 | `"legacy"` | icCfgLegacy (external file) |
 | `"it8"` | icCfgIt8 (IT8 file) |
 
-### CLI Arguments ↔ JSON Field Mapping
+### CLI Arguments to JSON Field Mapping
 
 | CLI Argument | JSON Path |
 |-------------|-----------|
@@ -314,9 +338,9 @@ Numeric values (0, 1, 2...) are silently rejected as `icEncodeUnknown`.
 | `interpolation` | `profileSequence[].interpolation` |
 | `profile_file_path` | `profileSequence[].iccFile` |
 | `Rendering_intent` | `profileSequence[].intent` |
-| `-debugcalc` | `profileSequence[].debugCalc` (bool) |
+| `-debugcalc` | `dataFiles.debugCalc` (bool) |
 | `-PCC path` | `profileSequence[].pccFile` |
-| `-ENV:Name value` | `profileSequence[].iccEnvVars` |
+| `-ENV:SIG value` | `profileSequence[].iccEnvVars` |
 | `FmtPrecision` | `dataFiles.dstPrecision` |
 | `FmtDigits` | `dataFiles.dstDigits` |
 
@@ -352,25 +376,26 @@ When the tool writes results, the output JSON uses `colorData` structure:
 
 ### JSON Test Suite
 
-90 automated tests covering valid configs, malformed JSON, edge cases, all intents,
-all encodings, profile variants, and crash profiles — 0 ASAN/UBSAN findings.
+The automated suite covers valid configs, malformed JSON, edge cases, intents,
+encodings, profile variants, and crash profiles.
 See `docs/Testing/README.md` and `docs/Testing/test-json-tools.sh`.
 
 ## Known Limitations
 
-- Encoding 4 (icEncode8Bit) returns exit 255 with some profiles
+- Encoding validity depends on the destination color space; unsupported choices exit 1
 - Chained transforms with 2+ profiles may trigger upstream memory leak
-  (`CIccPcsStepScale::Mult` at IccCmm.cpp:4325 — 24-byte leak, upstream)
+  (`CIccPcsStepScale::Mult` at IccCmm.cpp:4325 - 24-byte leak, upstream)
 - JSON `toJson()` serialization bugs (dstDigits typo, iccFile/iccProfile mismatch,
   icInterpNames array) were fixed upstream in PRs #692, #739 (v2.3.1.5)
 
 ## Related Tools
 
-- [iccApplyProfiles](../iccApplyProfiles/) — Apply transforms to TIFF images
-- [iccApplySearch](../iccApplySearch/) — Search optimal transforms between profiles
-- [iccApplyToLink](../iccApplyToLink/) — Create DeviceLink from profile chain
-- CFL fuzzer: `icc_applynamedcmm_fuzzer` — Fuzz the Named CMM
+- [iccApplyProfiles](../iccApplyProfiles/) - Apply transforms to TIFF images
+- [iccApplySearch](../iccApplySearch/) - Search optimal transforms between profiles
+- [iccApplyToLink](../iccApplyToLink/) - Create DeviceLink from profile chain
+- CFL fuzzer: `icc_applynamedcmm_fuzzer` - Fuzz the Named CMM
 
 ## Version
 
-Built with IccProfLib version 2.3.1.5
+Run `iccApplyNamedCmm` without arguments to print the linked IccProfLib and
+IccLibConnect versions for the active build.
