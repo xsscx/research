@@ -79,8 +79,14 @@ reinitialize the map before fuzzing.
 ```bash
 ./afl/start.sh applynamedcmm-hybrid-chain --run-time 300
 ./afl/start.sh applynamedcmm-cfg --mode rare --run-time 300
+.github/scripts/validate-afl-applynamedcmm-targets.sh
 bash .github/scripts/test-iccApplyNamedCmm.sh --quick --asan
 ```
+
+The target-contract validator is binary-independent. It checks the four target
+registrations, exact argument order, process-specific export paths, JSON input
+mode, hybrid seed ceiling, and exit-zero dry-run requirement without launching
+a fuzzer.
 
 ## Campaign Modes
 

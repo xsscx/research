@@ -25,6 +25,7 @@ ERRORS=0
 WARNINGS=0
 SKIPPED=0
 AFL_JPEG_SEED_PATTERN='afl/targets.sh\|afl/start.sh\|afl/README.md\|\.github/scripts/validate-afl-jpeg-seeds.sh\|\.github/instructions/afl.instructions.md\|\.github/instructions/fuzz.instructions.md\|\.github/prompts/.*fuzzer.*\.prompt.md\|\.github/skills/corpus-management/SKILL.md\|AGENTS.md\|\.github/copilot-instructions.md'
+AFL_NAMEDCMM_PATTERN='afl/targets.sh\|afl/start.sh\|afl/README.md\|docs/afl/index.md\|\.github/scripts/validate-afl-applynamedcmm-targets.sh\|\.github/instructions/afl.instructions.md'
 
 echo -e "${BOLD}+--------------------------------------------------+${NC}"
 echo -e "${BOLD}|         PRE-PUSH VALIDATION GATE                |${NC}"
@@ -60,9 +61,28 @@ fi
 echo ""
 
 # ---------------------------------------------------
-# GATE 1: AFL JPEG seed policy
+# GATE 1: AFL ApplyNamedCmm target contracts
 # ---------------------------------------------------
-echo -e "${BOLD}[GATE 1] AFL JPEG seed policy${NC}"
+echo -e "${BOLD}[GATE 1] AFL ApplyNamedCmm target contracts${NC}"
+
+if has_changes "$AFL_NAMEDCMM_PATTERN"; then
+  if .github/scripts/validate-afl-applynamedcmm-targets.sh; then
+    echo -e "  ${GREEN}AFL ApplyNamedCmm target contracts OK${NC}"
+  else
+    echo -e "  ${RED}AFL ApplyNamedCmm target contracts FAILED${NC}"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  echo -e "  ${YELLOW}(no AFL ApplyNamedCmm target contract changes - skipped)${NC}"
+  SKIPPED=$((SKIPPED + 1))
+fi
+
+echo ""
+
+# ---------------------------------------------------
+# GATE 2: AFL JPEG seed policy
+# ---------------------------------------------------
+echo -e "${BOLD}[GATE 2] AFL JPEG seed policy${NC}"
 
 if has_changes "$AFL_JPEG_SEED_PATTERN"; then
   if .github/scripts/validate-afl-jpeg-seeds.sh; then
@@ -79,11 +99,11 @@ fi
 echo ""
 
 # ---------------------------------------------------
-# GATE 2: Documentation and repository state
+# GATE 3: Documentation and repository state
 # ---------------------------------------------------
-echo -e "${BOLD}[GATE 2] Consistency checks${NC}"
+echo -e "${BOLD}[GATE 3] Consistency checks${NC}"
 
-# 2a. Git status clean
+# 3a. Git status clean
 echo -n "  Working tree: "
 if [ -z "$(git status --porcelain 2>/dev/null)" ]; then
   echo -e "${GREEN}clean${NC}"

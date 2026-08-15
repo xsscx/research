@@ -6,6 +6,16 @@ which fuzzes library-level harnesses with LibFuzzer.
 Use `afl/targets.sh` as the source of truth for available targets and target
 argv shapes. Do not hand-maintain target counts in this README.
 
+After changing an `iccApplyNamedCmm` target shape or seed policy, run the
+binary-independent contract check:
+
+```bash
+.github/scripts/validate-afl-applynamedcmm-targets.sh
+```
+
+The four NamedCmm lanes and their intended CLI coverage are documented in
+`docs/afl/index.md`.
+
 ## Quick Start
 
 ```bash

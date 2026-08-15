@@ -37,6 +37,7 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 ./afl/stop.sh dump
 ./afl/triage.sh dump
 .github/scripts/check-afl-cfl-patches.sh
+.github/scripts/validate-afl-applynamedcmm-targets.sh
 .github/scripts/validate-afl-jpeg-seeds.sh
 ```
 
@@ -58,6 +59,9 @@ JSON; never make parallel workers overwrite one fixed config path.
 Do not hardcode `AFL_MAP_SIZE=131072` for NamedCMM lanes. Use `afl/start.sh`'s
 default unless the current instrumented binary has been measured explicitly;
 the target map can exceed 131072 bytes.
+
+Run `.github/scripts/validate-afl-applynamedcmm-targets.sh` after changing any
+NamedCMM target arguments, seed limits, dry-run policy, or export path handling.
 
 ## Tracking Policy
 
