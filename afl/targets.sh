@@ -1086,10 +1086,43 @@ afl_prepare_hybrid_support_files() {
     fi
 }
 
+afl_fromxml_live_references() {
+    local xml_file="$1"
+
+    awk '
+        BEGIN { in_comment = 0 }
+        {
+            line = $0
+            output = ""
+            while (length(line)) {
+                if (in_comment) {
+                    end = index(line, "-->")
+                    if (!end) {
+                        line = ""
+                        break
+                    }
+                    line = substr(line, end + 3)
+                    in_comment = 0
+                    continue
+                }
+                start = index(line, "<!--")
+                if (!start) {
+                    output = output line
+                    line = ""
+                    break
+                }
+                output = output substr(line, 1, start - 1)
+                line = substr(line, start + 4)
+                in_comment = 1
+            }
+            print output
+        }
+    ' "$xml_file" | LC_ALL=C grep -o 'Filename="[^"]*"' | sed 's/^Filename="//; s/"$//' || true
+}
+
 afl_stage_fromxml_include() {
     local source_dir="$1"
     local relative_path="$2"
-    local optional_missing="$3"
     local source_file="$source_dir/$relative_path"
     local destination="$FROMXML_INCLUDES_SUPPORT_DIR/$relative_path"
     local support_real
@@ -1107,13 +1140,6 @@ afl_stage_fromxml_include() {
         return 1
     fi
     if [[ ! -f "$source_file" ]]; then
-        if [[ -n "$optional_missing" && "$relative_path" == "$optional_missing" ]]; then
-            if [[ -e "$destination" || -L "$destination" ]]; then
-                echo "ERROR: Optional-missing FromXml include has stale staged data: $destination" >&2
-                return 1
-            fi
-            return 0
-        fi
         echo "ERROR: Required FromXml include not found: $source_file" >&2
         return 1
     fi
@@ -1136,8 +1162,8 @@ afl_stage_fromxml_include() {
         FROMXML_STAGED_SOURCES[$relative_path]="$source_file"
         if [[ "$relative_path" == *.xml ]]; then
             while IFS= read -r reference; do
-                afl_stage_fromxml_include "$source_dir" "$reference" "$optional_missing"
-            done < <(LC_ALL=C grep -o 'Filename="[^"]*"' "$source_file" | sed 's/^Filename="//; s/"$//' || true)
+                afl_stage_fromxml_include "$source_dir" "$reference"
+            done < <(afl_fromxml_live_references "$source_file")
         fi
         return 0
     fi
@@ -1152,8 +1178,8 @@ afl_stage_fromxml_include() {
 
     if [[ "$relative_path" == *.xml ]]; then
         while IFS= read -r reference; do
-            afl_stage_fromxml_include "$source_dir" "$reference" "$optional_missing"
-        done < <(LC_ALL=C grep -o 'Filename="[^"]*"' "$source_file" | sed 's/^Filename="//; s/"$//' || true)
+            afl_stage_fromxml_include "$source_dir" "$reference"
+        done < <(afl_fromxml_live_references "$source_file")
     fi
 }
 
@@ -1181,7 +1207,7 @@ afl_prepare_fromxml_include_support_files() {
     while IFS='|' read -r kind fixture detail; do
         [[ -z "$kind" || "$kind" == \#* ]] && continue
         case "$kind" in
-            profile|profile-oversize|profile-oversize-optional-missing|support-fragment) ;;
+            profile|profile-oversize|support-fragment) ;;
             *) echo "ERROR: Unknown FromXml manifest kind: $kind" >&2; return 1 ;;
         esac
         if [[ ! -f "$FROMXML_INCLUDES_SOURCE_DIR/$fixture" ]]; then
@@ -1190,8 +1216,8 @@ afl_prepare_fromxml_include_support_files() {
         fi
         source_dir="$(dirname "$FROMXML_INCLUDES_SOURCE_DIR/$fixture")"
         while IFS= read -r reference; do
-            afl_stage_fromxml_include "$source_dir" "$reference" "$detail"
-        done < <(LC_ALL=C grep -o 'Filename="[^"]*"' "$FROMXML_INCLUDES_SOURCE_DIR/$fixture" | sed 's/^Filename="//; s/"$//' || true)
+            afl_stage_fromxml_include "$source_dir" "$reference"
+        done < <(afl_fromxml_live_references "$FROMXML_INCLUDES_SOURCE_DIR/$fixture")
     done < "$FROMXML_INCLUDES_MANIFEST"
 }
 

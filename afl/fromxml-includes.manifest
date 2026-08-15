@@ -1,5 +1,5 @@
 # kind|fixture path relative to iccDEV/Testing|classification detail
-profile-oversize-optional-missing|CMYK-3DLUTs/CMYK-3DLUTs.xml|BingPhongCMYK2MonoParams.txt
+profile-oversize|CMYK-3DLUTs/CMYK-3DLUTs.xml|
 profile-oversize|CMYK-3DLUTs/CMYK-3DLUTs2.xml|
 support-fragment|Calc/calcImport.xml|
 profile|Calc/srgbCalc++Test.xml|

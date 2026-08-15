@@ -112,8 +112,9 @@ lanes. It stages the external TXT/XML dependencies from the checked
 the 10 standalone primary XML profiles below AFL++'s 1 MiB testcase ceiling
 from the staged working directory. The validator also directly replays the five
 oversized standalone profiles without truncation. The manifest records
-`Calc/calcImport.xml` as a transitive support fragment and the optional missing
-`BingPhongCMYK2MonoParams.txt` reference.
+`Calc/calcImport.xml` as a transitive support fragment. XML comments are removed
+before dependency attributes are collected, so commented examples are not
+staged as live includes.
 
 Validate and stage the lane before a campaign:
 

@@ -28,9 +28,11 @@ output_dir="$(mktemp -d)"
 trap 'rm -f "$manifest_list" "$discovered_list"' EXIT
 
 awk -F'|' '$1 !~ /^#/ && NF >= 2 { print $2 }' "$FROMXML_INCLUDES_MANIFEST" | sort > "$manifest_list"
-find "$FROMXML_INCLUDES_SOURCE_DIR" -type f -name '*.xml' -print0 \
-    | xargs -0 grep -l 'Filename="[^"]*"' \
-    | sed "s#^$FROMXML_INCLUDES_SOURCE_DIR/##" \
+while IFS= read -r -d '' xml_file; do
+    if afl_fromxml_live_references "$xml_file" | grep -q .; then
+        printf '%s\n' "${xml_file#"$FROMXML_INCLUDES_SOURCE_DIR/"}"
+    fi
+done < <(find "$FROMXML_INCLUDES_SOURCE_DIR" -type f -name '*.xml' -print0) \
     | sort > "$discovered_list"
 
 if ! cmp -s "$manifest_list" "$discovered_list"; then
@@ -45,7 +47,7 @@ support_count=0
 while IFS='|' read -r kind fixture detail; do
     [[ -z "$kind" || "$kind" == \#* ]] && continue
     case "$kind" in
-        profile|profile-oversize|profile-oversize-optional-missing)
+        profile|profile-oversize)
             profile_count=$((profile_count + 1))
             if [[ "$kind" == profile-oversize* ]]; then
                 oversize_count=$((oversize_count + 1))
@@ -90,12 +92,9 @@ if [[ "$profile_count" -ne 15 || "$oversize_count" -ne 5 || "$support_count" -ne
     echo "       Got $profile_count profiles, $oversize_count oversized, and $support_count support" >&2
     exit 1
 fi
-if [[ -e "$FROMXML_INCLUDES_SOURCE_DIR/CMYK-3DLUTs/BingPhongCMYK2MonoParams.txt" ]]; then
-    echo "[FAIL] Optional-missing classification is stale: BingPhongCMYK2MonoParams.txt now exists" >&2
-    exit 1
-fi
-if [[ -e "$FROMXML_INCLUDES_SUPPORT_DIR/BingPhongCMYK2MonoParams.txt" ]]; then
-    echo "[FAIL] Optional-missing dependency has stale staged data" >&2
+if afl_fromxml_live_references "$FROMXML_INCLUDES_SOURCE_DIR/CMYK-3DLUTs/CMYK-3DLUTs.xml" \
+    | grep -q 'BingPhongCMYK2MonoParams.txt'; then
+    echo "[FAIL] Commented BingPhong reference was treated as a live dependency" >&2
     exit 1
 fi
 if [[ ! -r "$FROMXML_INCLUDES_SUPPORT_DIR/calcImport.xml" || ! -r "$FROMXML_INCLUDES_SUPPORT_DIR/calcVars.xml" ]]; then
@@ -111,4 +110,4 @@ echo "[OK] Manifest matches 16 dependency-bearing XML fixtures"
 echo "[OK] Staged read-only support tree includes transitive calculator imports"
 echo "[OK] Replayed 15 standalone profiles successfully from the staged working directory"
 echo "[OK] Classified five profiles above AFL++'s 1 MiB testcase ceiling as replay-only"
-echo "[OK] Classified calcImport.xml as support-only and BingPhongCMYK2MonoParams.txt as optional-missing"
+echo "[OK] Classified calcImport.xml as support-only and ignored the commented BingPhong reference"

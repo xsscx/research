@@ -101,7 +101,8 @@ files relative to the process working directory. The target stages a checked,
 read-only support tree from `iccDEV/Testing`, including transitive calculator
 imports, and mutates only the 10 standalone primary profiles below AFL++'s
 1 MiB testcase ceiling. Five larger standalone fixtures remain in the manifest
-for exact direct replay; they are never truncated into AFL inputs.
+for exact direct replay; they are never truncated into AFL inputs. Dependency
+staging ignores `Filename` attributes inside XML comments.
 
 ```bash
 .github/scripts/validate-afl-fromxml-includes.sh
