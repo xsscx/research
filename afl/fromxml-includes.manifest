@@ -1,0 +1,17 @@
+# kind|fixture path relative to iccDEV/Testing|classification detail
+profile-oversize-optional-missing|CMYK-3DLUTs/CMYK-3DLUTs.xml|BingPhongCMYK2MonoParams.txt
+profile-oversize|CMYK-3DLUTs/CMYK-3DLUTs2.xml|
+support-fragment|Calc/calcImport.xml|
+profile|Calc/srgbCalc++Test.xml|
+profile|ICS/Rec2100HlgFull-Part1.xml|
+profile|ICS/Rec2100HlgFull-Part2.xml|
+profile|Overprint/17ChanPart1.xml|
+profile|SpecRef/RefDecC.xml|
+profile|SpecRef/RefDecH.xml|
+profile|SpecRef/RefIncW.xml|
+profile-oversize|hybrid/CMYK-STop_Overprint_Profile.xml|
+profile-oversize|hybrid/CMYK-S_Overprint_Profile.xml|
+profile-oversize|hybrid/CMYK-W_Overprint_Profile.xml|
+profile|mcs/17ChanWithSpots-MVIS.xml|
+profile|mcs/18ChanWithSpots-MVIS.xml|
+profile|mcs/Flexo-CMYKOGP/CMYKOGP-MVIS-Smooth.xml|

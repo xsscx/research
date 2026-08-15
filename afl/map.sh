@@ -169,7 +169,7 @@ fi
 afl_export_fuzz_sanitizer_env
 
 env -u AFL_BASE -u AFL_BIN_DIR \
-    bash -c 'cd "$1" && shift && exec "$@"' bash "$REPO_ROOT" \
+    bash -c 'cd "$1" && shift && exec "$@"' bash "$AFL_WORK_DIR" \
     afl-showmap -q -C -e -I "$FILE_LIST" -o "$OUT_FILE" -m none -t "${AFL_TIMEOUT:-${TIMEOUT:-5000}}" -- "$BINARY" "${AFL_ARGS[@]}"
 
 EDGE_COUNT=$(wc -l < "$OUT_FILE" | tr -d ' ')

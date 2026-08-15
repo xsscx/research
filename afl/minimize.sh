@@ -263,7 +263,7 @@ if [[ -n "$AFL_CMIN_EXTRA_ARGS" ]]; then
 fi
 
 env -u AFL_BASE -u AFL_BIN_DIR -u AFL_CMIN_BIN -u AFL_CMIN_EXTRA_ARGS \
-    bash -c 'cd "$1" && shift && exec "$@"' bash "$REPO_ROOT" \
+    bash -c 'cd "$1" && shift && exec "$@"' bash "$AFL_WORK_DIR" \
     "$AFL_CMIN_BIN" "${AFL_CMIN_ARGS[@]}" -i "$INPUT_DIR" -o "$OUT_DIR" -m none -t "${AFL_TIMEOUT:-${TIMEOUT:-5000}}" -- "$BINARY" "${AFL_ARGS[@]}"
 
 CMIN_COUNT=$(input_file_count "$OUT_DIR")
@@ -285,7 +285,7 @@ TMIN_DONE=0
 while IFS= read -r -d '' f; do
     base="$(basename "$f")"
     env -u AFL_BASE -u AFL_BIN_DIR -u AFL_CMIN_BIN -u AFL_CMIN_EXTRA_ARGS \
-        bash -c 'cd "$1" && shift && exec "$@"' bash "$REPO_ROOT" \
+        bash -c 'cd "$1" && shift && exec "$@"' bash "$AFL_WORK_DIR" \
         afl-tmin -i "$f" -o "$TMIN_DIR/$base" -m none -t "${AFL_TIMEOUT:-${TIMEOUT:-5000}}" -- "$BINARY" "${AFL_ARGS[@]}"
     TMIN_DONE=$((TMIN_DONE + 1))
     if [[ "$TMIN_LIMIT" -gt 0 && "$TMIN_DONE" -ge "$TMIN_LIMIT" ]]; then

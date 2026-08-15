@@ -94,6 +94,26 @@ registrations, exact argument order, process-specific export paths, JSON input
 mode, hybrid seed ceiling, and exit-zero dry-run requirement without launching
 a fuzzer.
 
+### iccFromXml external-include lane
+
+Use `fromxml-includes` for primary XML profiles that consume external TXT or XML
+files relative to the process working directory. The target stages a checked,
+read-only support tree from `iccDEV/Testing`, including transitive calculator
+imports, and mutates only the 10 standalone primary profiles below AFL++'s
+1 MiB testcase ceiling. Five larger standalone fixtures remain in the manifest
+for exact direct replay; they are never truncated into AFL inputs.
+
+```bash
+.github/scripts/validate-afl-fromxml-includes.sh
+./afl/start.sh fromxml-includes --seed-only --fresh
+./afl/start.sh fromxml-includes --fresh
+./afl/map.sh fromxml-includes --input
+```
+
+Keep `fromxml` and `fromxml-noid` for standalone XML mutation. The include lane
+does not mutate dependency contents; that requires a future dedicated AFL custom
+mutator rather than a shell wrapper around `iccFromXml`.
+
 ## Campaign Modes
 
 `afl/start.sh` provides named AFL++ 5.x campaign modes so mutation strategy and

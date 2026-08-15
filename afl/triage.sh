@@ -364,7 +364,7 @@ triage_dir() {
         while [[ "$run" -le "$run_count" ]]; do
             local run_output=""
             local run_exit=0
-            run_output=$(cd "$REPO_ROOT" && timeout "$timeout_sec" "$UPSTREAM_BIN" "${triage_args[@]}" 2>&1) || run_exit=$?
+            run_output=$(cd "$AFL_WORK_DIR" && timeout "$timeout_sec" "$UPSTREAM_BIN" "${triage_args[@]}" 2>&1) || run_exit=$?
             output="${output}${output:+
 }=== replay ${run}/${run_count} exit=${run_exit} ===
 ${run_output}"

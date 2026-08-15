@@ -184,7 +184,7 @@ replay_seed() {
 
     start_ns="$(date +%s%N)"
     output=$(
-        cd "$REPO_ROOT" && \
+        cd "$AFL_WORK_DIR" && \
         LD_LIBRARY_PATH="$ICC_RUNTIME_LIB_PATH" \
         ASAN_OPTIONS="$AFL_ASAN_OPTIONS_TRIAGE" \
         UBSAN_OPTIONS="$AFL_UBSAN_OPTIONS_TRIAGE" \

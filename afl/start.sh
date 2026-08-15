@@ -620,7 +620,7 @@ seed_file_dry_run_ok() {
     done
 
     output=$(
-        cd "$REPO_ROOT" && \
+        cd "$AFL_WORK_DIR" && \
         LD_LIBRARY_PATH="$ICC_RUNTIME_LIB_PATH" \
         ASAN_OPTIONS="$AFL_ASAN_OPTIONS_TRIAGE" \
         UBSAN_OPTIONS="$AFL_UBSAN_OPTIONS_TRIAGE" \
@@ -1029,7 +1029,7 @@ if [[ "$PARALLEL" -eq 1 ]]; then
     echo "[*] Starting AFL (single instance)..."
     echo "    Press Ctrl+C to stop"
     echo ""
-    cd "$REPO_ROOT"
+    cd "$AFL_WORK_DIR"
     instance_campaign_args 1
     exec afl-fuzz \
         "${INPUT_ARGS[@]}" \
@@ -1040,7 +1040,7 @@ if [[ "$PARALLEL" -eq 1 ]]; then
         -- "$BINARY" "${AFL_ARGS[@]}"
 else
     echo "[*] Starting $PARALLEL AFL instances (1 main + $((PARALLEL-1)) secondary)..."
-    cd "$REPO_ROOT"
+    cd "$AFL_WORK_DIR"
 
     instance_afl_args "main"
     instance_campaign_args 1

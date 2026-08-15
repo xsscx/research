@@ -104,6 +104,25 @@ Persistent mode and custom ICC mutators remain future work. They require either
 tool changes or a dedicated AFL custom mutator shared object; do not emulate them
 with shell wrappers around the existing CLI tools.
 
+## FromXml Include Lane
+
+`fromxml-includes` complements the standalone `fromxml` and `fromxml-noid`
+lanes. It stages the external TXT/XML dependencies from the checked
+`afl/fromxml-includes.manifest`, keeps those support files read-only, and fuzzes
+the 10 standalone primary XML profiles below AFL++'s 1 MiB testcase ceiling
+from the staged working directory. The validator also directly replays the five
+oversized standalone profiles without truncation. The manifest records
+`Calc/calcImport.xml` as a transitive support fragment and the optional missing
+`BingPhongCMYK2MonoParams.txt` reference.
+
+Validate and stage the lane before a campaign:
+
+```bash
+.github/scripts/validate-afl-fromxml-includes.sh
+./afl/start.sh fromxml-includes --seed-only --fresh
+./afl/start.sh fromxml-includes --fresh
+```
+
 ## Dashboard and Coverage
 
 AFL++, `cov-analysis`, and `fuzz-reachability` can be installed outside the repo

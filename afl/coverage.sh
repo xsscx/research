@@ -411,7 +411,7 @@ echo "[*] Running cov-analysis..."
 export TMPDIR="$REPORT_ROOT/tmp"
 mkdir -p "$TMPDIR"
 (
-    cd "$REPO_ROOT"
+    cd "$AFL_WORK_DIR"
     CC="$COV_CC" CXX="$COV_CXX" cov-analysis \
         -d "$COV_ANALYSIS_OUTPUT_DIR" \
         -e "$COV_CMD_STRING" \

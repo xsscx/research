@@ -30,6 +30,7 @@ AFL_TARGETS=(
     fromcube
     fromjson
     fromxml
+    fromxml-includes
     fromxml-noid
     jpegdump
     jpegdump-inject
@@ -86,6 +87,7 @@ afl_print_targets() {
     echo "  fromcube         - iccFromCube (.cube LUT text -> ICC)"
     echo "  fromjson         - iccFromJson (ICC JSON -> binary)"
     echo "  fromxml          - iccFromXml (ICC XML -> binary)"
+    echo "  fromxml-includes - iccFromXml (fixed external TXT/XML include tree)"
     echo "  fromxml-noid     - iccFromXml (-noid save policy)"
     echo "  jpegdump         - iccJpegDump (JPEG -> ICC extraction)"
     echo "  jpegdump-inject  - iccJpegDump (--write-icc injection lane)"
@@ -141,6 +143,9 @@ afl_configure_target() {
     local fixed_jpeg
     local hybrid_source_dir
     local hybrid_support_dir
+    local fromxml_kind
+    local fromxml_fixture
+    local fromxml_detail
 
     mkdir -p "$tmp_root"
 
@@ -166,6 +171,7 @@ afl_configure_target() {
     hybrid_support_dir="$AFL_BASE/support/hybrid"
 
     BINARY=""
+    AFL_WORK_DIR="$REPO_ROOT"
     AFL_DIR="$AFL_BASE/afl-$target"
     AFL_COVERAGE_CACHE_KEY=""
     DICT=""
@@ -189,6 +195,12 @@ afl_configure_target() {
     SEED_FILE_TYPE_REGEX=""
     AFL_ARGS=()
     HYBRID_NEEDS_SUPPORT=0
+    FROMXML_INCLUDES_NEEDS_SUPPORT=0
+    FROMXML_INCLUDES_MANIFEST="$REPO_ROOT/afl/fromxml-includes.manifest"
+    FROMXML_INCLUDES_SOURCE_DIR="$(afl_first_existing \
+        "$REPO_ROOT/iccDEV/Testing" \
+        "$REPO_ROOT/afl/iccDEV/Testing")"
+    FROMXML_INCLUDES_SUPPORT_DIR="$AFL_BASE/support/fromxml-includes"
     HYBRID_SOURCE_DIR="$hybrid_source_dir"
     HYBRID_SUPPORT_DIR="$hybrid_support_dir"
     HYBRID_CONFIG_DIR="$hybrid_support_dir/config"
@@ -650,7 +662,7 @@ afl_configure_target() {
             )
             AFL_ARGS=("@@" "${tmp_prefix}.icc")
             ;;
-        fromxml|fromxml-noid)
+        fromxml|fromxml-noid|fromxml-includes)
             BINARY="$BIN_DIR/iccFromXml"
             [[ "$target" == "fromxml-noid" ]] && AFL_DIR="$AFL_BASE/afl-fromxml-noid"
             DICT="$REPO_ROOT/cfl/icc_fromxml_fuzzer.dict"
@@ -663,7 +675,25 @@ afl_configure_target() {
             SEED_DRY_RUN_TARGET=1
             AFL_INPUT_FORMAT="text"
             AFL_MAX_LENGTH=262144
-            if [[ "$target" == "fromxml-noid" ]]; then
+            if [[ "$target" == "fromxml-includes" ]]; then
+                AFL_DIR="$AFL_BASE/afl-fromxml-includes"
+                FROMXML_INCLUDES_NEEDS_SUPPORT=1
+                AFL_WORK_DIR="$FROMXML_INCLUDES_SUPPORT_DIR"
+                SEED_FILES=()
+                SEED_DIRS=()
+                while IFS='|' read -r fromxml_kind fromxml_fixture fromxml_detail; do
+                    [[ -z "$fromxml_kind" || "$fromxml_kind" == \#* ]] && continue
+                    if [[ "$fromxml_kind" == "profile" ]]; then
+                        SEED_FILES+=("$FROMXML_INCLUDES_SOURCE_DIR/$fromxml_fixture")
+                    fi
+                done < "$FROMXML_INCLUDES_MANIFEST"
+                SEED_MAX_BYTES=1048577
+                SEED_LIMIT=0
+                SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                AFL_MAX_LENGTH=1048576
+                TARGET_NOTE="FromXml include lane: 10 checked sub-1-MiB primary XML seeds run from a read-only staged TXT/XML support tree; five oversized profiles remain direct-replay fixtures and calcImport.xml is support-only."
+                AFL_ARGS=("@@" "${tmp_prefix}.icc")
+            elif [[ "$target" == "fromxml-noid" ]]; then
                 TARGET_NOTE="FromXml no-id lane: exercises SaveIccProfile with icNeverWriteID."
                 AFL_ARGS=("@@" "${tmp_prefix}.icc" "-noid")
             else
@@ -1056,10 +1086,120 @@ afl_prepare_hybrid_support_files() {
     fi
 }
 
+afl_stage_fromxml_include() {
+    local source_dir="$1"
+    local relative_path="$2"
+    local optional_missing="$3"
+    local source_file="$source_dir/$relative_path"
+    local destination="$FROMXML_INCLUDES_SUPPORT_DIR/$relative_path"
+    local support_real
+    local destination_real
+    local reference
+
+    if [[ "$relative_path" == /* || "$relative_path" == ".." || "$relative_path" == ../* || "$relative_path" == */../* || "$relative_path" == */.. ]]; then
+        echo "ERROR: Unsafe FromXml include path in manifest or fixture: $relative_path" >&2
+        return 1
+    fi
+    support_real="$(realpath -m "$FROMXML_INCLUDES_SUPPORT_DIR")"
+    destination_real="$(realpath -m "$destination")"
+    if [[ "$destination_real" != "$support_real"/* ]]; then
+        echo "ERROR: FromXml include escapes the support tree: $relative_path" >&2
+        return 1
+    fi
+    if [[ ! -f "$source_file" ]]; then
+        if [[ -n "$optional_missing" && "$relative_path" == "$optional_missing" ]]; then
+            if [[ -e "$destination" || -L "$destination" ]]; then
+                echo "ERROR: Optional-missing FromXml include has stale staged data: $destination" >&2
+                return 1
+            fi
+            return 0
+        fi
+        echo "ERROR: Required FromXml include not found: $source_file" >&2
+        return 1
+    fi
+    if [[ -L "$destination" ]]; then
+        echo "ERROR: Refusing symlinked FromXml support destination: $destination" >&2
+        return 1
+    fi
+
+    if [[ -n "${FROMXML_STAGED_SOURCES[$relative_path]:-}" ]]; then
+        if ! cmp -s "$source_file" "$destination"; then
+            echo "ERROR: Conflicting FromXml include path: $relative_path" >&2
+            echo "       ${FROMXML_STAGED_SOURCES[$relative_path]}" >&2
+            echo "       $source_file" >&2
+            return 1
+        fi
+        return 0
+    fi
+
+    if [[ -f "$destination" ]] && cmp -s "$source_file" "$destination"; then
+        FROMXML_STAGED_SOURCES[$relative_path]="$source_file"
+        if [[ "$relative_path" == *.xml ]]; then
+            while IFS= read -r reference; do
+                afl_stage_fromxml_include "$source_dir" "$reference" "$optional_missing"
+            done < <(LC_ALL=C grep -o 'Filename="[^"]*"' "$source_file" | sed 's/^Filename="//; s/"$//' || true)
+        fi
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$destination")"
+    if [[ -e "$destination" ]]; then
+        chmod u+w "$destination"
+    fi
+    cp -- "$source_file" "$destination"
+    chmod a-w "$destination"
+    FROMXML_STAGED_SOURCES[$relative_path]="$source_file"
+
+    if [[ "$relative_path" == *.xml ]]; then
+        while IFS= read -r reference; do
+            afl_stage_fromxml_include "$source_dir" "$reference" "$optional_missing"
+        done < <(LC_ALL=C grep -o 'Filename="[^"]*"' "$source_file" | sed 's/^Filename="//; s/"$//' || true)
+    fi
+}
+
+afl_prepare_fromxml_include_support_files() {
+    local kind
+    local fixture
+    local detail
+    local source_dir
+    local reference
+
+    if [[ "${FROMXML_INCLUDES_NEEDS_SUPPORT:-0}" -ne 1 ]]; then
+        return 0
+    fi
+    if [[ ! -f "$FROMXML_INCLUDES_MANIFEST" ]]; then
+        echo "ERROR: FromXml include manifest not found: $FROMXML_INCLUDES_MANIFEST" >&2
+        return 1
+    fi
+    if [[ ! -d "$FROMXML_INCLUDES_SOURCE_DIR" ]]; then
+        echo "ERROR: FromXml include fixture root not found: $FROMXML_INCLUDES_SOURCE_DIR" >&2
+        return 1
+    fi
+
+    mkdir -p "$FROMXML_INCLUDES_SUPPORT_DIR"
+    declare -gA FROMXML_STAGED_SOURCES=()
+    while IFS='|' read -r kind fixture detail; do
+        [[ -z "$kind" || "$kind" == \#* ]] && continue
+        case "$kind" in
+            profile|profile-oversize|profile-oversize-optional-missing|support-fragment) ;;
+            *) echo "ERROR: Unknown FromXml manifest kind: $kind" >&2; return 1 ;;
+        esac
+        if [[ ! -f "$FROMXML_INCLUDES_SOURCE_DIR/$fixture" ]]; then
+            echo "ERROR: FromXml manifest fixture not found: $fixture" >&2
+            return 1
+        fi
+        source_dir="$(dirname "$FROMXML_INCLUDES_SOURCE_DIR/$fixture")"
+        while IFS= read -r reference; do
+            afl_stage_fromxml_include "$source_dir" "$reference" "$detail"
+        done < <(LC_ALL=C grep -o 'Filename="[^"]*"' "$FROMXML_INCLUDES_SOURCE_DIR/$fixture" | sed 's/^Filename="//; s/"$//' || true)
+    done < "$FROMXML_INCLUDES_MANIFEST"
+}
+
 afl_prepare_target_support_files() {
     local target="$1"
 
     afl_prepare_hybrid_support_files
+    afl_prepare_fromxml_include_support_files
 
     case "$target" in
         specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-harvest|specseptotiff-sep|specseptotiff-short)
