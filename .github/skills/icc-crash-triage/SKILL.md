@@ -110,6 +110,15 @@ For ColorBleed converter changes, also run:
 cd colorbleed_tools && make qa
 ```
 
+For TIFF findings, preserve the embedded bytes before deeper parser triage:
+
+```bash
+colorbleed_tools/iccTiffDump_unsafe <finding.tif> /tmp/finding-embedded.icc
+```
+
+Treat exit 6 as an ICC validation finding with a recovered artifact, not a
+crash. Continue crash attribution only for sanitizer output or signal status.
+
 ### 7. Reproduction Discipline
 
 MANDATORY rules for all reproduction steps (derived from 9-turn session failure):

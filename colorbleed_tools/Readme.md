@@ -1,6 +1,6 @@
 # Hoyt's ColorBleed Tooling
 
-Last Updated: 2026-04-01 UTC by David Hoyt
+Last Updated: 2026-08-17 UTC by David Hoyt
 
 ICC Color Profile research tools to load & store unsafe file representations.
 
@@ -12,6 +12,7 @@ ICC Color Profile research tools to load & store unsafe file representations.
 | `iccFromXml_unsafe` | XML -> ICC Profile blob (unsafe store) |
 | `iccToJson_unsafe` | ICC Profile -> JSON (unsafe load; `-sort` is disabled in this wrapper pending sanitizer hardening) |
 | `iccFromJson_unsafe` | JSON -> ICC Profile blob (unsafe store) |
+| `iccTiffDump_unsafe` | Sandboxed TIFF dump and byte-exact embedded ICC extraction |
 | `iccDumpAll` | Enhanced ICC profile dump with full v5/iccMAX MPE element detail |
 | `iccDiagnosticLoad` | Deep diagnostic ICC profile loader with IO tracing (build from source) |
 
@@ -49,6 +50,22 @@ Options:
 
 Note: `iccDiagnosticLoad` is not included in the default `make` targets.
 Build manually: `make iccDiagnosticLoad` or compile directly against iccDEV.
+
+### iccTiffDump_unsafe
+
+Reads TIFF directories with libtiff, logs the TIFF and ICC phases, and exercises
+the vanilla iccDEV profile parser under the ColorBleed resource sandbox. When an
+output path is supplied, the first embedded profile is written before iccDEV
+parsing as the original byte sequence. Validation failures do not suppress the
+forensic artifact. Existing output files are refused.
+
+```
+Usage: iccTiffDump_unsafe input.tif [embedded.icc]
+```
+
+The tool reports multiple ICC-bearing TIFF directories and uses the first for
+diagnostics and extraction. Limits are 4 GiB virtual memory (except under ASan),
+60 CPU seconds, 30 wall seconds, and 512 MiB output.
 
 ## Use Cases
 - Fuzzing
@@ -88,12 +105,13 @@ make test        # build tools and run tests
 ```
 ./iccToJson_unsafe ../test-profiles/sRGB_D65_MAT.icc /tmp/profile.json
 ./iccFromJson_unsafe /tmp/profile.json /tmp/profile-json.icc
+./iccTiffDump_unsafe ../fuzz/graphics/tif/1x1-rgb8--sRGB_v4_ICC_preference.tiff /tmp/embedded.icc
 ```
 
 Do not use `-sort` with `iccToJson_unsafe` during ColorBleed QA. The wrapper
 rejects it with exit code 64 until that path is sanitizer-clean.
 
-### XML/JSON/Blob QA
+### XML/JSON/TIFF/Blob QA
 ```
 ./qa-roundtrip-colorbleed.sh
 COLORBLEED_STRICT_SANITIZERS=1 ./iccFromXml_unsafe input.xml /tmp/out.icc
@@ -101,8 +119,9 @@ COLORBLEED_STRICT_SANITIZERS=1 ./iccFromXml_unsafe input.xml /tmp/out.icc
 
 `qa-roundtrip-colorbleed.sh` runs ICC -> XML -> ICC -> XML, ICC -> JSON -> ICC
 -> XML, then `iccDumpAll` and `iccDiagnosticLoad` on the synthesized blob. It
-fails if any tool emits a sanitizer report, sandbox crash report, abnormal exit,
-or wall-time limit finding.
+also dumps a checked-in TIFF, extracts its ICC profile, and verifies byte
+identity against the source profile fixture. It fails on sanitizer reports,
+sandbox crashes, abnormal exits, wall-time findings, or extraction drift.
 
 ### Sanitizer Signal
 
@@ -126,7 +145,7 @@ UBSAN_OPTIONS=print_stacktrace=1:suppressions=$PWD/silence.txt \
 ### Individual Targets
 ```
 make setup       # clone iccDEV + build libraries (one-time)
-make             # build unsafe XML/JSON tools
+make             # build unsafe ICC representation and TIFF tools
 make test        # build + run basic tests
 make clean       # remove binaries and test files
 make distclean   # remove everything including iccDEV clone

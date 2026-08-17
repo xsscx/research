@@ -1,8 +1,8 @@
 ###############################################################################
 # Copyright (c) 2021-2026 David H Hoyt LLC
-# ColorBleed Tooling: Unsafe Load & Store Makefile
+# ColorBleed Tooling: Unsafe ICC Representation and TIFF Makefile
 #
-# Last Updated: 28-FEB-2026 by David Hoyt | h02332@gmail.com
+# Last Updated: 17-AUG-2026 by David Hoyt | h02332@gmail.com
 # URL https://hoyt.net
 #
 # Thin delegator to build.sh which handles all compilation.
@@ -43,7 +43,7 @@ endif
 # Auto-detect config: sanitizer for clang (needs llvm runtime), release for gcc
 CONFIG ?= $(shell $(CXX) --version 2>&1 | grep -qi clang && echo sanitizer || echo release)
 
-TARGETS = iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccDumpAll iccDiagnosticLoad
+TARGETS = iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccTiffDump_unsafe iccDumpAll iccDiagnosticLoad
 UBSAN_SUPP = $(CURDIR)/silence.txt
 SAN_RUN_ENV = LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1:suppressions=$(UBSAN_SUPP)
 
@@ -57,7 +57,7 @@ setup:
 
 clean:
 	@echo "Cleaning test artifacts..."
-	rm -f test.xml test.json roundtrip.icc roundtrip-json.icc SHA256SUMS *.o *.profraw *.profdata
+	rm -f test.xml test.json roundtrip.icc roundtrip-json.icc test-tiff-profile.icc SHA256SUMS *.o *.profraw *.profdata
 	@echo "  [OK] Clean complete (binaries preserved in bin/)"
 
 distclean: clean
@@ -79,18 +79,30 @@ test: all colorbleed-test
 	@echo "Test 4: iccFromJson_unsafe (no args)"
 	@$(SAN_RUN_ENV) ./iccFromJson_unsafe 2>&1 | head -10 || true
 	@echo ""
+	@echo "Test 5: iccTiffDump_unsafe (help)"
+	@$(SAN_RUN_ENV) ./iccTiffDump_unsafe --help 2>&1 | head -10
+	@echo ""
 	@if [ -f "$(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc" ]; then \
-		echo "Test 5: XML roundtrip conversion"; \
+		echo "Test 6: XML roundtrip conversion"; \
 		$(SAN_RUN_ENV) ./iccToXml_unsafe $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc test.xml; \
 		$(SAN_RUN_ENV) ./iccFromXml_unsafe test.xml roundtrip.icc; \
 		ls -lh test.xml roundtrip.icc; \
 	fi
 	@echo ""
 	@if [ -f "$(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc" ]; then \
-		echo "Test 6: JSON roundtrip conversion"; \
+		echo "Test 7: JSON roundtrip conversion"; \
 		$(SAN_RUN_ENV) ./iccToJson_unsafe $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc test.json; \
 		$(SAN_RUN_ENV) ./iccFromJson_unsafe test.json roundtrip-json.icc; \
 		ls -lh test.json roundtrip-json.icc; \
+	fi
+	@echo ""
+	@if [ -f "../fuzz/graphics/tif/1x1-rgb8--sRGB_v4_ICC_preference.tiff" ] && \
+	    [ -f "$(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc" ]; then \
+		echo "Test 8: TIFF dump and exact ICC extraction"; \
+		rm -f test-tiff-profile.icc; \
+		$(SAN_RUN_ENV) ./iccTiffDump_unsafe ../fuzz/graphics/tif/1x1-rgb8--sRGB_v4_ICC_preference.tiff test-tiff-profile.icc; \
+		test -s test-tiff-profile.icc; \
+		cmp -s test-tiff-profile.icc $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc; \
 	fi
 	@echo ""
 	@sha256sum $(TARGETS) 2>/dev/null || shasum -a 256 $(TARGETS) 2>/dev/null
@@ -101,7 +113,7 @@ qa: all
 	@COLORBLEED_TOOLS_DIR="$(CURDIR)" ./qa-roundtrip-colorbleed.sh
 
 help:
-	@echo "ColorBleed Unsafe ICC XML/JSON Tools Makefile"
+	@echo "ColorBleed Unsafe ICC Representation and TIFF Tools Makefile"
 	@echo ""
 	@echo "Targets:"
 	@echo "  setup     - Build via build.sh (default config: $(CONFIG))"
@@ -109,7 +121,7 @@ help:
 	@echo "  clean     - Remove test artifacts (keeps binaries)"
 	@echo "  distclean - Remove everything including iccDEV clone"
 	@echo "  test      - Build and run basic tests"
-	@echo "  qa        - Build and run XML/JSON/blob converter QA"
+	@echo "  qa        - Build and run XML/JSON/TIFF/blob QA"
 	@echo "  help      - Show this help message"
 	@echo ""
 	@echo "Config override:"

@@ -3,8 +3,17 @@ iccDEV/
 bin/
 iccToXml_unsafe
 iccFromXml_unsafe
+iccToJson_unsafe
+iccFromJson_unsafe
+iccTiffDump_unsafe
 iccDumpAll
 iccDiagnosticLoad
+test.xml
+test.json
+test-tiff-profile.icc
+roundtrip.icc
+roundtrip-json.icc
+SHA256SUMS
 *.o
 *.profraw
 *.profdata

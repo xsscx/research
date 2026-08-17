@@ -27,7 +27,7 @@ Coordination protocol for agents sharing this repo across platforms.
 | Analyze ICC profiles (local) | Yes | Partial (no binary) | Yes |
 | Analyze ICC profiles (remote) | N/A | Use shared reports/artifacts | Use workflow artifacts |
 | Collect LLVM coverage | Yes | Yes (native builds) | Yes |
-| Extract ICC from images | Yes (libtiff) | Yes (libtiff + ImageIO) | Yes |
+| Extract ICC from images | Yes (`iccTiffDump_unsafe`) | Yes (libtiff + ImageIO) | Yes |
 | Create TIFF test images | No | Yes (ImageIO/CoreGraphics) | No |
 
 ## Handoff Protocols
@@ -42,6 +42,12 @@ When macOS agent generates new images or extracts ICC profiles:
    cp fuzz/graphics/icc/ios-gen-*.icc cfl/corpus-icc_profile_fuzzer/
    cp fuzz/graphics/tif/*.tif cfl/corpus-icc_tiffdump_fuzzer/
    ```
+
+Before seeding a TIFF on WSL-2, retain a structure log and byte-exact profile:
+
+```bash
+colorbleed_tools/iccTiffDump_unsafe fuzz/graphics/tif/<seed>.tif /tmp/<seed>.icc
+```
 
 ### WSL-2 -> macOS: Crash Artifacts
 When WSL-2 fuzzer finds a crash:

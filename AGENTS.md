@@ -3,8 +3,8 @@
 ## Project Structure
 Security-research monorepo for ICC color-profile tooling. Main components:
 `iccDEV/` (unpatched upstream reference tooling), `cfl/` (LibFuzzer harnesses),
-`afl/` (AFL++ tool-level fuzzing), and `colorbleed_tools/` (unsafe XML
-converters). Shared corpora live in
+`afl/` (AFL++ tool-level fuzzing), and `colorbleed_tools/` (sandboxed unsafe
+ICC representation and TIFF extraction tools). Shared corpora live in
 `test-profiles/`, `extended-test-profiles/`, and `cfl/corpus-*`. Retired
 analyzer history was removed from tracking; use the Git backup in `~/retired/`
 if archaeology is required. Vendor mirrors (`opencv/`) and archived dirs
@@ -45,6 +45,16 @@ branch `bisect-60bbb8c-json` (local worktree:
 `~/bisect/iccDEV-bisect-60bbb8c-json`). Reports stay in `~/bisect/`; run
 `.github/scripts/iccdev-json-parser-regression-tests.sh` plus the JSON config
 suite before touching that branch again.
+
+## Latest iccTiffDump Regression Context
+
+TIFF raw-extraction and nested-profile fixes live on upstream branch
+`ci-qa-fix-regression-800ac41-tiff-read` (local worktree:
+`~/bisect/iccDEV-ci-qa-fix-regression-800ac41-tiff-read`). The supporting
+pickaxe report is
+`~/bisect/iccdev-icctiffdump-nested-profile-bisect-pickaxe-report-20260817.txt`.
+Run `.github/scripts/iccdev-tiffdump-output-hardening-tests.sh` before pushing
+that branch.
 
 ## Coding Style
 4-space indent in C++ and Python. Tabs only in Makefiles. `snake_case` for

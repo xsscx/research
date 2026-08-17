@@ -104,7 +104,7 @@ Known XML serialization crash patterns are detected by iccanalyzer-lite heuristi
 
 - [iccFromXml](../iccFromXml/) — Convert XML back to ICC binary
 - [iccDumpProfile](../iccDumpProfile/) — Text dump without XML conversion
-- [colorbleed_tools](../../../../colorbleed_tools/) — Unsafe ICC↔XML for mutation testing
+- [colorbleed_tools](../../../../colorbleed_tools/) - Unsafe ICC representation and TIFF analysis
 
 ## Version
 

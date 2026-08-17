@@ -31,6 +31,9 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 cd "$REPO_ROOT/colorbleed_tools" && make setup && make test && make qa
 
+# Linux/WSL supported path for TIFF structure and exact ICC extraction
+"$REPO_ROOT/colorbleed_tools/iccTiffDump_unsafe" input.tif /tmp/embedded.icc
+
 cd "$REPO_ROOT/cfl" && ./build.sh
 ```
 

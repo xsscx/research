@@ -1,12 +1,14 @@
 # CodeQL Security Analysis for ColorBleed Tools
 
-**Purpose:** Security analysis of unsafe ICC XML tools for vulnerability research
-**Target Tools:** `iccFromXml_unsafe`, `iccToXml_unsafe`, `iccFromJson_unsafe`, `iccToJson_unsafe`
-**Analysis Date:** 2026-02-07
+**Purpose:** Security analysis of unsafe ICC representation and TIFF tools
+**Target Tools:** `iccFromXml_unsafe`, `iccToXml_unsafe`, `iccFromJson_unsafe`, `iccToJson_unsafe`, `iccTiffDump_unsafe`
+**Analysis Date:** 2026-08-17
 
 ## Overview
 
-This directory contains CodeQL security queries specifically targeting the ColorBleed ICC XML and JSON conversion tools. These tools intentionally bypass validation for security research purposes.
+This directory contains CodeQL security queries targeting the ColorBleed ICC
+XML/JSON conversion and TIFF extraction tools. These tools intentionally expose
+unpatched parser paths for security research under process resource limits.
 
 ## Query Categories
 
@@ -66,8 +68,11 @@ codeql query run \
 **File:** `codeql-config.yml`
 **Language:** C++17
 **Paths Analyzed:**
-- `IccXML/CmdLine/IccFromXml/IccFromXml_unsafe.cpp`
-- `IccXML/CmdLine/IccToXml/IccToXml_unsafe.cpp`
+- `colorbleed_tools/IccFromXml_unsafe.cpp`
+- `colorbleed_tools/IccToXml_unsafe.cpp`
+- `colorbleed_tools/IccFromJson_unsafe.cpp`
+- `colorbleed_tools/IccToJson_unsafe.cpp`
+- `colorbleed_tools/IccTiffDump_unsafe.cpp`
 
 ## Expected Findings
 
@@ -106,5 +111,5 @@ See `.github/workflows/` for automated CodeQL scanning workflows.
 - **Build Instructions:** `../../unsafe_source/BUILD.md`
 
 ---
-**Last Updated:** 2026-02-07
+**Last Updated:** 2026-08-17
 **Maintainer:** Security Research Team

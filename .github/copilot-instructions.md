@@ -21,7 +21,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 | Component | Purpose |
 |-----------|---------|
 | **cfl/** | LibFuzzer harnesses on a separate unpatched upstream iccDEV clone. |
-| **colorbleed_tools/** | Intentionally unsafe ICC XML/JSON converters (no ASAN). |
+| **colorbleed_tools/** | Sandboxed unsafe ICC XML/JSON and TIFF extraction tools. |
 | **fuzz/** | Curated malicious input files (CVE PoCs, injection sigs, malformed media). |
 | **afl/** | AFL++ tool-level fuzzing of unpatched upstream iccDEV CLI tools. |
 
@@ -47,7 +47,7 @@ guardrails into `cfl/patches/`.
 # Prerequisites: clang/clang++ 18+, cmake 3.15+, libxml2-dev, libtiff-dev,
 #   libpng-dev, libjpeg-dev, libssl-dev, libclang-rt-18-dev
 cd cfl && ./build.sh                    # LibFuzzer harnesses against unpatched upstream
-cd colorbleed_tools && make setup && make # unsafe tools (no ASAN)
+cd colorbleed_tools && make setup && make # unsafe tools (clang defaults to sanitizer build)
 ./afl/build.sh                          # AFL-instrumented upstream tools
 ```
 
@@ -111,6 +111,15 @@ After branch switches or upstream syncs, delete `Build/CMakeCache.txt` and
   `.github/scripts/json-cli-exercise.sh`.
 - Rule: JSON parser/config helpers fail closed. Do not truncate short arrays,
   skip bad struct members, attach failed nested MPEs, or retain stale reset state.
+
+## Latest iccTiffDump regression branch
+
+- Branch: `InternationalColorConsortium/iccDEV`
+  `ci-qa-fix-regression-800ac41-tiff-read`.
+- Local worktree: `~/bisect/iccDEV-ci-qa-fix-regression-800ac41-tiff-read`.
+- Report: `~/bisect/iccdev-icctiffdump-nested-profile-bisect-pickaxe-report-20260817.txt`.
+- Regression gate: `.github/scripts/iccdev-tiffdump-output-hardening-tests.sh`.
+- Extraction is forensic: preserve TIFF ICC bytes before parser validation.
 
 ## Coding Conventions
 

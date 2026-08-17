@@ -3,7 +3,7 @@
 #
 # Intent: build and test colorbleed tools
 #
-# Last Updated: 01-APR-2026 by David Hoyt
+# Last Updated: 17-AUG-2026 by David Hoyt
 ###############################################################
 
 name: ColorBleed Tools Build
@@ -73,7 +73,7 @@ jobs:
           git config --add safe.directory "$GITHUB_WORKSPACE"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          echo "Compiler Version:" >> "$GITHUB_STEP_SUMMARY"
+          sanitize_line "Compiler Version:" >> "$GITHUB_STEP_SUMMARY"
           sanitize_codeblock "$($CC --version 2>&1)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build
@@ -115,11 +115,17 @@ jobs:
           mkdir -p "$LOGDIR"
 
           # Collect candidate profiles from test-profiles/ and iccDEV/Testing/
-          mapfile -t PROFILES < <(find test-profiles/ -maxdepth 1 -name '*.icc' -size +128c -size -2M 2>/dev/null | sort)
+          mapfile -t PROFILES < <(
+            find test-profiles/ -maxdepth 1 -name '*.icc' \
+              -size +128c -size -2M 2>/dev/null | sort
+          )
           if [ -d colorbleed_tools/iccDEV/Testing ]; then
             while IFS= read -r p; do
               PROFILES+=("$p")
-            done < <(find colorbleed_tools/iccDEV/Testing -maxdepth 1 -name '*.icc' -size +128c -size -2M 2>/dev/null | sort)
+            done < <(
+              find colorbleed_tools/iccDEV/Testing -maxdepth 1 -name '*.icc' \
+                -size +128c -size -2M 2>/dev/null | sort
+            )
           fi
 
           if [ "${#PROFILES[@]}" -lt 2 ]; then
@@ -153,7 +159,11 @@ jobs:
                 timeout 30 "$TOOL_DIR/iccDumpAll" -v "$profile" ALL \
                   > "$logfile" 2>&1 || rc=$?
               else
-                timeout 30 "$TOOL_DIR/iccDumpAll" $mode "$profile" ALL \
+                mode_args=()
+                if [ -n "$mode" ]; then
+                  read -r -a mode_args <<< "$mode"
+                fi
+                timeout 30 "$TOOL_DIR/iccDumpAll" "${mode_args[@]}" "$profile" ALL \
                   > "$logfile" 2>&1 || rc=$?
               fi
 
@@ -175,7 +185,7 @@ jobs:
 
               echo "--- $label on $pname ---"
               rc=0
-              timeout 30 "$TOOL_DIR/iccDiagnosticLoad" $mode "$profile" \
+              timeout 30 "$TOOL_DIR/iccDiagnosticLoad" "$mode" "$profile" \
                 > "$logfile" 2>&1 || rc=$?
 
               lines=$(wc -l < "$logfile")
@@ -191,7 +201,7 @@ jobs:
           done
 
           # Write compact summary table
-          {
+          summary=$(
             echo "### iccDumpAll and iccDiagnosticLoad Test Results"
             echo ""
             echo "**Selected profiles:**"
@@ -206,7 +216,8 @@ jobs:
             echo "**Results: $PASS passed, $FAIL non-zero exit**"
             echo ""
             echo "> Full tool output is in the uploaded \`tool-test-logs/\` artifact."
-          } >> "$GITHUB_STEP_SUMMARY"
+          )
+          printf '%s\n' "$(sanitize_print "$summary")" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate Checksums
         env:
@@ -217,7 +228,9 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           cd colorbleed_tools
-          sha256sum iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccDumpAll iccDiagnosticLoad > SHA256SUMS
+          sha256sum iccToXml_unsafe iccFromXml_unsafe \
+            iccToJson_unsafe iccFromJson_unsafe iccTiffDump_unsafe \
+            iccDumpAll iccDiagnosticLoad > SHA256SUMS
           cat SHA256SUMS
 
       - name: Upload Artifacts
@@ -229,6 +242,7 @@ jobs:
             colorbleed_tools/iccFromXml_unsafe
             colorbleed_tools/iccToJson_unsafe
             colorbleed_tools/iccFromJson_unsafe
+            colorbleed_tools/iccTiffDump_unsafe
             colorbleed_tools/iccDumpAll
             colorbleed_tools/iccDiagnosticLoad
             colorbleed_tools/SHA256SUMS
@@ -236,6 +250,7 @@ jobs:
             colorbleed_tools/test.json
             colorbleed_tools/roundtrip.icc
             colorbleed_tools/roundtrip-json.icc
+            colorbleed_tools/test-tiff-profile.icc
             colorbleed_tools/tool-test-logs/
 
       - name: Summary Report
@@ -255,24 +270,34 @@ jobs:
             cancelled) STATUS_LINE="[CANCELLED] Job cancelled" ;;
             *) STATUS_LINE="[FAIL] Build or tests failed" ;;
           esac
-          echo "### Linux Build Summary ($(sanitize_line "$MATRIX_COMPILER"))" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Compiler: $(sanitize_line "$MATRIX_COMPILER")" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Status: $(sanitize_line "$STATUS_LINE")" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "#### Artifacts" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          ls -lh colorbleed_tools/iccToXml_unsafe colorbleed_tools/iccFromXml_unsafe \
-                 colorbleed_tools/iccDumpAll colorbleed_tools/iccDiagnosticLoad 2>&1 | \
-            while IFS= read -r line; do
-              sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
-              echo "" >> "$GITHUB_STEP_SUMMARY"
+          summary=$(
+            echo "### Linux Build Summary ($MATRIX_COMPILER)"
+            echo "- Compiler: $MATRIX_COMPILER"
+            echo "- Status: $STATUS_LINE"
+            echo ""
+            echo "#### Artifacts"
+            echo '```'
+            for artifact in \
+              colorbleed_tools/iccToXml_unsafe \
+              colorbleed_tools/iccFromXml_unsafe \
+              colorbleed_tools/iccTiffDump_unsafe \
+              colorbleed_tools/iccDumpAll \
+              colorbleed_tools/iccDiagnosticLoad; do
+              if [ -e "$artifact" ]; then
+                stat -c '%A %U %G %s %n' "$artifact"
+              else
+                printf 'missing: %s\n' "$artifact"
+              fi
             done
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "#### SHA256 Checksums" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat colorbleed_tools/SHA256SUMS | while IFS= read -r line; do
-            sanitize_line "$line" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-          done
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo '```'
+            echo ""
+            echo "#### SHA256 Checksums"
+            echo '```'
+            if [ -f colorbleed_tools/SHA256SUMS ]; then
+              cat colorbleed_tools/SHA256SUMS
+            else
+              echo "SHA256SUMS unavailable"
+            fi
+            echo '```'
+          )
+          printf '%s\n' "$(sanitize_print "$summary")" >> "$GITHUB_STEP_SUMMARY"

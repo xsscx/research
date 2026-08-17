@@ -11,8 +11,10 @@ elif [ -x "$script_dir/iccToXml_unsafe" ]; then
 else
   tools_dir="$script_dir/bin/sanitizer"
 fi
-input_icc="${1:-$repo_root/afl/afl-toxml/input.backup.20260729T011533Z/Rec2020rgbColorimetric.icc}"
+input_icc="${1:-$script_dir/iccDEV/Testing/sRGB_v4_ICC_preference.icc}"
 out_dir="${2:-/tmp/colorbleed-qa-$(date +%s)}"
+input_tiff="${3:-$repo_root/fuzz/graphics/tif/1x1-rgb8--sRGB_v4_ICC_preference.tiff}"
+expected_tiff_icc="$script_dir/iccDEV/Testing/sRGB_v4_ICC_preference.icc"
 
 mkdir -p "$out_dir"
 
@@ -57,6 +59,12 @@ run_tool json_to_icc "$tools_dir/iccFromJson_unsafe" "$out_dir/base.json" "$out_
 run_tool json_icc_to_xml "$tools_dir/iccToXml_unsafe" "$out_dir/base-json.icc" "$out_dir/base-json.xml"
 run_tool dumpall "$tools_dir/iccDumpAll" --diag --read "$out_dir/base-roundtrip.icc" ALL
 run_tool diagnostic "$tools_dir/iccDiagnosticLoad" --all --dump "$out_dir/base-roundtrip.icc"
+rm -f "$out_dir/tiff-embedded.icc"
+run_tool tiff_dump_extract "$tools_dir/iccTiffDump_unsafe" "$input_tiff" "$out_dir/tiff-embedded.icc"
+
+if ! cmp -s "$out_dir/tiff-embedded.icc" "$expected_tiff_icc"; then
+  echo "tiff_dump_extract: embedded ICC is not byte-identical to $expected_tiff_icc" >> "$out_dir/findings.txt"
+fi
 
 if [ -s "$out_dir/findings.txt" ]; then
   echo "ColorBleed QA findings:"

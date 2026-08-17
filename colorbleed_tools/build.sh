@@ -4,8 +4,8 @@
 #
 # Clones vanilla upstream iccDEV (NO security patches), builds static
 # libraries in three configurations, then compiles the sandboxed
-# iccToXml_unsafe, iccFromXml_unsafe, iccToJson_unsafe, and
-# iccFromJson_unsafe tools for each.
+# iccToXml_unsafe, iccFromXml_unsafe, iccToJson_unsafe,
+# iccFromJson_unsafe, and iccTiffDump_unsafe tools for each.
 #
 # Configurations:
 #   release    - -O2 -DNDEBUG, no sanitizers, no coverage
@@ -37,8 +37,8 @@ BIN_DIR="$REPO_ROOT/bin"
 CXX="${CXX:-clang++}"
 CC="${CC:-clang}"
 
-TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe IccToJson_unsafe IccFromJson_unsafe IccDumpAll IccDiagnosticLoad)
-TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccDumpAll iccDiagnosticLoad)
+TOOL_SOURCES=(IccToXml_unsafe IccFromXml_unsafe IccToJson_unsafe IccFromJson_unsafe IccTiffDump_unsafe IccDumpAll IccDiagnosticLoad)
+TOOL_BINS=(iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccTiffDump_unsafe iccDumpAll iccDiagnosticLoad)
 SANITIZER_IGNORELIST="$REPO_ROOT/sanitizer-ignorelist.txt"
 
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML -I$ICCDEV_DIR/IccJSON/IccLibJSON"
@@ -79,7 +79,8 @@ if [ "${1:-}" = "clean" ]; then
   done
   rm -f "$REPO_ROOT/iccToXml_unsafe" "$REPO_ROOT/iccFromXml_unsafe" \
     "$REPO_ROOT/iccToJson_unsafe" "$REPO_ROOT/iccFromJson_unsafe" \
-    "$REPO_ROOT/iccDumpAll" "$REPO_ROOT/iccDiagnosticLoad"
+    "$REPO_ROOT/iccTiffDump_unsafe" "$REPO_ROOT/iccDumpAll" \
+    "$REPO_ROOT/iccDiagnosticLoad"
   rm -rf "$ICCDEV_DIR" "$BIN_DIR"
   echo "[OK] Clean complete"
   exit 0
@@ -258,10 +259,15 @@ build_config() {
   for i in "${!TOOL_SOURCES[@]}"; do
     local src="${TOOL_SOURCES[$i]}.cpp"
     local bin="${TOOL_BINS[$i]}"
+    local tool_link_libs=""
 
     if [ ! -f "$src" ]; then
       echo "  [SKIP] $bin ($src not found)"
       continue
+    fi
+
+    if [ "$bin" = "iccTiffDump_unsafe" ]; then
+      tool_link_libs="$(pkg-config --libs libtiff-4 2>/dev/null || echo -ltiff)"
     fi
 
     echo "  Building $bin..."
@@ -271,7 +277,7 @@ build_config() {
       "$f16_obj" \
       "$known_obj" \
       -Wl,--start-group "$lib_prof" "$lib_xml" "$lib_json" -Wl,--end-group \
-      $LINK_LIBS \
+      $LINK_LIBS $tool_link_libs \
       -o "$out_dir/$bin"
     chmod +x "$out_dir/$bin"
     echo "    [OK] $(ls -lh "$out_dir/$bin" | awk '{print $5}') -> $out_dir/$bin"
@@ -321,6 +327,7 @@ echo "Usage:"
 echo "  # Release (fastest, no diagnostics)"
 echo "  bin/release/iccToXml_unsafe input.icc output.xml"
 echo "  bin/release/iccToJson_unsafe input.icc output.json"
+echo "  bin/release/iccTiffDump_unsafe input.tif output.icc"
 echo ""
 echo "  # Debug (symbols, assertions, no sanitizers)"
 echo "  bin/debug/iccToXml_unsafe input.icc output.xml"
@@ -337,10 +344,10 @@ echo "  # Default symlinks point to the selected build"
 echo "  ./iccToXml_unsafe input.icc output.xml"
 echo "  ./iccToJson_unsafe input.icc output.json"
 echo ""
-echo "  # Full XML/JSON/blob QA sweep"
+echo "  # Full XML/JSON/TIFF/blob QA sweep"
 echo "  ./qa-roundtrip-colorbleed.sh"
 echo ""
-echo "ColorBleed Tooling: Unsafe Load & Store for ICC Profiles"
+echo "ColorBleed Tooling: Unsafe ICC Representation and TIFF Analysis"
 echo "Copyright (c) 2021-2026 David H Hoyt LLC"
 echo ""
 echo "[OK] Build complete"

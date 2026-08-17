@@ -37,8 +37,11 @@ Do not hardcode heuristic totals; cite tool output or checked-in registry data.
 For profile-representation mutation, use ColorBleed:
 `colorbleed_tools/iccToXml_unsafe`, `colorbleed_tools/iccFromXml_unsafe`,
 `colorbleed_tools/iccToJson_unsafe`, and `colorbleed_tools/iccFromJson_unsafe`.
+For TIFF containers, run `colorbleed_tools/iccTiffDump_unsafe` first so the
+TIFF directory dump, sandbox status, and byte-exact embedded ICC artifact are
+preserved even when iccDEV parsing or validation fails.
 Use `colorbleed_tools/qa-roundtrip-colorbleed.sh` for the full ICC -> XML/JSON
--> ICC -> XML converter sweep. Do not use `-sort` with `iccToJson_unsafe`
+-> ICC -> XML converter and TIFF extraction sweep. Do not use `-sort` with `iccToJson_unsafe`
 during ColorBleed QA until that wrapper path is sanitizer-clean.
 
 ### 3. Report
@@ -52,6 +55,9 @@ whether an embedded ICC profile was extracted.
 ```bash
 # Header and tag inspection
 iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
+
+# Sandboxed TIFF inspection and byte-exact ICC extraction
+colorbleed_tools/iccTiffDump_unsafe <input.tif> /tmp/embedded.icc
 
 # XML/JSON representation checks
 iccDEV/Build/Tools/IccToXml/IccToXml <profile.icc> /tmp/profile.xml
