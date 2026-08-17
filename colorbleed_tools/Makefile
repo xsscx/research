@@ -96,14 +96,13 @@ test: all colorbleed-test
 		ls -lh test.json roundtrip-json.icc; \
 	fi
 	@echo ""
-	@if [ -f "../fuzz/graphics/tif/1x1-rgb8--sRGB_v4_ICC_preference.tiff" ] && \
-	    [ -f "$(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc" ]; then \
-		echo "Test 8: TIFF dump and exact ICC extraction"; \
-		rm -f test-tiff-profile.icc; \
-		$(SAN_RUN_ENV) ./iccTiffDump_unsafe ../fuzz/graphics/tif/1x1-rgb8--sRGB_v4_ICC_preference.tiff test-tiff-profile.icc; \
-		test -s test-tiff-profile.icc; \
-		cmp -s test-tiff-profile.icc $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc; \
-	fi
+	@echo "Test 8: TIFF dump and exact ICC extraction"
+	@test -f test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff
+	@test -f $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc
+	@rm -f test-tiff-profile.icc
+	@$(SAN_RUN_ENV) ./iccTiffDump_unsafe test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff test-tiff-profile.icc
+	@test -s test-tiff-profile.icc
+	@cmp -s test-tiff-profile.icc $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc
 	@echo ""
 	@sha256sum $(TARGETS) 2>/dev/null || shasum -a 256 $(TARGETS) 2>/dev/null
 	@echo ""

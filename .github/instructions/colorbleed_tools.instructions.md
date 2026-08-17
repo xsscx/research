@@ -21,6 +21,10 @@ cd colorbleed_tools && make setup && make
 - `make`: compiles `iccToXml_unsafe`, `iccFromXml_unsafe`,
   `iccToJson_unsafe`, `iccFromJson_unsafe`, and `iccTiffDump_unsafe`
 - `make qa`: runs the XML/JSON/TIFF/blob round-trip QA script
+- The TIFF QA fixture is
+  `colorbleed_tools/test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff`. Keep it
+  with the owning component so fresh CI checkouts can run byte-exact extraction
+  testing without depending on the ignored, nested `fuzz/` checkout.
 - Binaries: `colorbleed_tools/iccToXml_unsafe`,
   `colorbleed_tools/iccFromXml_unsafe`, `colorbleed_tools/iccToJson_unsafe`,
   `colorbleed_tools/iccFromJson_unsafe`, `colorbleed_tools/iccTiffDump_unsafe`
@@ -115,3 +119,13 @@ ERROR: Failed to read tag data at offset 0x1234
 
 Stdout is reserved for status and structured dump messages. Converted XML,
 JSON, and extracted ICC bytes are written to the requested output path.
+Exit 66 means an input path could not be resolved. For `make qa`, first verify
+that the tracked TIFF fixture above is present rather than treating 66 as a
+parser or libtiff failure.
+
+Upstream iccDEV `master` commit `3e348201` bounds recursive `ReadTags()` calls
+and preserves raw TIFF ICC bytes before parse and validation failures. The
+ColorBleed wrapper independently preserves the same forensic ordering. A nested
+profile may therefore be extracted successfully and then exit 5 when recursive
+tag loading is rejected; keep the artifact and treat the status as a soft parser
+failure, not a crash.

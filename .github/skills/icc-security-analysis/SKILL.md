@@ -43,6 +43,13 @@ preserved even when iccDEV parsing or validation fails.
 Use `colorbleed_tools/qa-roundtrip-colorbleed.sh` for the full ICC -> XML/JSON
 -> ICC -> XML converter and TIFF extraction sweep. Do not use `-sort` with `iccToJson_unsafe`
 during ColorBleed QA until that wrapper path is sanitizer-clean.
+The default TIFF QA input is the intentionally tracked
+`colorbleed_tools/test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff`. Exit 66
+indicates a missing or unresolved input path, not a TIFF or ICC parser finding.
+On upstream iccDEV `3e348201` or later, exit 5 can follow successful extraction
+when bounded recursive tag loading rejects a deeply nested profile. Retain and
+compare the extracted bytes, and classify the result as a soft parser failure
+unless sanitizer or signal evidence proves a crash.
 
 ### 3. Report
 

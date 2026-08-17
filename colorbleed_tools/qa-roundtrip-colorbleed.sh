@@ -2,7 +2,6 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-repo_root="$(cd "$script_dir/.." && pwd)"
 
 if [ -n "${COLORBLEED_TOOLS_DIR:-}" ]; then
   tools_dir="$COLORBLEED_TOOLS_DIR"
@@ -13,8 +12,22 @@ else
 fi
 input_icc="${1:-$script_dir/iccDEV/Testing/sRGB_v4_ICC_preference.icc}"
 out_dir="${2:-/tmp/colorbleed-qa-$(date +%s)}"
-input_tiff="${3:-$repo_root/fuzz/graphics/tif/1x1-rgb8--sRGB_v4_ICC_preference.tiff}"
+input_tiff="${3:-$script_dir/test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff}"
 expected_tiff_icc="$script_dir/iccDEV/Testing/sRGB_v4_ICC_preference.icc"
+
+require_file() {
+  local label="$1"
+  local path="$2"
+
+  if [ ! -f "$path" ]; then
+    printf 'ColorBleed QA ERROR: missing %s: %s\n' "$label" "$path" >&2
+    exit 66
+  fi
+}
+
+require_file "input ICC profile" "$input_icc"
+require_file "tracked TIFF extraction fixture" "$input_tiff"
+require_file "expected embedded ICC profile" "$expected_tiff_icc"
 
 mkdir -p "$out_dir"
 
@@ -43,6 +56,11 @@ run_tool() {
   printf '%-22s rc=%s\n' "$name" "$rc" | tee -a "$out_dir/summary.txt"
   if scan_findings "$log" "$out_dir/$name.findings"; then
     sed "s#^#$name:#" "$out_dir/$name.findings" >> "$out_dir/findings.txt"
+  fi
+
+  if [ "$rc" -ne 0 ]; then
+    printf 'ColorBleed QA ERROR: %s failed; captured output follows:\n' "$name" >&2
+    sed -n '1,120p' "$log" >&2
   fi
 
   return "$rc"

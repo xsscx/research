@@ -105,8 +105,13 @@ make test        # build tools and run tests
 ```
 ./iccToJson_unsafe ../test-profiles/sRGB_D65_MAT.icc /tmp/profile.json
 ./iccFromJson_unsafe /tmp/profile.json /tmp/profile-json.icc
-./iccTiffDump_unsafe ../fuzz/graphics/tif/1x1-rgb8--sRGB_v4_ICC_preference.tiff /tmp/embedded.icc
+./iccTiffDump_unsafe test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff /tmp/embedded.icc
 ```
+
+TIFF extraction happens before ICC parsing and validation. With upstream
+iccDEV `3e348201` or later, a deeply nested profile can be preserved exactly and
+then return exit 5 when bounded recursive tag loading stops. That is a soft
+parser failure with a forensic artifact, not a crash by itself.
 
 Do not use `-sort` with `iccToJson_unsafe` during ColorBleed QA. The wrapper
 rejects it with exit code 64 until that path is sanitizer-clean.
@@ -115,7 +120,14 @@ rejects it with exit code 64 until that path is sanitizer-clean.
 ```
 ./qa-roundtrip-colorbleed.sh
 COLORBLEED_STRICT_SANITIZERS=1 ./iccFromXml_unsafe input.xml /tmp/out.icc
+../.github/scripts/colorbleed-crosscheck.sh
 ```
+
+The repository-level cross-check runs release, debug, and sanitizer tools,
+records XML/JSON return deltas, validates returned profiles, verifies TIFF
+extraction, and writes all generated artifacts and metrics under `/tmp`.
+The latest measured baseline is recorded in
+[`QA-REPORT-2026-08-17.md`](QA-REPORT-2026-08-17.md).
 
 `qa-roundtrip-colorbleed.sh` runs ICC -> XML -> ICC -> XML, ICC -> JSON -> ICC
 -> XML, then `iccDumpAll` and `iccDiagnosticLoad` on the synthesized blob. It

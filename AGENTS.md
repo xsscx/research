@@ -48,13 +48,14 @@ suite before touching that branch again.
 
 ## Latest iccTiffDump Regression Context
 
-TIFF raw-extraction and nested-profile fixes live on upstream branch
-`ci-qa-fix-regression-800ac41-tiff-read` (local worktree:
-`~/bisect/iccDEV-ci-qa-fix-regression-800ac41-tiff-read`). The supporting
-pickaxe report is
+TIFF raw-extraction and nested-profile fixes were merged to upstream `master`
+in `3e348201` (`fix: preserve embedded TIFF profiles on parse failure`, #2188).
+The historical branch is `ci-qa-fix-regression-800ac41-tiff-read` and its local
+worktree is `~/bisect/iccDEV-ci-qa-fix-regression-800ac41-tiff-read`. The
+supporting pickaxe report is
 `~/bisect/iccdev-icctiffdump-nested-profile-bisect-pickaxe-report-20260817.txt`.
-Run `.github/scripts/iccdev-tiffdump-output-hardening-tests.sh` before pushing
-that branch.
+Run the upstream checkout's
+`.github/scripts/iccdev-tiffdump-output-hardening-tests.sh` for regression work.
 
 ## Coding Style
 4-space indent in C++ and Python. Tabs only in Makefiles. `snake_case` for

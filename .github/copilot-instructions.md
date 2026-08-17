@@ -112,13 +112,15 @@ After branch switches or upstream syncs, delete `Build/CMakeCache.txt` and
 - Rule: JSON parser/config helpers fail closed. Do not truncate short arrays,
   skip bad struct members, attach failed nested MPEs, or retain stale reset state.
 
-## Latest iccTiffDump regression branch
+## Latest iccTiffDump regression context
 
-- Branch: `InternationalColorConsortium/iccDEV`
-  `ci-qa-fix-regression-800ac41-tiff-read`.
+- Merged upstream `master`: `3e348201` (`fix: preserve embedded TIFF profiles
+  on parse failure`, #2188).
+- Historical branch: `ci-qa-fix-regression-800ac41-tiff-read`.
 - Local worktree: `~/bisect/iccDEV-ci-qa-fix-regression-800ac41-tiff-read`.
 - Report: `~/bisect/iccdev-icctiffdump-nested-profile-bisect-pickaxe-report-20260817.txt`.
-- Regression gate: `.github/scripts/iccdev-tiffdump-output-hardening-tests.sh`.
+- Regression gate: run the upstream checkout's
+  `.github/scripts/iccdev-tiffdump-output-hardening-tests.sh`.
 - Extraction is forensic: preserve TIFF ICC bytes before parser validation.
 
 ## Coding Conventions
