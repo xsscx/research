@@ -141,6 +141,7 @@ afl_configure_target() {
     local fixed_tiff
     local fixed_observer
     local fixed_jpeg
+    local iccdev_testing_dir
     local hybrid_source_dir
     local hybrid_support_dir
     local fromxml_kind
@@ -165,6 +166,9 @@ afl_configure_target() {
     fixed_jpeg="$(afl_first_existing \
         "$REPO_ROOT/test-profiles/p0-2225-cve-2021-30942-colorsync-uninit-mem.jpg" \
         "$REPO_ROOT/fuzz/graphics/jpg/2x2-rgb--sRGB_v4_ICC_preference.jpg")"
+    iccdev_testing_dir="$(afl_first_existing \
+        "$REPO_ROOT/iccDEV/Testing" \
+        "$REPO_ROOT/afl/iccDEV/Testing")"
     hybrid_source_dir="$(afl_first_existing \
         "$REPO_ROOT/iccDEV/Testing/hybrid" \
         "$REPO_ROOT/afl/iccDEV/Testing/hybrid")"
@@ -201,6 +205,7 @@ afl_configure_target() {
         "$REPO_ROOT/iccDEV/Testing" \
         "$REPO_ROOT/afl/iccDEV/Testing")"
     FROMXML_INCLUDES_SUPPORT_DIR="$AFL_BASE/support/fromxml-includes"
+    ICCDEV_TESTING_DIR="$iccdev_testing_dir"
     HYBRID_SOURCE_DIR="$hybrid_source_dir"
     HYBRID_SUPPORT_DIR="$hybrid_support_dir"
     HYBRID_CONFIG_DIR="$hybrid_support_dir/config"
@@ -272,8 +277,9 @@ afl_configure_target() {
             SEED_LIMIT=200
             SEED_DRY_RUN_TARGET=1
             SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+            SEED_FIND_MAXDEPTH=2
             SEED_DIRS=(
-                "$REPO_ROOT/iccDEV/Testing/reg"
+                "$ICCDEV_TESTING_DIR"
                 "$HYBRID_ICC_DIR"
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/test-profiles"
@@ -293,7 +299,9 @@ afl_configure_target() {
             SEED_LIMIT=300
             SEED_DRY_RUN_TARGET=1
             SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+            SEED_FIND_MAXDEPTH=2
             SEED_DIRS=(
+                "$ICCDEV_TESTING_DIR"
                 "$HYBRID_ICC_DIR"
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/test-profiles"

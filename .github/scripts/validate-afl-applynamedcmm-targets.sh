@@ -53,9 +53,19 @@ expect_common_hybrid_policy() {
     expect_value "$target seed ceiling" "$SEED_MAX_BYTES" "1048576"
     expect_value "$target seed dry run" "$SEED_DRY_RUN_TARGET" "1"
     expect_value "$target exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
+    expect_value "$target upstream seed depth" "$SEED_FIND_MAXDEPTH" "2"
+    if [[ ! " ${SEED_DIRS[*]} " =~ [[:space:]]${ICCDEV_TESTING_DIR}[[:space:]] ]]; then
+        fail "$target upstream Testing seed root is missing: $ICCDEV_TESTING_DIR"
+    fi
     expect_arg "$target" 0 "-exportcfganddata"
     expect_arg "$target" 1 "${AFL_TMP_PREFIX}.json"
 }
+
+support_line="$(grep -nF 'afl_prepare_target_support_files ' "$REPO_ROOT/afl/start.sh" | cut -d: -f1)"
+required_line="$(grep -nF 'for required_file in ' "$REPO_ROOT/afl/start.sh" | cut -d: -f1)"
+if [[ -z "$support_line" || -z "$required_line" || "$support_line" -ge "$required_line" ]]; then
+    fail "start.sh must prepare generated support before validating required files"
+fi
 
 for required_target in \
     applynamedcmm \

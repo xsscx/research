@@ -463,14 +463,14 @@ elif compgen -G "$BIN_DIR/libIccProfLib2*.so*" >/dev/null; then
     ICC_RUNTIME_LIB_PATH="$BIN_DIR"
 fi
 
+afl_prepare_target_support_files "$TARGET"
+
 for required_file in "${REQUIRED_FILES[@]}"; do
     if [[ ! -e "$required_file" ]]; then
         echo "ERROR: Required support file not found: $required_file"
         exit 1
     fi
 done
-
-afl_prepare_target_support_files "$TARGET"
 
 if [[ "$AFL_CMPLOG_AUTO" != "0" && -z "$AFL_CMPLOG_BINARY" ]]; then
     candidate_cmplog="$AFL_CMPLOG_BIN_DIR/$(basename "$BINARY")"
