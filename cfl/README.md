@@ -59,7 +59,7 @@ Current harness areas:
 | Profile linking | `icc_link_fuzzer` |
 | PAWG report generation | `icc_pawgreport_fuzzer` |
 | PNG ICC extraction | `icc_pngdump_fuzzer` |
-| Profile visualization data model | `icc_profilevisualize_fuzzer` |
+| ProfilePlot data model | `icc_profilevisualize_fuzzer` (`profileplot`, `plot`) |
 | Unrestricted IccProfLib API | `icc_proflib_fuzzer` |
 | Read/write round trip | `icc_roundtrip_fuzzer` |
 | Spectral separation | `icc_specsep_fuzzer` |
@@ -111,6 +111,14 @@ cd cfl
 ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1 \
   ./bin/icc_profilevisualize_fuzzer -runs=1 corpus/
 ```
+
+This is the CFL half of the ProfilePlot A/B split: it renders every descriptor
+returned by `Enumerate()` in memory. The AFL `profileplot`,
+`profileplot-graph`, and `profileplot-raster` lanes own real CLI JSON and raw
+file output. `./fuzz-local.sh -t 60 -w 1 profileplot` selects this harness.
+The runner installs `test-profiles/sRGB_v4_ICC_preference.icc` into the mutable
+runtime corpus and keeps a 64 KiB input limit so that fixture's graph and CLUT
+descriptors are both reachable.
 
 `icc_proflib_fuzzer` is the direct library lane. It passes the complete input
 buffer to IccProfLib without a minimum profile size or command-line semantic

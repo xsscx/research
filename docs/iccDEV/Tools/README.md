@@ -31,6 +31,7 @@ export ASAN_OPTIONS=detect_leaks=0
 | iccTiffDump | - | TIFF metadata + ICC extract | Valid TIFF |
 | iccJpegDump | - | JPEG ICC extract or inject | Valid JPEG |
 | iccPngDump | - | PNG ICC extract or inject | Valid PNG |
+| iccProfilePlot | stdout | List or render profile visualization data | Valid mode and descriptor |
 | iccV5DspObsToV4Dsp | - | v5 display+observer to v4 | Conversion OK |
 | iccSpecSepToTiff | - | Merge spectral TIFF channels | Merge OK |
 
@@ -206,6 +207,24 @@ iccPngDump input.png --write-icc profile.icc --output output.png
 ```
 
 Reads iCCP chunk from PNG files.
+
+### iccProfilePlot
+
+```
+iccProfilePlot profile.icc list
+iccProfilePlot profile.icc graph descriptor_id
+iccProfilePlot profile.icc raster descriptor_id {output.raw}
+```
+
+`list` emits descriptor JSON. `graph` emits point-series JSON. `raster` emits
+CLUT geometry and optionally writes normalized, interleaved samples. Enumerate
+first because descriptor IDs depend on profile tags.
+
+```bash
+iccProfilePlot Testing/sRGB_v4_ICC_preference.icc list
+iccProfilePlot Testing/sRGB_v4_ICC_preference.icc graph chroma:xy
+iccProfilePlot Testing/sRGB_v4_ICC_preference.icc raster clut:A2B0 /tmp/a2b0.raw
+```
 
 ### iccV5DspObsToV4Dsp
 

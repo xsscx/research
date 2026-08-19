@@ -95,6 +95,12 @@ For multi-profile fuzzers, unbundle first:
 .github/scripts/unbundle-fuzzer-input.sh <fuzzer_name> <crash-file>
 ```
 
+For ProfilePlot findings, preserve the target mode and descriptor ID from
+`afl/targets.sh`. Replay `profileplot` with `list`, `profileplot-graph` with
+`graph chroma:xy`, and `profileplot-raster` with
+`raster clut:A2B0 /tmp/profileplot.raw`; a plain one-argument
+`iccProfileVisualize` replay is not equivalent.
+
 ### 6. Fix and Verify
 
 1. Reproduce: `ASAN_OPTIONS=detect_leaks=0 timeout 10 cfl/bin/<fuzzer> <crash-file>`

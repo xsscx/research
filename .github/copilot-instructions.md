@@ -75,6 +75,7 @@ ASAN_OPTIONS=detect_leaks=0 cfl/bin/icc_dump_fuzzer \
 .github/scripts/batch-test-external.sh /path/to/profiles [--timeout N] [--max N] [--csv]
 bash .github/scripts/test-iccdev-all.sh [--quick] [--asan] [--tool=NAME]
 .github/scripts/validate-afl-jpeg-seeds.sh
+.github/scripts/validate-afl-profileplot-targets.sh
 .github/scripts/pre-push-gate.sh
 ```
 
@@ -87,6 +88,9 @@ bash .github/scripts/test-iccdev-all.sh [--quick] [--asan] [--tool=NAME]
 - AFL `jpegdump` and `jpegdump-inject` seed only up to 200 `.jpg`/`.jpeg`
   files from `fuzz/graphics/jpg` with embedded ICC profiles. Never seed those
   JPEG lanes with raw `.icc` corpora.
+- AFL `profileplot`, `profileplot-graph`, and `profileplot-raster` own the real
+  `iccProfilePlot` CLI modes. CFL's `icc_profilevisualize_fuzzer` owns the
+  in-memory `IccVizModel` enumeration and render API.
 
 ## iccDEV Upstream Build
 

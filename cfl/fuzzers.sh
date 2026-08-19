@@ -60,7 +60,7 @@ cfl_normalize_fuzzer() {
     link) name="icc_link_fuzzer" ;;
     pawg|pawgreport) name="icc_pawgreport_fuzzer" ;;
     png|pngdump) name="icc_pngdump_fuzzer" ;;
-    profilevisualize|profile-visualize|visualize) name="icc_profilevisualize_fuzzer" ;;
+    profileplot|profile-plot|plot|profilevisualize|profile-visualize|visualize) name="icc_profilevisualize_fuzzer" ;;
     profile|proflib|iccproflib) name="icc_proflib_fuzzer" ;;
     roundtrip) name="icc_roundtrip_fuzzer" ;;
     specsep) name="icc_specsep_fuzzer" ;;
@@ -179,6 +179,10 @@ cfl_install_curated_seeds() {
         "$script_dir/../test-profiles/issue-809-vendor-flags-cwe681.icc"; do
         [[ -f "$seed" ]] && cp "$seed" "$corpus_dir/$(basename "$seed")"
       done
+      ;;
+    icc_profilevisualize_fuzzer)
+      seed="$script_dir/../test-profiles/sRGB_v4_ICC_preference.icc"
+      [[ -f "$seed" ]] && cp "$seed" "$corpus_dir/$(basename "$seed")"
       ;;
   esac
 
@@ -337,7 +341,7 @@ cfl_tool_command() {
       printf 'iccPngDump %s /tmp/cfl-pngdump.icc\n' "$artifact"
       ;;
     icc_profilevisualize_fuzzer)
-      printf 'iccProfileVisualize %s\n' "$artifact"
+      printf 'iccProfilePlot %s list\n' "$artifact"
       ;;
     icc_proflib_fuzzer)
       printf 'ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1 cfl/bin/icc_proflib_fuzzer -runs=1 %s\n' "$artifact"

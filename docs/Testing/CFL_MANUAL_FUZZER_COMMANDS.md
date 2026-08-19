@@ -1,6 +1,6 @@
 # CFL Manual Fuzzer Command Runbook
 
-Last updated: 2026-07-04
+Last updated: 2026-08-19
 
 This runbook gives maintainers copy-paste one-liners for manually exercising
 each CFL LibFuzzer harness from the repository root. Use it after rebuilding
@@ -191,6 +191,23 @@ cd cfl && ./fuzz-local.sh -t 30 -w 1 png
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_pngdump_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=5242880 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_pngdump_fuzzer/
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_pngdump_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=4096 -max_len=5242880 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_pngdump_fuzzer/
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_pngdump_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=5242880 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+```
+
+### `icc_profilevisualize_fuzzer`
+
+This harness is the in-memory `IccVizModel` lane for `iccProfilePlot`. The
+`profileplot` and `plot` aliases select it; AFL owns CLI and raw-output replay.
+
+```bash
+cd cfl && ./fuzz-local.sh -t 30 -w 1 profileplot
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_profilevisualize_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=65536 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_profilevisualize_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_profilevisualize_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=65536 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+```
+
+Tool-level cross-check:
+
+```bash
+ASAN_OPTIONS="$CFL_ASAN" afl/bin/iccProfilePlot <artifact> list
 ```
 
 ### `icc_roundtrip_fuzzer`

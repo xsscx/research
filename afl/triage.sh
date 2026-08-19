@@ -86,6 +86,7 @@ canonical_tool_dir() {
         iccJpegDump) echo "IccJpegDump" ;;
         iccPawgReport) echo "IccPawgReport" ;;
         iccPngDump) echo "IccPngDump" ;;
+        iccProfilePlot) echo "IccProfilePlot" ;;
         iccProfileVisualize) echo "IccProfileVisualize" ;;
         iccRoundTrip) echo "IccRoundTrip" ;;
         iccSpecSepToTiff) echo "IccSpecSepToTiff" ;;
@@ -214,7 +215,7 @@ write_marked_artifact() {
     cp -f "$source_file" "$marked_file"
     cmd_file="$marked_file.cmd"
 
-    rel_marked_file="${marked_file#$REPO_ROOT/}"
+    rel_marked_file="${marked_file#"$REPO_ROOT"/}"
     {
         printf '# target=%s\n' "$TARGET"
         printf '# kind=%s\n' "$kind"

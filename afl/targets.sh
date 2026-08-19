@@ -38,6 +38,9 @@ AFL_TARGETS=(
     pawgreport-fast
     pngdump
     pngdump-inject
+    profileplot
+    profileplot-graph
+    profileplot-raster
     profilevisualize
     profilevisualize-fast
     roundtrip
@@ -95,6 +98,9 @@ afl_print_targets() {
     echo "  pawgreport-fast  - iccPawgReport (small/no-trim profile assessment lane)"
     echo "  pngdump          - iccPngDump (PNG -> ICC extraction)"
     echo "  pngdump-inject   - iccPngDump (--write-icc injection lane)"
+    echo "  profileplot      - iccProfilePlot (descriptor list JSON lane)"
+    echo "  profileplot-graph - iccProfilePlot (graph JSON lane)"
+    echo "  profileplot-raster - iccProfilePlot (CLUT raster/raw-output lane)"
     echo "  profilevisualize - iccProfileVisualize (ICC profile visualization)"
     echo "  profilevisualize-fast - iccProfileVisualize (small/no-trim visualization lane)"
     echo "  roundtrip        - iccRoundTrip (ICC binary round-trip)"
@@ -141,6 +147,7 @@ afl_configure_target() {
     local fixed_tiff
     local fixed_observer
     local fixed_jpeg
+    local fixed_plot_profile
     local iccdev_testing_dir
     local hybrid_source_dir
     local hybrid_support_dir
@@ -166,6 +173,10 @@ afl_configure_target() {
     fixed_jpeg="$(afl_first_existing \
         "$REPO_ROOT/test-profiles/p0-2225-cve-2021-30942-colorsync-uninit-mem.jpg" \
         "$REPO_ROOT/fuzz/graphics/jpg/2x2-rgb--sRGB_v4_ICC_preference.jpg")"
+    fixed_plot_profile="$(afl_first_existing \
+        "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc" \
+        "$REPO_ROOT/iccDEV/Testing/sRGB_v4_ICC_preference.icc" \
+        "$REPO_ROOT/afl/iccDEV/Testing/sRGB_v4_ICC_preference.icc")"
     iccdev_testing_dir="$(afl_first_existing \
         "$REPO_ROOT/iccDEV/Testing" \
         "$REPO_ROOT/afl/iccDEV/Testing")"
@@ -808,6 +819,37 @@ afl_configure_target() {
                 TARGET_NOTE="ProfileVisualize lane: screened ICC corpus capped at 256 KiB to avoid oversized visualization seeds before long runs."
             fi
             AFL_ARGS=("@@")
+            ;;
+        profileplot|profileplot-graph|profileplot-raster)
+            BINARY="$BIN_DIR/iccProfilePlot"
+            DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
+            SEED_DIRS=(
+                "$REPO_ROOT/test-profiles"
+                "$REPO_ROOT/fuzz/graphics/icc"
+                "$REPO_ROOT/extended-test-profiles"
+            )
+            SEED_FILES=("$fixed_plot_profile")
+            SEED_MAX_BYTES=262144
+            SEED_LIMIT=200
+            SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
+            SEED_DRY_RUN_TARGET=1
+            SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+            SEED_DRY_RUN_TIMEOUT=10
+            REQUIRED_FILES=("$fixed_plot_profile")
+            case "$target" in
+                profileplot)
+                    TARGET_NOTE="ProfilePlot list lane: enumerates every visualization descriptor and serializes the descriptor list as JSON."
+                    AFL_ARGS=("@@" "list")
+                    ;;
+                profileplot-graph)
+                    TARGET_NOTE="ProfilePlot graph lane: renders chromaticity geometry and serializes graph points, labels, and axis hints as JSON."
+                    AFL_ARGS=("@@" "graph" "chroma:xy")
+                    ;;
+                profileplot-raster)
+                    TARGET_NOTE="ProfilePlot raster lane: renders the A2B0 CLUT and writes raw samples to a per-process scratch path."
+                    AFL_ARGS=("@@" "raster" "clut:A2B0" "${tmp_prefix}.raw")
+                    ;;
+            esac
             ;;
         roundtrip|roundtrip-mpe)
             BINARY="$BIN_DIR/iccRoundTrip"

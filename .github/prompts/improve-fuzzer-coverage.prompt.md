@@ -25,6 +25,12 @@ Before changing AFL JPEG lanes, preserve their seed contract: `jpegdump` and
 `fuzz/graphics/jpg` that have extractable embedded ICC profiles. Do not seed
 those targets with raw `.icc` files.
 
+Before changing ProfilePlot coverage, preserve the A/B split: CFL renders all
+enumerated in-memory descriptors, while AFL covers the real CLI's `list`,
+`graph chroma:xy`, and `raster clut:A2B0 OUT.raw` modes. Validate the shared
+fixture and raw writer with
+`.github/scripts/validate-afl-profileplot-targets.sh --replay`.
+
 ### 1. Generate Coverage Report
 ```bash
 # Merge all profraw files
@@ -121,6 +127,7 @@ git commit -m "coverage: <description of improvements>"
 | calculator | IccMpeCalc |
 | io | IccIO |
 | spectral, v5dspobs | IccMpeSpectral |
+| profilevisualize/profileplot | IccVizModel, curve/chromaticity/CLUT rendering |
 
 ## Profile Class Coverage Audit
 

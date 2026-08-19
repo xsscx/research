@@ -58,6 +58,32 @@ XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile
 visualization, profile linking, and CMM apply flows. Run `./afl/start.sh --list`
 for the exact list in the active checkout.
 
+### iccProfilePlot modes
+
+The data-first plot tool has three lanes because each CLI mode reaches a
+different output surface:
+
+- `profileplot` runs `iccProfilePlot @@ list` and serializes descriptors.
+- `profileplot-graph` renders `chroma:xy` graph geometry as JSON.
+- `profileplot-raster` renders `clut:A2B0` and writes raw samples to an
+  isolated per-process scratch file.
+
+All three use screened ICC inputs capped at 256 KiB and require a successful
+seed replay. The durable `test-profiles/sRGB_v4_ICC_preference.icc` fixture
+contains both fixed descriptor IDs. Validate the target and fixture contract
+before a campaign:
+
+```bash
+.github/scripts/validate-afl-profileplot-targets.sh --replay
+./afl/start.sh profileplot --seed-only --fresh
+./afl/start.sh profileplot-graph --seed-only --fresh
+./afl/start.sh profileplot-raster --seed-only --fresh
+```
+
+CFL complements these lanes through its `profileplot` alias, which selects the
+in-memory `icc_profilevisualize_fuzzer` and renders every enumerated descriptor
+without CLI or filesystem coverage.
+
 ### Full-size hybrid image lane
 
 `applyprofiles-hybrid-embedded` mutates the complete generated 600x420

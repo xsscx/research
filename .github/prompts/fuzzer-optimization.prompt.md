@@ -77,6 +77,10 @@ Before optimizing AFL lanes, run `./afl/build-afl-runtime.sh`; it pins stable
 commit `05507e1880dc6df997c19e01423444ef37c36846` and a 4 MiB testcase ceiling.
 Keep `applyprofiles-hybrid-embedded` on its complete generated TIFF and validate
 all target assets with `.github/scripts/validate-afl-target-configs.sh --local`.
+For profile visualization, CFL's `profileplot` alias exercises the in-memory
+`IccVizModel` API. AFL owns the CLI split: `profileplot` lists descriptors,
+`profileplot-graph` renders `chroma:xy`, and `profileplot-raster` renders
+`clut:A2B0` plus raw output. Keep the shared sRGB v4 fixture valid for both IDs.
 
 ---
 
@@ -97,6 +101,7 @@ all target assets with `.github/scripts/validate-afl-target-configs.sh --local`.
 | 11 | icc_specsep_fuzzer | iccSpecSepToTiff | TIFF+ICC | 128B/4MB | 38% | Spectral separation, TIFF I/O |
 | 12 | icc_tiffdump_fuzzer | iccTiffDump | TIFF | 8B/2MB | 44% | TIFF tag reading, ICC extraction |
 | 13 | icc_cfg_fuzzer | iccApplyNamedCmm | JSON config | 2B/64KB | 35% | JSON config parsing |
+| 14 | icc_profilevisualize_fuzzer | iccProfilePlot | ICC binary | 132B/5MB | measure | IccVizModel enumerate, graph, raster |
 
 ### Multi-Profile Input Formats
 

@@ -12,6 +12,7 @@ on:
       - '.github/scripts/validate-afl-applynamedcmm-targets.sh'
       - '.github/scripts/validate-afl-target-configs.sh'
       - '.github/scripts/validate-afl-jpeg-seeds.sh'
+      - '.github/scripts/validate-afl-profileplot-targets.sh'
   pull_request:
     paths:
       - '.github/workflows/iccdev-afl-regressions.yml'
@@ -20,6 +21,7 @@ on:
       - '.github/scripts/validate-afl-applynamedcmm-targets.sh'
       - '.github/scripts/validate-afl-target-configs.sh'
       - '.github/scripts/validate-afl-jpeg-seeds.sh'
+      - '.github/scripts/validate-afl-profileplot-targets.sh'
   workflow_dispatch:
 
 concurrency:
@@ -58,7 +60,8 @@ jobs:
             afl/build-afl-runtime.sh \
             .github/scripts/validate-afl-applynamedcmm-targets.sh \
             .github/scripts/validate-afl-target-configs.sh \
-            .github/scripts/validate-afl-jpeg-seeds.sh
+            .github/scripts/validate-afl-jpeg-seeds.sh \
+            .github/scripts/validate-afl-profileplot-targets.sh
           bash -n afl/*.sh
 
       - name: Validate ApplyNamedCmm AFL target contracts
@@ -75,6 +78,11 @@ jobs:
         run: |
           set -euo pipefail
           .github/scripts/validate-afl-jpeg-seeds.sh
+
+      - name: Validate ProfilePlot AFL target contracts
+        run: |
+          set -euo pipefail
+          .github/scripts/validate-afl-profileplot-targets.sh
 
       - name: Smoke report pipeline
         run: |

@@ -27,6 +27,8 @@ structures.
 4. Run `iccTest-validate_roundtrip` for transform completeness
 5. If CRITICAL/HIGH findings exist, run `iccTest-analyze_security_json` for structured output
 6. Summarize findings by severity, listing heuristic IDs and CWE mappings
+7. When visualization tags are relevant, run `iccProfilePlot PROFILE list` to
+   inventory graph and raster descriptors without creating report files
 
 ## Output Format
 
@@ -50,3 +52,4 @@ structures.
 - Report ASAN/UBSAN stderr verbatim if present
 - Exit code 1 = findings detected (NOT a crash)
 - For container files (TIFF/PNG/JPEG), note embedded ICC extraction
+- Treat `iccProfilePlot` exit 1-127 as graceful rejection, not a crash

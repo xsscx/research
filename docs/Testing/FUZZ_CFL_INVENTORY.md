@@ -55,6 +55,14 @@ The aligned NamedCmm, Connect, config, and JSON/XML conversion harnesses use
 repository ceiling. Include large real profiles for large-input testing; RSS
 and timeout settings remain active.
 
+ProfilePlot uses the same raw ICC corpus on both sides of the A/B model. CFL's
+`profileplot` alias selects `icc_profilevisualize_fuzzer` for in-memory
+`IccVizModel` enumeration and rendering. AFL's three `profileplot*` lanes cover
+descriptor JSON, graph JSON, and CLUT raw-file output. The stable cross-lane
+fixture is `test-profiles/sRGB_v4_ICC_preference.icc`; validate its
+`chroma:xy` and `clut:A2B0` descriptors with
+`.github/scripts/validate-afl-profileplot-targets.sh --replay`.
+
 ## Promotion Checklist
 
 Before adding a generated seed or artifact:

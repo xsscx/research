@@ -43,6 +43,11 @@ When macOS agent generates new images or extracts ICC profiles:
    cp fuzz/graphics/tif/*.tif cfl/corpus-icc_tiffdump_fuzzer/
    ```
 
+For a ProfilePlot seed, record whether `iccProfilePlot SEED list` contains
+`chroma:xy`, `clut:A2B0`, or both. The AFL graph/raster lanes screen for these
+stable IDs; CFL can consume the same raw ICC file through the `profileplot`
+alias.
+
 Before seeding a TIFF on WSL-2, retain a structure log and byte-exact profile:
 
 ```bash

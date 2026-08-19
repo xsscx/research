@@ -329,6 +329,20 @@ resuming a stale queue:
 ./afl/start.sh applysearch-hybrid-pcc --fresh --reseed
 ```
 
+For `iccProfilePlot`, keep the CLI surfaces separate and validate the shared
+fixture before starting:
+
+```bash
+.github/scripts/validate-afl-profileplot-targets.sh --replay
+./afl/start.sh profileplot --fresh
+./afl/start.sh profileplot-graph --fresh
+./afl/start.sh profileplot-raster --fresh
+```
+
+The list lane emits descriptor JSON, the graph lane fixes `chroma:xy`, and the
+raster lane fixes `clut:A2B0` while writing samples beneath the process scratch
+prefix.
+
 ## Artifact Policy
 
 Track reusable orchestration assets such as `afl/*.sh`, `afl/targets.sh`, and

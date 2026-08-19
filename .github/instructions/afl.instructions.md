@@ -40,6 +40,7 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 .github/scripts/check-afl-cfl-patches.sh
 .github/scripts/validate-afl-applynamedcmm-targets.sh
 .github/scripts/validate-afl-jpeg-seeds.sh
+.github/scripts/validate-afl-profileplot-targets.sh
 .github/scripts/validate-afl-target-configs.sh --local
 ```
 
@@ -77,6 +78,16 @@ the target map can exceed 131072 bytes.
 
 Run `.github/scripts/validate-afl-applynamedcmm-targets.sh` after changing any
 NamedCMM target arguments, seed limits, dry-run policy, or export path handling.
+
+## iccProfilePlot CLI Shapes
+
+Keep separate `profileplot`, `profileplot-graph`, and `profileplot-raster`
+targets for descriptor enumeration, graph JSON, and CLUT raw-output coverage.
+Use `test-profiles/sRGB_v4_ICC_preference.icc` as the durable fixture contract:
+it must enumerate `chroma:xy` and `clut:A2B0`. Raster output must use the
+per-process scratch prefix. Run
+`.github/scripts/validate-afl-profileplot-targets.sh --replay` after changing
+the arguments, fixture, identifiers, or output-path handling.
 
 ## Tracking Policy
 

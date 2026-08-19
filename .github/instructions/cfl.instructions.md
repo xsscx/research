@@ -56,6 +56,12 @@ Do not commit raw runtime bulk:
   `processLuts()` linkage.
 - Keep PDF/TIFF/SVG writer and argv/filesystem coverage in the tool-level AFL
   lane; CFL owns the in-memory `Enumerate` and `Render*` data-model surface.
+- The `profileplot`, `profile-plot`, and `plot` CFL aliases select this harness.
+  Its replay hint is `iccProfilePlot ARTIFACT list`; use the AFL graph/raster
+  lanes when the finding depends on a fixed descriptor ID or output file.
+- Keep `max_len` at least 65536 so the shared sRGB v4 fixture reaches both
+  `chroma:xy` and `clut:A2B0`; `fuzz-local.sh` installs that fixture into the
+  runtime corpus.
 - Validate compatibility with `cfl/build.sh --branch ci-qa-issue-1975
   --refresh-iccdev` while issue #1975 is active.
 

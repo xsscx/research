@@ -94,6 +94,15 @@ jobs:
           test "${#CFL_FUZZERS[@]}" -gt 0
           test "$(cfl_normalize_fuzzer visualize)" = \
             icc_profilevisualize_fuzzer
+          test "$(cfl_normalize_fuzzer profileplot)" = \
+            icc_profilevisualize_fuzzer
+          mkdir -p /tmp/cfl-profileplot-seeds
+          cfl_install_curated_seeds "$PWD/cfl" \
+            icc_profilevisualize_fuzzer /tmp/cfl-profileplot-seeds
+          cmp test-profiles/sRGB_v4_ICC_preference.icc \
+            /tmp/cfl-profileplot-seeds/sRGB_v4_ICC_preference.icc
+          test "$(cfl_option_max_len "$PWD/cfl" \
+            icc_profilevisualize_fuzzer)" -ge 65536
           test "$(file -b --mime-encoding \
             cfl/icc_profilevisualize_fuzzer.cpp)" = us-ascii
           test "$(file -b --mime-encoding \
@@ -122,7 +131,7 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           timeout 120s cfl/bin/icc_profilevisualize_fuzzer \
-            -runs=1 cfl/corpus/
+            -runs=1 cfl/corpus/ test-profiles/sRGB_v4_ICC_preference.icc
 
       - name: Replay ApplyNamedCmm curated seeds
         env:
