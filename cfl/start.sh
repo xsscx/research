@@ -128,9 +128,11 @@ start_fuzzer() {
     "-max_len=$max_len"
     -create_missing_dirs=1
     "-artifact_prefix=$artifact_dir/"
-    "-jobs=$JOBS"
-    "-workers=$WORKERS"
   )
+
+  if [[ "$JOBS" -ne 1 || "$WORKERS" -ne 1 ]]; then
+    cmd+=("-jobs=$JOBS" "-workers=$WORKERS")
+  fi
 
   if [[ "$FUZZ_SECONDS" != "0" ]]; then
     cmd+=("-max_total_time=$FUZZ_SECONDS")
@@ -151,6 +153,7 @@ start_fuzzer() {
     export LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw"
     export ASAN_OPTIONS="$asan_options"
     export UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1"
+    cd "$run_dir"
     exec "${cmd[@]}"
   fi
 
@@ -160,12 +163,12 @@ start_fuzzer() {
   echo "    Log:    $log"
   echo "    Runs:   $run_dir"
 
-  setsid env \
-    FUZZ_TMPDIR="$run_dir" \
-    LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw" \
-    ASAN_OPTIONS="$asan_options" \
-    UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1" \
-    "${cmd[@]}" > "$log" 2>&1 &
+  (cd "$run_dir" && exec setsid env \
+      FUZZ_TMPDIR="$run_dir" \
+      LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw" \
+      ASAN_OPTIONS="$asan_options" \
+      UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1" \
+      "${cmd[@]}") > "$log" 2>&1 &
   pid=$!
   echo "$pid" > "$pid_file"
   echo "    PID:    $pid"

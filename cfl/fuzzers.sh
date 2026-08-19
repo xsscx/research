@@ -164,7 +164,23 @@ cfl_install_curated_seeds() {
   local fuzzer="$2"
   local corpus_dir="$3"
   local seed_dir
+  local seed
   local target
+
+  case "$fuzzer" in
+    icc_applysearch_fuzzer)
+      seed="$script_dir/../test-profiles/sRGB_D65_MAT.icc"
+      [[ -f "$seed" ]] && cp "$seed" "$corpus_dir/$(basename "$seed")"
+      ;;
+    icc_applysearch_weight_fuzzer)
+      for seed in \
+        "$script_dir/../test-profiles/sRgbEncoding.icc" \
+        "$script_dir/../test-profiles/sRgbEncodingOverrides.icc" \
+        "$script_dir/../test-profiles/issue-809-vendor-flags-cwe681.icc"; do
+        [[ -f "$seed" ]] && cp "$seed" "$corpus_dir/$(basename "$seed")"
+      done
+      ;;
+  esac
 
   if ! seed_dir="$(cfl_curated_seed_dir "$script_dir" "$fuzzer")" ||
      [[ ! -d "$seed_dir" ]]; then
