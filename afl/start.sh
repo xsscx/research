@@ -498,7 +498,6 @@ if [[ "$AFL_FRESH" != "0" ]]; then
     archive_dir_once "$AFL_DIR/output" "output"
 fi
 mkdir -p "$AFL_DIR/output"
-remove_stale_resume_state "$AFL_DIR/output"
 
 seed_file_allowed() {
     local seed_file="$1"
@@ -558,6 +557,7 @@ prune_existing_seed_corpus() {
     local seed_file
     local rel
     local dest
+    local runtime_corpus
     local corpus_dirs=("$AFL_DIR/input")
 
     if [[ "${AFL_PRUNE_BAD_SEEDS:-1}" == "0" ]]; then
@@ -579,8 +579,11 @@ prune_existing_seed_corpus() {
     prune_dir="$AFL_DIR/pruned-seeds-$(date -u +%Y%m%dT%H%M%SZ)"
     for dir in "${corpus_dirs[@]}"; do
         [[ -d "$dir" ]] || continue
+        runtime_corpus=0
+        [[ "$dir" == "$output_dir"/* ]] && runtime_corpus=1
         while IFS= read -r -d '' seed_file; do
-            if seed_file_size_allowed "$seed_file" && seed_file_allowed "$seed_file"; then
+            if seed_file_size_allowed "$seed_file" &&
+               { [[ "$runtime_corpus" -eq 1 ]] || seed_file_allowed "$seed_file"; }; then
                 continue
             fi
             rel="${seed_file#"$AFL_DIR"/}"
