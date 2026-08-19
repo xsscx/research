@@ -22,6 +22,10 @@ if archaeology is required. Vendor mirrors (`opencv/`) and archived dirs
 ## Build and Test
 See `.github/copilot-instructions.md` for build/test commands per component.
 Additional repo workflows in active use:
+- `./afl/build-afl-runtime.sh`
+  -- install pinned AFL++ stable commit `05507e1880dc6df997c19e01423444ef37c36846`
+     with LLVM 21 wrappers and the 4 MiB testcase ceiling required by the
+     full-size hybrid TIFF lane.
 - `ICCDEV_TOOLS_DIR=$PWD/iccDEV/Build/Tools ICCDEV_TESTING_DIR=$PWD/iccDEV/Testing .github/scripts/iccdev-tool-coverage-baseline.sh --asan`
   -- full iccDEV CLI coverage baseline; CI runs this script from `.github/workflows/iccdev-tool-tests.yml`.
 - `.github/scripts/batch-test-external.sh /path/to/profiles [--timeout N] [--max N] [--csv]`

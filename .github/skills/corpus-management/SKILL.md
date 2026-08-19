@@ -113,6 +113,10 @@ Compare file counts (local must be >= source) before swapping directories.
 - AFL `jpegdump` and `jpegdump-inject` seed only up to 200 `.jpg`/`.jpeg` files
   from `fuzz/graphics/jpg` with extractable embedded ICC profiles; never seed
   those lanes with raw `.icc` files.
+- AFL `applyprofiles-hybrid-embedded` keeps the complete generated multispectral
+  TIFF. Install the pinned 4 MiB runtime with `./afl/build-afl-runtime.sh` and
+  run `.github/scripts/validate-afl-target-configs.sh --local`; do not crop the
+  seed to fit an older AFL++ runtime.
 - On repeated correction or wrap-up requests, skip broad corpus sweeps. Make
   the named fix, run the narrow seed validator or seed-only check, then commit
   and push if requested.

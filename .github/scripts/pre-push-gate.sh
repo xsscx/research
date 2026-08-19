@@ -26,6 +26,7 @@ WARNINGS=0
 SKIPPED=0
 AFL_JPEG_SEED_PATTERN='afl/targets.sh\|afl/start.sh\|afl/README.md\|\.github/scripts/validate-afl-jpeg-seeds.sh\|\.github/instructions/afl.instructions.md\|\.github/instructions/fuzz.instructions.md\|\.github/prompts/.*fuzzer.*\.prompt.md\|\.github/skills/corpus-management/SKILL.md\|AGENTS.md\|\.github/copilot-instructions.md'
 AFL_NAMEDCMM_PATTERN='afl/targets.sh\|afl/start.sh\|afl/README.md\|docs/afl/index.md\|\.github/scripts/validate-afl-applynamedcmm-targets.sh\|\.github/instructions/afl.instructions.md'
+AFL_TARGET_CONFIG_PATTERN='afl/targets.sh\|afl/start.sh\|\.github/scripts/validate-afl-target-configs.sh\|\.github/instructions/afl.instructions.md'
 CFL_NAMEDCMM_PATTERN='cfl/icc_applynamedcmm_fuzzer.cpp\|cfl/fuzzers.sh\|cfl/fuzz-local.sh\|cfl/seeds-applynamedcmm/\|\.github/scripts/validate-cfl-applynamedcmm.sh\|\.github/instructions/cfl.instructions.md'
 
 echo -e "${BOLD}+--------------------------------------------------+${NC}"
@@ -75,6 +76,25 @@ if has_changes "$AFL_NAMEDCMM_PATTERN"; then
   fi
 else
   echo -e "  ${YELLOW}(no AFL ApplyNamedCmm target contract changes - skipped)${NC}"
+  SKIPPED=$((SKIPPED + 1))
+fi
+
+echo ""
+
+# ---------------------------------------------------
+# GATE 1A: AFL target configuration contracts
+# ---------------------------------------------------
+echo -e "${BOLD}[GATE 1A] AFL target configuration contracts${NC}"
+
+if has_changes "$AFL_TARGET_CONFIG_PATTERN"; then
+  if .github/scripts/validate-afl-target-configs.sh; then
+    echo -e "  ${GREEN}AFL target configuration contracts OK${NC}"
+  else
+    echo -e "  ${RED}AFL target configuration contracts FAILED${NC}"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  echo -e "  ${YELLOW}(no AFL target configuration changes - skipped)${NC}"
   SKIPPED=$((SKIPPED + 1))
 fi
 

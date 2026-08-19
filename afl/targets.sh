@@ -186,6 +186,7 @@ afl_configure_target() {
     AFL_FAST_CAL_TARGET=0
     AFL_NO_FORKSRV_TARGET=0
     AFL_SKIP_BIN_CHECK_TARGET=0
+    AFL_TARGET_TIMEOUT=0
     SEED_DRY_RUN_TARGET=0
     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=0
     SEED_DRY_RUN_TIMEOUT=5
@@ -213,7 +214,6 @@ afl_configure_target() {
     HYBRID_ICC_DIR="$hybrid_support_dir/ICC"
     HYBRID_RESULTS_DIR="$hybrid_support_dir/Results"
     HYBRID_MS_TIFF="$hybrid_support_dir/Results/MS_smCows.tif"
-    HYBRID_MS_TIFF_SEED="$hybrid_support_dir/Results/MS_smCows_64x64.tif"
     HYBRID_CMYK_DATA="$hybrid_support_dir/Data/cmykGrays.txt"
     HYBRID_CMYK_REF="$hybrid_support_dir/Results/cmykGraysRef.txt"
     HYBRID_CMYK_PROFILE="$hybrid_support_dir/ICC/CMYK_Hybrid_Profile.icc"
@@ -363,14 +363,17 @@ afl_configure_target() {
                     DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
                     HYBRID_NEEDS_SUPPORT=1
                     SEED_MAX_BYTES=3145728
+                    [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=3145728
                     SEED_LIMIT=300
                     SEED_DRY_RUN_TARGET=1
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-                    SEED_FILES=("$HYBRID_MS_TIFF_SEED")
+                    SEED_DRY_RUN_TIMEOUT=15
+                    AFL_TARGET_TIMEOUT=15000
+                    SEED_FILES=("$HYBRID_MS_TIFF")
                     SEED_FILE_TYPE_REGEX='^(TIFF image data|Big TIFF image data)'
                     SEED_DIRS=()
                     REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
-                    TARGET_NOTE="Hybrid ApplyProfiles embedded/PCC lane: fuzzes the generated multispectral TIFF through float, compressed, planar, embedded, tetrahedral, and BPC output paths."
+                    TARGET_NOTE="Hybrid ApplyProfiles embedded/PCC lane: fuzzes the full-size generated multispectral TIFF through float, compressed, planar, embedded, tetrahedral, and BPC output paths."
                     AFL_ARGS=("@@" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "-embedded" "10003" "-PCC" "$HYBRID_SPEC_F11" "$HYBRID_SRGB" "41")
                     ;;
                 applyprofiles-hybrid-pcc|profiles-hybrid-pcc)
@@ -636,7 +639,6 @@ afl_configure_target() {
                 "$REPO_ROOT/fuzz/graphics/cube/dbz-matrix-identity.cube"
             )
             SEED_DIRS=(
-                "$REPO_ROOT/cfl/icc_fromcube_fuzzer_seed_corpus"
                 "$REPO_ROOT/cfl/corpus-icc_fromcube_fuzzer"
                 "$REPO_ROOT/fuzz/graphics/cube"
                 "${HOME:-$REPO_ROOT}/cube-lut"
@@ -902,7 +904,7 @@ afl_configure_target() {
                     AFL_ARGS=("${tmp_prefix}.tif" "0" "1" "${tmp_prefix}-spec_00" "1" "9" "1" "@@")
                     ;;
                 specseptotiff-tiff)
-                    BINARY="$AFL_BASE/specsep-tiff-wrapper.sh"
+                    BINARY="$REPO_ROOT/afl/specsep-tiff-wrapper.sh"
                     DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
                     TARGET_NOTE="SpecSep TIFF-input lane: wrapper copies @@ to a one-channel prefix so AFL mutates CTiffImg/open/readline paths instead of the optional ICC profile."
                     AFL_NO_FORKSRV_TARGET=1
@@ -1078,13 +1080,6 @@ afl_prepare_hybrid_support_files() {
             -exportcfg "$HYBRID_CONFIG_DIR/makeMS_smCows.json" \
             "$HYBRID_DATA_DIR/smCows380_5_780.tif" "$HYBRID_MS_TIFF" \
             2 1 0 1 1 -embedded 3 "$HYBRID_ICC_DIR/MultSpectralRGB.icc" 10003 >/dev/null
-    fi
-    if [[ ! -e "$HYBRID_MS_TIFF_SEED" ]]; then
-        if command -v tiffcrop >/dev/null 2>&1; then
-            tiffcrop -U px -z 0,0,63,63 "$HYBRID_MS_TIFF" "$HYBRID_MS_TIFF_SEED" >/dev/null 2>&1
-        else
-            cp -- "$HYBRID_MS_TIFF" "$HYBRID_MS_TIFF_SEED"
-        fi
     fi
     if [[ ! -e "$HYBRID_CMYK_REF" ]]; then
         "$BIN_DIR/iccApplyNamedCmm" \

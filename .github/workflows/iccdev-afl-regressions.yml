@@ -10,6 +10,7 @@ on:
       - 'afl/*.sh'
       - 'afl/targets.sh'
       - '.github/scripts/validate-afl-applynamedcmm-targets.sh'
+      - '.github/scripts/validate-afl-target-configs.sh'
       - '.github/scripts/validate-afl-jpeg-seeds.sh'
   pull_request:
     paths:
@@ -17,6 +18,7 @@ on:
       - 'afl/*.sh'
       - 'afl/targets.sh'
       - '.github/scripts/validate-afl-applynamedcmm-targets.sh'
+      - '.github/scripts/validate-afl-target-configs.sh'
       - '.github/scripts/validate-afl-jpeg-seeds.sh'
   workflow_dispatch:
 
@@ -53,7 +55,9 @@ jobs:
         run: |
           set -euo pipefail
           shellcheck afl/report.sh afl/run-all.sh afl/status.sh afl/targets.sh \
+            afl/build-afl-runtime.sh \
             .github/scripts/validate-afl-applynamedcmm-targets.sh \
+            .github/scripts/validate-afl-target-configs.sh \
             .github/scripts/validate-afl-jpeg-seeds.sh
           bash -n afl/*.sh
 
@@ -61,6 +65,11 @@ jobs:
         run: |
           set -euo pipefail
           .github/scripts/validate-afl-applynamedcmm-targets.sh
+
+      - name: Validate all AFL target configurations
+        run: |
+          set -euo pipefail
+          .github/scripts/validate-afl-target-configs.sh
 
       - name: Validate JPEG AFL seed policy
         run: |

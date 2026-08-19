@@ -8,6 +8,9 @@ Use `afl/targets.sh` as the source of truth for available targets.
 ## Fast Path
 
 ```bash
+# Install the pinned AFL++ 5.03a runtime and LLVM 21 compiler wrappers.
+./afl/build-afl-runtime.sh
+
 # Build AFL-instrumented upstream iccDEV tools without local AFL patches.
 ./afl/build.sh
 
@@ -55,6 +58,24 @@ XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile
 visualization, profile linking, and CMM apply flows. Run `./afl/start.sh --list`
 for the exact list in the active checkout.
 
+### Full-size hybrid image lane
+
+`applyprofiles-hybrid-embedded` mutates the complete generated 600x420
+multispectral TIFF. It does not crop or downsample the image, so the lane keeps
+the real-world pixel traversal, planar/compressed TIFF handling, embedded
+profile, PCC, tetrahedral interpolation, and black-point compensation paths.
+The measured sanitizer build needs more than the global five-second default,
+so this target defaults both seed screening and AFL execution to 15 seconds.
+An explicit `AFL_TIMEOUT` or `--timeout` still takes precedence.
+
+Use LibTIFF tools such as `tiffinfo` for local TIFF structure checks. On
+Ubuntu, install them with `sudo apt-get install libtiff-tools`.
+
+This lane sets both its seed and generated-input ceiling to 3 MiB. The pinned
+AFL++ runtime is stable commit `05507e1880dc6df997c19e01423444ef37c36846`,
+built with a 4 MiB `MAX_FILE` ceiling by `afl/build-afl-runtime.sh`. `start.sh`
+checks the runtime ceiling before launching, preventing partial seed reads.
+
 ### iccApplyNamedCmm argv lanes
 
 Use separate targets for materially different command-line parsers and transform
@@ -68,10 +89,11 @@ shapes:
 - `applynamedcmm-hybrid-pcc` applies the fixed CMYK v5 profile and fuzzes its
   PCC profile, covering `-ENV` and `-PCC` parsing.
 
-The NamedCMM hybrid lanes admit only complete ICC files smaller than AFL++'s
-1 MiB testcase ceiling and dry-run each seed to require exit 0. This avoids
-AFL++ silently fuzzing a partial read of a larger profile. Export paths use the
-target scratch prefix so parallel workers do not overwrite one shared JSON file.
+The NamedCMM hybrid lanes deliberately admit only complete ICC files smaller
+than their 1 MiB target policy and dry-run each seed to require exit 0. This
+avoids AFL++ silently fuzzing a partial read of a larger profile. Export paths
+use the target scratch prefix so parallel workers do not overwrite one shared
+JSON file.
 Use `afl/start.sh`'s default map size for these instrumented binaries. A manually
 fixed 131072-byte map can be smaller than the target reports and forces AFL++ to
 reinitialize the map before fuzzing.
@@ -80,7 +102,7 @@ CFL NamedCmm now uses pure ICC inputs and supports corpus-derived multi-megabyte
 limits. Promotion into AFL is intentionally one-way and size-checked: copy only
 a complete ICC file below 1 MiB. Keep larger profiles in CFL, or design a tool
 lane with the large profile fixed and a bounded `@@` companion. Never truncate
-the profile to fit AFL++'s compile-time testcase ceiling.
+the profile to fit that lane's testcase policy.
 
 ```bash
 ./afl/start.sh applynamedcmm-hybrid-chain --run-time 300
@@ -137,10 +159,10 @@ workers with different explore/exploit strategy and power-schedule pairs. Use
 
 ## Coverage and Reachability Toolchain
 
-`afl/build.sh` requires `clang-21`/`clang++-21` and AFL++ wrappers rebuilt
-against LLVM 21. On Ubuntu 26.04 this means installing `clang-21`,
-`llvm-21-tools`, `llvm-21-dev`, and `libclang-rt-21-dev`, then rebuilding AFL++
-with `llvm-config-21`.
+`afl/build.sh` requires `clang-21`/`clang++-21` and AFL++ wrappers built against
+LLVM 21. Run `afl/build-afl-runtime.sh` to reproduce the pinned runtime. On
+Ubuntu 26.04 its prerequisites include `clang-21`, `llvm-21-tools`,
+`llvm-21-dev`, `lld-21`, `libclang-rt-21-dev`, and `gcc-15-plugin-dev`.
 
 For source coverage, `afl/coverage.sh` selects `clang-21`/`clang++-21` and
 `cov-analysis` then uses the matching `llvm-profdata-21` and `llvm-cov-21`.

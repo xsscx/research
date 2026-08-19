@@ -48,6 +48,7 @@ guardrails into `cfl/patches/`.
 #   libpng-dev, libjpeg-dev, libssl-dev, libclang-rt-18-dev
 cd cfl && ./build.sh                    # LibFuzzer harnesses against unpatched upstream
 cd colorbleed_tools && make setup && make # unsafe tools (clang defaults to sanitizer build)
+./afl/build-afl-runtime.sh              # pinned AFL++ stable runtime, LLVM 21, 4 MiB ceiling
 ./afl/build.sh                          # AFL-instrumented upstream tools
 ```
 

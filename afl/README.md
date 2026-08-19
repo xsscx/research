@@ -19,7 +19,7 @@ The four NamedCmm lanes and their intended CLI coverage are documented in
 ## Quick Start
 
 ```bash
-source ~/work/copilot/tools/env.sh
+./afl/build-afl-runtime.sh
 ./afl/build.sh
 ./afl/start.sh --list
 ./afl/start.sh dump
@@ -79,9 +79,12 @@ AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-CMPLOG AFL_BIN_DIR=$PWD/afl/bin-cmplog .
 AFL_BASE=$PWD/afl/cmplog ./afl/start.sh fromcube --fresh --reseed --cmplog-binary $PWD/afl/bin-cmplog/iccFromCube
 ```
 
-`build.sh` requires `clang-21`/`clang++-21` and an AFL++ wrapper rebuilt against
-LLVM 21. Override `AFL_CLANG_FAST` or `AFL_CLANG_FASTXX` only when pointing at a
-different LLVM 21 wrapper install.
+`build.sh` requires `clang-21`/`clang++-21` and AFL++ wrappers built against
+LLVM 21. `build-afl-runtime.sh` checks out stable commit
+`05507e1880dc6df997c19e01423444ef37c36846`, raises the compiled testcase
+ceiling to 4 MiB, and installs the matching runtime and compiler wrappers.
+Override `AFL_CLANG_FAST` or `AFL_CLANG_FASTXX` only when pointing at a
+different LLVM 21 wrapper install with an adequate testcase ceiling.
 
 ## Review-Driven Improvements
 

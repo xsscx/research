@@ -28,6 +28,7 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 ## Standard Commands
 
 ```bash
+./afl/build-afl-runtime.sh
 ./afl/build.sh          # default: unpatched upstream iccDEV
 ./afl/start.sh --list
 ./afl/start.sh dump
@@ -39,7 +40,15 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 .github/scripts/check-afl-cfl-patches.sh
 .github/scripts/validate-afl-applynamedcmm-targets.sh
 .github/scripts/validate-afl-jpeg-seeds.sh
+.github/scripts/validate-afl-target-configs.sh --local
 ```
+
+The runtime builder pins AFL++ stable commit
+`05507e1880dc6df997c19e01423444ef37c36846`, LLVM 21, and a 4 MiB compiled
+testcase ceiling. The `applyprofiles-hybrid-embedded` lane requires that
+runtime, uses the complete generated multispectral TIFF, and sets `-G` to
+3 MiB. Do not restore the historical 64x64 crop. `start.sh` must reject a
+runtime whose compiled ceiling is lower than a target's requested `-G` value.
 
 ## iccApplyNamedCmm CLI Shapes
 
@@ -51,10 +60,10 @@ hybrid chain. Use `applynamedcmm-hybrid-chain` for this argv shape:
 -exportcfganddata OUT DATA 3 1 FIXED_CMYK_V5 10003 @@ 10
 ```
 
-NamedCMM hybrid seeds must be complete ICC files smaller than 1 MiB and must
-pass the target dry run with exit 0. AFL++ 5.x otherwise partially reads larger
-seed files at its testcase ceiling. Use a per-process scratch path for exported
-JSON; never make parallel workers overwrite one fixed config path.
+NamedCMM hybrid seeds must be complete ICC files smaller than the lane's 1 MiB
+policy and must pass the target dry run with exit 0. Use a per-process scratch
+path for exported JSON; never make parallel workers overwrite one fixed config
+path.
 
 Do not copy CFL's corpus-derived large-input policy into AFL++. CFL NamedCmm
 seeds are pure ICC files, but only complete files below 1 MiB may be promoted

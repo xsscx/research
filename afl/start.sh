@@ -13,6 +13,10 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
+AFL_TIMEOUT_EXPLICIT=0
+if [[ -n "${AFL_TIMEOUT:-}" ]]; then
+    AFL_TIMEOUT_EXPLICIT=1
+fi
 AFL_TIMEOUT="${AFL_TIMEOUT:-5000}"
 AFL_RUN_TIME="${AFL_RUN_TIME:-}"
 AFL_MAP_SIZE_VAL="${AFL_MAP_SIZE:-1048576}"
@@ -45,7 +49,9 @@ AFL_SEED_MAX_BYTES_OVERRIDE="${AFL_SEED_MAX_BYTES:-}"
 AFL_SEED_ORDER="${AFL_SEED_ORDER:-random}"
 AFL_TESTCACHE_SIZE_VAL="${AFL_TESTCACHE_SIZE:-256}"
 AFL_DICT_OVERRIDE="${AFL_DICT:-${AFL_DICTIONARY:-}}"
+AFL_FUZZ_BIN="${AFL_FUZZ_BIN:-afl-fuzz}"
 BIN_DIR="${AFL_BIN_DIR:-$REPO_ROOT/afl/bin}"
+AFL_DIR=""
 
 source "$REPO_ROOT/afl/targets.sh"
 source "$REPO_ROOT/afl/sanitizer-env.sh"
@@ -123,7 +129,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --input-dir) AFL_INPUT_DIR="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --dictionary) AFL_DICT_OVERRIDE="$(option_arg "$1" "${2:-}")"; shift 2 ;;
-        --timeout) AFL_TIMEOUT="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --timeout) AFL_TIMEOUT="$(option_arg "$1" "${2:-}")"; AFL_TIMEOUT_EXPLICIT=1; shift 2 ;;
         --run-time) AFL_RUN_TIME="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --map-size) AFL_MAP_SIZE_VAL="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --cmplog-auto) AFL_CMPLOG_AUTO=1; shift ;;
@@ -317,6 +323,10 @@ if ! afl_configure_target "$TARGET"; then
     exit 1
 fi
 
+if [[ "$AFL_TIMEOUT_EXPLICIT" -eq 0 && "${AFL_TARGET_TIMEOUT:-0}" -gt 0 ]]; then
+    AFL_TIMEOUT="$AFL_TARGET_TIMEOUT"
+fi
+
 if [[ -n "$AFL_INPUT_DIR" && ! -d "$AFL_INPUT_DIR" ]]; then
     echo "ERROR: AFL_INPUT_DIR is not a directory: $AFL_INPUT_DIR" >&2
     exit 1
@@ -427,6 +437,28 @@ require_uint "SEED_FIND_MAXDEPTH" "${SEED_FIND_MAXDEPTH:-1}"
 if [[ -n "$AFL_INPUT_FORMAT" && "$AFL_INPUT_FORMAT" != "text" && "$AFL_INPUT_FORMAT" != "binary" ]]; then
     echo "ERROR: AFL_INPUT_FORMAT must be 'text' or 'binary': $AFL_INPUT_FORMAT" >&2
     exit 1
+fi
+
+if ! command -v "$AFL_FUZZ_BIN" >/dev/null 2>&1; then
+    echo "ERROR: AFL++ runtime not found: $AFL_FUZZ_BIN" >&2
+    echo "Run ./afl/build-afl-runtime.sh first" >&2
+    exit 1
+fi
+if [[ -n "$AFL_MAX_LENGTH" ]]; then
+    afl_compiled_max=$(
+        { "$AFL_FUZZ_BIN" -hh 2>&1 || true; } |
+            sed -n 's/.*-G maxlength.*default: \([0-9][0-9]*\).*/\1/p' |
+            head -n 1
+    )
+    if [[ -z "$afl_compiled_max" ]]; then
+        echo "ERROR: Could not determine the compiled testcase ceiling from $AFL_FUZZ_BIN -hh" >&2
+        exit 1
+    fi
+    if [[ "$AFL_MAX_LENGTH" -gt "$afl_compiled_max" ]]; then
+        echo "ERROR: AFL_MAX_LENGTH=$AFL_MAX_LENGTH exceeds the runtime ceiling $afl_compiled_max" >&2
+        echo "Run ./afl/build-afl-runtime.sh to install the pinned 4 MiB AFL++ runtime" >&2
+        exit 1
+    fi
 fi
 
 # Verify binary exists
@@ -1023,7 +1055,7 @@ fi
 afl_export_fuzz_sanitizer_env
 export -n AFL_AUTORESUME_VAL AFL_BASE AFL_BIN_DIR AFL_CMPLOG_AUTO AFL_CMPLOG_BINARY AFL_CMPLOG_BIN_DIR AFL_CMPLOG_OPTS AFL_DICT AFL_FRESH 2>/dev/null || true
 export -n AFL_DICTIONARY AFL_EXEC_LIMIT AFL_EXTRA_ARGS AFL_EXTRA_DICTS AFL_EXTRA_SEED_DIRS AFL_INPUT_DIR 2>/dev/null || true
-export -n AFL_DICT_OVERRIDE AFL_IMPORT_FIRST_VAL AFL_INPUT_FORMAT AFL_MAX_LENGTH AFL_MIN_LENGTH 2>/dev/null || true
+export -n AFL_DICT_OVERRIDE AFL_FUZZ_BIN AFL_IMPORT_FIRST_VAL AFL_INPUT_FORMAT AFL_MAX_LENGTH AFL_MIN_LENGTH 2>/dev/null || true
 export -n AFL_CAMPAIGN_MODE AFL_MOPT AFL_MOPT_ENABLE AFL_MOPT_SECS AFL_MOPT_SECS_LEGACY AFL_MUTATION_STRATEGY 2>/dev/null || true
 export -n AFL_POWER_SCHEDULE AFL_RESEED AFL_RUN_TIME AFL_SEED_LIMIT AFL_SEED_MAX_BYTES AFL_SEED_ONLY AFL_SEED_ORDER 2>/dev/null || true
 export -n AFL_SEQUENTIAL_QUEUE AFL_SPLICE AFL_TESTCACHE_SIZE_VAL AFL_TIMEOUT 2>/dev/null || true
@@ -1034,7 +1066,7 @@ if [[ "$PARALLEL" -eq 1 ]]; then
     echo ""
     cd "$AFL_WORK_DIR"
     instance_campaign_args 1
-    exec afl-fuzz \
+    exec "$AFL_FUZZ_BIN" \
         "${INPUT_ARGS[@]}" \
         -o "$AFL_DIR/output" \
         "${INSTANCE_COMMON_ARGS[@]}" \
@@ -1047,7 +1079,7 @@ else
 
     instance_afl_args "main"
     instance_campaign_args 1
-    afl-fuzz \
+    "$AFL_FUZZ_BIN" \
         "${INPUT_ARGS[@]}" \
         -o "$AFL_DIR/output" \
         -M main \
@@ -1062,7 +1094,7 @@ else
     for i in $(seq 2 "$PARALLEL"); do
         instance_afl_args "secondary_$i"
         instance_campaign_args "$i"
-        afl-fuzz \
+        "$AFL_FUZZ_BIN" \
             "${INPUT_ARGS[@]}" \
             -o "$AFL_DIR/output" \
             -S "secondary_$i" \
