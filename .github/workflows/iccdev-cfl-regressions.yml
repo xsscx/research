@@ -131,7 +131,7 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           timeout 120s cfl/bin/icc_profilevisualize_fuzzer \
-            -runs=1 cfl/corpus/ test-profiles/sRGB_v4_ICC_preference.icc
+            -runs=1 test-profiles/sRGB_v4_ICC_preference.icc
 
       - name: Replay ApplyNamedCmm curated seeds
         env:
