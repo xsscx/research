@@ -127,6 +127,18 @@ Validate and stage the lane before a campaign:
 ./afl/start.sh fromxml-includes --fresh
 ```
 
+Replay include-lane queues and findings through `afl/triage.sh`, `afl/map.sh`,
+or `afl/minimize.sh`. These helpers restore the staged working directory.
+Running `iccFromXml` directly from the repository root is not equivalent:
+relative `Filename` dependencies will be missing. AFL state belongs under
+`afl/afl-<target>/output/<instance>/`; a single campaign uses `default`, while
+parallel campaigns use `main` and `secondary_N`.
+
+The JSON `-cfg` lanes use isolated work trees under `afl/work/<target>/root`.
+Config-controlled relative output filenames must never be created in the
+repository root. The work trees are disposable runtime state; AFL queues and
+findings remain under the normal target output directory.
+
 ## Dashboard and Coverage
 
 AFL++, `cov-analysis`, and `fuzz-reachability` can be installed outside the repo
@@ -367,5 +379,6 @@ Promote only durable crash, hang, timeout, or minimized queue evidence to
 - Coverage and minimization: `afl/map.sh`, `afl/minimize.sh`
 - Source coverage/reachability: `afl/coverage.sh`
 - Startup-root reachability audits: `afl/startup-roots.sh`
+- Runtime staging and replay review: `docs/afl/runtime-staging-and-replay.md`
 - Dashboard: `afl/dashboard/`
 - Upstream tools: AFLplusplus AFL++, `cov-analysis`, and `fuzz-reachability`

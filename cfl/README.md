@@ -173,6 +173,11 @@ cd cfl
 ./fuzz-local.sh -t 120 dump     # target alias accepted by helper scripts
 ```
 
+Both `start.sh` and `fuzz-local.sh` execute each harness from runtime state below
+`cfl/runs/`, with `FUZZ_TMPDIR` pointing at that fuzzer's work directory.
+Corpora remain under `cfl/corpus-*`, findings use the configured artifact
+directory, and generated tool files must not appear in the repository root.
+
 For maintainer one-liners covering every active fuzzer, including smoke,
 explore, rare-path, and sanitizer reproduction modes, use
 `docs/Testing/CFL_MANUAL_FUZZER_COMMANDS.md`.

@@ -163,6 +163,23 @@ Keep `fromxml` and `fromxml-noid` for standalone XML mutation. The include lane
 does not mutate dependency contents; that requires a future dedicated AFL custom
 mutator rather than a shell wrapper around `iccFromXml`.
 
+For direct reproduction, first configure or stage the lane and then run from
+`afl/support/fromxml-includes`; otherwise relative TXT/XML dependencies are not
+visible. Prefer `./afl/triage.sh fromxml-includes`, which does this automatically.
+Its marked `.cmd` files use the same working directory and an absolute artifact
+path. `output/default/queue` is the expected queue for a single instance;
+parallel runs use `output/main/queue` and `output/secondary_N/queue`.
+
+JSON `-cfg` targets deliberately run from `afl/work/<target>/root`, populated
+with read-only copies of required input fixtures. Fuzzed relative output fields
+therefore land in disposable target work state rather than the repository root.
+
+`applyprofiles-hybrid-pcc` seeds only the known-compatible
+`MultSpectralRGB.icc` PCC fixture. Its complete multispectral TIFF transform is
+slow enough to require a 15-second dry-run and AFL timeout; broad ICC directories
+must not be reintroduced because screening them delays AFL startup without
+adding usable seeds.
+
 ## Campaign Modes
 
 `afl/start.sh` provides named AFL++ 5.x campaign modes so mutation strategy and

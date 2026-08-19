@@ -84,3 +84,5 @@ Read ASAN/UBSAN stack frames #2-#3. Classify by file path:
 - For `profileplot*`, replay the exact `list`, `graph chroma:xy`, or
   `raster clut:A2B0 OUT.raw` argv shape from `afl/targets.sh`; do not substitute
   the older `iccProfileVisualize` executable.
+- Preserve `AFL_WORK_DIR` from `afl/targets.sh`. `fromxml-includes` must replay
+  from the staged support tree, and marked artifacts should be absolute paths.

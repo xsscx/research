@@ -212,6 +212,8 @@ afl_configure_target() {
     AFL_ARGS=()
     HYBRID_NEEDS_SUPPORT=0
     FROMXML_INCLUDES_NEEDS_SUPPORT=0
+    ISOLATED_WORK_NEEDS_SUPPORT=0
+    ISOLATED_WORK_FILES=()
     FROMXML_INCLUDES_MANIFEST="$REPO_ROOT/afl/fromxml-includes.manifest"
     FROMXML_INCLUDES_SOURCE_DIR="$(afl_first_existing \
         "$REPO_ROOT/iccDEV/Testing" \
@@ -256,6 +258,14 @@ afl_configure_target() {
             REQUIRED_FILES=("$rgb_16_data")
             if [[ "$target" == applynamedcmm-cfg || "$target" == namedcmm-cfg ]]; then
                 AFL_DIR="$AFL_BASE/afl-applynamedcmm-cfg"
+                AFL_WORK_DIR="$AFL_BASE/work/applynamedcmm-cfg/root"
+                ISOLATED_WORK_NEEDS_SUPPORT=1
+                ISOLATED_WORK_FILES=(
+                    "$REPO_ROOT/test-profiles/sRGB_D65_MAT.icc"
+                    "$rgb_data"
+                    "$REPO_ROOT/docs/Testing/test-data/rgb-float.txt"
+                    "$REPO_ROOT/fuzz/graphics/icc/sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc"
+                )
                 DICT="$REPO_ROOT/cfl/icc_cfg.dict"
                 SEED_MAX_BYTES=262144
                 SEED_FILE_TYPE_REGEX='^(JSON text data|ASCII text)'
@@ -351,6 +361,14 @@ afl_configure_target() {
                     ;;
                 applyprofiles-cfg|profiles-cfg)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-cfg"
+                    AFL_WORK_DIR="$AFL_BASE/work/applyprofiles-cfg/root"
+                    ISOLATED_WORK_NEEDS_SUPPORT=1
+                    ISOLATED_WORK_FILES=(
+                        "$REPO_ROOT/test-profiles/sRGB_D65_MAT.icc"
+                        "$fixed_tiff"
+                        "$REPO_ROOT/docs/Testing/test-data/rgb-4x4-8bit.tif"
+                        "$REPO_ROOT/fuzz/graphics/icc/sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc"
+                    )
                     DICT="$REPO_ROOT/cfl/icc_cfg.dict"
                     SEED_MAX_BYTES=262144
                     SEED_FILE_TYPE_REGEX='^(JSON text data|ASCII text)'
@@ -391,23 +409,16 @@ afl_configure_target() {
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-hybrid-pcc"
                     HYBRID_NEEDS_SUPPORT=1
                     SEED_MAX_BYTES=524288
-                    SEED_LIMIT=300
+                    SEED_LIMIT=1
                     SEED_DRY_RUN_TARGET=1
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-                    SEED_FILES=(
-                        "$HYBRID_LAB_D50"
-                        "$HYBRID_SPEC_F11"
-                        "$HYBRID_SPEC_ILLUMA"
-                    )
-                    SEED_DIRS=(
-                        "$HYBRID_ICC_DIR"
-                        "$REPO_ROOT/fuzz/graphics/icc"
-                        "$REPO_ROOT/test-profiles"
-                        "$REPO_ROOT/extended-test-profiles"
-                    )
+                    SEED_DRY_RUN_TIMEOUT=15
+                    AFL_TARGET_TIMEOUT=15000
+                    SEED_FILES=("$HYBRID_ICC_DIR/MultSpectralRGB.icc")
+                    SEED_DIRS=()
                     REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
-                    TARGET_NOTE="Hybrid ApplyProfiles PCC lane: places the fuzzed profile after -PCC and screens for a complete embedded-to-sRGB transform."
-                    AFL_ARGS=("-exportcfg" "$HYBRID_CONFIG_DIR/afl-applyprofiles-hybrid.json" "$HYBRID_MS_TIFF" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "-embedded" "10003" "-PCC" "@@" "$HYBRID_SRGB" "41")
+                    TARGET_NOTE="Hybrid ApplyProfiles PCC lane: places the fuzzed MultSpectralRGB profile after -PCC and screens the complete embedded-to-sRGB transform before launch."
+                    AFL_ARGS=("-exportcfg" "${tmp_prefix}.json" "$HYBRID_MS_TIFF" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "-embedded" "10003" "-PCC" "@@" "$HYBRID_SRGB" "41")
                     ;;
                 applyprofiles-row|profiles-row)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-row"
@@ -468,6 +479,9 @@ afl_configure_target() {
             SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
             REQUIRED_FILES=("$rgb_data" "$srgb_profile")
             if [[ "$target" == applysearch-cfg || "$target" == search-cfg ]]; then
+                AFL_WORK_DIR="$AFL_BASE/work/applysearch-cfg/root"
+                ISOLATED_WORK_NEEDS_SUPPORT=1
+                ISOLATED_WORK_FILES=("$REPO_ROOT/test-profiles/sRGB_D65_MAT.icc")
                 DICT="$REPO_ROOT/cfl/icc_cfg.dict"
                 SEED_MAX_BYTES=262144
                 SEED_FILE_TYPE_REGEX='^(JSON text data|ASCII text)'
@@ -1266,11 +1280,64 @@ afl_prepare_fromxml_include_support_files() {
     done < "$FROMXML_INCLUDES_MANIFEST"
 }
 
+afl_prepare_isolated_work_files() {
+    local source_file
+    local relative_path
+    local destination
+    local repo_real
+    local source_real
+
+    if [[ "${ISOLATED_WORK_NEEDS_SUPPORT:-0}" -ne 1 ]]; then
+        return 0
+    fi
+
+    repo_real="$(realpath -m "$REPO_ROOT")"
+    mkdir -p "$AFL_WORK_DIR"
+    for source_file in "${ISOLATED_WORK_FILES[@]}"; do
+        if [[ ! -f "$source_file" ]]; then
+            echo "ERROR: Required isolated-work fixture not found: $source_file" >&2
+            return 1
+        fi
+        source_real="$(realpath -m "$source_file")"
+        if [[ "$source_real" != "$repo_real"/* ]]; then
+            echo "ERROR: Isolated-work fixture is outside the repository: $source_file" >&2
+            return 1
+        fi
+        relative_path="${source_real#"$repo_real"/}"
+        destination="$AFL_WORK_DIR/$relative_path"
+        mkdir -p "$(dirname "$destination")"
+        if [[ -L "$destination" ]]; then
+            echo "ERROR: Refusing symlinked isolated-work destination: $destination" >&2
+            return 1
+        fi
+        if [[ -e "$destination" ]]; then
+            chmod u+w "$destination"
+        fi
+        cp -- "$source_real" "$destination"
+        chmod a-w "$destination"
+    done
+
+    source_file="$REPO_ROOT/fuzz/graphics/icc/sbo-CIccCalculatorFunc-Apply-IccMpeCalc_cpp-Line3873.icc"
+    if [[ -f "$source_file" ]]; then
+        destination="$AFL_WORK_DIR/$(basename "$source_file")"
+        if [[ -L "$destination" ]]; then
+            echo "ERROR: Refusing symlinked isolated-work destination: $destination" >&2
+            return 1
+        fi
+        if [[ -e "$destination" ]]; then
+            chmod u+w "$destination"
+        fi
+        cp -- "$source_file" "$destination"
+        chmod a-w "$destination"
+    fi
+}
+
 afl_prepare_target_support_files() {
     local target="$1"
 
-    afl_prepare_hybrid_support_files
-    afl_prepare_fromxml_include_support_files
+    afl_prepare_hybrid_support_files || return 1
+    afl_prepare_fromxml_include_support_files || return 1
+    afl_prepare_isolated_work_files || return 1
 
     case "$target" in
         specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-harvest|specseptotiff-sep|specseptotiff-short)

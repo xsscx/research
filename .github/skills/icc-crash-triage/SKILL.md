@@ -32,6 +32,11 @@ Before classifying ANY finding, determine the exit code:
 
 The tool exit code is authoritative. The fuzzer DEADLYSIGNAL is a test artifact.
 
+Preserve the target working directory during replay. In particular,
+`fromxml-includes` requires `afl/support/fromxml-includes` so relative TXT/XML
+dependencies resolve. Prefer `afl/triage.sh <target>`; its marked commands must
+use the configured working directory and an absolute finding path.
+
 ```bash
 ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
   timeout 30 iccDEV/Build/Tools/<ToolDir>/<tool> <crash-file>; echo "EXIT: $?"

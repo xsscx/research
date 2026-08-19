@@ -131,6 +131,12 @@ is only the exact fuzzer control/pixel seed bytes.
 
 **cfg_fuzzer**: Tests the JSON config path (`iccApplyNamedCmm -cfg FILE`). Exercises `fromJson()`/`toJson()` round-trip.
 
+For AFL tool-level `-cfg` lanes, keep the process working directory in the
+isolated `afl/work/<target>/root` tree. Fuzzed destination fields are target
+behavior and must not create files in the repository root. For
+`fromxml-includes`, preserve the staged support working directory during seed
+screening, queue mapping, minimization, and crash replay.
+
 **applynamedcmm**: Do not prepend control bytes or modify reserved bytes to
 select behavior. Use pure ICC seeds; the harness deterministically exercises
 transform types, intents, interpolation, hints, environment values, encodings,

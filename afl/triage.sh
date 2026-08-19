@@ -205,7 +205,7 @@ write_marked_artifact() {
     local safe_base
     local marked_file
     local cmd_file
-    local rel_marked_file
+    local marked_file_abs
     local arg
 
     source_base="$(basename "$source_file")"
@@ -215,7 +215,7 @@ write_marked_artifact() {
     cp -f "$source_file" "$marked_file"
     cmd_file="$marked_file.cmd"
 
-    rel_marked_file="${marked_file#"$REPO_ROOT"/}"
+    marked_file_abs="$(realpath -m "$marked_file")"
     {
         printf '# target=%s\n' "$TARGET"
         printf '# kind=%s\n' "$kind"
@@ -223,7 +223,7 @@ write_marked_artifact() {
         printf '# exit_code=%s\n' "$exit_code"
         printf '# source=%s\n' "$source_file"
         printf 'cd '
-        quote_shell_arg "$REPO_ROOT"
+        quote_shell_arg "$AFL_WORK_DIR"
         printf ' && '
         if [[ -n "${REPLAY_LIB:-}" ]]; then
             printf 'LD_LIBRARY_PATH='
@@ -239,7 +239,7 @@ write_marked_artifact() {
         for arg in "${AFL_ARGS[@]}"; do
             printf ' '
             if [[ "$arg" == "@@" ]]; then
-                quote_shell_arg "$rel_marked_file"
+                quote_shell_arg "$marked_file_abs"
             else
                 quote_shell_arg "$arg"
             fi

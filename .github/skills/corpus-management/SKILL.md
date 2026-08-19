@@ -122,6 +122,17 @@ Compare file counts (local must be >= source) before swapping directories.
   `chroma:xy`; raster seeds must retain `clut:A2B0`. Screen both with exit zero
   and validate the raw-output path with
   `.github/scripts/validate-afl-profileplot-targets.sh --replay`.
+- AFL inputs, queues, and findings are separate: seeds live in `input/`, while a
+  single AFL instance writes `output/default/queue` and parallel instances write
+  `output/main/queue` plus `output/secondary_N/queue`. Do not copy XML sidecars
+  into a queue or crashes directory.
+- Replay `fromxml-includes` from its staged support working directory. Use the
+  AFL triage/map/minimize helpers so relative TXT/XML includes resolve. JSON
+  `-cfg` lanes must use their isolated `afl/work/<target>/root` directory so
+  fuzzed output names cannot litter the repository root.
+- `applyprofiles-hybrid-pcc` has one known-compatible PCC seed and a slow full
+  transform. Keep its 15-second timeout and focused seed set; broad corpus
+  screening can look like a hung startup before AFL creates stats.
 - On repeated correction or wrap-up requests, skip broad corpus sweeps. Make
   the named fix, run the narrow seed validator or seed-only check, then commit
   and push if requested.

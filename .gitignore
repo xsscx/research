@@ -196,6 +196,7 @@ fastresume.bin
 afl/bin/
 afl/iccDEV/
 afl/tmp/
+afl/work/
 afl/third_party/build/
 afl/third_party/install/
 afl/third_party/sources/

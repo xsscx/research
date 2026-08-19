@@ -104,8 +104,6 @@ if [ "$DEMAND_MB" -gt "$((TOTAL_MEM_MB * 80 / 100))" ]; then
   exit 1
 fi
 
-export FUZZ_TMPDIR="$RUN_ROOT"
-
 echo ""
 echo "ICC LibFuzzer - Local Session"
 echo "----------------------------------------------------------------"
@@ -120,7 +118,7 @@ echo "  Peak mem:   ${DEMAND_MB} MB (${WORKERS}w x ${MAX_RSS_LIMIT}MB)"
 echo "  System mem: ${TOTAL_MEM_MB} MB"
 echo "  Logs:       $LOG_DIR/"
 echo "  Artifacts:  $ARTIFACT_DIR/"
-echo "  FUZZ_TMPDIR=$FUZZ_TMPDIR"
+echo "  Work dirs:  $RUN_ROOT/work/<fuzzer>/"
 echo "----------------------------------------------------------------"
 echo ""
 
@@ -149,6 +147,8 @@ for f in "${FUZZERS[@]}"; do
   [ -n "$dict" ] && dict_args=("-dict=$dict")
 
   log="$LOG_DIR/${f}.log"
+  work_dir="$RUN_ROOT/work/$f"
+  mkdir -p "$work_dir"
 
   FUZZER_TIMEOUT="$(cfl_option_timeout "$SCRIPT_DIR" "$f")"
   FUZZER_RSS="${RSS_LIMIT:-$(cfl_option_rss_limit "$SCRIPT_DIR" "$f")}"
@@ -158,11 +158,12 @@ for f in "${FUZZERS[@]}"; do
 
   echo "[${TOTAL}/${#FUZZERS[@]}] $f workers=$WORKERS time=${FUZZ_SECONDS}s timeout=${FUZZER_TIMEOUT}s rss=${FUZZER_RSS}MB max_len=${FUZZER_MAX_LEN} dict=$(basename "${dict:-none}")"
 
+  export FUZZ_TMPDIR="$work_dir"
   export LLVM_PROFILE_FILE="$PROFRAW_DIR/${f}_%m_%p.profraw"
   export ASAN_OPTIONS="$FUZZER_ASAN"
 
   rc=0
-  timeout --kill-after=10s $((FUZZ_SECONDS + FUZZER_TIMEOUT))s \
+  (cd "$work_dir" && timeout --kill-after=10s $((FUZZ_SECONDS + FUZZER_TIMEOUT))s \
     "$BIN_DIR/$f" \
       -max_total_time="$FUZZ_SECONDS" \
       -print_final_stats=1 \
@@ -176,7 +177,7 @@ for f in "${FUZZERS[@]}"; do
       -workers="$WORKERS" \
       -artifact_prefix="$ARTIFACT_DIR/" \
       "${dict_args[@]}" \
-      "$corpus" \
+      "$corpus") \
       > "$log" 2>&1 || rc=$?
 
   cov=$(grep -oP 'cov: \K[0-9]+' "$log" 2>/dev/null | tail -1)

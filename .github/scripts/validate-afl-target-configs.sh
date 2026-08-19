@@ -96,6 +96,27 @@ expect_value "hybrid embedded dry-run timeout" "$SEED_DRY_RUN_TIMEOUT" "15"
 expect_value "hybrid embedded AFL timeout" "$AFL_TARGET_TIMEOUT" "15000"
 expect_value "hybrid embedded exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
 
+for target in applynamedcmm-cfg applyprofiles-cfg applysearch-cfg; do
+    afl_configure_target "$target"
+    expect_value "$target isolated work flag" "$ISOLATED_WORK_NEEDS_SUPPORT" "1"
+    if [[ "$AFL_WORK_DIR" != "$AFL_BASE/work/"*"/root" ]]; then
+        fail "$target work directory is not isolated under AFL_BASE/work: $AFL_WORK_DIR"
+    fi
+    if [[ "$AFL_WORK_DIR" == "$REPO_ROOT" ]]; then
+        fail "$target must not run config-controlled outputs from the repository root"
+    fi
+done
+
+afl_configure_target applyprofiles-hybrid-pcc
+expect_value "hybrid PCC seed file count" "${#SEED_FILES[@]}" "1"
+expect_value "hybrid PCC compatible seed" "${SEED_FILES[0]}" "$HYBRID_ICC_DIR/MultSpectralRGB.icc"
+expect_value "hybrid PCC seed directory count" "${#SEED_DIRS[@]}" "0"
+expect_value "hybrid PCC dry-run timeout" "$SEED_DRY_RUN_TIMEOUT" "15"
+expect_value "hybrid PCC AFL timeout" "$AFL_TARGET_TIMEOUT" "15000"
+if [[ "${AFL_ARGS[1]}" != *"${AFL_TMP_PREFIX}"* ]]; then
+    fail "hybrid PCC export config path is not process-specific: ${AFL_ARGS[1]}"
+fi
+
 if grep -q 'MS_smCows_64x64' "$REPO_ROOT/afl/targets.sh"; then
     fail "cropped hybrid seed path remains in afl/targets.sh"
 fi
