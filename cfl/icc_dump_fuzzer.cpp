@@ -137,7 +137,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     icUInt32Number closest = (match != sortedOffsets.cend()) ? *match : pHdr->size;
 
     // Overlap/gap detection (same as tool)
-    icUInt32Number tag_end = i->TagInfo.offset + i->TagInfo.size;
+    icUInt64Number tag_end = (icUInt64Number)i->TagInfo.offset +
+                            i->TagInfo.size;
     (void)tag_end;
     (void)closest;
   }
