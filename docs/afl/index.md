@@ -180,6 +180,14 @@ slow enough to require a 15-second dry-run and AFL timeout; broad ICC directorie
 must not be reintroduced because screening them delays AFL startup without
 adding usable seeds.
 
+`applyprofiles-hybrid-embedded` keeps the required complete multispectral TIFF,
+but skips AFL++'s enhanced deterministic inference stage. That stage can spend
+minutes rewriting a multi-megabyte structured image while the UI reports
+`0.00/sec (zzzz...)`. The lane uses fast calibration and enables expanded havoc
+immediately so short campaigns reach mutation work instead of startup analysis.
+The documented form is `./afl/start.sh applyprofiles-hybrid-embedded --fresh`;
+the parser also accepts `--fresh` before the target.
+
 ## Campaign Modes
 
 `afl/start.sh` provides named AFL++ 5.x campaign modes so mutation strategy and

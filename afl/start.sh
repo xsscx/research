@@ -891,6 +891,9 @@ fi
 if [[ "$AFL_SPLICE" != "0" ]]; then
     AFL_COMMON_ARGS+=("-u")
 fi
+if [[ "${AFL_SKIP_DETERMINISTIC_TARGET:-0}" -eq 1 ]]; then
+    AFL_COMMON_ARGS+=("-z")
+fi
 if [[ -n "$AFL_EXEC_LIMIT" ]]; then
     AFL_COMMON_ARGS+=("-E" "$AFL_EXEC_LIMIT")
 fi
@@ -1036,6 +1039,11 @@ if [[ "${AFL_FAST_CAL_TARGET:-0}" -eq 1 || "${AFL_FAST_CAL:-0}" != "0" ]]; then
     export AFL_FAST_CAL=1
 else
     unset AFL_FAST_CAL
+fi
+if [[ "${AFL_EXPAND_HAVOC_TARGET:-0}" -eq 1 || "${AFL_EXPAND_HAVOC_NOW:-0}" != "0" ]]; then
+    export AFL_EXPAND_HAVOC_NOW=1
+else
+    unset AFL_EXPAND_HAVOC_NOW
 fi
 if [[ "${AFL_NO_FORKSRV_TARGET:-0}" -eq 1 || "${AFL_NO_FORKSRV:-0}" != "0" ]]; then
     export AFL_NO_FORKSRV=1

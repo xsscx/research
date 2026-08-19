@@ -133,6 +133,10 @@ Compare file counts (local must be >= source) before swapping directories.
 - `applyprofiles-hybrid-pcc` has one known-compatible PCC seed and a slow full
   transform. Keep its 15-second timeout and focused seed set; broad corpus
   screening can look like a hung startup before AFL creates stats.
+- `applyprofiles-hybrid-embedded` must retain the full multispectral TIFF but
+  skip enhanced deterministic inference, use fast calibration, and enable
+  expanded havoc immediately. The inference stage can display `zzzz...` for
+  minutes on this multi-megabyte structured seed without useful mutation work.
 - On repeated correction or wrap-up requests, skip broad corpus sweeps. Make
   the named fix, run the narrow seed validator or seed-only check, then commit
   and push if requested.

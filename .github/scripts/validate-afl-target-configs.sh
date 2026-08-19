@@ -95,6 +95,9 @@ expect_value "hybrid embedded generator ceiling" "$AFL_MAX_LENGTH" "3145728"
 expect_value "hybrid embedded dry-run timeout" "$SEED_DRY_RUN_TIMEOUT" "15"
 expect_value "hybrid embedded AFL timeout" "$AFL_TARGET_TIMEOUT" "15000"
 expect_value "hybrid embedded exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
+expect_value "hybrid embedded fast calibration" "$AFL_FAST_CAL_TARGET" "1"
+expect_value "hybrid embedded expanded havoc" "$AFL_EXPAND_HAVOC_TARGET" "1"
+expect_value "hybrid embedded deterministic skip" "$AFL_SKIP_DETERMINISTIC_TARGET" "1"
 
 for target in applynamedcmm-cfg applyprofiles-cfg applysearch-cfg; do
     afl_configure_target "$target"

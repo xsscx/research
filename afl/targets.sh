@@ -195,6 +195,8 @@ afl_configure_target() {
     SEED_LIMIT=200
     AFL_DISABLE_TRIM_TARGET=0
     AFL_FAST_CAL_TARGET=0
+    AFL_EXPAND_HAVOC_TARGET=0
+    AFL_SKIP_DETERMINISTIC_TARGET=0
     AFL_NO_FORKSRV_TARGET=0
     AFL_SKIP_BIN_CHECK_TARGET=0
     AFL_TARGET_TIMEOUT=0
@@ -398,11 +400,14 @@ afl_configure_target() {
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     SEED_DRY_RUN_TIMEOUT=15
                     AFL_TARGET_TIMEOUT=15000
+                    AFL_FAST_CAL_TARGET=1
+                    AFL_EXPAND_HAVOC_TARGET=1
+                    AFL_SKIP_DETERMINISTIC_TARGET=1
                     SEED_FILES=("$HYBRID_MS_TIFF")
                     SEED_FILE_TYPE_REGEX='^(TIFF image data|Big TIFF image data)'
                     SEED_DIRS=()
                     REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
-                    TARGET_NOTE="Hybrid ApplyProfiles embedded/PCC lane: fuzzes the full-size generated multispectral TIFF through float, compressed, planar, embedded, tetrahedral, and BPC output paths."
+                    TARGET_NOTE="Hybrid ApplyProfiles embedded/PCC lane: fuzzes the full-size generated multispectral TIFF with fast calibration, immediate expanded havoc, and no enhanced deterministic inference stage."
                     AFL_ARGS=("@@" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "-embedded" "10003" "-PCC" "$HYBRID_SPEC_F11" "$HYBRID_SRGB" "41")
                     ;;
                 applyprofiles-hybrid-pcc|profiles-hybrid-pcc)

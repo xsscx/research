@@ -61,7 +61,14 @@ intended paths:
   seed, a 15-second timeout, 99.97 percent stability, 148 queue entries, no
   timeouts, and continuing discoveries. Its 2.77 percent bitmap coverage is
   consistent with the deliberately narrow embedded/PCC CLI shape and slow full
-  image transform.
+  image transform. A later fresh run showed the practical startup defect: 83 of
+  its first 93 seconds were calibration, followed by enhanced deterministic
+  `inference` at `0.00/sec`. The lane now uses fast calibration, skips that
+  inference stage, and enables expanded havoc immediately while retaining the
+  full-size seed. A focused 30-second post-change run recorded `-z`,
+  `AFL_FAST_CAL=1`, `AFL_EXPAND_HAVOC_NOW=1`, and `havoc_expansion=1`, and added
+  four queue entries without a timeout. Structurally valid full-image executions
+  still take about 5.5 seconds, so low throughput is expected for this lane.
 - `profileplot-raster` passed the replay validator for `clut:A2B0`, held 399
   queue entries, ran at about 93 executions per second with 100 percent
   stability, had no timeouts, and was still finding inputs. Its 3.72 percent
