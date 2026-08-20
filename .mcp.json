@@ -37,8 +37,72 @@
     },
     "github": {
       "type": "stdio",
-      "command": "/home/xss/work/copilot/bin/github-mcp-docker",
-      "args": []
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server:latest",
+        "stdio"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "iccdev-ci-regression": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "ghcr.io/internationalcolorconsortium/iccdev-ci-regression:latest",
+        "iccdev-mcp"
+      ]
+    },
+    "dockerhub": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "mcp/dockerhub"
+      ]
+    },
+    "memory": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "time": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-server-time"
+      ]
+    },
+    "markitdown": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "markitdown-mcp"
+      ]
+    },
+    "azure": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@azure/mcp@latest",
+        "server",
+        "start"
+      ]
     }
   }
 }

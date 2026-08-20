@@ -20,6 +20,7 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 | Review TIFF-specific analysis | `tiffimg/START_HERE.md` |
 | Dump TIFF structure and preserve an embedded ICC | `../colorbleed_tools/Readme.md`, `../.github/prompts/tiff-icc-colorbleed.prompt.md` |
 | Set up Apple Silicon host flow | `LOCAL_MACOS_ARM64_ONBOARDING.md` |
+| Configure or troubleshoot MCP servers (`.mcp.json`) | `MCP_SERVER_SETUP.md` |
 
 ## Security Research
 
