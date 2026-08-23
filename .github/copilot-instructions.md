@@ -13,6 +13,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 | `icc-crash-triage` | Triage ASAN/UBSAN fuzzer crashes, classify exit codes, attribute stack traces, and map CWE ownership |
 | `icc-security-analysis` | Run full ICC/TIFF/PNG/JPEG security analysis with structural, registry, round-trip, and report steps |
 | `iccdev-linear-stack` | Rebase an iccDEV feature branch onto upstream master and stack commits without merge commits |
+| `upstream-pr-readiness` | Verify explicit PR authorization and complete pre-PR grooming before any upstream PR is opened or reviewed |
 | `upstream-sync` | Sync `cfl/iccDEV/` to upstream and reconcile/rebuild/verify CFL security patches |
 | `version-bump` | Synchronize iccDEV version numbers across upstream and research repo locations |
 
@@ -167,6 +168,20 @@ Scope to one component. PRs name area, list commands run, link issues.
 - Report command evidence and the commit SHA. Do not claim completion from
   intent, partial inspection, or stale assumptions.
 
+### Upstream pull request boundary
+
+- Pushing a branch, triggering CI, or requesting review does not authorize PR
+  creation. Ask before opening or reopening a PR.
+- If a CI workflow requires an open PR, report that prerequisite and wait for
+  explicit authorization instead of creating the PR under the user's account.
+- Run `.github/skills/upstream-pr-readiness/SKILL.md` before opening a PR.
+- Rebase on current `master`, review `git range-diff`, verify no merge commits,
+  run build/CTest plus negative configuration checks, and inspect suppressed
+  review findings before declaring the branch review-ready.
+- Do not request serial automated reviews to discover basic readiness defects.
+  A second review cycle with missed unchanged-code findings is a stop signal:
+  return to branch-only grooming and notify the user.
+
 ### File output encoding
 All generated files MUST be ASCII. Verify with `file FILENAME`.
 Use `edit`/`create` tools for file writes (exact byte control),
@@ -179,8 +194,8 @@ never shell heredocs. See `AGENTS.md` for TUI encoding defect details.
 - `.github/instructions/*.instructions.md` -- path-specific custom instructions;
   each file must include `applyTo` frontmatter
 - `.github/skills/*/SKILL.md` -- on-demand task workflows
-- `.github/prompts/` -- prompt templates (17 prompts)
-- `.github/agents/` -- custom agents (3 agents)
+- `.github/prompts/` -- prompt templates (19 prompts)
+- `.github/agents/` -- custom agents (4 agents)
 - `.github/hooks/` -- session hooks (2 hook configs)
 - `AGENTS.md` -- agent instructions; nearest file in the directory tree takes
   precedence for AI agents
@@ -195,6 +210,7 @@ never shell heredocs. See `AGENTS.md` for TUI encoding defect details.
 | Investigate a bug or security issue | `docs/pocs/`, `docs/analysis/`, `docs/cve/iccDEV-CVE-Report.md` |
 | File an upstream issue | `.github/prompts/upstream-issue-filing.prompt.md` |
 | Reproduce or bisect an iccDEV bug | `.github/prompts/iccdev-bisect-reproduction.prompt.md` |
+| Verify an upstream branch is PR-ready | `.github/prompts/upstream-pr-readiness.prompt.md` |
 | Run or review tests | `docs/Testing/README.md` |
 | Study ICC binary structure | `docs/icc-format/ICC-Binary-Format-Reference.md` |
 | Review call graph notes | `docs/callgraph/CALLGRAPH_EXAMINATION_INDEX.md` |
@@ -212,6 +228,7 @@ Invoke with `@agent-name` or `--agent=agent-name` from the CLI:
 | `@security-scan` | Full ICC profile security analysis | claude-sonnet-4.6 |
 | `@crash-triage` | ASAN/UBSAN crash finding triage | claude-sonnet-4.6 |
 | `@upstream-issue` | Draft iccDEV bug reports (gold format) | claude-sonnet-4.6 |
+| `@pr-readiness` | Read-only upstream PR authorization and readiness audit | claude-sonnet-4.6 |
 
 ## Hooks
 

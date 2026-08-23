@@ -25,19 +25,21 @@ reuse, and no unreviewed force push.
 
 ## Rules
 
-1. Use a clean clone or worktree under `~/work/copilot/`, not the local
+1. Rebase before PR creation whenever possible. This skill does not authorize
+   opening, reopening, or force-updating a PR.
+2. Use a clean clone or worktree under `~/work/copilot/`, not the local
    research checkout or another user's dirty worktree.
-2. Fetch the target branch, source branch, and `master` before rewriting.
-3. Rebase the target branch onto `origin/master`.
-4. Stack extra commits with `git cherry-pick`, not merge.
-5. When the user explicitly says to prefer the stacked commit, use
+3. Fetch the target branch, source branch, and `master` before rewriting.
+4. Rebase the target branch onto `origin/master`.
+5. Stack extra commits with `git cherry-pick`, not merge.
+6. When the user explicitly says to prefer the stacked commit, use
    `git cherry-pick -X theirs <commit>`. In cherry-pick conflicts, `theirs`
    means the commit being picked.
-6. Resolve remaining conflicts manually and preserve upstream `master`
+7. Resolve remaining conflicts manually and preserve upstream `master`
    improvements unless they directly conflict with the requested stacked commit.
-7. Review with `git range-diff` before pushing.
-8. Build and run CTest locally before pushing.
-9. Push only with an exact `--force-with-lease`; never use plain `--force`.
+8. Review with `git range-diff` before pushing.
+9. Build the normal targets and `build-test-binaries`, then run CTest locally.
+10. Push only with an exact `--force-with-lease`; never use plain `--force`.
 
 ## Workflow
 
@@ -126,6 +128,7 @@ small and explainable.
 rm -rf "$build_dir"
 cmake -S Build/Cmake -B "$build_dir" -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLS=ON
 cmake --build "$build_dir" -j"$(nproc)"
+cmake --build "$build_dir" --target build-test-binaries -j"$(nproc)"
 ctest --test-dir "$build_dir" --output-on-failure
 ```
 
@@ -166,5 +169,6 @@ the branch.
 ## References
 
 - `.github/prompts/iccdev-linear-stack-rebase.prompt.md` -- one-shot agent prompt
+- `.github/skills/upstream-pr-readiness/SKILL.md` -- authorization and pre-PR gate
 - `.github/skills/upstream-sync/SKILL.md` -- CFL patch reconciliation workflow
 - `.github/skills/version-bump/SKILL.md` -- upstream version sync workflow

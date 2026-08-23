@@ -4,7 +4,7 @@
 
 - Target: `dump`
 - Tool: `iccDumpProfile`
-- Research repo: `/home/h02332/po/research`
+- Research repo: `~/research`
 - AFL runtime root: `/home/h02332/work/codex/afl-runtime-verify`
 - Analysis root: `/home/h02332/work/codex/afl-analysis-20260630T203504Z`
 - Toolchain: AFL++ `5.00c`, `cov-analysis-1.0`, `reachability` LLVM 22
@@ -45,7 +45,7 @@ Command:
 ```bash
 source /home/h02332/work/copilot/tools/env.sh
 AFL_BASE=/home/h02332/work/codex/afl-runtime-verify \
-AFL_COVERAGE_ICCDEV_DIR=/home/h02332/po/research/iccDEV \
+AFL_COVERAGE_ICCDEV_DIR="$HOME/research/iccDEV" \
 AFL_COVERAGE_TIMEOUT=2 \
 ./afl/coverage.sh dump --report-root /home/h02332/work/codex/afl-analysis-20260630T203504Z --jobs 2
 ```

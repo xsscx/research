@@ -24,7 +24,9 @@ full step-by-step workflow.
 2. Rebase onto `origin/master`, then stack extras with `git cherry-pick` only.
 3. Use `git cherry-pick -X theirs <commit>` only when `PREFER_EXTRA_COMMIT` is set.
 4. Review with `git range-diff`, then configure, build, and run CTest locally.
-5. Push only with an exact `--force-with-lease=refs/heads/BRANCH_NAME:<lease>`.
+5. Build the `build-test-binaries` target before running the complete CTest set.
+6. Push only with an exact `--force-with-lease=refs/heads/BRANCH_NAME:<lease>`.
+7. Do not create or reopen a PR unless the user explicitly authorizes it.
 
 ## Report Format
 

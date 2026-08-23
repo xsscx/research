@@ -14,6 +14,7 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 | Investigate a bug or security issue | `pocs/`, `analysis/`, `cve/iccDEV-CVE-Report.md` |
 | File an upstream issue | `../.github/prompts/upstream-issue-filing.prompt.md` |
 | Reproduce or bisect an iccDEV bug | `../.github/prompts/iccdev-bisect-reproduction.prompt.md` |
+| Verify upstream PR authorization and readiness | `governance/UPSTREAM_PR_READINESS.md`, `../.github/prompts/upstream-pr-readiness.prompt.md` |
 | Run or review tests | `Testing/README.md` |
 | Study ICC binary structure | `icc-format/ICC-Binary-Format-Reference.md` |
 | Review call graph notes | `callgraph/CALLGRAPH_EXAMINATION_INDEX.md` |
@@ -37,6 +38,8 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 ## Notes
 
 - Prefer authored entry docs over raw logs and saved results.
+- Upstream PR creation requires explicit authorization and a passing readiness
+  gate; branch push or CI requests do not imply permission to publish a PR.
 - Treat `Testing/results/`, coverage output, and fuzzer runtime directories as
   evidence, not onboarding material.
 - When exact inventory matters, inspect the filesystem or source scripts in the

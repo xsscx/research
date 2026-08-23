@@ -78,7 +78,9 @@ initialization`.
 Use the AFL helper against the object file or an unstripped executable:
 
 ```bash
-./afl/startup-roots.sh iccDEV/Build/Cmake/IccProfLib/CMakeFiles/IccProfLib2-static.dir/home/h02332/po/research/iccDEV/IccProfLib/IccSolve.cpp.o
+object="$(find iccDEV/Build/Cmake/IccProfLib/CMakeFiles/IccProfLib2-static.dir \
+  -name IccSolve.cpp.o -print -quit)"
+./afl/startup-roots.sh "$object"
 ```
 
 Expected signal:

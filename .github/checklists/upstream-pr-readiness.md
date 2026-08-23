@@ -1,0 +1,22 @@
+# Upstream PR Readiness Checklist
+
+- [ ] Exact PR authorization quotation recorded
+- [ ] Clean clone or worktree
+- [ ] Current base fetched
+- [ ] Branch rebased before PR creation
+- [ ] No merge commits
+- [ ] Range-diff reviewed
+- [ ] Complete diff reviewed
+- [ ] PR description covers complete scope
+- [ ] Normal build passed
+- [ ] Excluded regression helpers built
+- [ ] Complete applicable CTest passed
+- [ ] Release/Debug and compiler matrix checked
+- [ ] Diagnostics and sanitizer modes checked
+- [ ] Runtime ISA/fallback behavior checked
+- [ ] Negative tests passed
+- [ ] Active review findings checked
+- [ ] Suppressed review findings checked
+- [ ] Generated artifacts removed
+- [ ] Related branches synchronized after canonical validation
+- [ ] Readiness result is PASS

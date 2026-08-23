@@ -86,6 +86,23 @@ ALWAYS verify after writing.
    existing project tools and durable input artifacts (`.icc`, XML, TIFF, PNG,
    JPEG, JSON config, `.cube`) plus exact one-line commands.
 
+## Pull Request Authorization and Readiness
+
+1. A request to push a branch, trigger CI, request review, or monitor checks is
+   NOT authorization to create or reopen a pull request.
+2. If the requested workflow requires an open PR and the user did not
+   explicitly authorize one, stop and ask. Do not infer consent from the
+   workflow name.
+3. Do not use a PR or repeated automated reviews as the development loop.
+   Groom the branch first: rebase on current base, review the complete diff,
+   run positive and negative tests, inspect active and suppressed findings,
+   verify scope documentation, and produce a linear range-diff.
+4. Before opening a PR, run the `upstream-pr-readiness` skill and record its
+   PASS result. A failed or incomplete gate keeps the work branch-only.
+5. After two review cycles expose previously missed unchanged-code issues,
+   stop requesting more reviews. Return to branch-only grooming and ask the
+   user before continuing PR activity.
+
 ## Repeated Correction Rule
 
 When the user says a task is a repeated attempt, a regression fix, or time to

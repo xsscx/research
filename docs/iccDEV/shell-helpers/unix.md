@@ -500,7 +500,7 @@ Uses pre-built spectral seed TIFFs at `iccDEV/Testing/Fuzzing/seeds/tiff/spectra
 python3 << 'PYEOF'
 import os, subprocess, random
 
-REPO = os.path.expanduser("~/po/research")
+REPO = os.path.expanduser("~/research")
 LD_PATH = f"{REPO}/iccDEV/Build/IccProfLib:{REPO}/iccDEV/Build/IccXML"
 env = os.environ.copy()
 env["LD_LIBRARY_PATH"] = LD_PATH
