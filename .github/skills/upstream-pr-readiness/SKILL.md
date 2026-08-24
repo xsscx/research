@@ -29,6 +29,20 @@ reason: PR creation is not explicitly authorized
 
 Do not call `gh pr create`, `gh pr reopen`, or an equivalent API.
 
+## Rebase Conflict Hard Stop
+
+A user request not to rebase does not waive the linear-history requirement. If
+the branch is not linear with the current base or required stack parent, return:
+
+```text
+readiness: FAIL
+reason: required rebase conflicts with the user's no-rebase constraint
+```
+
+Do not initialize or submit a divergent stack. Report the conflicting ancestry
+and wait for the user to authorize the rebase, choose independent branches or
+stacks, or defer PR publication.
+
 ## Workflow
 
 1. Work in a clean clone or worktree.

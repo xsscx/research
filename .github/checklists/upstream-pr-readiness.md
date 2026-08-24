@@ -4,6 +4,7 @@
 - [ ] Clean clone or worktree
 - [ ] Current base fetched
 - [ ] Branch rebased before PR creation
+- [ ] Any no-rebase constraint reconciled with the required base or stack parent
 - [ ] No merge commits
 - [ ] Range-diff reviewed
 - [ ] Complete diff reviewed

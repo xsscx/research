@@ -97,6 +97,9 @@ ALWAYS verify after writing.
    Groom the branch first: rebase on current base, review the complete diff,
    run positive and negative tests, inspect active and suppressed findings,
    verify scope documentation, and produce a linear range-diff.
+   A no-rebase instruction is not a readiness waiver when the branch diverges
+   from its required base or stack parent: report FAIL and wait for direction
+   to rebase, use independent branches or stacks, or defer publication.
 4. Before opening a PR, run the `upstream-pr-readiness` skill and record its
    PASS result. A failed or incomplete gate keeps the work branch-only.
 5. After two review cycles expose previously missed unchanged-code issues,

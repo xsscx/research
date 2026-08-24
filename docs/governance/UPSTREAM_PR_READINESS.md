@@ -27,6 +27,9 @@ All items must pass before an authorized PR is opened:
 1. Scope is frozen and the PR description covers every feature, ISA path,
    toolchain, workflow, and behavior change.
 2. The branch is rebased on the current target branch in a clean worktree.
+   A no-rebase request is not a waiver when the branch is not linear with that
+   target or its required stack parent: record `readiness: FAIL`, explain the
+   conflict, and wait for direction before submitting or marking a PR ready.
 3. History is linear: no merge commits; `git range-diff` is reviewed.
 4. `git diff --check` passes and the complete diff is manually reviewed.
 5. Normal build targets and project-specific excluded test helpers are built.
@@ -41,6 +44,11 @@ All items must pass before an authorized PR is opened:
 12. The user explicitly authorizes PR creation.
 
 Any incomplete item means the branch remains branch-only.
+
+When rebasing is required but the user has prohibited it, the user must
+explicitly choose one of these paths before PR creation: authorize the rebase,
+use independent branches or stacks, or defer publication. Do not approximate
+`gh stack sync` with a fetch-only update and do not submit a divergent stack.
 
 ## Review Cycle Stop Rule
 

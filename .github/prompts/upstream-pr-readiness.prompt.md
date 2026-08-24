@@ -24,7 +24,9 @@ Audit `BRANCH_NAME` against `BASE_BRANCH` using
 4. Verify rebase, linear history, range-diff, complete diff scope, normal and
    excluded test builds, complete CTest, negative configurations, generated
    artifact cleanup, and suppressed findings.
-5. Report only PASS or FAIL with command evidence and blockers.
+5. If a no-rebase request conflicts with the required base or stack-parent
+   rebase, report FAIL and do not initialize or submit the stack.
+6. Report only PASS or FAIL with command evidence and blockers.
 
 ## Output
 

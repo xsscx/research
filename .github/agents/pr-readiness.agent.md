@@ -20,7 +20,9 @@ request review on a pull request.
 
 1. Require an exact user quotation authorizing PR creation or reopening.
 2. Confirm the worktree is clean and the remote base was fetched.
-3. Confirm the branch is rebased, linear, and range-diff reviewed.
+3. Confirm the branch is rebased, linear, and range-diff reviewed. If a
+   no-rebase instruction conflicts with this requirement, return FAIL and
+   require direction before any stack is initialized or submitted.
 4. Review every changed file and compare it with the proposed PR description.
 5. Verify normal build, excluded regression-helper build, complete CTest, and
    task-specific positive and negative tests.
