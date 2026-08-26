@@ -60,6 +60,14 @@ else
 fi
 ```
 
+The sanitizer must be available in the same step that writes the summary. Do
+not source a sanitizer copied into a temporary path by an earlier step that may
+have failed. Use the checked-in path above or the inline fallback.
+
+When capturing a failure-prone command with `tee`, preserve and check every
+`PIPESTATUS` value; a successful producer does not make a failed log write
+acceptable.
+
 ### Multiline output — iterate line-by-line
 
 ```bash

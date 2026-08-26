@@ -16,6 +16,9 @@
 - [ ] Diagnostics and sanitizer modes checked
 - [ ] Runtime ISA/fallback behavior checked
 - [ ] Negative tests passed
+- [ ] Local preflight passed for workflow, Dockerfile, or CI-summary changes
+- [ ] Docker runtime user home is writable and `git config --global` works, if applicable
+- [ ] Failure summary uses same-step sanitizer fallback and checks all `tee` statuses, if applicable
 - [ ] Active review findings checked
 - [ ] Suppressed review findings checked
 - [ ] Generated artifacts removed

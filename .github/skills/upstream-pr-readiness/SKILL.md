@@ -71,9 +71,23 @@ stacks, or defer PR publication.
 
 7. Run task-specific Release, compiler, sanitizer, diagnostics, runtime-dispatch,
    fallback, malformed-input, and other negative tests.
-8. Remove generated artifacts and verify a clean worktree.
-9. Inspect all active and suppressed findings from any existing review.
-10. Produce the evidence record from
+8. For workflow, Dockerfile, or CI-summary changes, run and record the local
+   preflight before PR creation, update, or review:
+
+   ```bash
+   .github/scripts/preflight-safety-checks.sh --require-tools
+   ```
+
+   Do not use CI or automated review to discover local policy failures.
+9. For Docker user, home, or ownership changes, validate the final image as
+   its runtime user. Its declared home must be owned and writable, and
+   `git config --global` must work.
+10. For failure-summary changes, verify the step independently loads a
+    checked-in sanitizer or defines the standard inline fallback. Verify every
+    pipeline status when logs are captured with `tee`.
+11. Remove generated artifacts and verify a clean worktree.
+12. Inspect all active and suppressed findings from any existing review.
+13. Produce the evidence record from
     `docs/governance/UPSTREAM_PR_READINESS.md`.
 
 ## Result

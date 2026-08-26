@@ -24,9 +24,16 @@ Audit `BRANCH_NAME` against `BASE_BRANCH` using
 4. Verify rebase, linear history, range-diff, complete diff scope, normal and
    excluded test builds, complete CTest, negative configurations, generated
    artifact cleanup, and suppressed findings.
-5. If a no-rebase request conflicts with the required base or stack-parent
+5. For workflow, Dockerfile, or CI-summary changes, run
+   `.github/scripts/preflight-safety-checks.sh --require-tools` locally before
+   a PR update or review request. For Docker user/home changes, validate the
+   final image as its runtime user, including a writable home and
+   `git config --global`. For failure-summary changes, verify same-step
+   checked-in sanitizer access or the established inline fallback and all
+   `tee` pipeline statuses.
+6. If a no-rebase request conflicts with the required base or stack-parent
    rebase, report FAIL and do not initialize or submit the stack.
-6. Report only PASS or FAIL with command evidence and blockers.
+7. Report only PASS or FAIL with command evidence and blockers.
 
 ## Output
 
@@ -38,6 +45,9 @@ merge commits:
 build:
 tests:
 negative tests:
+local preflight:
+Docker identity/home validation:
+failure-summary sanitizer:
 suppressed findings:
 scope documentation:
 readiness:

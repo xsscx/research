@@ -36,12 +36,28 @@ All items must pass before an authorized PR is opened:
 6. The complete applicable test suite passes locally.
 7. Positive and negative configuration cases pass, including Debug/Release,
    compiler, sanitizer, diagnostics, runtime CPU dispatch, and fallback paths.
-8. Generated artifacts are removed or intentionally documented.
-9. Active and suppressed automated-review findings are inspected.
-10. Documentation and reported evidence describe actual runtime behavior, not
+8. For workflow, Dockerfile, or CI-summary changes, run the local preflight
+   before the first PR create, update, or review request:
+
+   ```bash
+   .github/scripts/preflight-safety-checks.sh --require-tools
+   ```
+
+   Record its exit status. CI is not a substitute.
+9. Docker user, home, and ownership changes preserve the runtime identity
+   invariant: a user with `--home-dir` must have an owned, writable home
+   (`--create-home` or an equivalent explicit directory and ownership step).
+   Validate the final image as that user, including `git config --global`.
+10. A failure-summary step independently loads a checked-in sanitizer available
+    in that step or defines the established inline fallback there. It must not
+    depend on a sanitizer copied into a temporary path by an earlier failing
+    step.
+11. Generated artifacts are removed or intentionally documented.
+12. Active and suppressed automated-review findings are inspected.
+13. Documentation and reported evidence describe actual runtime behavior, not
     only compile-time eligibility.
-11. Related branches are synchronized only after the canonical branch passes.
-12. The user explicitly authorizes PR creation.
+14. Related branches are synchronized only after the canonical branch passes.
+15. The user explicitly authorizes PR creation.
 
 Any incomplete item means the branch remains branch-only.
 
@@ -73,6 +89,9 @@ merge commits: none
 build: command and result
 tests: command, pass count, skip count
 negative tests: cases and results
+local preflight: exact command and exit status
+Docker identity/home validation: command and result, if applicable
+failure-summary sanitizer: checked-in source or same-step fallback, if applicable
 suppressed findings: checked
 scope documentation: checked
 readiness: PASS or FAIL

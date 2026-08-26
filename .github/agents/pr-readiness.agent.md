@@ -26,10 +26,16 @@ request review on a pull request.
 4. Review every changed file and compare it with the proposed PR description.
 5. Verify normal build, excluded regression-helper build, complete CTest, and
    task-specific positive and negative tests.
-6. Verify runtime claims are supported by runtime evidence.
-7. Inspect active and suppressed findings.
-8. Fail if generated artifacts remain.
-9. Apply the second-review stop rule.
+6. For workflow, Dockerfile, or CI-summary changes, verify local preflight
+   passed before a PR update or review request. For Docker user/home changes,
+   validate the final image as its runtime user, including writable home and
+   `git config --global`. For failure-summary changes, verify same-step
+   checked-in sanitizer access or an inline fallback and all `tee` pipeline
+   statuses.
+7. Verify runtime claims are supported by runtime evidence.
+8. Inspect active and suppressed findings.
+9. Fail if generated artifacts remain.
+10. Apply the second-review stop rule.
 
 ## Output
 
