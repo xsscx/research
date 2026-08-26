@@ -1,0 +1,20 @@
+diff --git a/IccXML/IccLibXML/IccMpeXml.cpp b/IccXML/IccLibXML/IccMpeXml.cpp
+--- a/IccXML/IccLibXML/IccMpeXml.cpp
++++ b/IccXML/IccLibXML/IccMpeXml.cpp
+@@ -3176,2 +3176,2 @@ bool CIccMpeXmlCalculator::Flatten(std::string &flatStr, std::string macroName,
+-        if (select[0] == '[' || select[1] == '(') {
++        if (!select.empty() && (select[0] == '[' || select[0] == '(')) {
+           const char *ptr;
+@@ -3179,3 +3179,7 @@ bool CIccMpeXmlCalculator::Flatten(std::string &flatStr, std::string macroName,
+           for (ptr = select.c_str() + 1; *ptr && *ptr != ')' && *ptr != ']'; ptr++);
+-          select = ptr + 1;
++          if (!*ptr) {
++            parseStr += "Invalid '" + op + "' operation channel selector '" + ref + "'\n";
++            return false;
++          }
++          select.erase(0, (ptr - select.c_str()) + 1);
+         }
+@@ -3183,2 +3187,2 @@ bool CIccMpeXmlCalculator::Flatten(std::string &flatStr, std::string macroName,
+-        if (select[0]==',')
++        if (!select.empty() && select[0]==',')
+           size = atoi(select.c_str() + 1);

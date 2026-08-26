@@ -8,6 +8,7 @@
 # Usage:  ./build.sh                         # build all fuzzers against upstream master
 #         ./build.sh clean                   # remove build artifacts and start fresh
 #         ./build.sh --branch ci-qa-issue-1975 --refresh-iccdev
+#         ./build.sh --patches --refresh-iccdev
 #
 # Requirements: clang-22/clang++-22, cmake 3.15+, libxml2-dev, libtiff-dev,
 #               zlib, libclang-rt-22-dev (provides ASan/UBSan runtime)
@@ -19,10 +20,12 @@ ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
 BUILD_DIR="$ICCDEV_DIR/Build"
 OUTPUT_DIR="$SCRIPT_DIR/bin"
 PROFRAW_DIR="$SCRIPT_DIR/profraw"
+PATCH_DIR="$SCRIPT_DIR/patches"
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 CC="${CC:-clang-22}"
 CXX="${CXX:-clang++-22}"
+APPLY_PATCHES="${CFL_APPLY_PATCHES:-0}"
 REFRESH_ICCDEV="${CFL_REFRESH_ICCDEV:-0}"
 KEEP_ICCDEV="${CFL_KEEP_ICCDEV:-0}"
 ICCDEV_REF="${CFL_ICCDEV_REF:-master}"
@@ -138,6 +141,8 @@ usage() {
   echo ""
   echo "Options:"
   echo "  clean             remove build artifacts and nested iccDEV checkout"
+  echo "  --patches         apply cfl/patches before building"
+  echo "  --no-patches      build against unpatched iccDEV (default)"
   echo "  --branch REF      clone/fetch the named iccDEV branch or tag (default: master)"
   echo "  --ref REF         alias for --branch"
   echo "  --keep-iccdev     preserve current cfl/iccDEV source edits"
@@ -148,6 +153,14 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     clean)
       CLEAN=1
+      shift
+      ;;
+    --patches)
+      APPLY_PATCHES=1
+      shift
+      ;;
+    --no-patches)
+      APPLY_PATCHES=0
       shift
       ;;
     --branch|--ref)
@@ -185,6 +198,11 @@ fi
 
 if [[ -z "$ICCDEV_REF" ]]; then
   echo "[FAIL] ERROR: iccDEV branch/ref must not be empty"
+  exit 1
+fi
+
+if [[ "$APPLY_PATCHES" != "0" && "$APPLY_PATCHES" != "1" ]]; then
+  echo "[FAIL] ERROR: CFL_APPLY_PATCHES must be 0 or 1"
   exit 1
 fi
 
@@ -257,6 +275,26 @@ if [ "$KEEP_ICCDEV" = "1" ]; then
   echo "Preserving current cfl/iccDEV source edits"
 else
   (cd "$ICCDEV_DIR" && git checkout -- . 2>/dev/null)
+fi
+
+if [ "$APPLY_PATCHES" = "1" ]; then
+  shopt -s nullglob
+  cfl_patches=("$PATCH_DIR"/*.patch)
+  shopt -u nullglob
+  for patch_path in "${cfl_patches[@]}"; do
+    patch_name="$(basename "$patch_path")"
+    if git -C "$ICCDEV_DIR" apply --check "$patch_path"; then
+      git -C "$ICCDEV_DIR" apply "$patch_path"
+      echo "[OK] Applied: $patch_name"
+    elif git -C "$ICCDEV_DIR" apply --reverse --check "$patch_path" >/dev/null 2>&1; then
+      echo "[OK] Already applied: $patch_name"
+    else
+      echo "[FAIL] Patch does not apply: $patch_name"
+      exit 1
+    fi
+  done
+else
+  echo "Patch application disabled"
 fi
 
 banner "Step 2: Build IccProfLib2-static + IccXML2-static"

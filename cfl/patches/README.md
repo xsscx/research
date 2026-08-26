@@ -1,12 +1,14 @@
-# CFL Patch Stack Retired
+# CFL Patch Stack
 
-There are no active CFL patches. Build the LibFuzzer harnesses against upstream
-`master`:
+Active patches can be applied to the isolated `cfl/iccDEV` checkout:
+
+- `001-fromxml-channel-selector-bounds.patch` - reject malformed calculator
+  channel selectors without reading past the `std::string` buffer.
+
+Build the LibFuzzer harnesses against patched upstream `master`:
 
 ```bash
-./cfl/build.sh --refresh-iccdev
+./cfl/build.sh --patches --refresh-iccdev
 ```
 
-The former JPEG bounds, TIFF sample-count, and float-encoding usage patches
-are now covered by upstream iccDEV. This directory is intentionally retained
-as an explicit zero-patch inventory.
+The default remains an unpatched upstream comparison build.

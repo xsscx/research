@@ -1,7 +1,7 @@
 #!/bin/bash
 # afl/build.sh - Build iccDEV with AFL++ instrumentation and full sanitizers
 #
-# Usage: ./afl/build.sh [--clean] [--refresh-iccdev]
+# Usage: ./afl/build.sh [--clean] [--patches|--no-patches] [--refresh-iccdev]
 #
 # Builds the full iccDEV library and tools using afl-clang-fast++ with ASan,
 # UBSan, IntegerSanitizer, float-divide-by-zero, and float-cast-overflow.
@@ -18,6 +18,8 @@ BIN_DIR="${AFL_BIN_DIR:-$SCRIPT_DIR/bin}"
 THIRD_PARTY_DIR="$SCRIPT_DIR/third_party"
 THIRD_PARTY_PREFIX="${AFL_THIRD_PARTY_PREFIX:-$THIRD_PARTY_DIR/install}"
 JOBS=$(nproc)
+PATCH_DIR="$SCRIPT_DIR/patches"
+APPLY_PATCHES="${AFL_APPLY_PATCHES:-0}"
 REFRESH_ICCDEV="${AFL_REFRESH_ICCDEV:-0}"
 KEEP_ICCDEV="${AFL_KEEP_ICCDEV:-0}"
 ICCDEV_BRANCH="${AFL_ICCDEV_BRANCH:-}"
@@ -35,6 +37,8 @@ usage() {
     echo "Options:"
     echo "  --clean           remove Build-AFL before building"
     echo "  --clean-third-party rebuild all AFL-instrumented dependencies"
+    echo "  --patches         apply afl/patches before building"
+    echo "  --no-patches      build against unpatched iccDEV (default)"
     echo "  --branch NAME     use iccDEV branch NAME; existing checkout stays local-only"
     echo "  --refresh-iccdev  fetch selected branch or origin/master and reset the nested checkout"
     echo "  --keep-iccdev     preserve current afl/iccDEV source edits"
@@ -63,6 +67,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --clean-third-party)
             CLEAN_THIRD_PARTY=1
+            shift
+            ;;
+        --patches)
+            APPLY_PATCHES=1
+            shift
+            ;;
+        --no-patches)
+            APPLY_PATCHES=0
             shift
             ;;
         --branch)
@@ -135,6 +147,10 @@ if [[ "$AFL_CTX_BUILD" = "1" && -n "$AFL_NGRAM_SIZE_VAL" ]]; then
 fi
 if [[ "$AFL_LINK_MODE" != "static" && "$AFL_LINK_MODE" != "shared" ]]; then
     echo "ERROR: AFL_LINK_MODE must be static or shared"
+    exit 1
+fi
+if [[ "$APPLY_PATCHES" != "0" && "$APPLY_PATCHES" != "1" ]]; then
+    echo "ERROR: AFL_APPLY_PATCHES must be 0 or 1"
     exit 1
 fi
 
@@ -282,6 +298,26 @@ else
     if [[ "$KEEP_ICCDEV" != "1" ]]; then
         git -C "$ICCDEV_DIR" checkout -- . 2>/dev/null || true
     fi
+fi
+
+if [[ "$APPLY_PATCHES" = "1" ]]; then
+    shopt -s nullglob
+    afl_patches=("$PATCH_DIR"/*.patch)
+    shopt -u nullglob
+    for patch_path in "${afl_patches[@]}"; do
+        patch_name="$(basename "$patch_path")"
+        if git -C "$ICCDEV_DIR" apply --check "$patch_path"; then
+            git -C "$ICCDEV_DIR" apply "$patch_path"
+            echo "[OK] Applied: $patch_name"
+        elif git -C "$ICCDEV_DIR" apply --reverse --check "$patch_path" >/dev/null 2>&1; then
+            echo "[OK] Already applied: $patch_name"
+        else
+            echo "[FAIL] Patch does not apply: $patch_name"
+            exit 1
+        fi
+    done
+else
+    echo "[*] Patch application disabled for AFL build"
 fi
 
 AFL_CLANG_FAST_BIN=""
