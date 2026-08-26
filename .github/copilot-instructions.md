@@ -178,9 +178,14 @@ Scope to one component. PRs name area, list commands run, link issues.
 - Rebase on current `master`, review `git range-diff`, verify no merge commits,
   run build/CTest plus negative configuration checks, and inspect suppressed
   review findings before declaring the branch review-ready.
+- Record a configuration-contract matrix for every changed workflow,
+  Dockerfile, dependency manifest, or build setting: defaults, explicit
+  overrides, failure paths, and exact local evidence. Inventory review
+  summaries as well as threads because suppressed comments may have no thread.
 - Do not request serial automated reviews to discover basic readiness defects.
-  A second review cycle with missed unchanged-code findings is a stop signal:
-  return to branch-only grooming and notify the user.
+  A second review cycle with any new blocker, including one in the repair, is a
+  stop signal: return to branch-only grooming, report the review-cycle count,
+  and complete the contract audit before another review.
 
 ### File output encoding
 All generated files MUST be ASCII. Verify with `file FILENAME`.

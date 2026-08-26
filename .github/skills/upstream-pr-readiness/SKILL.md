@@ -69,9 +69,15 @@ stacks, or defer PR publication.
    ctest --test-dir /tmp/iccdev-pr-ready --output-on-failure
    ```
 
-7. Run task-specific Release, compiler, sanitizer, diagnostics, runtime-dispatch,
+7. Build a configuration-contract matrix for every changed configuration,
+   workflow, Dockerfile, or dependency manifest. Cover defaults, explicit
+   overrides, failure paths, and the exact local evidence. For compiler-specific
+   settings, verify supported and unsupported compilers. Prove runtime
+   suppression syntax with the runtime; do not infer it from compile-time
+   ignorelist categories.
+8. Run task-specific Release, compiler, sanitizer, diagnostics, runtime-dispatch,
    fallback, malformed-input, and other negative tests.
-8. For workflow, Dockerfile, or CI-summary changes, run and record the local
+9. For workflow, Dockerfile, or CI-summary changes, run and record the local
    preflight before PR creation, update, or review:
 
    ```bash
@@ -79,20 +85,25 @@ stacks, or defer PR publication.
    ```
 
    Do not use CI or automated review to discover local policy failures.
-9. For Docker user, home, or ownership changes, validate the final image as
+10. For Docker user, home, or ownership changes, validate the final image as
    its runtime user. Its declared home must be owned and writable, and
    `git config --global` must work.
-10. For failure-summary changes, verify the step independently loads a
+11. For failure-summary changes, verify the step independently loads a
     checked-in sanitizer or defines the standard inline fallback. Verify every
     pipeline status when logs are captured with `tee`.
-11. Remove generated artifacts and verify a clean worktree.
-12. Inspect all active and suppressed findings from any existing review.
-13. Produce the evidence record from
+12. Remove generated artifacts and verify a clean worktree.
+13. Inventory all review summaries and review threads. Suppressed comments may
+    exist only in a review summary and still require disposition.
+14. If a second automated review finds any new blocker, including one in the
+    repair, stop, report the review-cycle count to the user, and return to
+    branch-only grooming for a complete contract-matrix audit before another
+    review.
+15. Produce the evidence record from
     `docs/governance/UPSTREAM_PR_READINESS.md`.
 
 ## Result
 
 Only `readiness: PASS` plus explicit authorization permits PR creation.
 
-If a second automated review finds missed unchanged-code issues, change the
-result to FAIL and return to branch-only grooming.
+If a second automated review finds any new blocker, including one in the
+repair, change the result to FAIL and return to branch-only grooming.

@@ -96,15 +96,18 @@ ALWAYS verify after writing.
 3. Do not use a PR or repeated automated reviews as the development loop.
    Groom the branch first: rebase on current base, review the complete diff,
    run positive and negative tests, inspect active and suppressed findings,
-   verify scope documentation, and produce a linear range-diff.
+   verify scope documentation, produce a linear range-diff, and record a
+   `base...HEAD` contract matrix for every changed cross-cutting surface.
+   The matrix identifies producer, consumer, build/runtime behavior, platform
+   or toolchain boundary, CI trigger, dependency owner, and local evidence.
    A no-rebase instruction is not a readiness waiver when the branch diverges
    from its required base or stack parent: report FAIL and wait for direction
    to rebase, use independent branches or stacks, or defer publication.
 4. Before opening a PR, run the `upstream-pr-readiness` skill and record its
    PASS result. A failed or incomplete gate keeps the work branch-only.
-5. After two review cycles expose previously missed unchanged-code issues,
-   stop requesting more reviews. Return to branch-only grooming and ask the
-   user before continuing PR activity.
+5. After a second review identifies any new blocker, including one in the
+   repair, stop requesting more reviews. Return to branch-only grooming and
+   ask the user before continuing PR activity.
 
 ## Repeated Correction Rule
 

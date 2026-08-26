@@ -90,7 +90,7 @@ These rules derive from real multi-agent failures. Source: xsscx/governance LLMC
 | 18 | On repeated-attempt or wrap-up requests, make the narrow corrective edit, run only decisive checks, then commit/push if requested. | Broad rediscovery loops waste time and delay the actual fix. |
 | 19 | NEVER create or reopen a PR without explicit user authorization. Push, CI, and review requests are not equivalent authorization. | Agents act under the user's identity and can publish knowingly unfinished work. |
 | 20 | Run the upstream PR readiness gate before PR creation: current-base rebase, linear range-diff, complete diff review, positive and negative tests, scope documentation, and suppressed-finding review. A no-rebase instruction that conflicts with linear ancestry is a FAIL, not a waiver. | CI and reviewers become an avoidable development loop instead of a final gate. |
-| 21 | If a second automated review finds missed unchanged-code issues, stop requesting reviews and return to branch-only grooming. | Repeated review cycles conceal inadequate pre-PR preparation and waste reviewer capacity. |
+| 21 | If a second automated review finds any new blocker, including one in the repair, stop requesting reviews and return to branch-only grooming. | Repeated review cycles conceal inadequate pre-PR preparation and waste reviewer capacity. |
 | 22 | Rebase and validate before opening the PR, not after many review cycles. Use exact `--force-with-lease` only when an authorized existing PR branch must be rewritten. | Late history rewrites invalidate review context and restart CI unnecessarily. |
 
 ## Image+ICC Seed Pipeline

@@ -52,12 +52,20 @@ All items must pass before an authorized PR is opened:
     in that step or defines the established inline fallback there. It must not
     depend on a sanitizer copied into a temporary path by an earlier failing
     step.
-11. Generated artifacts are removed or intentionally documented.
-12. Active and suppressed automated-review findings are inspected.
-13. Documentation and reported evidence describe actual runtime behavior, not
+11. Every changed configuration, workflow, Dockerfile, or dependency manifest
+    has a written contract matrix. For each changed surface, record its default,
+    explicit override, failure path, and matching local command or inspection.
+    Compiler-specific flags require both a supported-compiler and an unsupported-
+    compiler check. Runtime suppression syntax must be proven with the runtime,
+    not inferred from compile-time special-case syntax.
+12. Generated artifacts are removed or intentionally documented.
+13. Active and suppressed automated-review findings are inspected. Query both
+    review threads and review summaries: suppressed comments may not create
+    resolvable threads.
+14. Documentation and reported evidence describe actual runtime behavior, not
     only compile-time eligibility.
-14. Related branches are synchronized only after the canonical branch passes.
-15. The user explicitly authorizes PR creation.
+15. Related branches are synchronized only after the canonical branch passes.
+16. The user explicitly authorizes PR creation.
 
 Any incomplete item means the branch remains branch-only.
 
@@ -70,12 +78,17 @@ use independent branches or stacks, or defer publication. Do not approximate
 
 Automated review is a final verification gate, not the implementation loop.
 
-- First cycle: resolve all active and suppressed findings together.
-- Second cycle: if it identifies missed issues in unchanged code, stop.
-- Return to branch-only grooming and perform a complete diff/configuration
-  audit.
-- Do not request another review or rewrite an active PR branch without telling
-  the user why and obtaining direction.
+- Before requesting the first review, record one complete local readiness
+  review and the configuration-contract matrix.
+- First cycle: inventory all active and suppressed findings together, resolve
+  them together, and re-run the complete local matrix before any new review.
+- A reviewer suggestion is a hypothesis, not evidence. Verify proposed
+  compiler flags, runtime suppression names, and tool configuration semantics
+  against the implementation and the actual runtime.
+- Second cycle: if it identifies any new blocker, including one in the repair,
+  stop. Return to branch-only grooming, perform a complete diff/configuration
+  audit, and report the review-cycle count and gap to the user before another
+  update or review.
 
 ## Required Evidence
 
@@ -89,12 +102,17 @@ merge commits: none
 build: command and result
 tests: command, pass count, skip count
 negative tests: cases and results
+configuration-contract matrix: changed surface, default, override, failure path, and evidence
 local preflight: exact command and exit status
 Docker identity/home validation: command and result, if applicable
 failure-summary sanitizer: checked-in source or same-step fallback, if applicable
-suppressed findings: checked
+review inventory: local review count; automated review IDs and count
+active findings: checked
+suppressed findings: checked from review threads and review summaries
 scope documentation: checked
 readiness: PASS or FAIL
 ```
 
 Use `.github/skills/upstream-pr-readiness/SKILL.md` for the executable workflow.
+Use `.github/checklists/upstream-pr-review-evidence.md` to record the
+review-cycle and configuration-contract evidence.

@@ -16,11 +16,15 @@
 - [ ] Diagnostics and sanitizer modes checked
 - [ ] Runtime ISA/fallback behavior checked
 - [ ] Negative tests passed
+- [ ] Configuration-contract matrix records default, override, failure-path, and compiler-boundary evidence
+- [ ] Runtime sanitizer suppression syntax verified by the actual runtime
 - [ ] Local preflight passed for workflow, Dockerfile, or CI-summary changes
 - [ ] Docker runtime user home is writable and `git config --global` works, if applicable
 - [ ] Failure summary uses same-step sanitizer fallback and checks all `tee` statuses, if applicable
 - [ ] Active review findings checked
-- [ ] Suppressed review findings checked
+- [ ] Suppressed review findings checked from review threads and review summaries
+- [ ] Local review count and automated review IDs recorded
+- [ ] Second-review new blocker, including one in the repair, stops further review until branch-only contract audit is complete
 - [ ] Generated artifacts removed
 - [ ] Related branches synchronized after canonical validation
 - [ ] Readiness result is PASS

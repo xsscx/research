@@ -68,6 +68,16 @@ When capturing a failure-prone command with `tee`, preserve and check every
 `PIPESTATUS` value; a successful producer does not make a failed log write
 acceptable.
 
+`sanitize_line` intentionally emits no newline. Add `echo ""` or use
+`sanitize_print` after every standalone sanitized summary line; otherwise
+Markdown headers, delimiters, and rows concatenate. Validate both the success
+and failure summary rendering locally.
+
+Before requesting review for a workflow change, compare each changed step
+against the applicable checked-in compliant template and record the default,
+failure, and fallback-path evidence. A review suggestion must be verified
+against the sourced helper and the actual shell behavior before it is applied.
+
 ### Multiline output — iterate line-by-line
 
 ```bash
