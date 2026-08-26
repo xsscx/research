@@ -8,7 +8,7 @@ Active patches can be applied to the isolated `afl/iccDEV` checkout:
 Build the AFL-instrumented tools against patched upstream `master`:
 
 ```bash
-./afl/build.sh --patches --refresh-iccdev
+./afl/build.sh --with-patches --refresh-iccdev
 ```
 
 The default remains an unpatched upstream comparison build.

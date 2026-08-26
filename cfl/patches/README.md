@@ -8,7 +8,7 @@ Active patches can be applied to the isolated `cfl/iccDEV` checkout:
 Build the LibFuzzer harnesses against patched upstream `master`:
 
 ```bash
-./cfl/build.sh --patches --refresh-iccdev
+./cfl/build.sh --with-patches --refresh-iccdev
 ```
 
 The default remains an unpatched upstream comparison build.

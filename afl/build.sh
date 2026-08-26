@@ -1,7 +1,7 @@
 #!/bin/bash
 # afl/build.sh - Build iccDEV with AFL++ instrumentation and full sanitizers
 #
-# Usage: ./afl/build.sh [--clean] [--patches|--no-patches] [--refresh-iccdev]
+# Usage: ./afl/build.sh [--clean] [--with-patches] [--refresh-iccdev]
 #
 # Builds the full iccDEV library and tools using afl-clang-fast++ with ASan,
 # UBSan, IntegerSanitizer, float-divide-by-zero, and float-cast-overflow.
@@ -19,7 +19,7 @@ THIRD_PARTY_DIR="$SCRIPT_DIR/third_party"
 THIRD_PARTY_PREFIX="${AFL_THIRD_PARTY_PREFIX:-$THIRD_PARTY_DIR/install}"
 JOBS=$(nproc)
 PATCH_DIR="$SCRIPT_DIR/patches"
-APPLY_PATCHES="${AFL_APPLY_PATCHES:-0}"
+WITH_PATCHES="${AFL_WITH_PATCHES:-0}"
 REFRESH_ICCDEV="${AFL_REFRESH_ICCDEV:-0}"
 KEEP_ICCDEV="${AFL_KEEP_ICCDEV:-0}"
 ICCDEV_BRANCH="${AFL_ICCDEV_BRANCH:-}"
@@ -37,8 +37,7 @@ usage() {
     echo "Options:"
     echo "  --clean           remove Build-AFL before building"
     echo "  --clean-third-party rebuild all AFL-instrumented dependencies"
-    echo "  --patches         apply afl/patches before building"
-    echo "  --no-patches      build against unpatched iccDEV (default)"
+    echo "  --with-patches    apply local patches from afl/patches"
     echo "  --branch NAME     use iccDEV branch NAME; existing checkout stays local-only"
     echo "  --refresh-iccdev  fetch selected branch or origin/master and reset the nested checkout"
     echo "  --keep-iccdev     preserve current afl/iccDEV source edits"
@@ -69,12 +68,8 @@ while [[ $# -gt 0 ]]; do
             CLEAN_THIRD_PARTY=1
             shift
             ;;
-        --patches)
-            APPLY_PATCHES=1
-            shift
-            ;;
-        --no-patches)
-            APPLY_PATCHES=0
+        --with-patches)
+            WITH_PATCHES=1
             shift
             ;;
         --branch)
@@ -149,8 +144,8 @@ if [[ "$AFL_LINK_MODE" != "static" && "$AFL_LINK_MODE" != "shared" ]]; then
     echo "ERROR: AFL_LINK_MODE must be static or shared"
     exit 1
 fi
-if [[ "$APPLY_PATCHES" != "0" && "$APPLY_PATCHES" != "1" ]]; then
-    echo "ERROR: AFL_APPLY_PATCHES must be 0 or 1"
+if [[ "$WITH_PATCHES" != "0" && "$WITH_PATCHES" != "1" ]]; then
+    echo "ERROR: AFL_WITH_PATCHES must be 0 or 1"
     exit 1
 fi
 
@@ -300,7 +295,7 @@ else
     fi
 fi
 
-if [[ "$APPLY_PATCHES" = "1" ]]; then
+if [[ "$WITH_PATCHES" = "1" ]]; then
     shopt -s nullglob
     afl_patches=("$PATCH_DIR"/*.patch)
     shopt -u nullglob

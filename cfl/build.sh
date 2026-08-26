@@ -8,7 +8,7 @@
 # Usage:  ./build.sh                         # build all fuzzers against upstream master
 #         ./build.sh clean                   # remove build artifacts and start fresh
 #         ./build.sh --branch ci-qa-issue-1975 --refresh-iccdev
-#         ./build.sh --patches --refresh-iccdev
+#         ./build.sh --with-patches --refresh-iccdev
 #
 # Requirements: clang-22/clang++-22, cmake 3.15+, libxml2-dev, libtiff-dev,
 #               zlib, libclang-rt-22-dev (provides ASan/UBSan runtime)
@@ -25,7 +25,7 @@ NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 CC="${CC:-clang-22}"
 CXX="${CXX:-clang++-22}"
-APPLY_PATCHES="${CFL_APPLY_PATCHES:-0}"
+WITH_PATCHES="${CFL_WITH_PATCHES:-0}"
 REFRESH_ICCDEV="${CFL_REFRESH_ICCDEV:-0}"
 KEEP_ICCDEV="${CFL_KEEP_ICCDEV:-0}"
 ICCDEV_REF="${CFL_ICCDEV_REF:-master}"
@@ -141,8 +141,7 @@ usage() {
   echo ""
   echo "Options:"
   echo "  clean             remove build artifacts and nested iccDEV checkout"
-  echo "  --patches         apply cfl/patches before building"
-  echo "  --no-patches      build against unpatched iccDEV (default)"
+  echo "  --with-patches    apply local patches from cfl/patches"
   echo "  --branch REF      clone/fetch the named iccDEV branch or tag (default: master)"
   echo "  --ref REF         alias for --branch"
   echo "  --keep-iccdev     preserve current cfl/iccDEV source edits"
@@ -155,12 +154,8 @@ while [[ $# -gt 0 ]]; do
       CLEAN=1
       shift
       ;;
-    --patches)
-      APPLY_PATCHES=1
-      shift
-      ;;
-    --no-patches)
-      APPLY_PATCHES=0
+    --with-patches)
+      WITH_PATCHES=1
       shift
       ;;
     --branch|--ref)
@@ -201,8 +196,8 @@ if [[ -z "$ICCDEV_REF" ]]; then
   exit 1
 fi
 
-if [[ "$APPLY_PATCHES" != "0" && "$APPLY_PATCHES" != "1" ]]; then
-  echo "[FAIL] ERROR: CFL_APPLY_PATCHES must be 0 or 1"
+if [[ "$WITH_PATCHES" != "0" && "$WITH_PATCHES" != "1" ]]; then
+  echo "[FAIL] ERROR: CFL_WITH_PATCHES must be 0 or 1"
   exit 1
 fi
 
@@ -277,7 +272,7 @@ else
   (cd "$ICCDEV_DIR" && git checkout -- . 2>/dev/null)
 fi
 
-if [ "$APPLY_PATCHES" = "1" ]; then
+if [ "$WITH_PATCHES" = "1" ]; then
   shopt -s nullglob
   cfl_patches=("$PATCH_DIR"/*.patch)
   shopt -u nullglob
