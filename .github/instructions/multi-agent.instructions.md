@@ -92,6 +92,7 @@ These rules derive from real multi-agent failures. Source: xsscx/governance LLMC
 | 20 | Run the upstream PR readiness gate before PR creation: current-base rebase, linear range-diff, complete diff review, positive and negative tests, scope documentation, and suppressed-finding review. A no-rebase instruction that conflicts with linear ancestry is a FAIL, not a waiver. | CI and reviewers become an avoidable development loop instead of a final gate. |
 | 21 | If a second automated review finds any new blocker, including one in the repair, stop requesting reviews and return to branch-only grooming. | Repeated review cycles conceal inadequate pre-PR preparation and waste reviewer capacity. |
 | 22 | Rebase and validate before opening the PR, not after many review cycles. Use exact `--force-with-lease` only when an authorized existing PR branch must be rewritten. | Late history rewrites invalidate review context and restart CI unnecessarily. |
+| 23 | Before every PR-branch push, reconcile the stated requirement with the complete diff and test every equivalent platform path plus each producer-consumer edge locally. | A narrow local fix can omit its Windows counterpart, generated baseline, or CTest fixture while Cloud Agent review becomes the discovery loop. |
 
 ## Image+ICC Seed Pipeline
 

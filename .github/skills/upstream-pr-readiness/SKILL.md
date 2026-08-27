@@ -58,7 +58,15 @@ stacks, or defer PR publication.
 
 5. Review every changed file and confirm the PR description covers the entire
    feature surface.
-6. Build normal targets and excluded regression helpers:
+6. Before any push, compare the PR title, issue, and description with the
+   complete diff. Map every equivalent platform entry point and each changed
+   producer-consumer path. For fixture work, include every generator,
+   generated artifact, baseline, and CTest dependency. Run the smallest local
+   selection that proves the complete map; never treat a single-platform test
+   as proof for an unreviewed counterpart.
+7. Build normal targets and excluded regression helpers, then run the smallest
+   complete CTest selection identified by the map. Run the entire suite only
+   when the changed contract or its dependencies require it:
 
    ```bash
    cmake -S Build/Cmake -B /tmp/iccdev-pr-ready \
@@ -66,18 +74,18 @@ stacks, or defer PR publication.
    cmake --build /tmp/iccdev-pr-ready -j"$(nproc)"
    cmake --build /tmp/iccdev-pr-ready \
      --target build-test-binaries -j"$(nproc)"
-   ctest --test-dir /tmp/iccdev-pr-ready --output-on-failure
+   ctest --test-dir /tmp/iccdev-pr-ready -R '<changed-selection>' --output-on-failure
    ```
 
-7. Build a configuration-contract matrix for every changed configuration,
+8. Build a configuration-contract matrix for every changed configuration,
    workflow, Dockerfile, or dependency manifest. Cover defaults, explicit
    overrides, failure paths, and the exact local evidence. For compiler-specific
    settings, verify supported and unsupported compilers. Prove runtime
    suppression syntax with the runtime; do not infer it from compile-time
    ignorelist categories.
-8. Run task-specific Release, compiler, sanitizer, diagnostics, runtime-dispatch,
+9. Run task-specific Release, compiler, sanitizer, diagnostics, runtime-dispatch,
    fallback, malformed-input, and other negative tests.
-9. For workflow, Dockerfile, or CI-summary changes, run and record the local
+10. For workflow, Dockerfile, or CI-summary changes, run and record the local
    preflight before PR creation, update, or review:
 
    ```bash
@@ -85,20 +93,24 @@ stacks, or defer PR publication.
    ```
 
    Do not use CI or automated review to discover local policy failures.
-10. For Docker user, home, or ownership changes, validate the final image as
+11. For Docker user, home, or ownership changes, validate the final image as
    its runtime user. Its declared home must be owned and writable, and
    `git config --global` must work.
-11. For failure-summary changes, verify the step independently loads a
+12. For failure-summary changes, verify the step independently loads a
     checked-in sanitizer or defines the standard inline fallback. Verify every
     pipeline status when logs are captured with `tee`.
-12. Remove generated artifacts and verify a clean worktree.
-13. Inventory all review summaries and review threads. Suppressed comments may
+13. Remove generated artifacts and verify a clean worktree.
+14. Inventory all review summaries and review threads. Suppressed comments may
     exist only in a review summary and still require disposition.
-14. If a second automated review finds any new blocker, including one in the
+15. If an automated review identifies an omitted requirement or platform
+    counterpart, stop treating reviews as the repair loop. Return to
+    branch-only grooming and repeat the requirement, parity, and
+    producer-consumer review locally before a follow-up push or review.
+16. If a second automated review finds any new blocker, including one in the
     repair, stop, report the review-cycle count to the user, and return to
     branch-only grooming for a complete contract-matrix audit before another
     review.
-15. Produce the evidence record from
+17. Produce the evidence record from
     `docs/governance/UPSTREAM_PR_READINESS.md`.
 
 ## Result

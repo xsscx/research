@@ -182,6 +182,11 @@ Scope to one component. PRs name area, list commands run, link issues.
   Dockerfile, dependency manifest, or build setting: defaults, explicit
   overrides, failure paths, and exact local evidence. Inventory review
   summaries as well as threads because suppressed comments may have no thread.
+- Before pushing a PR branch, reconcile its stated requirement with the complete
+  diff and map all equivalent platform entry points and producer-consumer paths.
+  Fixture work must cover generators, generated outputs, baselines, and CTest
+  dependencies on every supported platform. Cloud Agent review is final
+  confirmation, never the discovery mechanism for omitted counterparts.
 - Do not request serial automated reviews to discover basic readiness defects.
   A second review cycle with any new blocker, including one in the repair, is a
   stop signal: return to branch-only grooming, report the review-cycle count,

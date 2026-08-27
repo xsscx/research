@@ -103,6 +103,10 @@ ALWAYS verify after writing.
    A no-rebase instruction is not a readiness waiver when the branch diverges
    from its required base or stack parent: report FAIL and wait for direction
    to rebase, use independent branches or stacks, or defer publication.
+   Before every PR-branch push, compare the stated requirement with the complete
+   diff and review all equivalent platform paths and producer-consumer edges.
+   For fixture changes, prove every generator, generated output, baseline, and
+   CTest dependency locally; do not use Cloud Agent review to discover omissions.
 4. Before opening a PR, run the `upstream-pr-readiness` skill and record its
    PASS result. A failed or incomplete gate keeps the work branch-only.
 5. After a second review identifies any new blocker, including one in the
