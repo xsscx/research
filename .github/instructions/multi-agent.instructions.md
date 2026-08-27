@@ -93,6 +93,7 @@ These rules derive from real multi-agent failures. Source: xsscx/governance LLMC
 | 21 | If a second automated review finds any new blocker, including one in the repair, stop requesting reviews and return to branch-only grooming. | Repeated review cycles conceal inadequate pre-PR preparation and waste reviewer capacity. |
 | 22 | Rebase and validate before opening the PR, not after many review cycles. Use exact `--force-with-lease` only when an authorized existing PR branch must be rewritten. | Late history rewrites invalidate review context and restart CI unnecessarily. |
 | 23 | Before every PR-branch push, reconcile the stated requirement with the complete diff and test every equivalent platform path plus each producer-consumer edge locally. | A narrow local fix can omit its Windows counterpart, generated baseline, or CTest fixture while Cloud Agent review becomes the discovery loop. |
+| 24 | After user approval of a branch-only documentation, configuration, or UI revision, freeze scope and perform only the authorized commit or push. A requested small-diff review is limited to named files, direct consumers, 25 tool calls, and 10 minutes; cancellation or timeout never blocks the remaining authorization. | Unbounded reviews and post-approval rediscovery delay handoff, create stray artifacts, and consume user time without improving the approved change. |
 
 ## Image+ICC Seed Pipeline
 

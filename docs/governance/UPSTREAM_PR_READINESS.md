@@ -83,6 +83,26 @@ explicitly choose one of these paths before PR creation: authorize the rebase,
 use independent branches or stacks, or defer publication. Do not approximate
 `gh stack sync` with a fetch-only update and do not submit a divergent stack.
 
+## Approved Small-Diff Handoff
+
+Do not apply this full readiness audit to a branch-only documentation,
+configuration, or UI-only revision that the user has reviewed and approved
+locally, unless the user explicitly asks for the audit.
+
+1. Freeze the approved scope. Do not reopen discovery, add adjacent cleanup, or
+   start another review unless a command fails or the user asks.
+2. When the user authorizes commit or push, perform only that handoff action.
+   Report a credential or remote failure immediately; do not substitute
+   additional validation or investigation.
+3. Do not delegate a review unless the user requests one or the change needs a
+   defined readiness gate. A requested small-diff review must inspect only the
+   stated files and direct consumers, use at most 25 tool calls, and return
+   within 10 minutes.
+4. A cancelled or timed-out review is not a gate. Stop waiting, report it as
+   incomplete, and proceed only with the user's remaining authorization.
+5. Read-only reviewers must not create files, build outputs, logs, or other
+   workspace artifacts. Remove any such artifact before handoff.
+
 ## Review Cycle Stop Rule
 
 Automated review is a final verification gate, not the implementation loop.

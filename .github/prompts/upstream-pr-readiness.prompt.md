@@ -45,9 +45,15 @@ Audit `BRANCH_NAME` against `BASE_BRANCH` using
    disposition even when no resolvable thread exists. If a second automated
    review finds any new blocker, including one in the repair, report FAIL and
    return to branch-only grooming before another review.
-8. If a no-rebase request conflicts with the required base or stack-parent
+9. If a no-rebase request conflicts with the required base or stack-parent
    rebase, report FAIL and do not initialize or submit the stack.
-9. Report only PASS or FAIL with command evidence and blockers.
+10. Do not use this audit for a user-approved branch-only documentation,
+    configuration, or UI-only revision unless the user explicitly requests it.
+    A requested small-diff audit is limited to the named files and direct
+    consumers, 25 tool calls, and 10 minutes. It must not create artifacts; a
+    cancellation or timeout returns INCOMPLETE and does not block an otherwise
+    authorized commit or push.
+11. Report PASS, FAIL, or INCOMPLETE with command evidence and blockers.
 
 ## Output
 

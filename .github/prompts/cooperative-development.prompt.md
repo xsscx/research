@@ -107,5 +107,7 @@ fix, or needs to wrap up:
 1. Restate the single failure being corrected in one sentence.
 2. Patch only the files needed to prevent that failure from recurring.
 3. Run the smallest decisive validation set; do not restart broad discovery.
-4. Commit and push immediately when requested.
+4. After user approval, freeze scope and commit and push immediately when
+   requested. Do not start a new review, broad validation, or adjacent cleanup
+   unless the user asks or the handoff command fails.
 5. Report the commit SHA, pushed branch, and validation evidence.

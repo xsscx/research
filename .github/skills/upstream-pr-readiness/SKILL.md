@@ -43,6 +43,23 @@ Do not initialize or submit a divergent stack. Report the conflicting ancestry
 and wait for the user to authorize the rebase, choose independent branches or
 stacks, or defer PR publication.
 
+## Approved Small-Diff Handoff
+
+Do not invoke this full readiness workflow for a branch-only documentation,
+configuration, or UI-only revision that the user has reviewed and approved
+locally, unless the user explicitly asks for a readiness audit.
+
+After the user approves a small diff and authorizes commit or push:
+
+1. Freeze scope and perform only the authorized handoff action.
+2. Do not start another review, broad validation, or adjacent cleanup unless a
+   command fails or the user asks.
+3. A requested small-diff review inspects only the named files and direct
+   consumers, uses at most 25 tool calls, and returns within 10 minutes.
+4. A cancelled or timed-out review is incomplete and must not block the user's
+   remaining authorization.
+5. Leave no generated files, logs, or other artifacts in the reviewed worktree.
+
 ## Workflow
 
 1. Work in a clean clone or worktree.
