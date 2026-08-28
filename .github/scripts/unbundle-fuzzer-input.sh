@@ -105,8 +105,7 @@ mkdir -p "$OUT_DIR"
 if [ -z "$TOOL_ROOT" ]; then
   for candidate in \
     "$REPO_ROOT/iccDEV/Build/Tools" \
-    "$REPO_ROOT/cfl/iccDEV/Build/Tools" \
-    "$REPO_ROOT/iccanalyzer-lite/iccDEV/Build/Tools"; do
+    "$REPO_ROOT/cfl/iccDEV/Build/Tools"; do
     if [ -d "$candidate" ]; then
       TOOL_ROOT="$candidate"
       break

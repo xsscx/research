@@ -8,8 +8,8 @@ Static analysis of iccDumpProfile.cpp to extract:
   2. AST Gates — conditional branches controlling code path reachability
   3. Fuzzer Fidelity Map — which gates/calls the fuzzer exercises
 
-Modeled on iccanalyzer-lite's CIccAnalyzerCallGraph DOT generation
-and exploitability tree format.
+Uses the retired analyzer's DOT and exploitability-tree layout for historical
+artifact compatibility; it has no runtime dependency on that analyzer.
 
 Usage:
     python3 iccDumpProfile-callgraph.py [--dot FILE] [--fuzzer FILE] [--format text|json]
@@ -26,7 +26,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 
-# ─── Data Structures (mirrors iccanalyzer-lite CallGraphNode/ASANFrame) ───
+# Data structures for the historical call-graph artifact format.
 
 @dataclass
 class CallSite:
@@ -287,7 +287,7 @@ AST_GATES = [
 # ─── Output Generators ───
 
 def emit_text(functions, calls, gates, fuzzer_map=None):
-    """Terminal-friendly output matching iccanalyzer-lite tree format."""
+    """Terminal-friendly output matching the historical tree format."""
 
     print("=" * 72)
     print("iccDumpProfile.cpp — Call Graph & AST Gate Analysis")
@@ -401,7 +401,7 @@ def _check_fidelity(site, fuzzer_map):
 
 
 def emit_dot(functions, calls, gates, outfile):
-    """Generate Graphviz DOT file (modeled on iccanalyzer-lite GenerateDOTGraph)."""
+    """Generate Graphviz DOT in the historical artifact format."""
     safe_out = os.path.normpath(os.path.realpath(outfile))
     if not os.path.isabs(safe_out):
         raise ValueError(f"Output path must be absolute: {outfile}")

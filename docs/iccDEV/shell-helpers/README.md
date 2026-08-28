@@ -44,7 +44,8 @@ three components:
 
 | Component | iccDEV Usage | Build |
 |-----------|-------------|-------|
-| `iccanalyzer-lite/` | Links unpatched upstream IccProfLib + IccLibXML | `./build.sh` |
+| `iccDEV/Tools/CmdLine/IccPawgReport/` | Current upstream PAWG assessment CLI | build through upstream CMake |
+| `iccDEV/iccdev-mcp/` | Current upstream MCP and REST server | see `docs/ICCDEV_UPSTREAM_INTEROP.md` |
 | `cfl/` | Clones upstream iccDEV `master` and builds the current fuzzer set | `./build.sh` |
 | `colorbleed_tools/` | Sandboxed unsafe ICC conversion and TIFF extraction | `make setup && make qa` |
 

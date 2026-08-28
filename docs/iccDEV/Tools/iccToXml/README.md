@@ -98,7 +98,8 @@ LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
   iccToXml suspicious.icc /tmp/output.xml
 ```
 
-Known XML serialization crash patterns are detected by iccanalyzer-lite heuristics H142-H145.
+Assess current profile security and conformance with `iccPawgReport`; preserve
+sanitizer evidence separately when testing XML serialization crash patterns.
 
 ## Related Tools
 

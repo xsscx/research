@@ -3,13 +3,12 @@ name: icc-crash-triage
 description: >
   Triage ASAN/UBSAN fuzzer crash findings against ICC profile tools.
   Classifies by exit code, attributes by stack trace file path, maps CWE,
-  and determines upstream vs analyzer ownership.
+  and determines upstream vs research-wrapper ownership.
 allowed-tools:
   - bash
   - read
   - grep
   - glob
-  - iccTest
 ---
 
 # ICC Fuzzer Crash Triage
@@ -48,7 +47,6 @@ Read ASAN/UBSAN stack frame #2-#3 and classify by source file path:
 
 | Path contains | Owner | Action |
 |---------------|-------|--------|
-| `iccanalyzer-lite/` | OUR CODE | Fix immediately |
 | `colorbleed_tools/` | OUR CODE | Fix immediately |
 | `cfl/icc_*_fuzzer.cpp` | OUR CODE | Fix harness |
 | `iccDEV/IccProfLib/` | UPSTREAM | CFL patch + report upstream |
@@ -153,6 +151,6 @@ See `.github/prompts/iccdev-bisect-reproduction.prompt.md` for full workflow.
 ## References
 
 - `.github/prompts/triage-fuzzer-oom.prompt.yml` -- OOM-specific workflow
-- `.github/prompts/triage-cve-poc.prompt.yml` -- CVE PoC analysis
+- `.github/prompts/triage-cve-poc.prompt.md` -- CVE PoC analysis
 - `.github/instructions/cfl.instructions.md` -- Patch system details
 - `docs/pocs/iccdev-issue-reproductions.md` -- 63 PoC reproduction steps

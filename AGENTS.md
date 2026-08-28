@@ -7,7 +7,9 @@ Security-research monorepo for ICC color-profile tooling. Main components:
 ICC representation and TIFF extraction tools). Shared corpora live in
 `test-profiles/`, `extended-test-profiles/`, and `cfl/corpus-*`. Retired
 analyzer history was removed from tracking; use the Git backup in `~/retired/`
-if archaeology is required. Vendor mirrors (`opencv/`) and archived dirs
+if archaeology is required. Current analyzer and server work lives upstream as
+`iccPawgReport` and `iccdev-mcp`; use `docs/ICCDEV_UPSTREAM_INTEROP.md` and the
+`iccdev-pawg-mcp` skill. Vendor mirrors (`opencv/`) and archived dirs
 (`demo-rit/`, `issue-711/`) are read-only.
 
 ## Documentation Map
@@ -18,6 +20,8 @@ if archaeology is required. Vendor mirrors (`opencv/`) and archived dirs
 - `.github/skills/*/SKILL.md` -- on-demand task workflows
 - `.github/prompts/` -- prompt templates
 - `AGENTS.md` -- agent instructions; nearest file in the directory tree wins
+- `docs/ICCDEV_UPSTREAM_INTEROP.md` -- current PAWG, MCP, container, and
+  maintainer-tool contract
 
 ## Build and Test
 See `.github/copilot-instructions.md` for build/test commands per component.
@@ -35,6 +39,11 @@ Additional repo workflows in active use:
 - `.github/scripts/pre-push-gate.sh`
   -- run the unified pre-push validation gate for active GitHub and
      documentation checks.
+
+For upstream PAWG and MCP work, discover current runtime capabilities rather
+than copying historical analyzer totals. The published runtime is the unified
+`ghcr.io/internationalcolorconsortium/iccdev:latest` image; start its MCP mode
+with `iccdev-mcp-entrypoint mcp`.
 
 ## AFL JPEG Seed Rule
 `jpegdump` and `jpegdump-inject` must seed only `.jpg`/`.jpeg` files from

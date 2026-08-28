@@ -100,7 +100,7 @@ The extraction handles:
 
 - [iccPngDump](../iccPngDump/) - Extract/inject ICC from PNG files
 - [iccTiffDump](../iccTiffDump/) - Extract ICC from TIFF files
-- iccanalyzer-lite: JPEG ICC extraction via APP2 multi-segment reassembly
+- `iccdev-mcp` `jpeg_dump`: current MCP wrapper for JPEG ICC extraction
 
 ## Version
 

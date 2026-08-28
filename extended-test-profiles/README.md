@@ -1,8 +1,9 @@
 # extended-test-profiles/
 
 Security-focused ICC profiles: CVE proof-of-concepts, crash artifacts from CFL/AFL fuzzing,
-malformed profiles, and edge-case inputs. All files trigger iccanalyzer-lite findings (exit 1)
-or exercise specific bug patterns in iccDEV.
+malformed profiles, and edge-case inputs that exercise specific bug patterns in
+iccDEV. Historical analyzer expectations are not current pass/fail contracts;
+validate files with the current unpatched iccDEV tools and `iccPawgReport`.
 
 ## Inventory (116 profiles)
 
@@ -58,10 +59,10 @@ Crash types: `hbo` (heap overflow), `sbo` (stack overflow), `segv` (SIGSEGV),
 ```bash
 # Analyze a CVE PoC
 ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-  ./iccanalyzer-lite/iccanalyzer-lite -a extended-test-profiles/cve-2023-46602.icc
+  iccDEV/Build/Tools/IccPawgReport/iccPawgReport --json extended-test-profiles/cve-2023-46602.icc
 
 # JSON analysis for structured output
-./iccanalyzer-lite/iccanalyzer-lite --json extended-test-profiles/oom-CIccSampledCurveSegment-SetSize-IccMpeBasic_cpp-Line986.icc
+iccDEV/Build/Tools/IccPawgReport/iccPawgReport --json extended-test-profiles/oom-CIccSampledCurveSegment-SetSize-IccMpeBasic_cpp-Line986.icc
 
 # Test upstream tool behavior (should reject gracefully)
 LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \

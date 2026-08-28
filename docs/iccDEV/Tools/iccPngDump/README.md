@@ -85,7 +85,7 @@ within the chunk. The `iCCP` chunk contains:
 
 - [iccJpegDump](../iccJpegDump/) — Extract/inject ICC from JPEG files
 - [iccTiffDump](../iccTiffDump/) — Extract ICC from TIFF files
-- iccanalyzer-lite: PNG ICC extraction via `png_get_iCCP()` (iCCP chunk)
+- `iccdev-mcp` `png_dump`: current MCP wrapper for PNG ICC extraction
 
 ## Version
 

@@ -27,7 +27,7 @@ Reference commands for building, testing, and debugging
 - [Testing — Recursive with Logs](#testing--recursive-with-logs)
 - [xmllint Validation](#xmllint-validation)
 - [Coverage Instrumentation](#coverage-instrumentation)
-- [iccanalyzer-lite (Security Research)](#iccanalyzer-lite-security-research)
+- [PAWG and MCP Validation](#pawg-and-mcp-validation)
 - [Tool Checks](#tool-checks)
 - [WASM Build](#wasm-build)
 - [Debugging — LLDB](#debugging--lldb)
@@ -48,7 +48,6 @@ Reference commands for building, testing, and debugging
 | Image libraries | `libpng-dev`, `libjpeg-dev`, `libtiff-dev` | `libpng`, `jpeg`, `libtiff` |
 | XML / JSON | `libxml2-dev`, `nlohmann-json3-dev` | `libxml2`, `nlohmann-json` |
 | GUI (optional) | `libwxgtk3.2-dev` + media/webview | `wxwidgets` |
-| OpenSSL (for iccanalyzer-lite) | `libssl-dev` | `openssl` (Homebrew) |
 
 ### Ubuntu Full Install
 
@@ -56,7 +55,7 @@ Reference commands for building, testing, and debugging
 sudo apt install -y clang-18 clang++-18 libclang-rt-18-dev \
   cmake make build-essential \
   libpng-dev libjpeg-dev libtiff-dev \
-  libxml2-dev nlohmann-json3-dev libssl-dev \
+  libxml2-dev nlohmann-json3-dev \
   libwxgtk3.2-dev libwxgtk-{media,webview}3.2-dev \
   wx-common wx3.2-headers
 ```
@@ -64,7 +63,7 @@ sudo apt install -y clang-18 clang++-18 libclang-rt-18-dev \
 ### macOS Homebrew
 
 ```bash
-brew install libpng nlohmann-json libxml2 wxwidgets libtiff jpeg openssl
+brew install libpng nlohmann-json libxml2 wxwidgets libtiff jpeg
 ```
 
 ---
@@ -634,56 +633,18 @@ find . -type f \( -perm -111 -o -name "*.so" -o -name "*.a" \) \
 
 ---
 
-## iccanalyzer-lite (Security Research)
+## PAWG and MCP Validation
 
-These commands are specific to the [xsscx/research](https://github.com/xsscx/research)
-repository's security analyzer.
-
-### Build
+Use the current upstream assessment and automation surfaces:
 
 ```bash
-cd iccanalyzer-lite && ./build.sh
+iccDEV/Build/Tools/IccPawgReport/iccPawgReport --json profile.icc
+docker run --rm -i ghcr.io/internationalcolorconsortium/iccdev:latest \
+  iccdev-mcp-entrypoint mcp
 ```
 
-### Run 145-Heuristic Security Analysis
-
-```bash
-# Full analysis (auto-detects ICC profiles and TIFF images)
-./iccanalyzer-lite -a profile.icc
-
-# JSON structured output
-./iccanalyzer-lite --json profile.icc
-
-# Professional severity-sorted report
-./iccanalyzer-lite --report profile.icc
-
-# XML with dark-themed XSLT
-./iccanalyzer-lite -xml profile.icc output.xml
-
-# TIFF image analysis (extracts embedded ICC + H139-H141 checks)
-./iccanalyzer-lite -a image.tif
-
-# Batch analysis with ASAN catch-and-continue
-ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-  ./iccanalyzer-lite -a profile.icc
-```
-
-### Batch Analysis Script
-
-```bash
-# Analyze all profiles in test-profiles/
-for f in test-profiles/*.icc; do
-  echo "=== $(basename "$f") ==="
-  ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
-    ./iccanalyzer-lite/iccanalyzer-lite -a "$f" 2>&1 | tail -5
-done
-```
-
-### Test Suite
-
-```bash
-python3 iccanalyzer-lite/tests/run_tests.py   # 217 tests, ~25s
-```
+For a complete handshake, runtime discovery, REST checks, and maintainer QA
+selection, follow `docs/ICCDEV_UPSTREAM_INTEROP.md`.
 
 ---
 

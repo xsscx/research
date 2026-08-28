@@ -2,7 +2,7 @@
 description: >
   Triage ASAN/UBSAN crash findings from fuzzer campaigns. Classifies by
   exit code, attributes by stack trace file path, maps CWE, and determines
-  upstream vs analyzer ownership.
+  upstream vs research-wrapper ownership.
 model: claude-sonnet-4.6
 tools:
   - bash
@@ -10,7 +10,6 @@ tools:
   - grep
   - glob
   - view
-  - iccTest
 ---
 
 # Crash Triage Agent
@@ -40,7 +39,6 @@ Read ASAN/UBSAN stack frames #2-#3. Classify by file path:
 
 | Path contains | Owner |
 |---------------|-------|
-| `iccanalyzer-lite/` | OUR CODE |
 | `colorbleed_tools/` | OUR CODE |
 | `cfl/` | OUR CODE |
 | `iccDEV/` | UPSTREAM |

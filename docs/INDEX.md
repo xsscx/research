@@ -22,16 +22,16 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 | Dump TIFF structure and preserve an embedded ICC | `../colorbleed_tools/Readme.md`, `../.github/prompts/tiff-icc-colorbleed.prompt.md` |
 | Set up Apple Silicon host flow | `LOCAL_MACOS_ARM64_ONBOARDING.md` |
 | Configure or troubleshoot MCP servers (`.mcp.json`) | `MCP_SERVER_SETUP.md` |
+| Validate upstream PAWG, MCP, container, or maintainer tools | `ICCDEV_UPSTREAM_INTEROP.md`, `../.github/skills/iccdev-pawg-mcp/SKILL.md` |
 
 ## Security Research
 
 | Area | Path |
 |------|------|
-| Vulnerability taxonomy | `iccDEV/vulnerability-taxonomy.md` |
 | CVE and GHSA inventory | `cve/iccDEV-CVE-Report.md` |
 | PoC reproductions and techniques | `pocs/` |
 | Runtime analyzer findings | `analysis/` |
-| Static-analysis workflow | `iccDEV/codeql/README.md` |
+| Run current upstream maintainer scans | `ICCDEV_UPSTREAM_INTEROP.md`, then `iccDEV/docs/maintainer-qa-scans.md` in the current upstream checkout |
 | ICC conformance and parser-risk overlays | `iccDEV/specifications/html/` |
 | ICC specimen posters and generated images | `iccDEV/specifications/png/` |
 

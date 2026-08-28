@@ -70,11 +70,13 @@ Do not pass `-sort` to `iccToJson_unsafe` in ColorBleed QA. The wrapper rejects
 that option with exit code 64 until the sorted JSON writer path is
 sanitizer-clean.
 
-## Integration with iccanalyzer-lite
+## Integration with current upstream assessment
 
-The analyzer's `-r` (round-trip) mode uses `iccToXml_unsafe` to convert profiles
-to XML for structural comparison. If these binaries are missing, the round-trip
-analysis phase is skipped.
+Use ColorBleed for sandboxed mutation, round-trip, and byte-preserving container
+extraction. Use upstream `iccPawgReport` for the PAWG assessment and
+`iccdev-mcp` when an MCP or REST consumer needs the supported iccDEV operations.
+The retired `iccanalyzer-lite` integration is historical and must not be used as
+an active dependency.
 
 ## Security Considerations
 

@@ -10,7 +10,6 @@ allowed-tools:
   - read
   - grep
   - glob
-  - iccTest
 ---
 
 # ICC Profile Security Analysis
@@ -29,10 +28,13 @@ Use `iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile` for header, tag table,
 and field values. Identify profile class, color space, PCS, version, creator,
 and notable tags.
 
-### 2. Round-Trip and Representation Checks
+### 2. PAWG, Round-Trip, and Representation Checks
 
 Use active `iccDEV/Build/Tools/` CLIs for round-trip and representation checks.
 Do not hardcode heuristic totals; cite tool output or checked-in registry data.
+Run `iccPawgReport` in text and JSON modes for the current PAWG security,
+conformance, and quality assessment. When using MCP or REST, follow the
+`iccdev-pawg-mcp` skill and discover runtime capabilities.
 
 For profile-representation mutation, use ColorBleed:
 `colorbleed_tools/iccToXml_unsafe`, `colorbleed_tools/iccFromXml_unsafe`,
@@ -62,6 +64,9 @@ whether an embedded ICC profile was extracted.
 ```bash
 # Header and tag inspection
 iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
+
+# PAWG assessment
+iccDEV/Build/Tools/IccPawgReport/iccPawgReport --json <profile.icc>
 
 # Sandboxed TIFF inspection and byte-exact ICC extraction
 colorbleed_tools/iccTiffDump_unsafe <input.tif> /tmp/embedded.icc
@@ -95,14 +100,15 @@ iccDEV/Build/Tools/IccFromXml/IccFromXml /tmp/profile.xml /tmp/roundtrip.icc
 
 ## Policy Notes
 
-- Security analysis defaults to V2 engine (`icctest`)
-- Structural inspection defaults to V1 engine
-- Exit code 1 is NOT a crash -- it means findings were detected
-- Report ASAN/UBSAN output verbatim if present
-- For parity claims, `verify-parity-summary.json` is the source of truth
+- `iccPawgReport` and `iccdev-mcp` are the active upstream analyzer surfaces.
+- Retired analyzer parity files are historical and are not current release
+  evidence.
+- Exit code 1 is a soft failure unless signal or sanitizer evidence proves a
+  crash.
+- Report ASAN/UBSAN output verbatim if present.
 
 ## References
 
-- `.github/instructions/iccanalyzer-lite.instructions.md` -- Heuristic details
-- `.github/prompts/triage-cve-poc.prompt.yml` -- CVE PoC workflow
+- `.github/skills/iccdev-pawg-mcp/SKILL.md` -- PAWG, MCP, REST, and container validation
+- `.github/prompts/triage-cve-poc.prompt.md` -- CVE PoC workflow
 - `docs/analysis/` -- Previous analysis reports

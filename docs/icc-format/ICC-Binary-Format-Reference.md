@@ -5,45 +5,17 @@
 > heuristic authoring.
 >
 > **Sources**: ICC.1-2022-05, ICC.2-2019 (with September 2021 errata), ICC.2-2023,
-> ICS Parts 1–3, iccanalyzer-lite source code, CFL fuzzer corpus,
+> ICS Parts 1-3, upstream iccDEV source, CFL fuzzer corpus,
 > 93 iccDEV security advisories covering 87 CVEs + 95 GHSAs (182 unique refs).
 >
-> **Last verified**: 2026-03-29 19:30:00 UTC — V1 `iccanalyzer-lite` security
-> mode currently exposes 173 heuristics (H1–H173), while the V2 `icctest`
-> registry currently exposes 180 heuristics, plus 329 canonical conformance
-> checks (CF-001..CF-329), 45 CFL patches, and 13 fuzzers.
+> **Analyzer status**: The V1/V2 analyzer counts below are a historical snapshot
+> from 2026-03-29. Current operational assessment uses upstream
+> `iccPawgReport`; MCP and REST automation uses upstream `iccdev-mcp`. See
+> `../ICCDEV_UPSTREAM_INTEROP.md` and discover current runtime capabilities.
 >
-> **Count note**: these are current registry totals, not an ID-space ceiling.
-> V1 and V2 are expected to grow the `H-*` and `CF-*` namespaces toward `1000`
-> checks each over time.
-
-> **Tooling policy**: for V1/V2 command-line validation and parity work, prefer
-> the shared Debug + ASAN + UBSAN + Clang coverage build path. Do not treat a
-> separate Release-only rebuild as the source of truth for developer-facing CLI
-> testing. If shipping V2 binaries, include `icctest`, `icctest-parity`,
-> `heuristic-remap.tsv`, and `verify-parity-summary.json`.
-
-> **Harness note**: under unit/parity runners, use
-> `ASAN_OPTIONS=detect_leaks=0` and `LLVM_PROFILE_FILE=/dev/null` unless the run
-> is intentionally collecting profiling output. LeakSanitizer can abort under
-> harnessed execution even when the suite itself passes. Force that setting
-> even when a parent environment already exported `ASAN_OPTIONS`.
-
-> **Routine sampling note**: broad local/CI analyzer sampling should exclude the
-> known resource-bomb families listed in
-> `iccanalyzer-lite/tests/profile-resource-quarantine.txt`. Those files belong
-> in dedicated timeout/OOM verification, not random smoke/parity sampling.
-
-> **Analyzer-side UB hardening note**:
-> - V1/V2 intentionally validate against the **unpatched** upstream `iccDEV`
->   runtime for parity.
-> - When user-controlled input can reach recurring UB in shared upstream
->   helpers, prefer analyzer-owned guards or symbol overrides linked ahead of
->   the static libraries over patching the vendored `iccDEV` tree.
-> - Keep the corresponding `H-*` / `CF-*` reporting active even after the
->   runtime path is hardened. Defense and reporting are separate requirements.
-> - `cfl/patches` remain CFL-only and are not the runtime hardening mechanism
->   for `iccanalyzer-lite` / `icctest`.
+> **Tooling policy**: use the unpatched current iccDEV checkout with sanitizer
+> builds for security work. Treat retired V1/V2 parity artifacts as historical,
+> not as current shipping or release requirements.
 
 > **PAWG quality note**:
 > - `Q1` bounded round-trip coverage includes matrix/TRC plus classic LUT pairs
@@ -239,7 +211,7 @@ malformed LUTs can have `m_nOutput > declared`. Always use `tmpPixel[16]` sized 
 
 ## 5. Tag Signatures
 
-Common tags validated by iccanalyzer-lite heuristics:
+Common tags validated by ICC profile tooling:
 
 ### Required Tags
 
@@ -610,7 +582,8 @@ Examples:
 
 ## 11. Image Container Formats (TIFF / PNG / JPEG)
 
-iccanalyzer-lite auto-detects image files via magic bytes and extracts embedded ICC profiles.
+Current iccDEV image tools detect their container formats by magic bytes and
+extract embedded ICC profiles.
 
 ### Format Detection (Magic Bytes)
 
@@ -719,17 +692,11 @@ Multi-segment reassembly:
 
 ---
 
-## 13. CFL Patch Catalog (44 Active)
+## 13. CFL Patch Catalog
 
 Active patches in `cfl/patches/` targeting verified upstream iccDEV bugs.
-The current active patch-file count is **44**, and the normalized analyzer-facing
-inventory now lives in:
-
-- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv`
-- `docs/analysis/ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.md`
-
-The table below is an older summary slice, not the current source of truth for
-counts or V1/V2 analyzer coverage.
+Discover the current patch inventory directly from that directory. The table
+below is an older summary slice and is not the current source of truth.
 
 | # | Patch | Bug | CWE | File |
 |---|-------|-----|-----|------|
@@ -1014,7 +981,7 @@ tampering or corruption). CWE-345.
 ### Reading Big-Endian uint32 (C/Python)
 
 ```c
-// C — used throughout iccanalyzer-lite
+// C - generic big-endian ICC field reader
 static inline uint32_t ReadU32BE(const uint8_t *p, size_t off) {
     return ((uint32_t)p[off] << 24) | ((uint32_t)p[off+1] << 16) |
            ((uint32_t)p[off+2] << 8) | (uint32_t)p[off+3];
@@ -1125,7 +1092,7 @@ def extract_icc_from_tiff(data):
 
 | Related Document | Path |
 |-----------------|------|
-| iccanalyzer-lite instructions | `.github/instructions/iccanalyzer-lite.instructions.md` |
+| Current PAWG and MCP validation | `docs/ICCDEV_UPSTREAM_INTEROP.md` |
 | CFL fuzzer instructions | `.github/instructions/cfl.instructions.md` |
 | CVE report | `docs/cve/iccDEV-CVE-Report.md` |
 | PoC reproduction techniques | `docs/pocs/iccdev-poc-techniques.md` |
@@ -1138,4 +1105,3 @@ def extract_icc_from_tiff(data):
 ---
 
 *Generated from icc-format-info-learned.txt, enriched with repository source analysis.*
-*iccanalyzer-lite / icctest current reference: V1 173 heuristics, V2 180 heuristics, 329 canonical conformance checks (331 wrapper entries), 45 CFL patches, 13 fuzzers, 113 advisories*

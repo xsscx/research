@@ -1,8 +1,8 @@
 ---
 description: >
-  Security scanner for ICC color profiles. Runs full heuristic analysis,
-  structural inspection, and round-trip validation. Reports findings by
-  severity with CVE/CWE cross-references.
+  Security scanner for ICC color profiles. Runs current iccDEV structural,
+  PAWG, and round-trip analysis and reports evidence without retired analyzer
+  dependencies.
 model: claude-sonnet-4.6
 tools:
   - bash
@@ -10,7 +10,6 @@ tools:
   - grep
   - glob
   - view
-  - iccTest
 ---
 
 # Security Scanner Agent
@@ -22,11 +21,12 @@ structures.
 ## Workflow
 
 1. Identify the target profile (file path or uploaded data)
-2. Run `iccTest-analyze_security` for the registry-backed heuristic scan
-3. Run `iccTest-inspect_profile` for structural inspection
-4. Run `iccTest-validate_roundtrip` for transform completeness
-5. If CRITICAL/HIGH findings exist, run `iccTest-analyze_security_json` for structured output
-6. Summarize findings by severity, listing heuristic IDs and CWE mappings
+2. Run unpatched `iccDumpProfile -v` for structural validation
+3. Run `iccPawgReport` in text and JSON modes
+4. Run the relevant round-trip or conversion CLI for transform completeness
+5. If MCP or REST is requested, use the `iccdev-pawg-mcp` skill and discover
+   runtime capabilities
+6. Summarize findings by PAWG state and include source/tool evidence
 7. When visualization tags are relevant, run `iccProfilePlot PROFILE list` to
    inventory graph and raster descriptors without creating report files
 
@@ -34,13 +34,10 @@ structures.
 
 ```
 ## Profile: <filename>
-## Findings: N critical, N high, N medium, N low
+## PAWG: N fail, N warn, N gap, N not-run
 
-### CRITICAL
-- H<ID>: <title> (CWE-<N>)
-
-### HIGH
-- H<ID>: <title> (CWE-<N>)
+### Findings
+- <PAWG item or validator finding>: <evidence>
 
 ### Round-Trip: <complete|incomplete>
 ### Structural: <normal|anomalies detected>
@@ -48,7 +45,8 @@ structures.
 
 ## Rules
 
-- Do NOT hardcode heuristic counts -- use tool output
+- Do not invoke retired `iccanalyzer-lite` or V2 parity interfaces
+- Do not hardcode PAWG or MCP counts -- use current runtime output
 - Report ASAN/UBSAN stderr verbatim if present
 - Exit code 1 = findings detected (NOT a crash)
 - For container files (TIFF/PNG/JPEG), note embedded ICC extraction

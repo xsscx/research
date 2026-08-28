@@ -62,13 +62,17 @@ the variable so the new value is picked up.
 
 ## iccDEV Container Servers
 
-`iccdev` and `iccdev-ci-regression` run the published iccDEV MCP packages
-directly by pinned GHCR reference, so no local build or path is required:
+`iccdev` runs the MCP server from the unified published iccDEV image, so no
+local build or path is required:
 
-- `iccdev` -> `ghcr.io/internationalcolorconsortium/iccdev-mcp:latest`
-  (<https://github.com/InternationalColorConsortium/iccDEV/pkgs/container/iccdev-mcp>)
+- `iccdev` -> `ghcr.io/internationalcolorconsortium/iccdev:latest`
+  (<https://github.com/InternationalColorConsortium/iccDEV/pkgs/container/iccdev>)
 - `iccdev-ci-regression` -> `ghcr.io/internationalcolorconsortium/iccdev-ci-regression:latest`
   (<https://github.com/InternationalColorConsortium/iccDEV/pkgs/container/iccdev-ci-regression>)
+
+The unified image includes the MCP and REST server, CLI tools, runtime
+libraries, maintainer utilities, and `Testing/` profiles. Start its stdio mode
+with `iccdev-mcp-entrypoint mcp`.
 
 Verify interoperability locally with a real MCP handshake instead of raw
 stdin, since an empty/invalid payload will produce a misleading JSON-RPC
@@ -76,12 +80,17 @@ parse error:
 
 ```bash
 INIT_MSG='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
-echo "$INIT_MSG" | docker run --rm -i ghcr.io/internationalcolorconsortium/iccdev-mcp:latest mcp
+echo "$INIT_MSG" | docker run --rm -i ghcr.io/internationalcolorconsortium/iccdev:latest iccdev-mcp-entrypoint mcp
 echo "$INIT_MSG" | docker run --rm -i ghcr.io/internationalcolorconsortium/iccdev-ci-regression:latest iccdev-mcp
 ```
 
 A successful response includes `"serverInfo":{"name":"iccdev-mcp", ...}` and
 non-empty `capabilities`.
+
+After initialization, issue `tools/list` and use `health_check` rather than
+assuming a fixed tool total. Optional native and CLI-backed capabilities differ
+between local builds and container variants. For REST mode, run
+`iccdev-mcp-entrypoint rest` and inspect `/api/health` plus `/api/tools`.
 
 ### Known benign warning
 

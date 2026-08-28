@@ -268,18 +268,21 @@ so retain RSS and timeout limits as the resource controls.
 **For detailed per-fuzzer documentation** (input formats, coverage gaps, dead code, seed strategies,
 tool fidelity, dict syntax), see `fuzzer-optimization.prompt.md`.
 
-### UBSAN Fix Patterns (for iccanalyzer-lite code)
+### UBSAN Fix Patterns for migrated PAWG code
 When extracting 4-byte ICC signatures into `char[5]`:
 - ALWAYS use `static_cast<char>()` -- values >127 trigger UBSAN implicit-conversion
 - Prefer `SignatureToFourCC()` helper which handles cast + trailing space trim
 - For `tOffset + tSize` additions, use `(uint64_t)` widening to prevent unsigned overflow
-- 18 sites fixed across IccHeuristicsRawPost.cpp and IccHeuristicsLibrary.cpp
+
+The original analyzer files are retired. Apply these patterns only to their
+current upstream `iccPawgReport` or IccProfLib equivalents and verify against
+the current source rather than historical file names or fixed counts.
 
 ## CodeQL Status (March 2026)
 | Metric | Value |
 |--------|-------|
 | Total alerts | 4 |
-| In analyzer code | 0 |
+| In retired analyzer code | Historical only |
 | In iccDEV upstream | 4 (assignment-does-not-return-this) |
 | Fixed this session | 19 (constant-comparison, complex-condition, path-injection) |
 

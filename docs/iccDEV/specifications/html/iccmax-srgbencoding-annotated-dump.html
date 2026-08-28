@@ -370,7 +370,7 @@
             <td><code>0x14-0x7F</code></td>
             <td>Most of the remaining header bytes are zero.</td>
             <td class="status pass">Pass</td>
-            <td><a href="../../../../iccanalyzer-lite/iccDEV/IccProfLib/IccProfile.cpp">CIccProfile header validation</a> requires zero-filled header fields for <code>cenc</code>.</td>
+            <td><a href="../../../../iccDEV/IccProfLib/IccProfile.cpp">CIccProfile header validation</a> requires zero-filled header fields for <code>cenc</code>.</td>
             <td>For this class, zero PCS, zero date, zero illuminant, and zero profile ID are intentional, not accidental truncation.</td>
           </tr>
           <tr>
@@ -391,14 +391,14 @@
             <td><code>rfnm</code></td>
             <td>The only required tag for this sample is present.</td>
             <td class="status pass">Pass</td>
-            <td><a href="../../../../iccanalyzer-lite/iccDEV/IccProfLib/IccProfile.cpp">CIccProfile::CheckRequiredTags()</a> special-cases <code>cenc</code> and requires <code>referenceNameTag</code>.</td>
+            <td><a href="../../../../iccDEV/IccProfLib/IccProfile.cpp">CIccProfile::CheckRequiredTags()</a> special-cases <code>cenc</code> and requires <code>referenceNameTag</code>.</td>
             <td>This is the key class-specific rule that makes the specimen compact but still structurally meaningful.</td>
           </tr>
           <tr>
             <td><code>0x90-0x9C</code></td>
             <td>Payload type = <code>utf8</code>, value = <code>sRGB</code>.</td>
             <td class="status pass">Pass</td>
-            <td><a href="../../../../iccanalyzer-lite/iccDEV/IccProfLib/icProfileHeader.h">icProfileHeader.h</a> defines <code>rfnm</code>; <a href="../../../../iccanalyzer-lite/iccDEV/IccProfLib/IccTagFactory.cpp">IccTagFactory.cpp</a> defines <code>utf8Type</code>.</td>
+            <td><a href="../../../../iccDEV/IccProfLib/icProfileHeader.h">icProfileHeader.h</a> defines <code>rfnm</code>; <a href="../../../../iccDEV/IccProfLib/IccTagFactory.cpp">IccTagFactory.cpp</a> defines <code>utf8Type</code>.</td>
             <td>The tag stays fully in-bounds and the text value is obvious in the dump.</td>
           </tr>
           <tr>

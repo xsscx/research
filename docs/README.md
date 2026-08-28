@@ -10,7 +10,6 @@ compact map of the major subtrees.
 |------|---------|
 | `iccDEV/Tools/` | Upstream CLI tool pages and examples |
 | `iccDEV/shell-helpers/` | Build, sanitizer, and platform workflows |
-| `iccDEV/codeql/` | Query catalog and maintainer workflow |
 | `iccDEV/specifications/` | ICC specifications, technotes, overlays, and posters |
 | `icc-format/` | ICC binary format notes and CWE mapping |
 | `afl/` | AFL++ tool-level fuzzing reference |
@@ -21,7 +20,6 @@ compact map of the major subtrees.
 
 | Path | Purpose |
 |------|---------|
-| `analysis/` | Analyzer findings, policy notes, and patch coverage |
 | `Testing/` | Test scripts, fixtures, and saved reports |
 | `cve/` | Consolidated CVE and GHSA material |
 | `pocs/` | Reproduction notes and exploit techniques |

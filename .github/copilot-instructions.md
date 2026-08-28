@@ -12,6 +12,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 | `corpus-management` | Manage fuzzing corpus lifecycle, SSD/scratch setup, merges, dedup, and artifact preservation |
 | `icc-crash-triage` | Triage ASAN/UBSAN fuzzer crashes, classify exit codes, attribute stack traces, and map CWE ownership |
 | `icc-security-analysis` | Run full ICC/TIFF/PNG/JPEG security analysis with structural, registry, round-trip, and report steps |
+| `iccdev-pawg-mcp` | Validate current upstream PAWG reporting, MCP/REST capabilities, unified container, and maintainer QA tools |
 | `iccdev-linear-stack` | Rebase an iccDEV feature branch onto upstream master and stack commits without merge commits |
 | `upstream-pr-readiness` | Verify explicit PR authorization and complete pre-PR grooming before any upstream PR is opened or reviewed |
 | `upstream-sync` | Sync `cfl/iccDEV/` to upstream and reconcile/rebuild/verify CFL security patches |
@@ -25,6 +26,8 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 | **colorbleed_tools/** | Sandboxed unsafe ICC XML/JSON and TIFF extraction tools. |
 | **fuzz/** | Curated malicious input files (CVE PoCs, injection sigs, malformed media). |
 | **afl/** | AFL++ tool-level fuzzing of unpatched upstream iccDEV CLI tools. |
+| **iccDEV/Tools/CmdLine/IccPawgReport/** | Upstream PAWG security, conformance, and quality reporting. |
+| **iccDEV/iccdev-mcp/** | Upstream MCP and REST adapters for native and CLI-backed iccDEV tools. |
 
 **CRITICAL -- Two iccDEV checkouts with DIFFERENT purposes:**
 
@@ -41,6 +44,12 @@ JPEG, JSON config, `.cube`) and exact one-line replay commands.
 `colorbleed_tools/` links unpatched upstream iccDEV. Keep hardening local to
 the tool wrapper when the behavior is converter-owned. Do not move those runtime
 guardrails into `cfl/patches/`.
+
+The retired `iccanalyzer-lite` and standalone MCP server are not active
+components. Use upstream `iccPawgReport`, `iccdev-mcp`, and the unified
+`ghcr.io/internationalcolorconsortium/iccdev:latest` image. Query MCP
+`tools/list` and `/api/health` at runtime; optional native and CLI capabilities
+vary by build, so do not hardcode a healthy-tool total.
 
 ## Build Commands
 
@@ -204,8 +213,8 @@ never shell heredocs. See `AGENTS.md` for TUI encoding defect details.
 - `.github/instructions/*.instructions.md` -- path-specific custom instructions;
   each file must include `applyTo` frontmatter
 - `.github/skills/*/SKILL.md` -- on-demand task workflows
-- `.github/prompts/` -- prompt templates (19 prompts)
-- `.github/agents/` -- custom agents (4 agents)
+- `.github/prompts/` -- prompt templates (20 prompts)
+- `.github/agents/` -- custom agents (5 agents)
 - `.github/hooks/` -- session hooks (2 hook configs)
 - `AGENTS.md` -- agent instructions; nearest file in the directory tree takes
   precedence for AI agents
@@ -239,6 +248,7 @@ Invoke with `@agent-name` or `--agent=agent-name` from the CLI:
 | `@crash-triage` | ASAN/UBSAN crash finding triage | claude-sonnet-4.6 |
 | `@upstream-issue` | Draft iccDEV bug reports (gold format) | claude-sonnet-4.6 |
 | `@pr-readiness` | Read-only upstream PR authorization and readiness audit | claude-sonnet-4.6 |
+| `@iccdev-maintainer` | Current PAWG, MCP, REST, container, and maintainer QA validation | claude-sonnet-4.6 |
 
 ## Hooks
 

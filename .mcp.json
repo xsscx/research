@@ -31,7 +31,8 @@
         "run",
         "--rm",
         "-i",
-        "ghcr.io/internationalcolorconsortium/iccdev-mcp:latest",
+        "ghcr.io/internationalcolorconsortium/iccdev:latest",
+        "iccdev-mcp-entrypoint",
         "mcp"
       ]
     },

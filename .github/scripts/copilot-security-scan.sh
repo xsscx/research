@@ -23,9 +23,8 @@ fi
 echo "[OK] Scanning: $PROFILE"
 echo "[OK] Transcript: $TRANSCRIPT"
 
-copilot -p "Run a full security analysis on the ICC profile at ${PROFILE}. Report all findings by severity with heuristic IDs and CWE mappings. Include round-trip validation status." \
+copilot -p "Run current iccDEV structural, PAWG, and round-trip analysis on the ICC profile at ${PROFILE}. Report findings with command evidence and sanitizer or signal status." \
   --agent security-scan \
-  --allow-tool='iccTest' \
   --allow-tool='bash' \
   --allow-tool='read' \
   --no-ask-user \

@@ -33,7 +33,7 @@ call-graph/
 |   `-- connect/                     # DOT+SVG+AST+summary for IccLibConnect
 |-- cfl/                             # DOT+SVG+AST+summary for CFL fuzzers
 |-- colorbleed/                      # DOT+SVG+AST+summary for colorbleed_tools
-`-- analyzer/                        # DOT+SVG+AST+summary for iccanalyzer-lite
+`-- analyzer/                        # Historical retired-analyzer artifacts only
 ```
 
 ## Generated Artifacts Per Target
@@ -55,7 +55,6 @@ python3 call-graph/scripts/generate-callgraphs.py           # all 37 targets
 python3 call-graph/scripts/generate-callgraphs.py --component iccdev
 python3 call-graph/scripts/generate-callgraphs.py --component cfl
 python3 call-graph/scripts/generate-callgraphs.py --component colorbleed
-python3 call-graph/scripts/generate-callgraphs.py --component analyzer
 python3 call-graph/scripts/generate-callgraphs.py --component cfl --target icc_fromjson_fuzzer
 python3 call-graph/scripts/generate-callgraphs.py --component iccdev --target IccLibConnect
 python3 call-graph/scripts/generate-callgraphs.py --ast-only
@@ -134,7 +133,7 @@ coverage across all compilation units.
 Regenerate call graphs after:
 - iccDEV upstream sync (`cd cfl/iccDEV && git pull`)
 - New CFL fuzzer added
-- New iccanalyzer-lite heuristic module added
+- New upstream `iccPawgReport` assessment module added
 - Significant refactoring of any component
 
 ## Component Coverage
@@ -171,7 +170,7 @@ compilation issue and re-run. Common causes:
   commands fall back to generated `*-summary.json` files, but a full generation
   run is still required before treating totals as authoritative.
 - **Missing analyzer binary** - `build-knowledge-graph.py` reuses the existing
-  committed registry-derived heuristic layer when `iccanalyzer-lite/iccanalyzer-lite`
+  committed registry-derived historical layer when the retired analyzer binary
   is unavailable, then refreshes patches, advisories, components, and fuzzer
   mappings from local sources.
 - **Large SVGs** - IccCmmConfig has 1800+ nodes. These are correct but complex.

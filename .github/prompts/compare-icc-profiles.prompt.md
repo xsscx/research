@@ -9,11 +9,13 @@ Compare two ICC color profiles side-by-side for structural and security divergen
 
 ## Workflow
 
-1. `compare_profiles` with both paths -- get structural diff
-2. `analyze_security` on each profile individually
-3. Highlight differences in: header fields, tag counts, tag types, colour spaces,
-   security heuristic results, round-trip status
-4. Flag any profile that triggers security findings the other does not
+1. Run `iccDumpProfile -v` on both paths and compare structural output
+2. Run `iccPawgReport --json` on each profile
+3. When an MCP runtime is requested, discover its tools and use the supported
+   profile inspection and PAWG operations
+4. Highlight differences in header fields, tag counts, tag types, colour
+   spaces, PAWG states, and round-trip status
+5. Flag findings present in only one profile
 
 Present results as a side-by-side comparison table.
 
