@@ -1,0 +1,8 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -1847,3 +1847,3 @@ icFloatNumber CIccSingleSampledCurve::Apply(icFloatNumber v) const
+   icFloatNumber pos = (v-m_firstEntry)/m_range * m_last;
+-  if (pos<0.0f)
++  if (!std::isfinite(pos) || pos<0.0f)
+     pos=0.0f;
