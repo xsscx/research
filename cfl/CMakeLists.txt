@@ -3,6 +3,9 @@
 
 cmake_minimum_required(VERSION 3.15)
 
+set(CFL_SANITIZER "address" CACHE STRING "Fuzzer sanitizer: address or thread")
+set_property(CACHE CFL_SANITIZER PROPERTY STRINGS address thread)
+
 # Only build fuzzers with Clang and when explicitly enabled
 if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   message(STATUS "Fuzzing harnesses enabled with full instrumentation")
@@ -21,20 +24,32 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ${CMAKE_BINARY_DIR}/IccJSON
   )
 
+  if(CFL_SANITIZER STREQUAL "thread")
+    set(FUZZER_SANITIZERS -fsanitize=thread)
+    set(FUZZER_COVERAGE_FLAGS)
+    add_library(cfl_tsan_runner STATIC tsan_corpus_runner.cpp)
+    target_compile_options(cfl_tsan_runner PRIVATE -fsanitize=thread)
+    link_libraries(cfl_tsan_runner)
+  elseif(CFL_SANITIZER STREQUAL "address")
+    set(FUZZER_SANITIZERS -fsanitize=fuzzer,address,undefined)
+    set(FUZZER_COVERAGE_FLAGS -fprofile-instr-generate -fcoverage-mapping)
+  else()
+    message(FATAL_ERROR "Unsupported CFL_SANITIZER=${CFL_SANITIZER}; use address or thread")
+  endif()
+
   # Full instrumentation flags: sanitizers, debug, profiling, coverage
   # Based on iccAnalyzer instrumented build configuration
   set(FUZZER_COMPILE_FLAGS
-    -fsanitize=fuzzer,address,undefined
+    ${FUZZER_SANITIZERS}
     -g                              # Full debug symbols
     -O1                             # Minimal optimization for fuzzing
     -fno-omit-frame-pointer         # Preserve frame pointers for stack traces
-    -fprofile-instr-generate        # Clang instrumentation profiling
-    -fcoverage-mapping              # Clang coverage mapping
+    ${FUZZER_COVERAGE_FLAGS}
   )
 
   set(FUZZER_LINK_FLAGS
-    -fsanitize=fuzzer,address,undefined
-    -fprofile-instr-generate        # Clang instrumentation profiling
+    ${FUZZER_SANITIZERS}
+    ${FUZZER_COVERAGE_FLAGS}
   )
 
   # No additional link libraries needed - Clang provides runtime automatically
@@ -120,17 +135,23 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
   # ApplySearch fuzzer
   add_executable(icc_applysearch_fuzzer icc_applysearch_fuzzer.cpp)
+  if(CFL_SANITIZER STREQUAL "thread")
+    target_compile_definitions(icc_applysearch_fuzzer PRIVATE CFL_APPLYSEARCH_THREADED=1)
+  endif()
   target_compile_options(icc_applysearch_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_applysearch_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_applysearch_fuzzer PRIVATE ${FUZZER_INCLUDES})
-  target_link_libraries(icc_applysearch_fuzzer IccProfLib2)
+  target_link_libraries(icc_applysearch_fuzzer IccConnect2-static IccProfLib2)
 
   # ApplySearch weight-focused variant
   add_executable(icc_applysearch_weight_fuzzer icc_applysearch_weight_fuzzer.cpp)
+  if(CFL_SANITIZER STREQUAL "thread")
+    target_compile_definitions(icc_applysearch_weight_fuzzer PRIVATE CFL_APPLYSEARCH_THREADED=1)
+  endif()
   target_compile_options(icc_applysearch_weight_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
   target_link_options(icc_applysearch_weight_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
   target_include_directories(icc_applysearch_weight_fuzzer PRIVATE ${FUZZER_INCLUDES})
-  target_link_libraries(icc_applysearch_weight_fuzzer IccProfLib2)
+  target_link_libraries(icc_applysearch_weight_fuzzer IccConnect2-static IccProfLib2)
 
   # IccConnect library fuzzer
   if(TARGET IccConnect2-static)

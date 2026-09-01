@@ -17,6 +17,7 @@
 #   -w WORKERS   LibFuzzer worker processes per fuzzer (default: 4)
 #   -r DIR       storage root with bin/, dict/, corpus-* (default: cfl/)
 #   -m MB        override RSS limit per worker in MB (default: fuzzer options)
+#   -s MODE      address (default) or thread
 #   -h           show this help
 
 # Do not use set -e: fuzzer non-zero exits are expected when crashes are found.
@@ -30,18 +31,20 @@ STORAGE_DIR="$SCRIPT_DIR"
 FUZZ_SECONDS=14400
 WORKERS=4
 RSS_LIMIT=""
+SANITIZER_MODE="${CFL_SANITIZER:-address}"
 
 usage() {
   sed -n '3,22p' "$0" | sed 's/^# \?//'
   exit 0
 }
 
-while getopts "t:w:r:m:h" opt; do
+while getopts "t:w:r:m:s:h" opt; do
   case $opt in
     t) FUZZ_SECONDS="$OPTARG" ;;
     w) WORKERS="$OPTARG" ;;
     r) STORAGE_DIR="$OPTARG" ;;
     m) RSS_LIMIT="$OPTARG" ;;
+    s) SANITIZER_MODE="$OPTARG" ;;
     h) usage ;;
     *) usage ;;
   esac
@@ -57,9 +60,15 @@ if [ ! -d "$STORAGE_DIR" ]; then
 fi
 STORAGE_DIR="$(cd "$STORAGE_DIR" && pwd)"
 
-BIN_DIR="$STORAGE_DIR/bin"
+case "$SANITIZER_MODE" in
+  address) BIN_SUBDIR="bin" ;;
+  thread) BIN_SUBDIR="bin-tsan" ;;
+  *) echo "[FAIL] sanitizer must be address or thread"; exit 1 ;;
+esac
+
+BIN_DIR="$STORAGE_DIR/$BIN_SUBDIR"
 if [ ! -d "$BIN_DIR" ]; then
-  BIN_DIR="$SCRIPT_DIR/bin"
+  BIN_DIR="$SCRIPT_DIR/$BIN_SUBDIR"
 fi
 
 DICT_DIR="$STORAGE_DIR/dict"
@@ -159,26 +168,32 @@ for f in "${FUZZERS[@]}"; do
   echo "[${TOTAL}/${#FUZZERS[@]}] $f workers=$WORKERS time=${FUZZ_SECONDS}s timeout=${FUZZER_TIMEOUT}s rss=${FUZZER_RSS}MB max_len=${FUZZER_MAX_LEN} dict=$(basename "${dict:-none}")"
 
   export FUZZ_TMPDIR="$work_dir"
-  export LLVM_PROFILE_FILE="$PROFRAW_DIR/${f}_%m_%p.profraw"
-  export ASAN_OPTIONS="$FUZZER_ASAN"
-
   rc=0
-  (cd "$work_dir" && timeout --kill-after=10s $((FUZZ_SECONDS + FUZZER_TIMEOUT))s \
-    "$BIN_DIR/$f" \
-      -max_total_time="$FUZZ_SECONDS" \
-      -print_final_stats=1 \
-      -detect_leaks=0 \
-      -timeout="$FUZZER_TIMEOUT" \
-      -rss_limit_mb="$FUZZER_RSS" \
-      -use_value_profile=1 \
-      -max_len="$FUZZER_MAX_LEN" \
-      -create_missing_dirs=1 \
-      -jobs="$WORKERS" \
-      -workers="$WORKERS" \
-      -artifact_prefix="$ARTIFACT_DIR/" \
-      "${dict_args[@]}" \
-      "$corpus") \
-      > "$log" 2>&1 || rc=$?
+  if [ "$SANITIZER_MODE" = "thread" ]; then
+    unset ASAN_OPTIONS UBSAN_OPTIONS LLVM_PROFILE_FILE
+    export TSAN_OPTIONS="halt_on_error=1:history_size=7"
+    (cd "$work_dir" && timeout --kill-after=10s $((FUZZ_SECONDS + FUZZER_TIMEOUT))s \
+      "$BIN_DIR/$f" "$FUZZ_SECONDS" "$corpus") > "$log" 2>&1 || rc=$?
+  else
+    unset TSAN_OPTIONS
+    export LLVM_PROFILE_FILE="$PROFRAW_DIR/${f}_%m_%p.profraw"
+    export ASAN_OPTIONS="$FUZZER_ASAN"
+    (cd "$work_dir" && timeout --kill-after=10s $((FUZZ_SECONDS + FUZZER_TIMEOUT))s \
+      "$BIN_DIR/$f" \
+        -max_total_time="$FUZZ_SECONDS" \
+        -print_final_stats=1 \
+        -detect_leaks=0 \
+        -timeout="$FUZZER_TIMEOUT" \
+        -rss_limit_mb="$FUZZER_RSS" \
+        -use_value_profile=1 \
+        -max_len="$FUZZER_MAX_LEN" \
+        -create_missing_dirs=1 \
+        -jobs="$WORKERS" \
+        -workers="$WORKERS" \
+        -artifact_prefix="$ARTIFACT_DIR/" \
+        "${dict_args[@]}" \
+        "$corpus") > "$log" 2>&1 || rc=$?
+  fi
 
   cov=$(grep -oP 'cov: \K[0-9]+' "$log" 2>/dev/null | tail -1)
   execs=$(grep -oP 'stat::number_of_executed_units:\s*\K[0-9]+' "$log" 2>/dev/null | sort -rn | head -1)

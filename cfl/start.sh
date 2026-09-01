@@ -16,6 +16,7 @@
 #   --rss MB           override rss_limit_mb per worker (default: fuzzer options)
 #   --max-len BYTES    override max_len passed to LibFuzzer (default: fuzzer options)
 #   --runs-dir DIR     run state directory (default: cfl/runs)
+#   --sanitizer MODE   address (default) or thread
 #   --foreground       run a single fuzzer in the foreground
 #   -h, --help         show help
 
@@ -31,6 +32,8 @@ JOBS=""
 RSS_LIMIT=""
 MAX_LEN=""
 RUNS_DIR="$SCRIPT_DIR/runs"
+RUNS_DIR_EXPLICIT=0
+SANITIZER_MODE="${CFL_SANITIZER:-address}"
 FOREGROUND=0
 TARGETS=()
 
@@ -48,7 +51,8 @@ while [[ $# -gt 0 ]]; do
     --jobs|-j) JOBS="$2"; shift 2 ;;
     --rss|-m) RSS_LIMIT="$2"; shift 2 ;;
     --max-len) MAX_LEN="$2"; shift 2 ;;
-    --runs-dir) RUNS_DIR="$2"; shift 2 ;;
+    --runs-dir) RUNS_DIR="$2"; RUNS_DIR_EXPLICIT=1; shift 2 ;;
+    --sanitizer) SANITIZER_MODE="$2"; shift 2 ;;
     --foreground) FOREGROUND=1; shift ;;
     -h|--help) usage; exit 0 ;;
     --) shift; break ;;
@@ -56,6 +60,20 @@ while [[ $# -gt 0 ]]; do
     *) TARGETS+=("$1"); shift ;;
   esac
 done
+
+case "$SANITIZER_MODE" in
+  address) BIN_DIR="$SCRIPT_DIR/bin" ;;
+  thread)
+    BIN_DIR="$SCRIPT_DIR/bin-tsan"
+    if [[ "$FUZZ_SECONDS" == "0" ]]; then
+      FUZZ_SECONDS=600
+    fi
+    if [[ "$RUNS_DIR_EXPLICIT" -eq 0 ]]; then
+      RUNS_DIR="$SCRIPT_DIR/runs-tsan"
+    fi
+    ;;
+  *) echo "ERROR: --sanitizer must be address or thread" >&2; exit 1 ;;
+esac
 
 if [[ $# -gt 0 ]]; then
   TARGETS+=("$@")
@@ -74,7 +92,7 @@ mkdir -p "$RUNS_DIR"
 
 start_fuzzer() {
   local fuzzer="$1"
-  local bin="$SCRIPT_DIR/bin/$fuzzer"
+  local bin="$BIN_DIR/$fuzzer"
   local corpus
   local dict
   local dict_args=()
@@ -118,27 +136,28 @@ start_fuzzer() {
     "${MAX_LEN:-$(cfl_option_max_len "$SCRIPT_DIR" "$fuzzer")}" "$corpus")"
   asan_options="$(cfl_asan_options "$fuzzer")"
 
-  cmd=(
-    "$bin"
-    -print_final_stats=1
-    -detect_leaks=0
-    "-timeout=$timeout_value"
-    "-rss_limit_mb=$rss_limit"
-    -use_value_profile=1
-    "-max_len=$max_len"
-    -create_missing_dirs=1
-    "-artifact_prefix=$artifact_dir/"
-  )
-
-  if [[ "$JOBS" -ne 1 || "$WORKERS" -ne 1 ]]; then
-    cmd+=("-jobs=$JOBS" "-workers=$WORKERS")
+  if [[ "$SANITIZER_MODE" == "thread" ]]; then
+    cmd=("$bin" "$FUZZ_SECONDS" "$corpus")
+  else
+    cmd=(
+      "$bin"
+      -print_final_stats=1
+      -detect_leaks=0
+      "-timeout=$timeout_value"
+      "-rss_limit_mb=$rss_limit"
+      -use_value_profile=1
+      "-max_len=$max_len"
+      -create_missing_dirs=1
+      "-artifact_prefix=$artifact_dir/"
+    )
+    if [[ "$JOBS" -ne 1 || "$WORKERS" -ne 1 ]]; then
+      cmd+=("-jobs=$JOBS" "-workers=$WORKERS")
+    fi
+    if [[ "$FUZZ_SECONDS" != "0" ]]; then
+      cmd+=("-max_total_time=$FUZZ_SECONDS")
+    fi
+    cmd+=("${dict_args[@]}" "$corpus")
   fi
-
-  if [[ "$FUZZ_SECONDS" != "0" ]]; then
-    cmd+=("-max_total_time=$FUZZ_SECONDS")
-  fi
-
-  cmd+=("${dict_args[@]}" "$corpus")
 
   printf '%s\n' "${cmd[*]}" > "$run_dir/cmd.txt"
   date +%s > "$run_dir/start.time"
@@ -150,9 +169,15 @@ start_fuzzer() {
     echo "[*] Options: timeout=$timeout_value rss_limit_mb=$rss_limit max_len=$max_len"
     echo "[*] Log: stdout/stderr"
     export FUZZ_TMPDIR="$run_dir"
-    export LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw"
-    export ASAN_OPTIONS="$asan_options"
-    export UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1"
+    if [[ "$SANITIZER_MODE" == "thread" ]]; then
+      unset ASAN_OPTIONS UBSAN_OPTIONS LLVM_PROFILE_FILE
+      export TSAN_OPTIONS="halt_on_error=1:history_size=7"
+    else
+      unset TSAN_OPTIONS
+      export LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw"
+      export ASAN_OPTIONS="$asan_options"
+      export UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1"
+    fi
     cd "$run_dir"
     exec "${cmd[@]}"
   fi
@@ -163,12 +188,19 @@ start_fuzzer() {
   echo "    Log:    $log"
   echo "    Runs:   $run_dir"
 
-  (cd "$run_dir" && exec setsid env \
-      FUZZ_TMPDIR="$run_dir" \
-      LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw" \
-      ASAN_OPTIONS="$asan_options" \
-      UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1" \
-      "${cmd[@]}") > "$log" 2>&1 &
+  if [[ "$SANITIZER_MODE" == "thread" ]]; then
+    (cd "$run_dir" && exec setsid env -u ASAN_OPTIONS -u UBSAN_OPTIONS \
+        FUZZ_TMPDIR="$run_dir" \
+        TSAN_OPTIONS="halt_on_error=1:history_size=7" \
+        "${cmd[@]}") > "$log" 2>&1 &
+  else
+    (cd "$run_dir" && exec setsid env -u TSAN_OPTIONS \
+        FUZZ_TMPDIR="$run_dir" \
+        LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw" \
+        ASAN_OPTIONS="$asan_options" \
+        UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1" \
+        "${cmd[@]}") > "$log" 2>&1 &
+  fi
   pid=$!
   echo "$pid" > "$pid_file"
   echo "    PID:    $pid"

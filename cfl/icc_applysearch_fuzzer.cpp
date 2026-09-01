@@ -60,7 +60,12 @@
 #include <fcntl.h>
 #include <cstring>
 #include <cstdlib>
+#include <memory>
 #include <new>
+#include <string>
+#include <vector>
+#include "IccConnect.h"
+#include "IccCmmConfig.h"
 #include "IccCmmSearch.h"
 #include "IccUtil.h"
 #include "IccDefs.h"
@@ -75,7 +80,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     icRenderingIntent intent2 = static_cast<icRenderingIntent>((size > 1 ? ctrl[1] : 1) % 4);
     uint8_t flags = (size > 2) ? ctrl[2] : 0;
     icXformInterp interp = (flags & 0x01) ? icInterpLinear : icInterpTetrahedral;
+#ifndef CFL_APPLYSEARCH_THREADED
     bool use_bounds = (flags & 0x02) != 0;
+#endif
 #ifdef ICC_APPLYSEARCH_FUZZ_WEIGHTS
     bool use_pcc = true;
 #else
@@ -99,7 +106,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     const char *tmpdir = fuzz_tmpdir();
     char fixed_srgb[512];
     if (!fuzz_find_repo_file(fixed_srgb, sizeof(fixed_srgb), __FILE__,
-                             "test-profiles/sRGB_D65_MAT.icc"))
+                             "test-profiles/sRGB_v4_ICC_preference.icc"))
         return 0;
 
     char tmp_profile[512];
@@ -114,89 +121,130 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
     close(fd);
 
-    // Construct CIccCmmSearch (exercises constructor with bounds config)
-    CIccCmmSearch cmm(use_bounds);
-
     const char *src_profile = fixed_srgb;
     const char *dst_profile = tmp_profile;
 #ifdef ICC_APPLYSEARCH_FUZZ_WEIGHTS
     dst_profile = fixed_srgb;
 #endif
 
-    // AddXform for source profile (matches tool line 367)
-    icStatusCMM stat = cmm.CIccCmm::AddXform(src_profile, intent1, interp,
-                                               nullptr, icXformLutColor, true, nullptr);
-    if (stat != icCmmStatOk) {
+#ifdef CFL_APPLYSEARCH_THREADED
+    CIccCfgSearchApply search_apply;
+    CIccCfgProfilePtr src_cfg(new (std::nothrow) CIccCfgProfile());
+    CIccCfgProfilePtr dst_cfg(new (std::nothrow) CIccCfgProfile());
+    if (!src_cfg || !dst_cfg) {
         unlink(tmp_profile);
         return 0;
     }
 
-    // AddXform for destination profile (matches tool line 367)
-    stat = cmm.CIccCmm::AddXform(dst_profile, intent2, interp,
-                                  nullptr, icXformLutColor, true, nullptr);
+    src_cfg->m_iccFile = src_profile;
+    src_cfg->m_intent = intent1;
+    src_cfg->m_interpolation = interp;
+    src_cfg->m_useD2BxB2Dx = (flags & 0x08) == 0;
+    dst_cfg->m_iccFile = dst_profile;
+    dst_cfg->m_intent = intent2;
+    dst_cfg->m_interpolation = interp;
+    dst_cfg->m_useD2BxB2Dx = (flags & 0x10) == 0;
+    search_apply.m_profiles.push_back(src_cfg);
+    search_apply.m_profiles.push_back(dst_cfg);
+
+    if (use_pcc) {
+        CIccCfgPccWeightPtr pcc_cfg(new (std::nothrow) CIccCfgPccWeight());
+        if (pcc_cfg) {
+            pcc_cfg->m_pccPath = tmp_profile;
+            pcc_cfg->m_dWeight = pcc_weight;
+            search_apply.m_pccWeights.push_back(pcc_cfg);
+        }
+    }
+
+    std::string connect_error;
+    std::unique_ptr<CIccConnectCmm> connection(
+        CIccConnectCmm::CreateSearch(search_apply, &connect_error,
+#ifdef CFL_APPLYSEARCH_THREADED
+                                     4
+#else
+                                     1
+#endif
+        ));
+    CIccCmmSearch *cmm = connection ? connection->GetSearchCmm() : nullptr;
+    if (!cmm) {
+        unlink(tmp_profile);
+        return 0;
+    }
+#else
+    std::unique_ptr<CIccCmmSearch> scalar_cmm(new (std::nothrow) CIccCmmSearch(use_bounds));
+    if (!scalar_cmm) {
+        unlink(tmp_profile);
+        return 0;
+    }
+    icStatusCMM stat = scalar_cmm->CIccCmm::AddXform(
+        src_profile, intent1, interp, nullptr, icXformLutColor, true, nullptr);
     if (stat != icCmmStatOk) {
         unlink(tmp_profile);
         return 0;
     }
-
-    // Optional: AttachPCC - use the fuzzed argv file as PCC source.
-    // Exercises IccPcc.cpp code paths
+    stat = scalar_cmm->CIccCmm::AddXform(
+        dst_profile, intent2, interp, nullptr, icXformLutColor, true, nullptr);
+    if (stat != icCmmStatOk) {
+        unlink(tmp_profile);
+        return 0;
+    }
     if (use_pcc) {
         CIccProfile *pPcc = OpenIccProfile(tmp_profile);
         if (pPcc) {
             if (pPcc->ReadPccTags()) {
                 pPcc->Detach();
-                if (cmm.AttachPCC(pPcc, pcc_weight) != icCmmStatOk) {
+                if (scalar_cmm->AttachPCC(pPcc, pcc_weight) != icCmmStatOk)
                     delete pPcc;
-                }
             } else {
                 delete pPcc;
             }
         }
     }
-
-    // Begin - builds internal CMM pipeline (the complex part of IccCmmSearch.cpp)
-    stat = cmm.Begin();
-    if (stat != icCmmStatOk) {
+    if (scalar_cmm->Begin() != icCmmStatOk) {
         unlink(tmp_profile);
         return 0;
     }
+    CIccCmmSearch *cmm = scalar_cmm.get();
+#endif
 
     // Get color spaces and validate
-    icColorSpaceSignature srcSig = cmm.GetSourceSpace();
-    icColorSpaceSignature dstSig = cmm.GetDestSpace();
+    icColorSpaceSignature srcSig = cmm->GetSourceSpace();
+    icColorSpaceSignature dstSig = cmm->GetDestSpace();
     int nSrc = icGetSpaceSamples(srcSig);
     int nDst = icGetSpaceSamples(dstSig);
 
     if (nSrc <= 0 || nSrc > 16 || nDst <= 0 || nDst > 16) {
-        cmm.RemoveAllIO();
         unlink(tmp_profile);
         return 0;
     }
 
     // Synthesize test pixels and Apply
     // This triggers costFunc(), boundsCheck(), findMin() via Nelder-Mead
-    icFloatNumber srcPixel[16] = {};
-    icFloatNumber dstPixel[16] = {};
+    const icUInt32Number nPixels =
+#ifdef CFL_APPLYSEARCH_THREADED
+        257;
+#else
+        1;
+#endif
+    std::vector<icFloatNumber> srcPixel(nPixels * nSrc, 0.0f);
+    std::vector<icFloatNumber> dstPixel(nPixels * nDst, 0.0f);
 
-    // Fill source pixels from seed byte
-    for (int i = 0; i < nSrc; i++) {
-        srcPixel[i] = static_cast<icFloatNumber>((pixel_seed + i * 37) & 0xFF) / 255.0f;
+    for (icUInt32Number p = 0; p < nPixels; ++p) {
+        for (int i = 0; i < nSrc; ++i) {
+            srcPixel[p * nSrc + i] =
+                static_cast<icFloatNumber>((pixel_seed + p * 73 + i * 37) & 0xFF) / 255.0f;
+        }
     }
 
-    cmm.Apply(dstPixel, srcPixel);
-
-    // Second pixel with different values to exercise more optimization paths
-    for (int i = 0; i < nSrc; i++) {
-        srcPixel[i] = static_cast<icFloatNumber>((pixel_seed + i * 73 + 128) & 0xFF) / 255.0f;
-    }
-    cmm.Apply(dstPixel, srcPixel);
+#ifdef CFL_APPLYSEARCH_THREADED
+    connection->GetCmm()->Apply(dstPixel.data(), srcPixel.data(), nPixels);
+#else
+    for (icUInt32Number p = 0; p < nPixels; ++p)
+        cmm->Apply(dstPixel.data() + p * nDst, srcPixel.data() + p * nSrc);
+#endif
 
     // Exercise query methods
-    (void)cmm.GetNumXforms();
-
-    // Cleanup (exercises RemoveAllIO)
-    cmm.RemoveAllIO();
+    (void)cmm->GetNumXforms();
 
     unlink(tmp_profile);
     return 0;

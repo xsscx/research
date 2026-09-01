@@ -3,6 +3,7 @@
 
 AFL_TARGETS=(
     applynamedcmm
+    applynamedcmm-debugcalc
     applynamedcmm-cfg
     applynamedcmm-hybrid-chain
     applynamedcmm-hybrid-pcc
@@ -14,6 +15,7 @@ AFL_TARGETS=(
     applyprofiles-hybrid-pcc
     applyprofiles-row
     applysearch
+    applysearch-noinit
     applysearch-cfg
     applysearch-fast
     applysearch-hybrid-pcc
@@ -23,6 +25,7 @@ AFL_TARGETS=(
     applysearch-weight-negative
     applysearch-weight-nan
     applytolink
+    applytolink-v5
     applytolink-cube
     dump
     dump-diag
@@ -63,6 +66,7 @@ AFL_TARGETS=(
 afl_print_targets() {
     echo "Available targets:"
     echo "  applynamedcmm    - iccApplyNamedCmm (fixed data, fuzz ICC profile)"
+    echo "  applynamedcmm-debugcalc - iccApplyNamedCmm (float/linear calculator trace lane)"
     echo "  applynamedcmm-cfg - iccApplyNamedCmm (-cfg JSON config lane)"
     echo "  applynamedcmm-hybrid-chain - iccApplyNamedCmm (fixed v5 profile, fuzz second profile)"
     echo "  applynamedcmm-hybrid-pcc - iccApplyNamedCmm hybrid v5/PCC lane"
@@ -74,6 +78,7 @@ afl_print_targets() {
     echo "  applyprofiles-hybrid-pcc - iccApplyProfiles hybrid -exportcfg PCC lane"
     echo "  applyprofiles-row - iccApplyProfiles (-threads row-apply lane)"
     echo "  applysearch      - iccApplySearch (fixed data, fuzz ICC profiles)"
+    echo "  applysearch-noinit - iccApplySearch (float/linear destination, no -INIT)"
     echo "  applysearch-cfg  - iccApplySearch (-cfg JSON config lane)"
     echo "  applysearch-fast - iccApplySearch (small/no-trim search lane)"
     echo "  applysearch-hybrid-pcc - iccApplySearch hybrid v5/PCC lane"
@@ -83,6 +88,7 @@ afl_print_targets() {
     echo "  applysearch-weight-negative - iccApplySearch (fuzz PCC profile, fixed weight -1)"
     echo "  applysearch-weight-nan - iccApplySearch (fuzz PCC profile, fixed finite max-float weight)"
     echo "  applytolink      - iccApplyToLink (DeviceLink/.cube generation)"
+    echo "  applytolink-v5   - iccApplyToLink (v5 extended-range DeviceLink)"
     echo "  applytolink-cube - iccApplyToLink (.cube text generation)"
     echo "  dump             - iccDumpProfile (ICC binary -> text dump)"
     echo "  dump-diag        - iccDumpProfile (--diag size/load diagnostics)"
@@ -247,7 +253,7 @@ afl_configure_target() {
         "$REPO_ROOT/test-profiles/sRGB_D65_MAT.icc")"
 
     case "$target" in
-        applynamedcmm|applynamedcmm-cfg|namedcmm-cfg)
+        applynamedcmm|applynamedcmm-debugcalc|applynamedcmm-cfg|namedcmm-cfg)
             BINARY="$BIN_DIR/iccApplyNamedCmm"
             DICT="$REPO_ROOT/cfl/icc_applynamedcmm_fuzzer.dict"
             SEED_DIRS=(
@@ -286,6 +292,17 @@ afl_configure_target() {
                 REQUIRED_FILES=()
                 TARGET_NOTE="ApplyNamedCmm JSON config lane: fuzzes the first-class -cfg command-line mode."
                 AFL_ARGS=("-cfg" "@@")
+            elif [[ "$target" == applynamedcmm-debugcalc ]]; then
+                AFL_DIR="$AFL_BASE/afl-applynamedcmm-debugcalc"
+                REQUIRED_FILES=("$rgb_float_data")
+                SEED_MAX_BYTES=262144
+                SEED_LIMIT=96
+                SEED_DRY_RUN_TARGET=1
+                SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                AFL_DISABLE_TRIM_TARGET=1
+                AFL_FAST_CAL_TARGET=1
+                TARGET_NOTE="ApplyNamedCmm calculator lane: float output, linear interpolation, and -debugcalc exercise calculator tracing and non-integer encoding paths."
+                AFL_ARGS=("-debugcalc" "$rgb_float_data" "3:8:12" "0" "@@" "0")
             else
                 TARGET_NOTE="ApplyNamedCmm ICC lane: 16-bit data output with tetrahedral interpolation exercises a different apply path than the former 8-bit linear shape."
                 AFL_ARGS=("$rgb_16_data" "5" "1" "@@" "1")
@@ -429,9 +446,9 @@ afl_configure_target() {
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-row"
                     SEED_MAX_BYTES=524288
                     SEED_LIMIT=300
-                    TARGET_NOTE="Row ApplyProfiles lane: uses -threads 0 to exercise row/batched CMM Apply."
+                    TARGET_NOTE="Row ApplyProfiles lane: uses four explicit workers to exercise deterministic row/batched CMM Apply."
                     SEED_DRY_RUN_TARGET=1
-                    AFL_ARGS=("-threads" "0" "$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
+                    AFL_ARGS=("-threads" "4" "$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
                     ;;
                 profiles)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles"
@@ -452,7 +469,7 @@ afl_configure_target() {
                     ;;
             esac
             ;;
-        applysearch|search|applysearch-cfg|search-cfg|applysearch-fast|search-fast|applysearch-hybrid-pcc|search-hybrid-pcc|applysearch-weight|search-weight|applysearch-weight-positive|search-weight-positive|applysearch-weight-positive-fast|search-weight-positive-fast|applysearch-weight-zero|search-weight-zero|applysearch-weight-negative|search-weight-negative|applysearch-weight-nan|search-weight-nan)
+        applysearch|search|applysearch-noinit|applysearch-cfg|search-cfg|applysearch-fast|search-fast|applysearch-hybrid-pcc|search-hybrid-pcc|applysearch-weight|search-weight|applysearch-weight-positive|search-weight-positive|applysearch-weight-positive-fast|search-weight-positive-fast|applysearch-weight-zero|search-weight-zero|applysearch-weight-negative|search-weight-negative|applysearch-weight-nan|search-weight-nan)
             BINARY="$BIN_DIR/iccApplySearch"
             if [[ "$target" == "search" ]]; then
                 AFL_DIR="$AFL_BASE/afl-search"
@@ -460,6 +477,8 @@ afl_configure_target() {
                 AFL_DIR="$AFL_BASE/afl-applysearch-cfg"
             elif [[ "$target" == applysearch-fast || "$target" == search-fast ]]; then
                 AFL_DIR="$AFL_BASE/afl-applysearch-fast"
+            elif [[ "$target" == applysearch-noinit ]]; then
+                AFL_DIR="$AFL_BASE/afl-applysearch-noinit"
             elif [[ "$target" == applysearch-hybrid-pcc || "$target" == search-hybrid-pcc ]]; then
                 AFL_DIR="$AFL_BASE/afl-applysearch-hybrid-pcc"
             elif [[ "$target" == applysearch-weight-positive-fast ]]; then
@@ -505,6 +524,16 @@ afl_configure_target() {
                 REQUIRED_FILES=()
                 TARGET_NOTE="ApplySearch JSON config lane: fuzzes the first-class -cfg command-line mode."
                 AFL_ARGS=("-cfg" "@@")
+            elif [[ "$target" == applysearch-noinit ]]; then
+                REQUIRED_FILES=("$rgb_float_data" "$srgb_profile")
+                SEED_MAX_BYTES=262144
+                SEED_LIMIT=96
+                SEED_DRY_RUN_TARGET=1
+                SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                AFL_DISABLE_TRIM_TARGET=1
+                AFL_FAST_CAL_TARGET=1
+                TARGET_NOTE="ApplySearch no-init lane: fuzzes the destination profile with float data and linear interpolation while omitting -INIT."
+                AFL_ARGS=("$rgb_float_data" "3" "0" "$srgb_profile" "1" "@@" "1")
             elif [[ "$target" == applysearch-hybrid-pcc || "$target" == search-hybrid-pcc ]]; then
                 DICT="$REPO_ROOT/cfl/icc_applysearch_fuzzer.dict"
                 HYBRID_NEEDS_SUPPORT=1
@@ -610,7 +639,7 @@ afl_configure_target() {
                 AFL_ARGS=("$rgb_16_data" "5" "1" "$srgb_profile" "1" "@@" "1" "-INIT" "1" "$srgb_profile" "1")
             fi
             ;;
-        applytolink|applytolink-cube)
+        applytolink|applytolink-v5|applytolink-cube)
             BINARY="$BIN_DIR/iccApplyToLink"
             DICT="$REPO_ROOT/cfl/icc_link_fuzzer.dict"
             SEED_DIRS=(
@@ -620,8 +649,19 @@ afl_configure_target() {
             )
             SEED_DRY_RUN_TARGET=1
             if [[ "$target" == "applytolink-cube" ]]; then
+                AFL_DIR="$AFL_BASE/afl-applytolink-cube"
                 TARGET_NOTE="ApplyToLink .cube lane: link_type=1, precision=4, valid input range 0.0..1.0."
                 AFL_ARGS=("${tmp_prefix}.cube" "1" "2" "4" "AFL" "0.0" "1.0" "0" "0" "@@" "13")
+            elif [[ "$target" == "applytolink-v5" ]]; then
+                AFL_DIR="$AFL_BASE/afl-applytolink-v5"
+                REQUIRED_FILES=("$srgb_profile")
+                SEED_MAX_BYTES=262144
+                SEED_LIMIT=96
+                SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                AFL_DISABLE_TRIM_TARGET=1
+                AFL_FAST_CAL_TARGET=1
+                TARGET_NOTE="ApplyToLink v5 lane: extended input range and linear interpolation exercise the alternate DeviceLink writer path while fuzzing the destination profile."
+                AFL_ARGS=("${tmp_prefix}.icc" "0" "9" "1" "AFL v5 DeviceLink" "-0.25" "1.25" "1" "0" "$srgb_profile" "1" "@@" "1")
             else
                 REQUIRED_FILES=("$srgb_profile")
                 TARGET_NOTE="ApplyToLink DeviceLink lane: 17-point v4 output, source-first tetrahedral interpolation, fuzzed source profile, and fixed sRGB destination profile."
