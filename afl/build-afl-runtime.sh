@@ -3,13 +3,13 @@
 
 set -euo pipefail
 
-AFL_COMMIT="05507e1880dc6df997c19e01423444ef37c36846"
+AFL_COMMIT="45bb74bd3a6591e6853b704c390ab6156c0a3c88"
 AFL_MAX_FILE_BYTES=4194304
 AFL_REPOSITORY="https://github.com/AFLplusplus/AFLplusplus.git"
 AFL_SOURCE_DIR="${AFL_RUNTIME_SOURCE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/aflplusplus-stable-maxfile4m}"
 LLVM_CONFIG_BIN="${LLVM_CONFIG:-llvm-config-21}"
 INSTALL_PREFIX="${PREFIX:-/usr/local}"
-JOBS="${JOBS:-$(nproc)}"
+JOBS="${JOBS:-32}"
 export -n AFL_RUNTIME_SOURCE_DIR 2>/dev/null || true
 
 for tool in git make perl "$LLVM_CONFIG_BIN" clang-21 clang++-21 gcc-15; do

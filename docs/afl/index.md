@@ -26,6 +26,11 @@ Use `afl/targets.sh` as the source of truth for available targets.
 ./afl/triage.sh dump
 ```
 
+After triage or a compiler/runtime update, run the bounded deterministic
+`iccApplyProfiles` sanitizer, Memcheck, and Helgrind checks documented in
+`iccapplyprofiles-qa.md`. Their evidence belongs under a native Linux path such
+as `/home/xss/qa`, not the repository or a Windows-mounted `/mnt/*` path.
+
 To preserve actionable replay artifacts for the checked-in iccDEV shell suites,
 mark them during triage:
 
@@ -98,8 +103,9 @@ Use LibTIFF tools such as `tiffinfo` for local TIFF structure checks. On
 Ubuntu, install them with `sudo apt-get install libtiff-tools`.
 
 This lane sets both its seed and generated-input ceiling to 3 MiB. The pinned
-AFL++ runtime is stable commit `05507e1880dc6df997c19e01423444ef37c36846`,
-built with a 4 MiB `MAX_FILE` ceiling by `afl/build-afl-runtime.sh`. `start.sh`
+AFL++ runtime is stable commit `45bb74bd3a6591e6853b704c390ab6156c0a3c88`,
+built with `-j32` and a 4 MiB `MAX_FILE` ceiling by
+`afl/build-afl-runtime.sh`. `start.sh`
 checks the runtime ceiling before launching, preventing partial seed reads.
 
 ### iccApplyNamedCmm argv lanes

@@ -45,7 +45,7 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 ```
 
 The runtime builder pins AFL++ stable commit
-`05507e1880dc6df997c19e01423444ef37c36846`, LLVM 21, and a 4 MiB compiled
+`45bb74bd3a6591e6853b704c390ab6156c0a3c88`, LLVM 21, `-j32`, and a 4 MiB compiled
 testcase ceiling. The `applyprofiles-hybrid-embedded` lane requires that
 runtime, uses the complete generated multispectral TIFF, and sets `-G` to
 3 MiB. Do not restore the historical 64x64 crop. `start.sh` must reject a
@@ -125,6 +125,12 @@ LD_LIBRARY_PATH=iccDEV/Build/IccProfLib:iccDEV/Build/IccXML \
 ```
 
 Adjust the tool and arguments to match the AFL target.
+
+For bounded `iccApplyProfiles` sanitizer, Memcheck, or Helgrind validation, use
+the checked-in scripts under `.github/ci/quality-assurance/scripts/`. Keep
+their output in a native Linux filesystem such as `/home/xss/qa`; do not run
+the measured workload from `/mnt/c` or `/mnt/e`. Valgrind requires a separate
+non-sanitized debug build and must never wrap an ASAN/UBSAN binary.
 
 ## Corpus Minimization
 

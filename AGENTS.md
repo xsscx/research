@@ -27,9 +27,13 @@ if archaeology is required. Current analyzer and server work lives upstream as
 See `.github/copilot-instructions.md` for build/test commands per component.
 Additional repo workflows in active use:
 - `./afl/build-afl-runtime.sh`
-  -- install pinned AFL++ stable commit `05507e1880dc6df997c19e01423444ef37c36846`
-     with LLVM 21 wrappers and the 4 MiB testcase ceiling required by the
-     full-size hybrid TIFF lane.
+  -- install pinned AFL++ stable commit `45bb74bd3a6591e6853b704c390ab6156c0a3c88`
+     with LLVM 21 wrappers, `-j32`, and the 4 MiB testcase ceiling required by
+     the full-size hybrid TIFF lane.
+- `.github/ci/quality-assurance/scripts/iccApplyProfiles_sanitizer_qa.sh --seconds 300`
+  -- run bounded deterministic sanitizer QA from a native Linux scratch tree.
+- `.github/ci/quality-assurance/scripts/iccApplyProfiles_valgrind_qa.sh --tool memcheck --seconds 300 --binary /path/to/non-sanitized/iccApplyProfiles`
+  -- run bounded Memcheck or Helgrind QA without stacking Valgrind on ASAN.
 - `ICCDEV_TOOLS_DIR=$PWD/iccDEV/Build/Tools ICCDEV_TESTING_DIR=$PWD/iccDEV/Testing .github/scripts/iccdev-tool-coverage-baseline.sh --asan`
   -- full iccDEV CLI coverage baseline; CI runs this script from `.github/workflows/iccdev-tool-tests.yml`.
 - `.github/scripts/batch-test-external.sh /path/to/profiles [--timeout N] [--max N] [--csv]`

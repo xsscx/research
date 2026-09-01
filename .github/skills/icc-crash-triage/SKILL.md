@@ -36,6 +36,10 @@ Preserve the target working directory during replay. In particular,
 dependencies resolve. Prefer `afl/triage.sh <target>`; its marked commands must
 use the configured working directory and an absolute finding path.
 
+For a broad bounded QA interval without an identified crash artifact, use the
+`icc-tool-qa` skill first. Return here only after the canonical tool reproduces
+a sanitizer or signal diagnostic.
+
 ```bash
 ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
   timeout 30 iccDEV/Build/Tools/<ToolDir>/<tool> <crash-file>; echo "EXIT: $?"
@@ -150,7 +154,7 @@ See `.github/prompts/iccdev-bisect-reproduction.prompt.md` for full workflow.
 
 ## References
 
-- `.github/prompts/triage-fuzzer-oom.prompt.yml` -- OOM-specific workflow
+- `.github/prompts/triage-fuzzer-oom.prompt.md` -- OOM-specific workflow
 - `.github/prompts/triage-cve-poc.prompt.md` -- CVE PoC analysis
 - `.github/instructions/cfl.instructions.md` -- Patch system details
 - `docs/pocs/iccdev-issue-reproductions.md` -- 63 PoC reproduction steps

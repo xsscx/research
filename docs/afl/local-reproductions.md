@@ -140,3 +140,39 @@ Current default-instance hang triage from the stopped AFL run:
 - `applynamedcmm-cfg`: 81 hangs replayed, 0 actionable, 81 soft-fail.
 - `tiffdump-extract`: 84 hangs replayed, 0 actionable, 3 clean, 81 soft-fail.
 - `fromjson`: 42 hangs replayed, 0 actionable, 12 clean, 30 soft-fail.
+
+## 2026-09-01 -- iccApplyNamedCmm sampled-curve NaN UBSAN
+
+Target: `applynamedcmm`
+
+Artifact:
+
+```text
+afl/afl-applynamedcmm/output/default/crashes/id:000000,sig:06,src:000049,time:451805755,execs:10506180,op:havoc,rep:3
+```
+
+SHA-256:
+
+```text
+02d1bda4b36939a692bc46d4723fe60f7475eb7dab706e010bd31f3f7ad54a5d
+```
+
+Verified canonical one-liner against the unpatched `faa6b311` build:
+
+```bash
+cd /home/xss/research && LD_LIBRARY_PATH=$PWD/iccDEV/Build/IccProfLib:$PWD/iccDEV/Build/IccXML:$PWD/iccDEV/Build/IccJSON:$PWD/iccDEV/Build/IccConnect ASAN_OPTIONS=detect_leaks=0:halt_on_error=1:abort_on_error=1:symbolize=1:allocator_may_return_null=1 UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_stacktrace=1 timeout 20s ./iccDEV/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-16bit.txt 5 1 'afl/afl-applynamedcmm/output/default/crashes/id:000000,sig:06,src:000049,time:451805755,execs:10506180,op:havoc,rep:3' 1
+```
+
+Clean batch GDB stack:
+
+```bash
+cd /home/xss/research && env LD_LIBRARY_PATH=$PWD/iccDEV/Build/IccProfLib:$PWD/iccDEV/Build/IccXML:$PWD/iccDEV/Build/IccJSON:$PWD/iccDEV/Build/IccConnect ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer-21 ASAN_OPTIONS=detect_leaks=0:halt_on_error=1:abort_on_error=1:symbolize=1 UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_stacktrace=1 gdb -q --batch -ex 'set pagination off' -ex 'set print frame-arguments all' -ex run -ex 'thread apply all bt 40' --args ./iccDEV/Build/Tools/IccApplyNamedCmm/iccApplyNamedCmm docs/iccDEV/Tools/test-data/test-data-rgb-16bit.txt 5 1 'afl/afl-applynamedcmm/output/default/crashes/id:000000,sig:06,src:000049,time:451805755,execs:10506180,op:havoc,rep:3' 1
+```
+
+The sanitizer reports a non-finite sampled-curve position converted to an
+unsigned index in `CIccSingleSampledCurve::Apply()` (`IccMpeBasic.cpp`; line
+1228 in the verified build's sanitizer mapping). Research patch
+`003-single-sampled-curve-finite-position.patch` restores an `std::isfinite`
+guard before the conversion. This is the only confirmed upstream finding from
+the 2026-09-01 fleet triage; U3, U5, and U8 candidates replayed cleanly or were
+ordinary tool rejections.

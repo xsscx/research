@@ -60,9 +60,13 @@ cd cfl && ./build.sh                    # LibFuzzer harnesses against unpatched 
 cd colorbleed_tools && make setup && make # unsafe tools (clang defaults to sanitizer build)
 ./afl/build-afl-runtime.sh              # pinned AFL++ stable runtime, LLVM 21, 4 MiB ceiling
 ./afl/build.sh                          # AFL-instrumented upstream tools
+.github/ci/quality-assurance/scripts/iccApplyProfiles_sanitizer_qa.sh --seconds 300
 ```
 
 - **Local/WSL-2**: Build the component you are changing before use.
+- Keep measured WSL builds and QA output in the native Linux filesystem. Use
+  `/home/xss/qa`, not `/mnt/c` or `/mnt/e`, and use 32 build jobs on the
+  research hosts.
 
 ## Windows and WSL Notes
 
@@ -95,6 +99,9 @@ bash .github/scripts/test-iccdev-all.sh [--quick] [--asan] [--tool=NAME]
   use `--quick` for shorter envelope passes and `--tool=` to isolate one tool.
 - `pre-push-gate.sh` is the unified pre-push validation gate for active
   GitHub/workflow and documentation checks.
+- `iccApplyProfiles_sanitizer_qa.sh` and `iccApplyProfiles_valgrind_qa.sh`
+  provide bounded deterministic QA. Valgrind requires a separate
+  non-sanitized Debug build; never wrap an ASAN/UBSAN binary with Valgrind.
 - AFL `jpegdump` and `jpegdump-inject` seed only up to 200 `.jpg`/`.jpeg`
   files from `fuzz/graphics/jpg` with embedded ICC profiles. Never seed those
   JPEG lanes with raw `.icc` corpora.

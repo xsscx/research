@@ -81,7 +81,7 @@ AFL_BASE=$PWD/afl/cmplog ./afl/start.sh fromcube --fresh --reseed --cmplog-binar
 
 `build.sh` requires `clang-21`/`clang++-21` and AFL++ wrappers built against
 LLVM 21. `build-afl-runtime.sh` checks out stable commit
-`05507e1880dc6df997c19e01423444ef37c36846`, raises the compiled testcase
+`45bb74bd3a6591e6853b704c390ab6156c0a3c88`, raises the compiled testcase
 ceiling to 4 MiB, and installs the matching runtime and compiler wrappers.
 Override `AFL_CLANG_FAST` or `AFL_CLANG_FASTXX` only when pointing at a
 different LLVM 21 wrapper install with an adequate testcase ceiling.

@@ -29,6 +29,7 @@ AFL_NAMEDCMM_PATTERN='afl/targets.sh\|afl/start.sh\|afl/README.md\|docs/afl/inde
 AFL_TARGET_CONFIG_PATTERN='afl/targets.sh\|afl/start.sh\|\.github/scripts/validate-afl-target-configs.sh\|\.github/instructions/afl.instructions.md'
 AFL_PROFILEPLOT_PATTERN='afl/targets.sh\|afl/triage.sh\|afl/README.md\|docs/afl/index.md\|test-profiles/sRGB_v4_ICC_preference.icc\|\.github/scripts/validate-afl-profileplot-targets.sh\|\.github/instructions/afl.instructions.md'
 CFL_NAMEDCMM_PATTERN='cfl/icc_applynamedcmm_fuzzer.cpp\|cfl/fuzzers.sh\|cfl/fuzz-local.sh\|cfl/seeds-applynamedcmm/\|\.github/scripts/validate-cfl-applynamedcmm.sh\|\.github/instructions/cfl.instructions.md'
+ICC_APPLYPROFILES_QA_PATTERN='afl/build-afl-runtime.sh\|docs/afl/iccapplyprofiles-qa.md\|\.github/ci/quality-assurance/scripts/iccApplyProfiles_.*_qa.sh\|\.github/scripts/validate-iccapplyprofiles-qa.sh\|\.github/skills/icc-tool-qa/SKILL.md\|\.github/prompts/iccapplyprofiles-qa.prompt.md\|\.github/agents/icc-tool-qa.agent.md'
 
 echo -e "${BOLD}+--------------------------------------------------+${NC}"
 echo -e "${BOLD}|         PRE-PUSH VALIDATION GATE                |${NC}"
@@ -115,6 +116,25 @@ if has_changes "$AFL_PROFILEPLOT_PATTERN"; then
   fi
 else
   echo -e "  ${YELLOW}(no AFL ProfilePlot contract changes - skipped)${NC}"
+  SKIPPED=$((SKIPPED + 1))
+fi
+
+echo ""
+
+# ---------------------------------------------------
+# GATE 1C: bounded iccApplyProfiles QA contracts
+# ---------------------------------------------------
+echo -e "${BOLD}[GATE 1C] iccApplyProfiles QA contracts${NC}"
+
+if has_changes "$ICC_APPLYPROFILES_QA_PATTERN"; then
+  if .github/scripts/validate-iccapplyprofiles-qa.sh; then
+    echo -e "  ${GREEN}iccApplyProfiles QA contracts OK${NC}"
+  else
+    echo -e "  ${RED}iccApplyProfiles QA contracts FAILED${NC}"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  echo -e "  ${YELLOW}(no iccApplyProfiles QA contract changes - skipped)${NC}"
   SKIPPED=$((SKIPPED + 1))
 fi
 
