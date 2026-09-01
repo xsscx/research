@@ -3,8 +3,33 @@
 `afl/` runs AFL++ against real iccDEV command-line tools. It complements `cfl/`,
 which fuzzes library-level harnesses with LibFuzzer.
 
-Use `afl/targets.sh` as the source of truth for available targets and target
-argv shapes. Do not hand-maintain target counts in this README.
+Use `afl/targets.sh` as the source of truth for available targets and seed
+policy. The editable argv source for every `iccApply*` target is
+`afl/iccapply-args.conf`. Do not hand-maintain target counts in this README.
+
+## Editing iccApply argv
+
+Edit the matching array in `afl/iccapply-args.conf`. Keep every CLI argument as
+a separate quoted element and keep exactly one `"@@"` element for the fuzzed
+input. The config covers `iccApplyNamedCmm`, `iccApplyProfiles`,
+`iccApplySearch`, and `iccApplyToLink` lanes; `afl/targets.sh` continues to own
+their binaries, fixtures, seed filters, limits, and timeouts.
+
+Check the config and resolved command before restarting a campaign:
+
+```bash
+bash -n afl/iccapply-args.conf afl/targets.sh afl/start.sh
+.github/scripts/validate-afl-target-configs.sh
+./afl/start.sh applyprofiles --show-argv
+./afl/stop.sh applyprofiles
+./afl/start.sh applyprofiles
+```
+
+All AFL helpers source the same config, so start, seed dry runs, triage, maps,
+coverage, and minimization use the updated argv. A running fuzzer does not
+reload the file: stop and restart it. The ordinary restart resumes its existing
+queue. Use `--fresh` only when the new argv changes what `@@` represents, the
+input format, or otherwise makes the existing corpus incompatible.
 
 After changing an `iccApplyNamedCmm` target shape or seed policy, run the
 binary-independent contract check:

@@ -44,6 +44,7 @@ AFL_INPUT_DIR="${AFL_INPUT_DIR:-}"
 AFL_EXTRA_SEED_DIRS="${AFL_EXTRA_SEED_DIRS:-}"
 AFL_RESEED="${AFL_RESEED:-0}"
 AFL_SEED_ONLY="${AFL_SEED_ONLY:-0}"
+AFL_SHOW_ARGV="${AFL_SHOW_ARGV:-0}"
 AFL_SEED_LIMIT_OVERRIDE="${AFL_SEED_LIMIT:-}"
 AFL_SEED_MAX_BYTES_OVERRIDE="${AFL_SEED_MAX_BYTES:-}"
 AFL_SEED_ORDER="${AFL_SEED_ORDER:-random}"
@@ -68,6 +69,7 @@ usage() {
     echo "  --fresh               archive previous local input/output before start"
     echo "  --reseed              add target seed sources to the local input corpus"
     echo "  --seed-only           stage seeds and exit without starting AFL"
+    echo "  --show-argv           print the resolved target command and exit"
     echo "  --seed-limit N        override target per-directory seed sample size"
     echo "  --seed-max-bytes N    override target maximum seed size"
     echo "  --seed-order MODE     random or sorted; default: random"
@@ -115,6 +117,7 @@ while [[ $# -gt 0 ]]; do
         --fresh) AFL_FRESH=1; shift ;;
         --reseed) AFL_RESEED=1; shift ;;
         --seed-only) AFL_SEED_ONLY=1; shift ;;
+        --show-argv) AFL_SHOW_ARGV=1; shift ;;
         --seed-limit) AFL_SEED_LIMIT_OVERRIDE="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --seed-max-bytes) AFL_SEED_MAX_BYTES_OVERRIDE="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --seed-order) AFL_SEED_ORDER="$(option_arg "$1" "${2:-}")"; shift 2 ;;
@@ -321,6 +324,15 @@ if ! afl_configure_target "$TARGET"; then
     echo "ERROR: Unknown target '$TARGET'"
     afl_print_targets
     exit 1
+fi
+
+if [[ "$AFL_SHOW_ARGV" == "1" ]]; then
+    echo "Config: $AFL_ICCAPPLY_ARGS_CONFIG"
+    echo "Work directory: $AFL_WORK_DIR"
+    printf 'Command:'
+    printf ' %q' "$BINARY" "${AFL_ARGS[@]}"
+    printf '\n'
+    exit 0
 fi
 
 if [[ "$AFL_TIMEOUT_EXPLICIT" -eq 0 && "${AFL_TARGET_TIMEOUT:-0}" -gt 0 ]]; then

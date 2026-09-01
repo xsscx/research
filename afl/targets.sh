@@ -1,6 +1,14 @@
 #!/bin/bash
 # Shared AFL++ target definitions for iccDEV tool binaries.
 
+AFL_ICCAPPLY_ARGS_CONFIG="${AFL_ICCAPPLY_ARGS_CONFIG:-$REPO_ROOT/afl/iccapply-args.conf}"
+if [[ ! -r "$AFL_ICCAPPLY_ARGS_CONFIG" ]]; then
+    echo "ERROR: iccApply argument config is not readable: $AFL_ICCAPPLY_ARGS_CONFIG" >&2
+    return 1
+fi
+# shellcheck source=afl/iccapply-args.conf
+source "$AFL_ICCAPPLY_ARGS_CONFIG"
+
 AFL_TARGETS=(
     applynamedcmm
     applynamedcmm-debugcalc
@@ -291,7 +299,6 @@ afl_configure_target() {
                 )
                 REQUIRED_FILES=()
                 TARGET_NOTE="ApplyNamedCmm JSON config lane: fuzzes the first-class -cfg command-line mode."
-                AFL_ARGS=("-cfg" "@@")
             elif [[ "$target" == applynamedcmm-debugcalc ]]; then
                 AFL_DIR="$AFL_BASE/afl-applynamedcmm-debugcalc"
                 REQUIRED_FILES=("$rgb_float_data")
@@ -302,10 +309,8 @@ afl_configure_target() {
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 TARGET_NOTE="ApplyNamedCmm calculator lane: float output, linear interpolation, and -debugcalc exercise calculator tracing and non-integer encoding paths."
-                AFL_ARGS=("-debugcalc" "$rgb_float_data" "3:8:12" "0" "@@" "0")
             else
                 TARGET_NOTE="ApplyNamedCmm ICC lane: 16-bit data output with tetrahedral interpolation exercises a different apply path than the former 8-bit linear shape."
-                AFL_ARGS=("$rgb_16_data" "5" "1" "@@" "1")
             fi
             ;;
         applynamedcmm-hybrid-chain|namedcmm-hybrid-chain)
@@ -328,7 +333,6 @@ afl_configure_target() {
             SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
             REQUIRED_FILES=("$HYBRID_CMYK_DATA" "$HYBRID_CMYK_PROFILE")
             TARGET_NOTE="Hybrid NamedCmm chain lane: exports embedded data, applies the fixed CMYK v5 profile with intent 10003, then fuzzes the second profile with no-D2Bx intent 10."
-            AFL_ARGS=("-exportcfganddata" "${tmp_prefix}.json" "$HYBRID_CMYK_DATA" "3" "1" "$HYBRID_CMYK_PROFILE" "10003" "@@" "10")
             ;;
         applynamedcmm-hybrid-pcc|namedcmm-hybrid-pcc)
             BINARY="$BIN_DIR/iccApplyNamedCmm"
@@ -349,7 +353,6 @@ afl_configure_target() {
             )
             REQUIRED_FILES=("$HYBRID_CMYK_DATA" "$HYBRID_CMYK_PROFILE" "$HYBRID_SPEC_D50")
             TARGET_NOTE="Hybrid NamedCmm PCC lane: applies the fixed CMYK v5 profile with environment variables, fuzzes its PCC profile, and retains only seeds that build and apply the full transform."
-            AFL_ARGS=("-exportcfganddata" "${tmp_prefix}.json" "$HYBRID_CMYK_DATA" "5" "1" "-ENV:bkgX" "0.0985" "-ENV:bkgY" "0.159" "-ENV:bkgZ" "0.122" "$HYBRID_CMYK_PROFILE" "10003" "-PCC" "@@" "$HYBRID_SPEC_D50" "3")
             ;;
         applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-cfg|profiles-cfg|applyprofiles-hybrid-embedded|profiles-hybrid-embedded|applyprofiles-hybrid-pcc|profiles-hybrid-pcc|applyprofiles-row|profiles-row)
             BINARY="$BIN_DIR/iccApplyProfiles"
@@ -369,14 +372,12 @@ afl_configure_target() {
                     SEED_LIMIT=300
                     SEED_DRY_RUN_TARGET=1
                     TARGET_NOTE="Fast ApplyProfiles lane: 8-bit, uncompressed, chunky, non-embedded, linear output with only seeds <= 256 KiB copied into a fresh corpus."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "0" "0" "0" "0" "0" "@@" "1")
                     ;;
                 applyprofiles-deep|profiles-deep)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-deep"
                     SEED_LIMIT=200
                     SEED_DRY_RUN_TARGET=1
                     TARGET_NOTE="Deep ApplyProfiles lane: 8-bit, uncompressed, chunky, non-embedded, linear output with seeds capped at AFL++'s default 1 MiB testcase limit."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "0" "0" "0" "0" "0" "@@" "1")
                     ;;
                 applyprofiles-cfg|profiles-cfg)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-cfg"
@@ -404,7 +405,6 @@ afl_configure_target() {
                         "$REPO_ROOT/docs/Testing/malformed-json"
                     )
                     TARGET_NOTE="ApplyProfiles JSON config lane: fuzzes the documented -threads N -cfg config_file shape from the iccApplyProfiles CLI."
-                    AFL_ARGS=("-threads" "1" "-cfg" "@@")
                     ;;
                 applyprofiles-hybrid-embedded|profiles-hybrid-embedded)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-hybrid-embedded"
@@ -425,7 +425,6 @@ afl_configure_target() {
                     SEED_DIRS=()
                     REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
                     TARGET_NOTE="Hybrid ApplyProfiles embedded/PCC lane: fuzzes the full-size generated multispectral TIFF with fast calibration, immediate expanded havoc, and no enhanced deterministic inference stage."
-                    AFL_ARGS=("@@" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "-embedded" "10003" "-PCC" "$HYBRID_SPEC_F11" "$HYBRID_SRGB" "41")
                     ;;
                 applyprofiles-hybrid-pcc|profiles-hybrid-pcc)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-hybrid-pcc"
@@ -440,7 +439,6 @@ afl_configure_target() {
                     SEED_DIRS=()
                     REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
                     TARGET_NOTE="Hybrid ApplyProfiles PCC lane: places the fuzzed MultSpectralRGB profile after -PCC and screens the complete embedded-to-sRGB transform before launch."
-                    AFL_ARGS=("-exportcfg" "${tmp_prefix}.json" "$HYBRID_MS_TIFF" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "-embedded" "10003" "-PCC" "@@" "$HYBRID_SRGB" "41")
                     ;;
                 applyprofiles-row|profiles-row)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-row"
@@ -448,7 +446,6 @@ afl_configure_target() {
                     SEED_LIMIT=300
                     TARGET_NOTE="Row ApplyProfiles lane: uses four explicit workers to exercise deterministic row/batched CMM Apply."
                     SEED_DRY_RUN_TARGET=1
-                    AFL_ARGS=("-threads" "4" "$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
                     ;;
                 profiles)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles"
@@ -457,7 +454,6 @@ afl_configure_target() {
                     SEED_FILES=("$srgb_profile")
                     SEED_EXCLUDE_REGEX='^sRGB_v4_ICC_preference\.icc$'
                     TARGET_NOTE="ApplyProfiles ICC lane: float, compressed, planar, embedded, tetrahedral output with BPC exercises every high-value image argv option."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
                     ;;
                 *)
                     SEED_DRY_RUN_TARGET=1
@@ -465,7 +461,6 @@ afl_configure_target() {
                     SEED_FILES=("$srgb_profile")
                     SEED_EXCLUDE_REGEX='^sRGB_v4_ICC_preference\.icc$'
                     TARGET_NOTE="ApplyProfiles ICC lane: float, compressed, planar, embedded, tetrahedral output with BPC exercises every high-value image argv option."
-                    AFL_ARGS=("$fixed_tiff" "${tmp_prefix}.tif" "3" "1" "1" "1" "1" "@@" "40")
                     ;;
             esac
             ;;
@@ -523,7 +518,6 @@ afl_configure_target() {
                 )
                 REQUIRED_FILES=()
                 TARGET_NOTE="ApplySearch JSON config lane: fuzzes the first-class -cfg command-line mode."
-                AFL_ARGS=("-cfg" "@@")
             elif [[ "$target" == applysearch-noinit ]]; then
                 REQUIRED_FILES=("$rgb_float_data" "$srgb_profile")
                 SEED_MAX_BYTES=262144
@@ -533,7 +527,6 @@ afl_configure_target() {
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 TARGET_NOTE="ApplySearch no-init lane: fuzzes the destination profile with float data and linear interpolation while omitting -INIT."
-                AFL_ARGS=("$rgb_float_data" "3" "0" "$srgb_profile" "1" "@@" "1")
             elif [[ "$target" == applysearch-hybrid-pcc || "$target" == search-hybrid-pcc ]]; then
                 DICT="$REPO_ROOT/cfl/icc_applysearch_fuzzer.dict"
                 HYBRID_NEEDS_SUPPORT=1
@@ -556,7 +549,6 @@ afl_configure_target() {
                 )
                 REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
                 TARGET_NOTE="Hybrid ApplySearch lane: fuzzes the first PCC weight profile in the known-good spectral search command-line shape, with fast calibration and trim disabled."
-                AFL_ARGS=("-exportcfganddata" "$HYBRID_CONFIG_DIR/afl-applysearch-hybrid.json" "$HYBRID_CMYK_REF" "0" "1" "$HYBRID_SPEC_D50" "3" "$HYBRID_LAB_D50" "3" "$HYBRID_CMYK_PROFILE" "10003" "-INIT" "3" "@@" "1" "$HYBRID_LAB_D93" "1" "$HYBRID_LAB_F11" "1" "$HYBRID_LAB_ILLUMA" "1")
             elif [[ "$target" == applysearch-weight* || "$target" == search-weight* ]]; then
                 local weight_value="1"
                 case "$target" in
@@ -586,13 +578,11 @@ afl_configure_target() {
                     AFL_MAX_LENGTH=2048
                     REQUIRED_FILES=("$rgb_float_data" "$srgb_profile" "${SEED_FILES[@]}")
                     TARGET_NOTE="Fast weight-positive apply-search lane: tiny valid PCC seeds plus screened CFL weight corpus entries, shorter float data, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
-                    AFL_ARGS=("$rgb_float_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
                 elif [[ "$target" == *nan ]]; then
                     SEED_LIMIT=96
                     SEED_DRY_RUN_TARGET=1
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     TARGET_NOTE="Extreme-weight apply-search target: @@ is the fuzzed PCC profile; fixed finite max-float weight is $weight_value because iccApplySearch rejects nan/inf at argument parsing; screened positive-result seeds keep calibration tractable."
-                    AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
                 else
                     if [[ "$weight_value" == "1" ]]; then
                         SEED_LIMIT=96
@@ -603,7 +593,6 @@ afl_configure_target() {
                         SEED_DIRS=()
                         TARGET_NOTE="Weight-validation apply-search target: @@ is the fuzzed PCC profile; fixed invalid weight is $weight_value, so this lane intentionally stops at AttachPCC validation and is not a deep coverage lane."
                     fi
-                    AFL_ARGS=("$rgb_data" "0" "0" "$srgb_profile" "1" "$srgb_profile" "1" "-INIT" "1" "@@" "$weight_value")
                 fi
             else
                 REQUIRED_FILES=("$rgb_16_data" "$srgb_profile")
@@ -636,7 +625,6 @@ afl_configure_target() {
                     AFL_FAST_CAL_TARGET=1
                     TARGET_NOTE="ApplySearch ICC lane: fuzzes the destination profile with a small screened ICC sample <= 256 KiB and a fixed PCC weight profile, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                 fi
-                AFL_ARGS=("$rgb_16_data" "5" "1" "$srgb_profile" "1" "@@" "1" "-INIT" "1" "$srgb_profile" "1")
             fi
             ;;
         applytolink|applytolink-v5|applytolink-cube)
@@ -651,7 +639,6 @@ afl_configure_target() {
             if [[ "$target" == "applytolink-cube" ]]; then
                 AFL_DIR="$AFL_BASE/afl-applytolink-cube"
                 TARGET_NOTE="ApplyToLink .cube lane: link_type=1, precision=4, valid input range 0.0..1.0."
-                AFL_ARGS=("${tmp_prefix}.cube" "1" "2" "4" "AFL" "0.0" "1.0" "0" "0" "@@" "13")
             elif [[ "$target" == "applytolink-v5" ]]; then
                 AFL_DIR="$AFL_BASE/afl-applytolink-v5"
                 REQUIRED_FILES=("$srgb_profile")
@@ -661,11 +648,9 @@ afl_configure_target() {
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 TARGET_NOTE="ApplyToLink v5 lane: extended input range and linear interpolation exercise the alternate DeviceLink writer path while fuzzing the destination profile."
-                AFL_ARGS=("${tmp_prefix}.icc" "0" "9" "1" "AFL v5 DeviceLink" "-0.25" "1.25" "1" "0" "$srgb_profile" "1" "@@" "1")
             else
                 REQUIRED_FILES=("$srgb_profile")
                 TARGET_NOTE="ApplyToLink DeviceLink lane: 17-point v4 output, source-first tetrahedral interpolation, fuzzed source profile, and fixed sRGB destination profile."
-                AFL_ARGS=("${tmp_prefix}.icc" "0" "17" "0" "AFL DeviceLink" "0.0" "1.0" "1" "1" "@@" "1" "$srgb_profile" "1")
             fi
             ;;
         dump|dump-diag|dump-read)
@@ -1118,6 +1103,13 @@ afl_configure_target() {
             return 1
             ;;
     esac
+
+    if [[ "$(basename "$BINARY")" == iccApply* ]]; then
+        if ! afl_configure_iccapply_args "$target"; then
+            echo "ERROR: Missing iccApply argv config for target: $target" >&2
+            return 1
+        fi
+    fi
 }
 
 afl_copy_if_missing() {

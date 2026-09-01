@@ -3,7 +3,8 @@
 `afl/` fuzzes real iccDEV command-line tools with AFL++ instrumentation. This
 complements `cfl/`, which uses LibFuzzer harnesses.
 
-Use `afl/targets.sh` as the source of truth for available targets.
+Use `afl/targets.sh` as the source of truth for available targets and seed
+policy. Edit `afl/iccapply-args.conf` to change `iccApply*` target argv.
 
 ## Fast Path
 
@@ -55,6 +56,24 @@ directories exist. Override the sweep inputs with colon-separated
 - seed directories
 - the dictionary copied into the per-target directory
 - any fixed arguments needed to drive multi-argument tools
+
+The fixed arguments for all `iccApplyNamedCmm`, `iccApplyProfiles`,
+`iccApplySearch`, and `iccApplyToLink` lanes live in
+`afl/iccapply-args.conf`. Each argument is one quoted Bash array element, and
+exactly one element must be `"@@"`. After an edit, validate and inspect the
+resolved command, then restart the target to load it:
+
+```bash
+bash -n afl/iccapply-args.conf afl/targets.sh afl/start.sh
+.github/scripts/validate-afl-target-configs.sh
+./afl/start.sh applysearch --show-argv
+./afl/stop.sh applysearch
+./afl/start.sh applysearch
+```
+
+The restart resumes the existing queue by default. Use `--fresh` when the edit
+changes the fuzzed input's role or format. Triage, mapping, coverage, and
+minimization source the same config and therefore replay with the same argv.
 
 `./afl/build.sh` builds the current upstream `master` checkout.
 

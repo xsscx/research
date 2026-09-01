@@ -229,6 +229,7 @@ fi
 STATS="$AFL_DIR/output/$INSTANCE/fuzzer_stats"
 SETUP="$AFL_DIR/output/$INSTANCE/fuzzer_setup"
 MAP_SIZE="$(setup_value "$SETUP" "AFL_MAP_SIZE")"
+TOTAL_EDGES="$(stat_value "$STATS" "total_edges")"
 TIMEOUT="$(stat_value "$STATS" "exec_timeout")"
 
 for required_file in "${REQUIRED_FILES[@]}"; do
@@ -239,7 +240,13 @@ for required_file in "${REQUIRED_FILES[@]}"; do
 done
 afl_prepare_target_support_files "$TARGET"
 
-export AFL_MAP_SIZE="${AFL_MAP_SIZE:-${MAP_SIZE:-1048576}}"
+REPLAY_MAP_SIZE="${AFL_MAP_SIZE:-${MAP_SIZE:-1048576}}"
+if [[ "$REPLAY_MAP_SIZE" =~ ^[0-9]+$ && "$TOTAL_EDGES" =~ ^[0-9]+$ &&
+      "$REPLAY_MAP_SIZE" -lt "$TOTAL_EDGES" ]]; then
+    echo "[WARN] Raising AFL_MAP_SIZE from $REPLAY_MAP_SIZE to measured target size $TOTAL_EDGES" >&2
+    REPLAY_MAP_SIZE="$TOTAL_EDGES"
+fi
+export AFL_MAP_SIZE="$REPLAY_MAP_SIZE"
 if command -v readelf >/dev/null 2>&1 && readelf -d "$BINARY" 2>/dev/null | grep -q 'Shared library: \[libIcc'; then
     export LD_LIBRARY_PATH="$BIN_DIR"
 else

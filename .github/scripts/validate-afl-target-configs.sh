@@ -46,6 +46,19 @@ for target in "${AFL_TARGETS[@]}"; do
     if [[ -z "$BINARY" || -z "$AFL_DIR" || -z "$AFL_WORK_DIR" ]]; then
         fail "$target left a required path empty"
     fi
+    if [[ "$(basename "$BINARY")" == iccApply* ]]; then
+        testcase_args=0
+        for configured_arg in "${AFL_ARGS[@]}"; do
+            if [[ "$configured_arg" == "@@" ]]; then
+                testcase_args=$((testcase_args + 1))
+            fi
+        done
+        if [[ "${#AFL_ARGS[@]}" -eq 0 ]]; then
+            fail "$target has no argv in $AFL_ICCAPPLY_ARGS_CONFIG"
+        elif [[ "$testcase_args" -ne 1 ]]; then
+            fail "$target must have exactly one @@ argument in $AFL_ICCAPPLY_ARGS_CONFIG"
+        fi
+    fi
     if [[ ! "$SEED_MAX_BYTES" =~ ^[0-9]+$ ||
           ! "$SEED_LIMIT" =~ ^[0-9]+$ ||
           ! "$SEED_FIND_MAXDEPTH" =~ ^[0-9]+$ ||
