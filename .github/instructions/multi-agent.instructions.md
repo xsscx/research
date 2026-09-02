@@ -94,6 +94,8 @@ These rules derive from real multi-agent failures. Source: xsscx/governance LLMC
 | 22 | Rebase and validate before opening the PR, not after many review cycles. Use exact `--force-with-lease` only when an authorized existing PR branch must be rewritten. | Late history rewrites invalidate review context and restart CI unnecessarily. |
 | 23 | Before every PR-branch push, reconcile the stated requirement with the complete diff and test every equivalent platform path plus each producer-consumer edge locally. | A narrow local fix can omit its Windows counterpart, generated baseline, or CTest fixture while Cloud Agent review becomes the discovery loop. |
 | 24 | After user approval of a branch-only documentation, configuration, or UI revision, freeze scope and perform only the authorized commit or push. A requested small-diff review is limited to named files, direct consumers, 25 tool calls, and 10 minutes; cancellation or timeout never blocks the remaining authorization. | Unbounded reviews and post-approval rediscovery delay handoff, create stray artifacts, and consume user time without improving the approved change. |
+| 25 | Before every PR-branch push, compare the proposed commit with the exact commit covered by the latest local review. Re-review every intervening changed file and run its applicable local build/test gate. | A prior review does not validate later scope drift; pushing an unbuilt repair turns CI into the first test environment. |
+| 26 | Record every completed local pre-PR review with date, reviewer, commit range, reviewed files, and disposition. Treat Cloud review as final confirmation, not discovery. | Unverifiable review counts conceal whether preparation actually happened and encourage serial review-driven development. |
 
 ## Image+ICC Seed Pipeline
 
@@ -117,11 +119,12 @@ deduplicate by MD5, enforce 5MB max.
 
 ```
 <type>: <description>
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 ```
 
 Types: `analysis:` `cfl:` `afl:` `cli:` `coverage:` `fuzz:` `docs:` `fix:` `call-graph:` `chore:`
+
+Do not add a Copilot attribution trailer unless the user explicitly requests
+one.
 
 ## Session Governance
 

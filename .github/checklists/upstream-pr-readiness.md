@@ -9,6 +9,7 @@
 - [ ] Range-diff reviewed
 - [ ] Complete diff reviewed
 - [ ] PR description covers complete scope
+- [ ] Every file changed since the most recent local review is reviewed and recorded
 - [ ] Normal build passed
 - [ ] Excluded regression helpers built
 - [ ] Complete applicable CTest passed
@@ -24,6 +25,8 @@
 - [ ] Active review findings checked
 - [ ] Suppressed review findings checked from review threads and review summaries
 - [ ] Local review count and automated review IDs recorded
+- [ ] Each local review records date, reviewer, commit range, files, and outcome
+- [ ] Targeted build/test gate passed after the newest proposed-push change
 - [ ] Second-review new blocker, including one in the repair, stops further review until branch-only contract audit is complete
 - [ ] Generated artifacts removed
 - [ ] Related branches synchronized after canonical validation

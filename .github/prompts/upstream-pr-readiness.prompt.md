@@ -30,30 +30,34 @@ Audit `BRANCH_NAME` against `BASE_BRANCH` using
    producer-consumer path. Fixture changes must cover their platform-specific
    generators, generated outputs, baselines, and CTest dependencies. Run the
    smallest local test selection that proves this complete map.
-6. Build a configuration-contract matrix for every changed configuration,
+6. Compare the proposed push commit with the commit reviewed by the latest
+   completed local review. If files changed, re-review their complete scope and
+   platform contract, then run and record the applicable targeted build/test
+   gate before pushing. Do not rely on CI or a later Cloud review for this gate.
+7. Build a configuration-contract matrix for every changed configuration,
    workflow, Dockerfile, or dependency manifest. Verify defaults, explicit
    overrides, failure paths, and compiler support boundaries with local
    evidence. Verify runtime sanitizer suppression names with the runtime.
-7. For workflow, Dockerfile, or CI-summary changes, run
+8. For workflow, Dockerfile, or CI-summary changes, run
    `.github/scripts/preflight-safety-checks.sh --require-tools` locally before
    a PR update or review request. For Docker user/home changes, validate the
    final image as its runtime user, including a writable home and
    `git config --global`. For failure-summary changes, verify same-step
    checked-in sanitizer access or the established inline fallback and all
    `tee` pipeline statuses.
-8. Inventory review summaries and review threads; suppressed comments require
+9. Inventory review summaries and review threads; suppressed comments require
    disposition even when no resolvable thread exists. If a second automated
    review finds any new blocker, including one in the repair, report FAIL and
    return to branch-only grooming before another review.
-9. If a no-rebase request conflicts with the required base or stack-parent
+10. If a no-rebase request conflicts with the required base or stack-parent
    rebase, report FAIL and do not initialize or submit the stack.
-10. Do not use this audit for a user-approved branch-only documentation,
+11. Do not use this audit for a user-approved branch-only documentation,
     configuration, or UI-only revision unless the user explicitly requests it.
     A requested small-diff audit is limited to the named files and direct
     consumers, 25 tool calls, and 10 minutes. It must not create artifacts; a
     cancellation or timeout returns INCOMPLETE and does not block an otherwise
     authorized commit or push.
-11. Report PASS, FAIL, or INCOMPLETE with command evidence and blockers.
+12. Report PASS, FAIL, or INCOMPLETE with command evidence and blockers.
 
 ## Output
 
@@ -71,6 +75,7 @@ local preflight:
 Docker identity/home validation:
 failure-summary sanitizer:
 review inventory:
+review-to-push diff:
 suppressed findings:
 scope documentation:
 readiness:

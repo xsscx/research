@@ -16,6 +16,7 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 | File an upstream issue | `../.github/prompts/upstream-issue-filing.prompt.md` |
 | Reproduce or bisect an iccDEV bug | `../.github/prompts/iccdev-bisect-reproduction.prompt.md` |
 | Verify upstream PR authorization and readiness | `governance/UPSTREAM_PR_READINESS.md`, `../.github/prompts/upstream-pr-readiness.prompt.md` |
+| Study prior upstream PR preparedness failures | `governance/incidents/` |
 | Run or review tests | `Testing/README.md` |
 | Study ICC binary structure | `icc-format/ICC-Binary-Format-Reference.md` |
 | Review call graph notes | `callgraph/CALLGRAPH_EXAMINATION_INDEX.md` |

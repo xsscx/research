@@ -39,24 +39,29 @@ continue in the background or block a user-authorized handoff.
    platform entry points and producer-consumer paths; fixture changes include
    generators, outputs, baselines, and CTest dependencies. Require local
    evidence for every counterpart.
-6. Build a configuration-contract matrix for every changed configuration,
+6. Compare the proposed push commit to the commit covered by the latest
+   completed local review. Any changed file invalidates that review until the
+   agent confirms its scope, platform contract, and applicable targeted
+   build/test evidence. Never accept or recommend a push before this local gate
+   passes.
+7. Build a configuration-contract matrix for every changed configuration,
    workflow, Dockerfile, or dependency manifest. Verify defaults, overrides,
    failure paths, and compiler support boundaries; prove runtime sanitizer
    suppression syntax with runtime evidence.
-7. Verify normal build, excluded regression-helper build, the smallest complete
+8. Verify normal build, excluded regression-helper build, the smallest complete
    CTest selection for the mapped contract, and task-specific positive and
    negative tests. Require the full suite only when dependencies require it.
-8. For workflow, Dockerfile, or CI-summary changes, verify local preflight
+9. For workflow, Dockerfile, or CI-summary changes, verify local preflight
    passed before a PR update or review request. For Docker user/home changes,
    validate the final image as its runtime user, including writable home and
    `git config --global`. For failure-summary changes, verify same-step
    checked-in sanitizer access or an inline fallback and all `tee` pipeline
    statuses.
-9. Verify runtime claims are supported by runtime evidence.
-10. Inventory review summaries and review threads; inspect active and
+10. Verify runtime claims are supported by runtime evidence.
+11. Inventory review summaries and review threads; inspect active and
    suppressed findings, including suppressed findings without a thread.
-11. Fail if generated artifacts remain.
-12. Apply the second-review stop rule to any new blocker, including one in the
+12. Fail if generated artifacts remain.
+13. Apply the second-review stop rule to any new blocker, including one in the
     repair, and report the review-cycle count.
 
 ## Output

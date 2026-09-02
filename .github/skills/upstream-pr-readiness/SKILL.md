@@ -81,7 +81,12 @@ After the user approves a small diff and authorizes commit or push:
    generated artifact, baseline, and CTest dependency. Run the smallest local
    selection that proves the complete map; never treat a single-platform test
    as proof for an unreviewed counterpart.
-7. Build normal targets and excluded regression helpers, then run the smallest
+7. Before every PR-branch push, compare the proposed push commit to the exact
+   commit from the latest completed local review. Any changed file invalidates
+   the prior readiness result until its scope, platform map, and applicable
+   local build/test evidence are recorded. Do not push before that local gate
+   passes.
+8. Build normal targets and excluded regression helpers, then run the smallest
    complete CTest selection identified by the map. Run the entire suite only
    when the changed contract or its dependencies require it:
 
@@ -94,15 +99,15 @@ After the user approves a small diff and authorizes commit or push:
    ctest --test-dir /tmp/iccdev-pr-ready -R '<changed-selection>' --output-on-failure
    ```
 
-8. Build a configuration-contract matrix for every changed configuration,
+9. Build a configuration-contract matrix for every changed configuration,
    workflow, Dockerfile, or dependency manifest. Cover defaults, explicit
    overrides, failure paths, and the exact local evidence. For compiler-specific
    settings, verify supported and unsupported compilers. Prove runtime
    suppression syntax with the runtime; do not infer it from compile-time
    ignorelist categories.
-9. Run task-specific Release, compiler, sanitizer, diagnostics, runtime-dispatch,
+10. Run task-specific Release, compiler, sanitizer, diagnostics, runtime-dispatch,
    fallback, malformed-input, and other negative tests.
-10. For workflow, Dockerfile, or CI-summary changes, run and record the local
+11. For workflow, Dockerfile, or CI-summary changes, run and record the local
    preflight before PR creation, update, or review:
 
    ```bash
@@ -110,24 +115,24 @@ After the user approves a small diff and authorizes commit or push:
    ```
 
    Do not use CI or automated review to discover local policy failures.
-11. For Docker user, home, or ownership changes, validate the final image as
+12. For Docker user, home, or ownership changes, validate the final image as
    its runtime user. Its declared home must be owned and writable, and
    `git config --global` must work.
-12. For failure-summary changes, verify the step independently loads a
+13. For failure-summary changes, verify the step independently loads a
     checked-in sanitizer or defines the standard inline fallback. Verify every
     pipeline status when logs are captured with `tee`.
-13. Remove generated artifacts and verify a clean worktree.
-14. Inventory all review summaries and review threads. Suppressed comments may
+14. Remove generated artifacts and verify a clean worktree.
+15. Inventory all review summaries and review threads. Suppressed comments may
     exist only in a review summary and still require disposition.
-15. If an automated review identifies an omitted requirement or platform
+16. If an automated review identifies an omitted requirement or platform
     counterpart, stop treating reviews as the repair loop. Return to
     branch-only grooming and repeat the requirement, parity, and
     producer-consumer review locally before a follow-up push or review.
-16. If a second automated review finds any new blocker, including one in the
+17. If a second automated review finds any new blocker, including one in the
     repair, stop, report the review-cycle count to the user, and return to
     branch-only grooming for a complete contract-matrix audit before another
     review.
-17. Produce the evidence record from
+18. Produce the evidence record from
     `docs/governance/UPSTREAM_PR_READINESS.md`.
 
 ## Result

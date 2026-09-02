@@ -39,13 +39,18 @@ All items must pass before an authorized PR is opened:
    fixture dependency that consumes them. Run the smallest local test selection
    that proves that complete map; a Linux-only result cannot stand in for its
    Windows counterpart.
-6. Normal build targets and project-specific excluded test helpers are built.
-7. The smallest complete local test selection for the mapped change passes.
+6. Before every PR-branch push, compare `HEAD` with the exact commit reviewed
+   by the most recent completed local review. A nonempty diff invalidates that
+   review's readiness result until the new files, requirements, platform paths,
+   and targeted build/test evidence are reviewed and recorded. Never push a
+   repair before its applicable local build and test gate has passed.
+7. Normal build targets and project-specific excluded test helpers are built.
+8. The smallest complete local test selection for the mapped change passes.
    Run the full suite only when the changed contract or its dependencies require
    it; unrelated CTest coverage is not readiness evidence.
-8. Positive and negative configuration cases pass, including Debug/Release,
+9. Positive and negative configuration cases pass, including Debug/Release,
    compiler, sanitizer, diagnostics, runtime CPU dispatch, and fallback paths.
-9. For workflow, Dockerfile, or CI-summary changes, run the local preflight
+10. For workflow, Dockerfile, or CI-summary changes, run the local preflight
    before the first PR create, update, or review request:
 
    ```bash
@@ -53,28 +58,28 @@ All items must pass before an authorized PR is opened:
    ```
 
    Record its exit status. CI is not a substitute.
-10. Docker user, home, and ownership changes preserve the runtime identity
+11. Docker user, home, and ownership changes preserve the runtime identity
    invariant: a user with `--home-dir` must have an owned, writable home
    (`--create-home` or an equivalent explicit directory and ownership step).
    Validate the final image as that user, including `git config --global`.
-11. A failure-summary step independently loads a checked-in sanitizer available
+12. A failure-summary step independently loads a checked-in sanitizer available
     in that step or defines the established inline fallback there. It must not
     depend on a sanitizer copied into a temporary path by an earlier failing
     step.
-12. Every changed configuration, workflow, Dockerfile, or dependency manifest
+13. Every changed configuration, workflow, Dockerfile, or dependency manifest
     has a written contract matrix. For each changed surface, record its default,
     explicit override, failure path, and matching local command or inspection.
     Compiler-specific flags require both a supported-compiler and an unsupported-
     compiler check. Runtime suppression syntax must be proven with the runtime,
     not inferred from compile-time special-case syntax.
-13. Generated artifacts are removed or intentionally documented.
-14. Active and suppressed automated-review findings are inspected. Query both
+14. Generated artifacts are removed or intentionally documented.
+15. Active and suppressed automated-review findings are inspected. Query both
     review threads and review summaries: suppressed comments may not create
     resolvable threads.
-15. Documentation and reported evidence describe actual runtime behavior, not
+16. Documentation and reported evidence describe actual runtime behavior, not
     only compile-time eligibility.
-16. Related branches are synchronized only after the canonical branch passes.
-17. The user explicitly authorizes PR creation.
+17. Related branches are synchronized only after the canonical branch passes.
+18. The user explicitly authorizes PR creation.
 
 Any incomplete item means the branch remains branch-only.
 
@@ -108,7 +113,8 @@ locally, unless the user explicitly asks for the audit.
 Automated review is a final verification gate, not the implementation loop.
 
 - Before requesting the first review, record one complete local readiness
-  review and the configuration-contract matrix.
+  review and the configuration-contract matrix. The evidence identifies every
+  local review by date, reviewer, commit range, reviewed files, and outcome.
 - First cycle: inventory all active and suppressed findings together, resolve
   them together, and re-run the complete local matrix before any new review.
 - A review finding is evidence that the local scope model was incomplete. Return
@@ -141,7 +147,10 @@ intent and parity review: PR requirement, equivalent platform paths, producer-co
 local preflight: exact command and exit status
 Docker identity/home validation: command and result, if applicable
 failure-summary sanitizer: checked-in source or same-step fallback, if applicable
-review inventory: local review count; automated review IDs and count
+review inventory: local review count; for each local review, date, reviewer,
+  commit range, reviewed files, and outcome; automated review IDs and count
+review-to-push diff: reviewed commit, proposed push commit, diff status, and
+  validation rerun after the most recent changed file
 active findings: checked
 suppressed findings: checked from review threads and review summaries
 scope documentation: checked

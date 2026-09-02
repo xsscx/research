@@ -4,7 +4,15 @@ Record this artifact before requesting the first automated review and update it
 after every review pass.
 
 ```text
-local pre-PR readiness reviews: count and dates
+local pre-PR readiness reviews:
+  count:
+  date, reviewer, commit range, reviewed files, outcome:
+reviewed commit:
+proposed push commit:
+review-to-push diff:
+  changed files:
+  scope and platform map updated:
+  targeted build/test rerun:
 automated reviews: ID, author, date, finding count, suppressed finding count
 changed surface:
   default behavior:
