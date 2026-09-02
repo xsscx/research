@@ -7,7 +7,7 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/../../../.." && pwd)"
 seconds=300
 jobs=8
-mutations=100000
+mutations=1000
 start_at=1
 binary="$repo_root/iccDEV/Build/Tools/IccApplyProfiles/iccApplyProfiles"
 output_dir=""
@@ -19,7 +19,7 @@ Usage: iccApplyProfiles_sanitizer_qa.sh [options]
 
   --seconds N          Hard wall-clock limit (default: 300)
   --jobs N             Concurrent cases (default: 8)
-  --mutations N        Maximum generated cases (default: 100000)
+  --mutations N|max    Maximum generated cases (default: 1000)
   --start-at N         First deterministic mutation index (default: 1)
   --binary PATH        ASAN/UBSAN iccApplyProfiles binary
   --output-dir PATH    Native-Linux evidence directory
@@ -43,9 +43,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-for value in "$seconds" "$jobs" "$mutations" "$start_at"; do
+for value in "$seconds" "$jobs" "$start_at"; do
     [[ "$value" =~ ^[1-9][0-9]*$ ]] || die "numeric options must be positive integers"
 done
+if [[ "$mutations" != "max" && ! "$mutations" =~ ^[1-9][0-9]*$ ]]; then
+    die "--mutations must be a positive integer or max"
+fi
 
 driver="$repo_root/iccDEV/.github/ci/quality-assurance/scripts/iccApplyProfiles_ci_path_exercise.sh"
 testing="$repo_root/iccDEV/Testing"

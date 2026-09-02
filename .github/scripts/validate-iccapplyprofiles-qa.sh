@@ -20,6 +20,11 @@ for script in "$sanitizer" "$valgrind"; do
     file "$script" | grep -q 'ASCII text' || fail "script is not ASCII: $script"
 done
 
+grep -Fq 'mutations=1000' "$sanitizer" || \
+    fail "sanitizer QA does not use the bounded 1000-case default"
+grep -Fq 'mutations" != "max"' "$sanitizer" || \
+    fail "sanitizer QA does not validate the max sentinel"
+
 grep -Fq '45bb74bd3a6591e6853b704c390ab6156c0a3c88' \
     "$repo_root/afl/build-afl-runtime.sh" || fail "AFL++ stable pin is stale"
 grep -Fq "JOBS=\"\${JOBS:-32}\"" "$repo_root/afl/build-afl-runtime.sh" || \

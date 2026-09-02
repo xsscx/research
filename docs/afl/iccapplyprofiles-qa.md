@@ -30,7 +30,10 @@ directories so earlier results cannot affect current counts.
 ```
 
 The sanitizer runner reuses upstream's deterministic CI path generator and
-audits its per-case failure and sanitizer summaries. The Valgrind runner uses
+defaults to 1,000 cases so bounded intervals spend time executing rather than
+materializing the full command space. Pass `--mutations max` for a long sweep;
+the wall-clock limit remains authoritative. The runner audits per-case failure
+and sanitizer summaries. The Valgrind runner uses
 known-valid raw-spectral and multispectral transformations, cycles thread
 counts 0, 1, 2, and 4, and validates nonempty JSON and TIFF outputs.
 Its 120-second per-case default accommodates the slower full-image
