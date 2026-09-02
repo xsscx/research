@@ -156,10 +156,27 @@ select_replay_binary() {
     fi
 }
 
+select_confirmation_binary() {
+    local tool_name
+    local tool_dir
+
+    tool_name="$(basename "$BINARY")"
+    if tool_dir="$(canonical_tool_dir "$tool_name")"; then
+        CONFIRM_BIN="$REPO_ROOT/iccDEV/Build/Tools/$tool_dir/$tool_name"
+        CONFIRM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML:$REPO_ROOT/iccDEV/Build/IccJSON:$REPO_ROOT/iccDEV/Build/IccConnect"
+    else
+        CONFIRM_BIN="$UPSTREAM_BIN"
+        CONFIRM_LIB="$REPLAY_LIB"
+    fi
+}
+
 UPSTREAM_BIN=""
 REPLAY_SOURCE=""
 REPLAY_LIB=""
+CONFIRM_BIN=""
+CONFIRM_LIB=""
 select_replay_binary
+select_confirmation_binary
 AFL_OUTPUT_DIR="$AFL_DIR/output"
 AFL_MARK_DIR="${AFL_MARK_DIR:-}"
 AFL_TRIAGE_INPUT_DIR="${AFL_TRIAGE_INPUT_DIR:-$AFL_OUTPUT_DIR}"
@@ -192,6 +209,45 @@ quote_shell_arg() {
     printf '%s' "$quoted"
 }
 
+write_confirmation_command() {
+    local source_file="$1"
+    local source_file_abs
+    local arg
+
+    source_file_abs="$(realpath -m "$source_file")"
+    printf 'cd '
+    quote_shell_arg "$AFL_WORK_DIR"
+    printf ' && '
+    if [[ -n "$CONFIRM_LIB" ]]; then
+        printf 'LD_LIBRARY_PATH='
+        quote_shell_arg "$CONFIRM_LIB"
+        printf ' '
+    fi
+    printf 'ASAN_OPTIONS='
+    quote_shell_arg "$ASAN_OPTIONS"
+    printf ' UBSAN_OPTIONS='
+    quote_shell_arg "$UBSAN_OPTIONS"
+    printf ' timeout 60s '
+    quote_shell_arg "$CONFIRM_BIN"
+    for arg in "${AFL_ARGS[@]}"; do
+        printf ' '
+        if [[ "$arg" == "@@" ]]; then
+            quote_shell_arg "$source_file_abs"
+        else
+            quote_shell_arg "$arg"
+        fi
+    done
+}
+
+print_confirmation_command() {
+    local source_file="$1"
+
+    echo "    Confirm with canonical iccDEV:"
+    printf '    '
+    write_confirmation_command "$source_file"
+    printf '\n'
+}
+
 write_marked_artifact() {
     local kind="$1"
     local classification="$2"
@@ -205,8 +261,6 @@ write_marked_artifact() {
     local safe_base
     local marked_file
     local cmd_file
-    local marked_file_abs
-    local arg
 
     source_base="$(basename "$source_file")"
     safe_base="$(printf '%s' "$source_base" | tr -c 'A-Za-z0-9._,+-=' '_')"
@@ -215,35 +269,13 @@ write_marked_artifact() {
     cp -f "$source_file" "$marked_file"
     cmd_file="$marked_file.cmd"
 
-    marked_file_abs="$(realpath -m "$marked_file")"
     {
         printf '# target=%s\n' "$TARGET"
         printf '# kind=%s\n' "$kind"
         printf '# classification=%s\n' "$classification"
         printf '# exit_code=%s\n' "$exit_code"
         printf '# source=%s\n' "$source_file"
-        printf 'cd '
-        quote_shell_arg "$AFL_WORK_DIR"
-        printf ' && '
-        if [[ -n "${REPLAY_LIB:-}" ]]; then
-            printf 'LD_LIBRARY_PATH='
-            quote_shell_arg "$REPLAY_LIB"
-            printf ' '
-        fi
-        printf 'ASAN_OPTIONS='
-        quote_shell_arg "$ASAN_OPTIONS"
-        printf ' UBSAN_OPTIONS='
-        quote_shell_arg "$UBSAN_OPTIONS"
-        printf ' timeout 60s '
-        quote_shell_arg "$UPSTREAM_BIN"
-        for arg in "${AFL_ARGS[@]}"; do
-            printf ' '
-            if [[ "$arg" == "@@" ]]; then
-                quote_shell_arg "$marked_file_abs"
-            else
-                quote_shell_arg "$arg"
-            fi
-        done
+        write_confirmation_command "$marked_file"
         printf '\n'
     } > "$cmd_file"
 }
@@ -421,24 +453,28 @@ ${run_output}"
             local sig=$((exit_code - 128))
             echo "  [CRASH]       $fname - signal $sig (exit $exit_code, owner=$owner)"
             printf '%s\n' "$output" | tail -3 | sed 's/^/    /'
+            print_confirmation_command "${files[$idx]}"
             write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
             signal=$((signal + 1))
         elif [[ "$classification" == "SANITIZER" ]]; then
             echo "  [SANITIZER]   $fname - sanitizer finding (exit $exit_code, owner=$owner)"
             printf '%s\n' "$output" | grep -Eai 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY:' | tail -3 | sed 's/^/    /'
+            print_confirmation_command "${files[$idx]}"
             write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
             sanitizer=$((sanitizer + 1))
         elif [[ "$classification" == "TIMEOUT_WITH_SANITIZER" ]]; then
             echo "  [TIMEOUT+SAN] $fname - sanitizer output before ${timeout_sec}s timeout (owner=$owner)"
             printf '%s\n' "$output" | grep -Eai 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY:' | tail -3 | sed 's/^/    /'
+            print_confirmation_command "${files[$idx]}"
             write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
             timeout_with_sanitizer=$((timeout_with_sanitizer + 1))
         elif [[ "$classification" == "TIMEOUT" ]]; then
             echo "  [TIMEOUT]     $fname - hung for ${timeout_sec}s"
             if [[ "$TRIAGE_MARK_TIMEOUTS" -eq 1 ]]; then
+                print_confirmation_command "${files[$idx]}"
                 write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
                 upstream_bug=$((upstream_bug + 1))
             fi
