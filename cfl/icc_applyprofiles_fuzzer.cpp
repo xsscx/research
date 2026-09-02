@@ -50,7 +50,9 @@
 //   [profile_end+2]:   flags: bit0=BPC, bit1=luminance, bit2=useV5SubProfile,
 //                              bit3=embed_icc, bit4..5=bps_select, bit6..7=photo_select
 //   [profile_end+3]:   bit0=use_d2bx, bit1..2=width(1-4), bit3..4=height(1-4)
-//   [profile_end+4]:   bit0=row Apply path, bit1=dst compression, bit2=dst planar
+//   [profile_end+4]:   bit0=row Apply path, bit1=dst compression, bit2=dst planar,
+//                      bits3..5=transform type (color, named, preview, gamut,
+//                      BRDF parameters/direct/MCS parameters, or MCS)
 //   [profile_end+5..]: pixel seed data
 //
 
@@ -169,6 +171,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 #endif
   bool dst_compress = (option_flags & 0x02) != 0;
   bool dst_planar = (option_flags & 0x04) != 0;
+  static const icXformLutType lut_types[] = {
+      icXformLutColor,
+      icXformLutNamedColor,
+      icXformLutPreview,
+      icXformLutGamut,
+      icXformLutBRDFParam,
+      icXformLutBRDFDirect,
+      icXformLutBRDFMcsParam,
+      icXformLutMCS
+  };
+  icXformLutType transform_type = lut_types[(option_flags >> 3) & 0x07];
 
   // Map bps and photo selections
   unsigned int bps;
@@ -266,7 +279,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   cfgProfile->reset();
   cfgProfile->m_iccFile = (bHasSrcProfile && pSrcProfile && nSrcProfileLen > 128) ? "" : tmp_profile;
   cfgProfile->m_intent = (int)intent;
-  cfgProfile->m_transform = icXformLutColor;
+  cfgProfile->m_transform = transform_type;
   cfgProfile->m_useD2BxB2Dx = use_d2bx;
   cfgProfile->m_adjustPcsLuminance = use_luminance;
   cfgProfile->m_useBPC = use_bpc;

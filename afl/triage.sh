@@ -75,6 +75,7 @@ canonical_tool_dir() {
     local tool_name="$1"
 
     case "$tool_name" in
+        iccBenchApply) echo "IccBenchApply" ;;
         iccApplyNamedCmm) echo "IccApplyNamedCmm" ;;
         iccApplyProfiles) echo "IccApplyProfiles" ;;
         iccApplySearch) echo "IccApplySearch" ;;

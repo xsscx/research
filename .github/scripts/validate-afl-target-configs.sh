@@ -46,7 +46,8 @@ for target in "${AFL_TARGETS[@]}"; do
     if [[ -z "$BINARY" || -z "$AFL_DIR" || -z "$AFL_WORK_DIR" ]]; then
         fail "$target left a required path empty"
     fi
-    if [[ "$(basename "$BINARY")" == iccApply* ]]; then
+    if [[ "$(basename "$BINARY")" == iccApply* ||
+          "$(basename "$BINARY")" == "iccBenchApply" ]]; then
         testcase_args=0
         for configured_arg in "${AFL_ARGS[@]}"; do
             if [[ "$configured_arg" == "@@" ]]; then
@@ -98,6 +99,13 @@ for target in "${AFL_TARGETS[@]}"; do
         fi
     fi
 done
+
+afl_configure_target benchapply
+expect_value "BenchApply binary" "$(basename "$BINARY")" "iccBenchApply"
+expect_value "BenchApply argv count" "${#AFL_ARGS[@]}" "7"
+expect_value "BenchApply fuzzed profile argument" "${AFL_ARGS[5]}" "@@"
+expect_value "BenchApply BPC and luminance intent" "${AFL_ARGS[6]}" "140"
+expect_value "BenchApply exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
 
 AFL_MAX_LENGTH=""
 afl_configure_target applyprofiles-hybrid-embedded

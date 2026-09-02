@@ -57,7 +57,7 @@ directories exist. Override the sweep inputs with colon-separated
 - the dictionary copied into the per-target directory
 - any fixed arguments needed to drive multi-argument tools
 
-The fixed arguments for all `iccApplyNamedCmm`, `iccApplyProfiles`,
+The fixed arguments for `iccBenchApply` and all `iccApplyNamedCmm`, `iccApplyProfiles`,
 `iccApplySearch`, and `iccApplyToLink` lanes live in
 `afl/iccapply-args.conf`. Each argument is one quoted Bash array element, and
 exactly one element must be `"@@"`. After an edit, validate and inspect the

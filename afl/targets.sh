@@ -10,6 +10,7 @@ fi
 source "$AFL_ICCAPPLY_ARGS_CONFIG"
 
 AFL_TARGETS=(
+    benchapply
     applynamedcmm
     applynamedcmm-debugcalc
     applynamedcmm-cfg
@@ -73,6 +74,7 @@ AFL_TARGETS=(
 
 afl_print_targets() {
     echo "Available targets:"
+    echo "  benchapply       - iccBenchApply (BPC and luminance intent columns)"
     echo "  applynamedcmm    - iccApplyNamedCmm (fixed data, fuzz ICC profile)"
     echo "  applynamedcmm-debugcalc - iccApplyNamedCmm (float/linear calculator trace lane)"
     echo "  applynamedcmm-cfg - iccApplyNamedCmm (-cfg JSON config lane)"
@@ -261,6 +263,22 @@ afl_configure_target() {
         "$REPO_ROOT/test-profiles/sRGB_D65_MAT.icc")"
 
     case "$target" in
+        benchapply)
+            BINARY="$BIN_DIR/iccBenchApply"
+            AFL_DIR="$AFL_BASE/afl-benchapply"
+            DICT="$REPO_ROOT/cfl/icc_link_fuzzer.dict"
+            SEED_FILES=("$srgb_profile")
+            SEED_DIRS=(
+                "$REPO_ROOT/test-profiles"
+                "$REPO_ROOT/fuzz/graphics/icc"
+                "$REPO_ROOT/extended-test-profiles"
+            )
+            SEED_MAX_BYTES=1048576
+            SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
+            SEED_DRY_RUN_TARGET=1
+            SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+            TARGET_NOTE="BenchApply argv lane: fuzzes one profile with intent code 140 so the BPC tens column and luminance hundreds column are both exercised."
+            ;;
         applynamedcmm|applynamedcmm-debugcalc|applynamedcmm-cfg|namedcmm-cfg)
             BINARY="$BIN_DIR/iccApplyNamedCmm"
             DICT="$REPO_ROOT/cfl/icc_applynamedcmm_fuzzer.dict"
@@ -1104,9 +1122,10 @@ afl_configure_target() {
             ;;
     esac
 
-    if [[ "$(basename "$BINARY")" == iccApply* ]]; then
+    if [[ "$(basename "$BINARY")" == iccApply* ||
+          "$(basename "$BINARY")" == "iccBenchApply" ]]; then
         if ! afl_configure_iccapply_args "$target"; then
-            echo "ERROR: Missing iccApply argv config for target: $target" >&2
+            echo "ERROR: Missing apply-tool argv config for target: $target" >&2
             return 1
         fi
     fi

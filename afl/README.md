@@ -4,14 +4,15 @@
 which fuzzes library-level harnesses with LibFuzzer.
 
 Use `afl/targets.sh` as the source of truth for available targets and seed
-policy. The editable argv source for every `iccApply*` target is
+policy. The editable argv source for every `iccApply*` target and
+`iccBenchApply` is
 `afl/iccapply-args.conf`. Do not hand-maintain target counts in this README.
 
-## Editing iccApply argv
+## Editing apply-tool argv
 
 Edit the matching array in `afl/iccapply-args.conf`. Keep every CLI argument as
 a separate quoted element and keep exactly one `"@@"` element for the fuzzed
-input. The config covers `iccApplyNamedCmm`, `iccApplyProfiles`,
+input. The config covers `iccBenchApply`, `iccApplyNamedCmm`, `iccApplyProfiles`,
 `iccApplySearch`, and `iccApplyToLink` lanes; `afl/targets.sh` continues to own
 their binaries, fixtures, seed filters, limits, and timeouts.
 

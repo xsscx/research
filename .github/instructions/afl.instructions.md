@@ -10,7 +10,8 @@ iccDEV tool binaries.
 ## Source Of Truth
 
 - Target list, seed policy, and argument scaffolds: `afl/targets.sh`
-- Editable `iccApply*` command lines: `afl/iccapply-args.conf`
+- Editable apply-tool command lines, including `iccBenchApply`:
+  `afl/iccapply-args.conf`
 - User-facing workflow: `docs/afl/index.md`
 - Shared dictionaries: `cfl/*.dict`
 - Runtime outputs: ignored under `afl/afl-*/output*/`
@@ -18,7 +19,7 @@ iccDEV tool binaries.
 Do not duplicate exact target counts in docs. Run `./afl/start.sh --list` or
 read `afl/targets.sh` in the current checkout.
 
-After editing an `iccApply*` argument array, run
+After editing an apply-tool argument array, run
 `.github/scripts/validate-afl-target-configs.sh` and inspect the resolved command
 with `./afl/start.sh TARGET --show-argv`. Stop and restart the target before
 testing because running AFL processes do not reload the config.
