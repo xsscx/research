@@ -8,9 +8,10 @@ local apply QA suite now includes `iccBenchApply`, distinguishes a known clean
 `iccApplySearch` incompatibility rejection from crashes, and does not report a
 sanitizer finding as a passing case. No retirement candidates were deleted.
 
-The proposed iccDEV changes are kept separately in the nested `iccDEV`
-checkout. Research-repository changes only adjust the bounded sanitizer QA
-wrapper, its validator, and its documentation.
+The iccDEV changes were verified in a fresh worktree based directly on current
+`origin/master` and published as commit `8d332dc9` on branch
+`ci-qa-pr-docker-testing`. Research-repository changes only adjust the bounded
+sanitizer QA wrapper, its validator, and its documentation.
 
 ## `/home/xss/scripts` disposition
 
@@ -106,6 +107,10 @@ bench and apply argument tests, and those focused tests pass.
   `/tmp/local-apply-suite-expanded`.
 - Expanded canonical iccDEV candidate suite: passed all five tools and the
   sanitizer scan. Evidence: `/tmp/upstream-apply-suite-expanded`.
+- Fresh master-based iccDEV branch: hybrid prerequisite generation passed and
+  the five-tool suite passed with one classified clean Search rejection, zero
+  failure-summary lines, and zero sanitizer-summary lines. Evidence:
+  `/tmp/iccdev-fresh-apply-suite`.
 - Research wrapper validation: `.github/scripts/validate-iccapplyprofiles-qa.sh`
   passed.
 - Bounded sanitizer wrapper, 30 seconds and 1,000 generated cases: 76 commands
