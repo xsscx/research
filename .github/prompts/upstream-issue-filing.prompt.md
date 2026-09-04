@@ -82,6 +82,15 @@ Applied on branch `<branch>` at commit <sha>.
 
 ## Format Reference
 
+### QA or conformance follow-up
+
+When adding verified findings to an existing non-security issue, record the
+exact commit, audited fixture scope, raw metadata, tool exit status, and a
+copy-paste-ready one-line reproduction. Separate tracked fixtures from local
+generated outputs. State whether each result extends the existing defect or is
+an independent bug that should use a separate commit or issue. Do not add CWE,
+CVSS, CPE, or sanitizer claims without demonstrated security impact.
+
 ### Title
 ```
 Bisect: <sha7> <type>
@@ -127,6 +136,8 @@ All share: AV:L/AC:L/PR:N/UI:R/S:U (local lib, no auth, user opens file).
 7. **Full unified diff.** No abbreviated patches with `...`.
 8. **Bug section optional.** Use for math-heavy findings (formula analysis).
 9. **ASAN trim.** SCARINESS + frames #0-#4 max.
+10. **Container evidence.** For TIFF QA, record raw field values, field types,
+    and counts before relying on a library's repaired in-memory directory.
 
 ### Bug Chain Format
 

@@ -21,6 +21,7 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 | Study ICC binary structure | `icc-format/ICC-Binary-Format-Reference.md` |
 | Review call graph notes | `callgraph/CALLGRAPH_EXAMINATION_INDEX.md` |
 | Review TIFF-specific analysis | `tiffimg/START_HERE.md` |
+| Review issue 2385 local TIFF fixture findings | `analysis/iccdev-issue-2385-local-tiff-audit.md` |
 | Dump TIFF structure and preserve an embedded ICC | `../colorbleed_tools/Readme.md`, `../.github/prompts/tiff-icc-colorbleed.prompt.md` |
 | Set up Apple Silicon host flow | `LOCAL_MACOS_ARM64_ONBOARDING.md` |
 | Configure or troubleshoot MCP servers (`.mcp.json`) | `MCP_SERVER_SETUP.md` |

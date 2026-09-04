@@ -28,6 +28,13 @@ Use `iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile` for header, tag table,
 and field values. Identify profile class, color space, PCS, version, creator,
 and notable tags.
 
+For a repository-wide image-fixture audit, inventory tracked files with
+`git ls-files` rather than a default glob so hidden regression inputs are not
+missed. Report untracked or generated images separately. For TIFF containers,
+compare raw `tiffdump` tag values, types, and counts with a libtiff-backed read;
+do not infer bit depth or format correctness from a filename. A successful exit
+does not erase a structural warning.
+
 ### 2. PAWG, Round-Trip, and Representation Checks
 
 Use active `iccDEV/Build/Tools/` CLIs for round-trip and representation checks.

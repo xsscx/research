@@ -66,6 +66,12 @@ wget -q https://raw.githubusercontent.com/xsscx/fuzz/master/graphics/icc/<poc>.i
 
 ## CVSS Quick Reference
 
+For TIFF or other container QA, inventory tracked fixtures with `git ls-files`,
+separate generated outputs, and include both raw metadata and a library-backed
+read. Never infer bit depth from the filename. When a follow-up finds an
+independent producer or fixture defect, summarize it on the handed-off issue
+but recommend a separate commit or issue so ownership remains clear.
+
 All iccDEV bugs share: AV:L/AC:L/PR:N/UI:R/S:U
 
 | Bug type | Impact | Score |
