@@ -52,17 +52,6 @@
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
     },
-    "iccdev-ci-regression": {
-      "type": "stdio",
-      "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "ghcr.io/internationalcolorconsortium/iccdev-ci-regression:latest",
-        "iccdev-mcp"
-      ]
-    },
     "dockerhub": {
       "type": "stdio",
       "command": "docker",
@@ -86,13 +75,6 @@
       "command": "uvx",
       "args": [
         "mcp-server-time"
-      ]
-    },
-    "markitdown": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "markitdown-mcp"
       ]
     },
     "azure": {
