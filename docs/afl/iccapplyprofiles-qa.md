@@ -37,9 +37,18 @@ the wall-clock limit remains authoritative. The runner writes
 alongside the per-case logs, failure summary, and sanitizer summary. Known
 invalid transforms and invalid arguments are counted separately; unfamiliar
 nonzero exits remain explicitly `unclassified-tool-rejection` for review. The
+upstream driver writes one atomic `hybrid/logs/status/INDEX.PHASE.rc` completion
+record for every completed command. The runner uses this manifest, rather than
+concurrently appended summary text, to identify every nonzero command. The
+runner detects a legacy driver without this manifest, warns, and forces its
+requested parallel run to one worker so its ordered failure summary remains
+safe to classify. This compatibility path is correct but has lower coverage
+than a manifest-capable parallel driver. The non-strict runner accepts an
+upstream driver exit of 1 only when every recorded
 non-strict runner accepts an upstream driver exit of 1 only when every recorded
 case is in a known clean category; it still fails on signals, harness errors,
-missing logs, and unclassified rejections. The Valgrind runner uses
+missing completion records or logs, and unclassified rejections. The Valgrind
+runner uses
 known-valid raw-spectral and multispectral transformations, cycles thread
 counts 0, 1, 2, and 4, and validates nonempty JSON and TIFF outputs.
 Its 120-second per-case default accommodates the slower full-image
