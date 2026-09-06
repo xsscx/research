@@ -60,32 +60,46 @@ Do not hardcode a personal-access-token literal in `.mcp.json` or in any
 committed file. Restart the MCP client (or run `/mcp` reload) after setting
 the variable so the new value is picked up.
 
-## iccDEV Container Servers
+## iccDEV Unified Container Server
 
 `iccdev` runs the MCP server from the unified published iccDEV image, so no
 local build or path is required:
 
 - `iccdev` -> `ghcr.io/internationalcolorconsortium/iccdev:latest`
   (<https://github.com/InternationalColorConsortium/iccDEV/pkgs/container/iccdev>)
-- `iccdev-ci-regression` -> `ghcr.io/internationalcolorconsortium/iccdev-ci-regression:latest`
-  (<https://github.com/InternationalColorConsortium/iccDEV/pkgs/container/iccdev-ci-regression>)
+
+The root `.mcp.json` defines this one iccDEV server. Do not add a second
+regression server or depend on the retired standalone image. The existing
+portable registration is:
+
+```json
+"iccdev": {
+  "type": "stdio",
+  "command": "docker",
+  "args": ["run", "--rm", "-i",
+           "ghcr.io/internationalcolorconsortium/iccdev:latest",
+           "iccdev-mcp-entrypoint", "mcp"]
+}
+```
 
 The unified image includes the MCP and REST server, CLI tools, runtime
 libraries, maintainer utilities, and `Testing/` profiles. Start its stdio mode
 with `iccdev-mcp-entrypoint mcp`.
 
-Verify interoperability locally with a real MCP handshake instead of raw
-stdin, since an empty/invalid payload will produce a misleading JSON-RPC
-parse error:
+Verify interoperability from a current upstream checkout with the reusable
+container smoke helper. Resolve the image digest first for reproducible evidence:
 
 ```bash
-INIT_MSG='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
-echo "$INIT_MSG" | docker run --rm -i ghcr.io/internationalcolorconsortium/iccdev:latest iccdev-mcp-entrypoint mcp
-echo "$INIT_MSG" | docker run --rm -i ghcr.io/internationalcolorconsortium/iccdev-ci-regression:latest iccdev-mcp
+docker pull ghcr.io/internationalcolorconsortium/iccdev:latest
+IMAGE="$(docker image inspect ghcr.io/internationalcolorconsortium/iccdev:latest --format '{{index .RepoDigests 0}}')"
+python3 .github/scripts/iccdev-container-smoke.py "$IMAGE"
 ```
 
-A successful response includes `"serverInfo":{"name":"iccdev-mcp", ...}` and
-non-empty `capabilities`.
+A successful handshake includes `"serverInfo":{"name":"iccdev-mcp", ...}` and
+non-empty `capabilities`. Keep stdin open through initialize, initialized,
+tools/list, and the final requested tool response. A one-line pipe closes stdin
+too early to validate tool calls. The helper also probes REST on an ephemeral
+localhost-only port and removes its test containers.
 
 After initialization, issue `tools/list` and use `health_check` rather than
 assuming a fixed tool total. Optional native and CLI-backed capabilities differ
@@ -94,7 +108,7 @@ between local builds and container variants. For REST mode, run
 
 ### Known benign warning
 
-Both iccDEV container servers may emit a `pydantic_settings`
+The iccDEV server may emit a `pydantic_settings`
 `IncompleteFieldDefinitionWarning` about a `lifespan` forward reference on
 stderr at startup. This is a known upstream issue in the third-party
 `modelcontextprotocol/python-sdk` dependency
