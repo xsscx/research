@@ -116,6 +116,8 @@ set -e
 
 sanitizer_summary="$work/logs/sanitizer-summary.txt"
 failure_summary="$work/logs/failures.txt"
+rejection_records="$work/logs/rejection-records.tsv"
+rejection_categories="$work/logs/rejection-categories.tsv"
 sanitizer_lines=0
 rejection_lines=0
 [[ -f "$sanitizer_summary" ]] && sanitizer_lines="$(grep -cve '^[[:space:]]*$' "$sanitizer_summary" || true)"
@@ -123,15 +125,57 @@ rejection_lines=0
 configs="$(find "$work/config" -type f -name '*.json' -size +0c | wc -l)"
 outputs="$(find "$work/Results" -type f -name 'ci_path_*.tif' -size +0c | wc -l)"
 
-printf 'runner_rc=%s sanitizer_lines=%s rejections=%s configs=%s outputs=%s evidence=%s\n' \
-    "$runner_rc" "$sanitizer_lines" "$rejection_lines" "$configs" "$outputs" "$output_dir"
+printf 'mutation\tmode\texit_code\tcategory\tlog\n' > "$rejection_records"
+if [[ -f "$failure_summary" ]]; then
+    while read -r mutation mode rc; do
+        [[ "$mutation" =~ ^[0-9]+$ && "$mode" =~ ^(export|cfg)$ && "$rc" =~ ^rc=[0-9]+$ ]] || continue
+        log_file="$work/logs/${mutation}.${mode}.out"
+        category="unclassified-tool-rejection"
+        if [[ ! -f "$log_file" ]]; then
+            category="missing-tool-log"
+        elif grep -q 'AddXform failed.*Invalid profile transform' "$log_file"; then
+            category="invalid-profile-transform"
+        elif grep -qiE 'invalid argument|unknown option|usage:' "$log_file"; then
+            category="invalid-arguments"
+        elif grep -qiE 'timed out|timeout' "$log_file"; then
+            category="per-case-timeout"
+        fi
+        printf '%s\t%s\t%s\t%s\t%s\n' \
+            "$mutation" "$mode" "${rc#rc=}" "$category" "$log_file" >> "$rejection_records"
+    done < "$failure_summary"
+fi
+{
+    printf 'category\tcount\n'
+    awk -F '\t' 'NR > 1 { print $4 }' "$rejection_records" |
+        LC_ALL=C sort | uniq -c |
+        awk '{ print $2 "\t" $1 }'
+} > "$rejection_categories"
+unclassified_rejections="$(
+    awk -F '\t' '
+        NR > 1 &&
+        $4 != "invalid-profile-transform" &&
+        $4 != "invalid-arguments" {
+            count++
+        }
+        END { print count + 0 }
+    ' "$rejection_records"
+)"
+
+printf 'runner_rc=%s sanitizer_lines=%s rejections=%s unclassified_rejections=%s configs=%s outputs=%s rejection_categories=%s evidence=%s\n' \
+    "$runner_rc" "$sanitizer_lines" "$rejection_lines" "$unclassified_rejections" \
+    "$configs" "$outputs" "$rejection_categories" "$output_dir"
 
 [[ "$sanitizer_lines" -eq 0 ]] || exit 86
 if [[ "$configs" -eq 0 || "$outputs" -eq 0 ]]; then
     exit 1
 fi
 if [[ "$runner_rc" -ne 0 && "$runner_rc" -ne 124 ]]; then
-    exit "$runner_rc"
+    # The upstream driver returns 1 after it records any case failure. In
+    # non-strict mode that is clean only when every record is classified.
+    if [[ "$runner_rc" -ne 1 || "$rejection_lines" -eq 0 ||
+          "$unclassified_rejections" -ne 0 ]]; then
+        exit "$runner_rc"
+    fi
 fi
 if [[ "$strict_rejections" -eq 1 && "$rejection_lines" -ne 0 ]]; then
     exit 1

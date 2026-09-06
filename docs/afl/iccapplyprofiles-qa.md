@@ -32,8 +32,14 @@ directories so earlier results cannot affect current counts.
 The sanitizer runner reuses upstream's deterministic CI path generator and
 defaults to 1,000 cases so bounded intervals spend time executing rather than
 materializing the full command space. Pass `--mutations max` for a long sweep;
-the wall-clock limit remains authoritative. The runner audits per-case failure
-and sanitizer summaries. The Valgrind runner uses
+the wall-clock limit remains authoritative. The runner writes
+`hybrid/logs/rejection-records.tsv` and `hybrid/logs/rejection-categories.tsv`
+alongside the per-case logs, failure summary, and sanitizer summary. Known
+invalid transforms and invalid arguments are counted separately; unfamiliar
+nonzero exits remain explicitly `unclassified-tool-rejection` for review. The
+non-strict runner accepts an upstream driver exit of 1 only when every recorded
+case is in a known clean category; it still fails on signals, harness errors,
+missing logs, and unclassified rejections. The Valgrind runner uses
 known-valid raw-spectral and multispectral transformations, cycles thread
 counts 0, 1, 2, and 4, and validates nonempty JSON and TIFF outputs.
 Its 120-second per-case default accommodates the slower full-image
@@ -50,7 +56,8 @@ Keep these results separate:
 - exit zero with missing or invalid output.
 
 Do not count a missing file, parser rejection, or ordinary exit 1-127 as a
-crash. Inspect every per-case log before reporting an aggregate.
+crash. Inspect every category and every
+`unclassified-tool-rejection` record before reporting an aggregate.
 
 ## 2026-09-01 baseline
 
