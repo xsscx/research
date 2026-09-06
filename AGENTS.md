@@ -137,6 +137,12 @@ ALWAYS verify after writing.
    exact reviewed SHA. Package, protocol, and subprocess-launch changes also
    require a platform-by-installation-mode matrix that separately proves
    source-tree and installed-package child-process imports.
+8. Before editing a small upstream PR, state one execution contract: exact
+   files and direct consumers, worktree and branch, decisive validation,
+   review budget, stop condition, and documentation home. A requirement found
+   outside that contract is a scope failure: stop and ask the user whether to
+   consolidate or defer it. Do not create policy or process documentation as a
+   substitute for completing the agreed code fix.
 
 ## Repeated Correction Rule
 

@@ -98,6 +98,24 @@ Do not apply this full readiness audit to a branch-only documentation,
 configuration, or UI-only revision that the user has reviewed and approved
 locally, unless the user explicitly asks for the audit.
 
+### Small Upstream Fix Execution Contract
+
+Before editing a small upstream fix, record in the session handoff:
+
+```text
+scope: exact files and direct consumers
+worktree and branch:
+decisive validation:
+review budget:
+stop condition:
+documentation home:
+```
+
+A requirement found outside this contract is a scope failure, not the next
+repair. Stop and ask the user whether to consolidate it into one repair or
+defer it. Do not create process or governance documentation as a substitute
+for completing the agreed code fix.
+
 1. Freeze the approved scope. Do not reopen discovery, add adjacent cleanup, or
    start another review unless a command fails or the user asks.
 2. When the user authorizes commit or push, perform only that handoff action.
