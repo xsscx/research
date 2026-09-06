@@ -59,10 +59,16 @@ continue in the background or block a user-authorized handoff.
    statuses.
 10. Verify runtime claims are supported by runtime evidence.
 11. Inventory review summaries and review threads; inspect active and
-   suppressed findings, including suppressed findings without a thread.
-12. Fail if generated artifacts remain.
-13. Apply the second-review stop rule to any new blocker, including one in the
-    repair, and report the review-cycle count.
+    suppressed findings, including suppressed findings without a thread. Record
+    every review's exact head SHA, findings, disposition, and post-repair
+    validation.
+12. For package, protocol, or subprocess-launch changes, require a
+    platform-by-installation-mode matrix that separately proves source-tree and
+    installed-package child-process imports.
+13. Fail if generated artifacts remain.
+14. On a second-review blocker, return `review-stop: FAIL - maintainer
+    direction required`. Do not start a local or cloud review, recommend a
+    repair push, resolve findings as closure, or report readiness.
 
 ## Output
 

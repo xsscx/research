@@ -39,6 +39,10 @@ All items must pass before an authorized PR is opened:
    fixture dependency that consumes them. Run the smallest local test selection
    that proves that complete map; a Linux-only result cannot stand in for its
    Windows counterpart.
+   For package, protocol, or subprocess-launch changes, record each supported
+   platform and installation mode. A child-process test must prove source-tree
+   and installed-package imports separately; an editable-install result does
+   not prove a no-install launch path.
 6. Before every PR-branch push, compare `HEAD` with the exact commit reviewed
    by the most recent completed local review. A nonempty diff invalidates that
    review's readiness result until the new files, requirements, platform paths,
@@ -115,8 +119,10 @@ Automated review is a final verification gate, not the implementation loop.
 - Before requesting the first review, record one complete local readiness
   review and the configuration-contract matrix. The evidence identifies every
   local review by date, reviewer, commit range, reviewed files, and outcome.
-- First cycle: inventory all active and suppressed findings together, resolve
-  them together, and re-run the complete local matrix before any new review.
+- First cycle: inventory all active and suppressed findings together. Return to
+  branch-only grooming, audit the complete cumulative diff, and make one
+  coherent repair for every confirmed root cause. Do not publish one repair per
+  comment. Re-run the complete local matrix before any new review.
 - A review finding is evidence that the local scope model was incomplete. Return
   to branch-only grooming, re-check the PR requirement against every equivalent
   platform path and producer-consumer edge, and validate that map locally before
@@ -126,9 +132,11 @@ Automated review is a final verification gate, not the implementation loop.
   compiler flags, runtime suppression names, and tool configuration semantics
   against the implementation and the actual runtime.
 - Second cycle: if it identifies any new blocker, including one in the repair,
-  stop. Return to branch-only grooming, perform a complete diff/configuration
-  audit, and report the review-cycle count and gap to the user before another
-  update or review.
+  set `review-stop: FAIL - maintainer direction required`. Do not launch a
+  local or cloud reviewer, publish another repair, resolve findings as a
+  completion signal, or claim readiness. Return to branch-only grooming,
+  perform a complete diff/configuration audit, and report the review-cycle
+  count and gap to the user before any further PR activity.
 
 ## Required Evidence
 
@@ -144,11 +152,14 @@ tests: command, pass count, skip count
 negative tests: cases and results
 configuration-contract matrix: changed surface, default, override, failure path, and evidence
 intent and parity review: PR requirement, equivalent platform paths, producer-consumer map, and local evidence
+platform/install matrix: supported platform, installation mode, child-process path, result, and skip rationale
 local preflight: exact command and exit status
 Docker identity/home validation: command and result, if applicable
 failure-summary sanitizer: checked-in source or same-step fallback, if applicable
 review inventory: local review count; for each local review, date, reviewer,
   commit range, reviewed files, and outcome; automated review IDs and count
+review-cycle ledger: exact head SHA, active findings, suppressed findings, disposition, and post-repair validation
+review-stop: PASS or FAIL - maintainer direction required
 review-to-push diff: reviewed commit, proposed push commit, diff status, and
   validation rerun after the most recent changed file
 active findings: checked

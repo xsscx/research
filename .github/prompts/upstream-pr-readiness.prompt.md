@@ -46,18 +46,25 @@ Audit `BRANCH_NAME` against `BASE_BRANCH` using
    checked-in sanitizer access or the established inline fallback and all
    `tee` pipeline statuses.
 9. Inventory review summaries and review threads; suppressed comments require
-   disposition even when no resolvable thread exists. If a second automated
-   review finds any new blocker, including one in the repair, report FAIL and
-   return to branch-only grooming before another review.
-10. If a no-rebase request conflicts with the required base or stack-parent
+   disposition even when no resolvable thread exists. Record every review's
+   exact head SHA, active and suppressed findings, disposition, and post-repair
+   validation.
+10. For package, protocol, or subprocess-launch changes, record a
+    platform-by-installation-mode matrix that separately proves source-tree and
+    installed-package child-process imports.
+11. If a second automated review finds any new blocker, including one in the
+    repair, report `review-stop: FAIL - maintainer direction required`. Do not
+    launch a local or cloud reviewer, publish another repair, resolve findings
+    as closure, or claim readiness.
+12. If a no-rebase request conflicts with the required base or stack-parent
    rebase, report FAIL and do not initialize or submit the stack.
-11. Do not use this audit for a user-approved branch-only documentation,
+13. Do not use this audit for a user-approved branch-only documentation,
     configuration, or UI-only revision unless the user explicitly requests it.
     A requested small-diff audit is limited to the named files and direct
     consumers, 25 tool calls, and 10 minutes. It must not create artifacts; a
     cancellation or timeout returns INCOMPLETE and does not block an otherwise
     authorized commit or push.
-12. Report PASS, FAIL, or INCOMPLETE with command evidence and blockers.
+14. Report PASS, FAIL, or INCOMPLETE with command evidence and blockers.
 
 ## Output
 
@@ -75,6 +82,8 @@ local preflight:
 Docker identity/home validation:
 failure-summary sanitizer:
 review inventory:
+platform/install matrix:
+review-stop:
 review-to-push diff:
 suppressed findings:
 scope documentation:

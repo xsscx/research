@@ -123,14 +123,20 @@ ALWAYS verify after writing.
 4. Before opening a PR, run the `upstream-pr-readiness` skill and record its
    PASS result. A failed or incomplete gate keeps the work branch-only.
 5. After a second review identifies any new blocker, including one in the
-   repair, stop requesting more reviews. Return to branch-only grooming and
-   ask the user before continuing PR activity.
+   repair, set `review-stop: FAIL - maintainer direction required`. Do not
+   launch a local or cloud reviewer, publish another repair, resolve findings
+   as closure, or claim readiness. Return to branch-only grooming, complete
+   the cumulative audit, and ask the user before continuing PR activity.
 6. Once a user approves a branch-only documentation, configuration, or UI
    revision and authorizes commit or push, freeze scope and perform only that
    action. Do not start another review or broad validation unless asked or
    blocked by a command failure. A requested small-diff review is limited to
    named files and direct consumers, 25 tool calls, and 10 minutes; cancellation
    or timeout does not block the remaining user authorization.
+7. Before the first cloud review, record one local cumulative review and the
+   exact reviewed SHA. Package, protocol, and subprocess-launch changes also
+   require a platform-by-installation-mode matrix that separately proves
+   source-tree and installed-package child-process imports.
 
 ## Repeated Correction Rule
 

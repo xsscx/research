@@ -123,16 +123,29 @@ After the user approves a small diff and authorizes commit or push:
     pipeline status when logs are captured with `tee`.
 14. Remove generated artifacts and verify a clean worktree.
 15. Inventory all review summaries and review threads. Suppressed comments may
-    exist only in a review summary and still require disposition.
-16. If an automated review identifies an omitted requirement or platform
+    exist only in a review summary and still require disposition. Record each
+    review's exact head SHA, active and suppressed findings, disposition, and
+    post-repair validation.
+16. For package, protocol, or subprocess-launch changes, record a
+    platform-by-installation-mode matrix. Test source-tree and installed-package
+    imports separately for child processes; an editable-install result does not
+    prove a no-install launch path.
+17. If an automated review identifies an omitted requirement or platform
     counterpart, stop treating reviews as the repair loop. Return to
-    branch-only grooming and repeat the requirement, parity, and
-    producer-consumer review locally before a follow-up push or review.
-17. If a second automated review finds any new blocker, including one in the
-    repair, stop, report the review-cycle count to the user, and return to
-    branch-only grooming for a complete contract-matrix audit before another
-    review.
-18. Produce the evidence record from
+    branch-only grooming, audit the complete cumulative diff, and make one
+    coherent repair before a follow-up push or review.
+18. If a second automated review finds any new blocker, including one in the
+    repair, return:
+
+    ```text
+    readiness: FAIL
+    review-stop: FAIL - maintainer direction required
+    ```
+
+    Do not launch a local or cloud reviewer, publish another repair, resolve
+    findings as closure, or claim readiness. Report the review-cycle count and
+    return to branch-only grooming for a complete contract-matrix audit.
+19. Produce the evidence record from
     `docs/governance/UPSTREAM_PR_READINESS.md`.
 
 ## Result
@@ -140,4 +153,5 @@ After the user approves a small diff and authorizes commit or push:
 Only `readiness: PASS` plus explicit authorization permits PR creation.
 
 If a second automated review finds any new blocker, including one in the
-repair, change the result to FAIL and return to branch-only grooming.
+repair, change the result to FAIL and wait for maintainer direction after the
+branch-only audit.

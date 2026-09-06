@@ -203,10 +203,16 @@ Scope to one component. PRs name area, list commands run, link issues.
   Fixture work must cover generators, generated outputs, baselines, and CTest
   dependencies on every supported platform. Cloud Agent review is final
   confirmation, never the discovery mechanism for omitted counterparts.
+- Before the first Cloud Agent review, record one local cumulative review and
+  the exact reviewed SHA. For package, protocol, or subprocess-launch changes,
+  record a platform-by-installation-mode matrix that separately proves
+  source-tree and installed-package child-process imports.
 - Do not request serial automated reviews to discover basic readiness defects.
   A second review cycle with any new blocker, including one in the repair, is a
-  stop signal: return to branch-only grooming, report the review-cycle count,
-  and complete the contract audit before another review.
+  stop signal: set `review-stop: FAIL - maintainer direction required`, return
+  to branch-only grooming, report the review-cycle count, and complete the
+  contract audit. Do not launch a local or cloud reviewer, publish another
+  repair, resolve findings as closure, or claim readiness without direction.
 
 ### File output encoding
 All generated files MUST be ASCII. Verify with `file FILENAME`.
