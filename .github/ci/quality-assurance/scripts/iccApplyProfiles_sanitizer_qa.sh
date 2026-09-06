@@ -169,11 +169,11 @@ printf 'runner_rc=%s sanitizer_lines=%s rejections=%s unclassified_rejections=%s
 if [[ "$configs" -eq 0 || "$outputs" -eq 0 ]]; then
     exit 1
 fi
+[[ "$unclassified_rejections" -eq 0 ]] || exit 1
 if [[ "$runner_rc" -ne 0 && "$runner_rc" -ne 124 ]]; then
     # The upstream driver returns 1 after it records any case failure. In
     # non-strict mode that is clean only when every record is classified.
-    if [[ "$runner_rc" -ne 1 || "$rejection_lines" -eq 0 ||
-          "$unclassified_rejections" -ne 0 ]]; then
+    if [[ "$runner_rc" -ne 1 || "$rejection_lines" -eq 0 ]]; then
         exit "$runner_rc"
     fi
 fi
