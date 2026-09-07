@@ -133,6 +133,9 @@ for completing the agreed code fix.
 ## Review Cycle Stop Rule
 
 Automated review is a final verification gate, not the implementation loop.
+These rules are action blockers, not advisory documentation. If the required
+evidence is missing, stop before editing, pushing, resolving review threads,
+requesting another review, or claiming readiness.
 
 - Before requesting the first review, record one complete local readiness
   review and the configuration-contract matrix. The evidence identifies every
@@ -141,6 +144,12 @@ Automated review is a final verification gate, not the implementation loop.
   branch-only grooming, audit the complete cumulative diff, and make one
   coherent repair for every confirmed root cause. Do not publish one repair per
   comment. Re-run the complete local matrix before any new review.
+- Before any PR-branch push after review feedback, run a review-repair gate.
+  The gate must record the exact base SHA, current head SHA, review IDs
+  inspected, unresolved threads, suppressed review-body findings, complete
+  changed-file list, contract-matrix entries, validation commands run after the
+  latest edit, and `review-stop` status. If any field is missing, the push is
+  blocked and readiness is `FAIL`.
 - A review finding is evidence that the local scope model was incomplete. Return
   to branch-only grooming, re-check the PR requirement against every equivalent
   platform path and producer-consumer edge, and validate that map locally before
@@ -177,6 +186,9 @@ failure-summary sanitizer: checked-in source or same-step fallback, if applicabl
 review inventory: local review count; for each local review, date, reviewer,
   commit range, reviewed files, and outcome; automated review IDs and count
 review-cycle ledger: exact head SHA, active findings, suppressed findings, disposition, and post-repair validation
+review-repair gate: PASS or FAIL - base SHA, head SHA, review IDs, active
+  threads, suppressed review-body findings, changed files, contract entries,
+  validation after latest edit, and stop status recorded
 review-stop: PASS or FAIL - maintainer direction required
 review-to-push diff: reviewed commit, proposed push commit, diff status, and
   validation rerun after the most recent changed file
