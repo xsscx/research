@@ -12,6 +12,7 @@ source "$AFL_ICCAPPLY_ARGS_CONFIG"
 AFL_TARGETS=(
     benchapply
     applynamedcmm
+    applynamedcmm-v5-brdf
     applynamedcmm-debugcalc
     applynamedcmm-cfg
     applynamedcmm-hybrid-chain
@@ -76,6 +77,7 @@ afl_print_targets() {
     echo "Available targets:"
     echo "  benchapply       - iccBenchApply (BPC and luminance intent columns)"
     echo "  applynamedcmm    - iccApplyNamedCmm (fixed data, fuzz ICC profile)"
+    echo "  applynamedcmm-v5-brdf - iccApplyNamedCmm (V5 BRDF-direct profile lane)"
     echo "  applynamedcmm-debugcalc - iccApplyNamedCmm (float/linear calculator trace lane)"
     echo "  applynamedcmm-cfg - iccApplyNamedCmm (-cfg JSON config lane)"
     echo "  applynamedcmm-hybrid-chain - iccApplyNamedCmm (fixed v5 profile, fuzz second profile)"
@@ -157,6 +159,7 @@ afl_configure_target() {
     local tmp_prefix="$tmp_root/afl-${target}-$$"
     AFL_TMP_PREFIX="$tmp_prefix"
     local rgb_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt"
+    local rgb_8_legacy_data="$REPO_ROOT/docs/Testing/test-data/rgb-8bit.txt"
     local rgb_16_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-16bit.txt"
     local rgb_float_data="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-float.txt"
     local srgb_profile
@@ -283,7 +286,7 @@ afl_configure_target() {
             SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
             TARGET_NOTE="BenchApply argv lane: fuzzes one profile with intent code 140 so the BPC tens column and luminance hundreds column are both exercised."
             ;;
-        applynamedcmm|applynamedcmm-debugcalc|applynamedcmm-cfg|namedcmm-cfg)
+        applynamedcmm|applynamedcmm-v5-brdf|applynamedcmm-debugcalc|applynamedcmm-cfg|namedcmm-cfg)
             BINARY="$BIN_DIR/iccApplyNamedCmm"
             DICT="$REPO_ROOT/cfl/icc_applynamedcmm_fuzzer.dict"
             SEED_DIRS=(
@@ -321,8 +324,20 @@ afl_configure_target() {
                 )
                 REQUIRED_FILES=()
                 TARGET_NOTE="ApplyNamedCmm JSON config lane: fuzzes the first-class -cfg command-line mode."
+            elif [[ "$target" == applynamedcmm-v5-brdf ]]; then
+                AFL_DIR="$AFL_BASE/afl-applynamedcmm-v5-brdf"
+                SEED_FILES=("$REPO_ROOT/extended-test-profiles/tag-checks/dtob-brdf.icc")
+                SEED_DIRS=()
+                SEED_MAX_BYTES=4096
+                SEED_FILES_SKIP_DRY_RUN_TARGET=1
+                SEED_DRY_RUN_TARGET=1
+                SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                REQUIRED_FILES=("$rgb_16_data" "${SEED_FILES[@]}")
+                TARGET_NOTE="ApplyNamedCmm V5 BRDF lane: 16-bit-v2 output, tetrahedral interpolation, V5 sub-profile selection, BRDF-direct lookup, and absolute intent use the tracked bDB0 fixture."
             elif [[ "$target" == applynamedcmm-debugcalc ]]; then
                 AFL_DIR="$AFL_BASE/afl-applynamedcmm-debugcalc"
+                SEED_FILES=("$REPO_ROOT/test-profiles/argbCalc.icc")
+                SEED_FILES_SKIP_DRY_RUN_TARGET=1
                 REQUIRED_FILES=("$rgb_float_data")
                 SEED_MAX_BYTES=262144
                 SEED_LIMIT=96
@@ -356,9 +371,11 @@ afl_configure_target() {
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/extended-test-profiles"
             )
+            SEED_FILES=("$HYBRID_SPEC_D50")
+            SEED_FILES_SKIP_DRY_RUN_TARGET=1
             SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
             REQUIRED_FILES=("$HYBRID_CMYK_DATA" "$HYBRID_CMYK_PROFILE")
-            TARGET_NOTE="Hybrid NamedCmm chain lane: exports embedded data, applies the fixed CMYK v5 profile with intent 10003, then fuzzes the second profile with no-D2Bx intent 10."
+            TARGET_NOTE="Hybrid NamedCmm chain lane: exports embedded data, explicitly selects the fixed CMYK V5 spectral transform with intent 10103, then fuzzes the second profile with no-D2Bx intent 10."
             ;;
         applynamedcmm-hybrid-pcc|namedcmm-hybrid-pcc)
             BINARY="$BIN_DIR/iccApplyNamedCmm"
@@ -416,7 +433,7 @@ afl_configure_target() {
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-deep"
                     SEED_LIMIT=200
                     SEED_DRY_RUN_TARGET=1
-                    TARGET_NOTE="Deep ApplyProfiles lane: 8-bit, uncompressed, chunky, non-embedded, linear output with seeds capped at AFL++'s default 1 MiB testcase limit."
+                    TARGET_NOTE="Deep ApplyProfiles lane: 16-bit, LZW-compressed, chunky, embedded, tetrahedral output uses saturation intent without D2Bx/B2Dx and seeds up to 1 MiB."
                     ;;
                 applyprofiles-cfg|profiles-cfg)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-cfg"
@@ -558,6 +575,8 @@ afl_configure_target() {
                 REQUIRED_FILES=()
                 TARGET_NOTE="ApplySearch JSON config lane: fuzzes the first-class -cfg command-line mode."
             elif [[ "$target" == applysearch-noinit ]]; then
+                SEED_FILES=("$srgb_profile")
+                SEED_FILES_SKIP_DRY_RUN_TARGET=1
                 REQUIRED_FILES=("$rgb_float_data" "$srgb_profile")
                 SEED_MAX_BYTES=262144
                 SEED_LIMIT=96
@@ -602,10 +621,11 @@ afl_configure_target() {
                     "$REPO_ROOT/test-profiles/sRgbEncodingOverrides.icc"
                     "$REPO_ROOT/test-profiles/issue-809-vendor-flags-cwe681.icc"
                 )
+                SEED_FILES_SKIP_DRY_RUN_TARGET=1
                 SEED_DIRS=(
                     "$REPO_ROOT/cfl/corpus-icc_applysearch_weight_fuzzer"
                 )
-                REQUIRED_FILES=("$rgb_data" "$srgb_profile" "${SEED_FILES[@]}")
+                REQUIRED_FILES=("$rgb_8_legacy_data" "$srgb_profile" "${SEED_FILES[@]}")
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 AFL_MAX_LENGTH=8192
@@ -654,7 +674,7 @@ afl_configure_target() {
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     AFL_DISABLE_TRIM_TARGET=1
                     AFL_FAST_CAL_TARGET=1
-                    TARGET_NOTE="Fast apply-search lane: valid ApplySearch-compatible seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                    TARGET_NOTE="Fast apply-search lane: 8-bit output with linear interpolation, valid ApplySearch-compatible seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                 else
                     SEED_MAX_BYTES=262144
                     SEED_LIMIT=32
@@ -680,6 +700,8 @@ afl_configure_target() {
                 TARGET_NOTE="ApplyToLink .cube lane: link_type=1, precision=4, valid input range 0.0..1.0."
             elif [[ "$target" == "applytolink-v5" ]]; then
                 AFL_DIR="$AFL_BASE/afl-applytolink-v5"
+                SEED_FILES=("$srgb_profile")
+                SEED_FILES_SKIP_DRY_RUN_TARGET=1
                 REQUIRED_FILES=("$srgb_profile")
                 SEED_MAX_BYTES=262144
                 SEED_LIMIT=96

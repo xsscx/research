@@ -65,13 +65,20 @@ the fixed-v5-then-fuzzed-profile hybrid chain, and the fixed-v5/fuzzed-PCC
 hybrid chain. Use `applynamedcmm-hybrid-chain` for this argv shape:
 
 ```text
--exportcfganddata OUT DATA 3 1 FIXED_CMYK_V5 10003 @@ 10
+-exportcfganddata OUT DATA 3 1 FIXED_CMYK_V5 10103 @@ 10
 ```
 
+The `10103` selector combines the V5 subprofile modifier, the spectral
+transform selector, and absolute colorimetric intent. Keep the dedicated
+`applynamedcmm-v5-brdf` lane on `10063` with
+`extended-test-profiles/tag-checks/dtob-brdf.icc` so BRDF-direct and V5
+subprofile selection remain independently seedable.
+
 NamedCMM hybrid seeds must be complete ICC files smaller than the lane's 1 MiB
-policy and must pass the target dry run with exit 0. Use a per-process scratch
-path for exported JSON; never make parallel workers overwrite one fixed config
-path.
+policy. Directory candidates must pass the target dry run with exit 0; each
+explicit bootstrap is validated separately and bypasses corpus screening. Use a
+per-process scratch path for exported JSON; never make parallel workers
+overwrite one fixed config path.
 
 Do not copy CFL's corpus-derived large-input policy into AFL++. CFL NamedCmm
 seeds are pure ICC files, but only complete files below 1 MiB may be promoted

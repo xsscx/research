@@ -45,6 +45,10 @@ configure_sanitizer() {
       OUTPUT_DIR="$SCRIPT_DIR/bin"
       SANITIZER_FLAGS="-fsanitize=address,undefined,integer,float-divide-by-zero,float-cast-overflow -fsanitize=fuzzer-no-link"
       FUZZER_FLAGS="-fsanitize=fuzzer,address,undefined,integer,float-divide-by-zero,float-cast-overflow"
+      if [[ -f "$ICCDEV_DIR/.github/ci/ubsan-ignorelist.txt" ]]; then
+        SANITIZER_FLAGS+=" -fsanitize-ignorelist=$ICCDEV_DIR/.github/ci/ubsan-ignorelist.txt"
+        FUZZER_FLAGS+=" -fsanitize-ignorelist=$ICCDEV_DIR/.github/ci/ubsan-ignorelist.txt"
+      fi
       ;;
     thread)
       OUTPUT_DIR="$SCRIPT_DIR/bin-tsan"

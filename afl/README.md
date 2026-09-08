@@ -39,7 +39,7 @@ binary-independent contract check:
 .github/scripts/validate-afl-applynamedcmm-targets.sh
 ```
 
-The four NamedCmm lanes and their intended CLI coverage are documented in
+The NamedCmm lanes and their intended CLI coverage are documented in
 `docs/afl/index.md`.
 The hybrid PCC lane filters its corpus to V5 ICC files, always stages a known
 D50 PCC seed, and discovers package `ICC/` directories from `ICS-POC/` when

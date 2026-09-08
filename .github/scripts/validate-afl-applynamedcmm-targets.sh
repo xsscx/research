@@ -69,6 +69,7 @@ fi
 
 for required_target in \
     applynamedcmm \
+    applynamedcmm-v5-brdf \
     applynamedcmm-cfg \
     applynamedcmm-hybrid-chain \
     applynamedcmm-hybrid-pcc; do
@@ -95,6 +96,17 @@ expect_value "applynamedcmm seed dry run" "$SEED_DRY_RUN_TARGET" "1"
 expect_value "applynamedcmm exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
 expect_value "applynamedcmm ICC seed type" "$SEED_FILE_TYPE_REGEX" '^(color profile|ColorSync color profile)'
 
+afl_configure_target applynamedcmm-v5-brdf
+expect_arg_count applynamedcmm-v5-brdf 5
+expect_arg applynamedcmm-v5-brdf 0 "$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-16bit.txt"
+expect_arg applynamedcmm-v5-brdf 1 "6"
+expect_arg applynamedcmm-v5-brdf 2 "1"
+expect_arg applynamedcmm-v5-brdf 3 "@@"
+expect_arg applynamedcmm-v5-brdf 4 "10063"
+expect_value "applynamedcmm-v5-brdf seed count" "${#SEED_FILES[@]}" "1"
+expect_value "applynamedcmm-v5-brdf seed" "${SEED_FILES[0]}" "$REPO_ROOT/extended-test-profiles/tag-checks/dtob-brdf.icc"
+expect_value "applynamedcmm-v5-brdf exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
+
 afl_configure_target applynamedcmm-cfg
 expect_arg_count applynamedcmm-cfg 2
 expect_arg applynamedcmm-cfg 0 "-cfg"
@@ -109,9 +121,11 @@ expect_arg applynamedcmm-hybrid-chain 2 "$HYBRID_CMYK_DATA"
 expect_arg applynamedcmm-hybrid-chain 3 "3"
 expect_arg applynamedcmm-hybrid-chain 4 "1"
 expect_arg applynamedcmm-hybrid-chain 5 "$HYBRID_CMYK_PROFILE"
-expect_arg applynamedcmm-hybrid-chain 6 "10003"
+expect_arg applynamedcmm-hybrid-chain 6 "10103"
 expect_arg applynamedcmm-hybrid-chain 7 "@@"
 expect_arg applynamedcmm-hybrid-chain 8 "10"
+expect_value "applynamedcmm-hybrid-chain bootstrap seed count" "${#SEED_FILES[@]}" "1"
+expect_value "applynamedcmm-hybrid-chain bootstrap seed" "${SEED_FILES[0]}" "$HYBRID_SPEC_D50"
 
 afl_configure_target applynamedcmm-hybrid-pcc
 expect_common_hybrid_policy applynamedcmm-hybrid-pcc
@@ -141,4 +155,4 @@ if [[ "$errors" -ne 0 ]]; then
     exit 1
 fi
 
-echo "ApplyNamedCmm AFL target validation passed: 4 target contracts."
+echo "ApplyNamedCmm AFL target validation passed: 5 target contracts."

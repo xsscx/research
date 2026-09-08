@@ -142,6 +142,10 @@ Compare file counts (local must be >= source) before swapping directories.
   package `ICC/` directories through `AFL_ICS_POC_ROOT`. Do not admit XML or
   generated TIFF files to this lane; inventory those sources separately and
   send media only to a matching media target.
+- `applynamedcmm-v5-brdf` uses
+  `extended-test-profiles/tag-checks/dtob-brdf.icc` with selector `10063`.
+  Keep `applynamedcmm-hybrid-chain` on explicit spectral selector `10103` so
+  BRDF-direct and spectral V5 coverage do not collapse into the same lane.
 - The ordinary `applynamedcmm` lane always stages its known sRGB profile and
   requires directory candidates to complete its fixed RGB intent-3 transform
   with exit 0. The validated explicit bootstrap bypasses runtime corpus

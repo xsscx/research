@@ -137,10 +137,16 @@ shapes:
   the hybrid extended-intent paths. A known sRGB profile guarantees startup;
   directory candidates must be ICC files that complete the transform with
   exit 0.
+- `applynamedcmm-v5-brdf` uses 16-bit-v2 output and selector `10063` with the
+  tracked V5 `bDB0` fixture, combining V5 sub-profile, BRDF-direct, absolute
+  intent, and tetrahedral paths.
+- `applynamedcmm-debugcalc` guarantees the calculator-bearing `argbCalc.icc`
+  bootstrap while exercising float output, formatting, linear interpolation,
+  and calculator tracing.
 - `applynamedcmm-cfg` fuzzes the JSON document consumed by `-cfg`.
-- `applynamedcmm-hybrid-chain` applies the fixed CMYK v5 profile at intent
-  `10003`, then fuzzes a second profile at intent `10` while exercising
-  `-exportcfganddata`.
+- `applynamedcmm-hybrid-chain` explicitly selects the spectral transform in
+  the fixed CMYK V5 sub-profile at intent `10103`, then fuzzes a second profile
+  at intent `10` while exercising `-exportcfganddata`.
 - `applynamedcmm-hybrid-pcc` applies the fixed CMYK profile and fuzzes its V5
   PCC profile, covering `-ENV` and `-PCC` parsing. It inventories V5 profiles
   under `iccDEV/Testing`, guarantees the generated D50 PCC fixture as a
@@ -149,7 +155,9 @@ shapes:
   elsewhere.
 
 The NamedCMM hybrid lanes deliberately admit only complete ICC files smaller
-than their 1 MiB target policy and dry-run each seed to require exit 0. This
+than their 1 MiB target policy and dry-run directory candidates to require exit
+0. Validated explicit bootstrap profiles bypass that screening so each lane can
+start even when a broad mixed corpus contains no compatible transform. This
 avoids AFL++ silently fuzzing a partial read of a larger profile. Export paths
 use the target scratch prefix so parallel workers do not overwrite one shared
 JSON file.

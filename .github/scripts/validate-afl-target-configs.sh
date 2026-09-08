@@ -38,6 +38,22 @@ expect_value() {
     fi
 }
 
+expect_arg() {
+    local target="$1"
+    local index="$2"
+    local expected="$3"
+
+    expect_value "$target argv[$index]" "${AFL_ARGS[$index]:-}" "$expected"
+}
+
+check_apply_argc() {
+    local target="$1"
+    local expected="$2"
+
+    afl_configure_target "$target"
+    expect_value "$target argc" "${#AFL_ARGS[@]}" "$expected"
+}
+
 for target in "${AFL_TARGETS[@]}"; do
     if ! afl_configure_target "$target"; then
         fail "$target did not configure"
@@ -100,12 +116,76 @@ for target in "${AFL_TARGETS[@]}"; do
     fi
 done
 
+check_apply_argc benchapply 7
+check_apply_argc applynamedcmm 5
+check_apply_argc applynamedcmm-v5-brdf 5
+check_apply_argc applynamedcmm-debugcalc 6
+check_apply_argc applynamedcmm-cfg 2
+check_apply_argc applynamedcmm-hybrid-chain 9
+check_apply_argc applynamedcmm-hybrid-pcc 17
+check_apply_argc applyprofiles 9
+check_apply_argc applyprofiles-fast 9
+check_apply_argc applyprofiles-deep 9
+check_apply_argc applyprofiles-cfg 4
+check_apply_argc applyprofiles-hybrid-embedded 13
+check_apply_argc applyprofiles-hybrid-pcc 15
+check_apply_argc applyprofiles-row 11
+check_apply_argc applysearch 11
+check_apply_argc applysearch-noinit 7
+check_apply_argc applysearch-cfg 2
+check_apply_argc applysearch-fast 11
+check_apply_argc applysearch-hybrid-pcc 21
+check_apply_argc applysearch-weight-positive 11
+check_apply_argc applysearch-weight-positive-fast 11
+check_apply_argc applysearch-weight-zero 11
+check_apply_argc applysearch-weight-negative 11
+check_apply_argc applysearch-weight-nan 11
+check_apply_argc applytolink 13
+check_apply_argc applytolink-v5 13
+check_apply_argc applytolink-cube 11
+
 afl_configure_target benchapply
 expect_value "BenchApply binary" "$(basename "$BINARY")" "iccBenchApply"
 expect_value "BenchApply argv count" "${#AFL_ARGS[@]}" "7"
 expect_value "BenchApply fuzzed profile argument" "${AFL_ARGS[5]}" "@@"
 expect_value "BenchApply BPC and luminance intent" "${AFL_ARGS[6]}" "140"
 expect_value "BenchApply exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
+
+afl_configure_target applynamedcmm-v5-brdf
+expect_arg applynamedcmm-v5-brdf 1 "6"
+expect_arg applynamedcmm-v5-brdf 2 "1"
+expect_arg applynamedcmm-v5-brdf 4 "10063"
+expect_value "V5 BRDF seed" "${SEED_FILES[0]}" "$REPO_ROOT/extended-test-profiles/tag-checks/dtob-brdf.icc"
+
+afl_configure_target applynamedcmm-debugcalc
+expect_value "debugcalc bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/argbCalc.icc"
+
+afl_configure_target applynamedcmm-hybrid-chain
+expect_arg applynamedcmm-hybrid-chain 6 "10103"
+expect_value "spectral chain bootstrap seed" "${SEED_FILES[0]}" "$HYBRID_SPEC_D50"
+
+afl_configure_target applyprofiles-deep
+expect_arg applyprofiles-deep 2 "2"
+expect_arg applyprofiles-deep 3 "1"
+expect_arg applyprofiles-deep 4 "0"
+expect_arg applyprofiles-deep 5 "1"
+expect_arg applyprofiles-deep 6 "1"
+expect_arg applyprofiles-deep 8 "12"
+
+afl_configure_target applysearch-noinit
+expect_value "no-init bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc"
+
+afl_configure_target applysearch-fast
+expect_arg applysearch-fast 1 "4"
+expect_arg applysearch-fast 2 "0"
+
+for target in applysearch-weight-positive applysearch-weight-zero applysearch-weight-negative applysearch-weight-nan; do
+    afl_configure_target "$target"
+    expect_arg "$target" 0 "$REPO_ROOT/docs/Testing/test-data/rgb-8bit.txt"
+done
+
+afl_configure_target applytolink-v5
+expect_value "ApplyToLink V5 bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc"
 
 AFL_MAX_LENGTH=""
 afl_configure_target applyprofiles-hybrid-embedded
