@@ -689,6 +689,7 @@ seed_file_dry_run_ok() {
 copy_seed_file() {
     local seed_file="$1"
     local skip_type_check="${2:-0}"
+    local skip_dry_run="${3:-0}"
     local base dest suffix
 
     if ! seed_file_size_allowed "$seed_file"; then
@@ -697,7 +698,7 @@ copy_seed_file() {
     if [[ "$skip_type_check" -ne 1 ]] && ! seed_file_allowed "$seed_file"; then
         return 1
     fi
-    if ! seed_file_dry_run_ok "$seed_file"; then
+    if [[ "$skip_dry_run" -ne 1 ]] && ! seed_file_dry_run_ok "$seed_file"; then
         SEED_DRY_RUN_REJECTED=$((SEED_DRY_RUN_REJECTED + 1))
         return 1
     fi
@@ -744,7 +745,7 @@ if [[ -z "$AFL_INPUT_DIR" && ( "$INPUT_SEED_COUNT" -eq 0 || "$AFL_RESEED" != "0"
     SEED_DRY_RUN_REJECTED=0
     for seed_file in "${SEED_FILES[@]}"; do
         if [[ -f "$seed_file" ]]; then
-            if copy_seed_file "$seed_file" 1; then
+            if copy_seed_file "$seed_file" 1 "${SEED_FILES_SKIP_DRY_RUN_TARGET:-0}"; then
                 echo "    $(dirname "$seed_file")/$(basename "$seed_file")"
             fi
         fi

@@ -144,8 +144,9 @@ Compare file counts (local must be >= source) before swapping directories.
   send media only to a matching media target.
 - The ordinary `applynamedcmm` lane always stages its known sRGB profile and
   requires directory candidates to complete its fixed RGB intent-3 transform
-  with exit 0. Keep soft-failing profiles in parser lanes instead of counting
-  them as apply coverage.
+  with exit 0. The validated explicit bootstrap bypasses runtime corpus
+  screening; keep soft-failing directory profiles in parser lanes instead of
+  counting them as apply coverage.
 - `applyprofiles-hybrid-embedded` must retain the full multispectral TIFF but
   skip enhanced deterministic inference, use fast calibration, and enable
   expanded havoc immediately. The inference stage can display `zzzz...` for

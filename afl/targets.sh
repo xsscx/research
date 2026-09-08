@@ -222,6 +222,7 @@ afl_configure_target() {
     SEED_DRY_RUN_TARGET=0
     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=0
     SEED_DRY_RUN_TIMEOUT=5
+    SEED_FILES_SKIP_DRY_RUN_TARGET=0
     SEED_INCLUDE_REGEX=""
     SEED_EXCLUDE_REGEX=""
     SEED_REQUIRE_JPEG_ICC=0
@@ -332,6 +333,7 @@ afl_configure_target() {
                 TARGET_NOTE="ApplyNamedCmm calculator lane: float output, linear interpolation, and -debugcalc exercise calculator tracing and non-integer encoding paths."
             else
                 SEED_FILES=("$srgb_profile")
+                SEED_FILES_SKIP_DRY_RUN_TARGET=1
                 SEED_DRY_RUN_TARGET=1
                 SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                 TARGET_NOTE="ApplyNamedCmm ICC lane: 16-bit data output, tetrahedral interpolation, and absolute colorimetric intent exercise a complete apply path; incompatible profiles are removed by exit-zero seed screening."
@@ -386,6 +388,7 @@ afl_configure_target() {
                 fi
             done
             SEED_FILES=("$HYBRID_SPEC_D50")
+            SEED_FILES_SKIP_DRY_RUN_TARGET=1
             SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile) 5\.'
             REQUIRED_FILES=("$HYBRID_CMYK_DATA" "$HYBRID_CMYK_PROFILE" "$HYBRID_SPEC_D50")
             TARGET_NOTE="Hybrid NamedCmm PCC lane: applies the fixed CMYK profile with environment variables, fuzzes V5 PCC profiles from iccDEV and an available ICS-POC checkout, and retains only seeds that build and apply the full transform."
