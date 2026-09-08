@@ -133,18 +133,28 @@ Use separate targets for materially different command-line parsers and transform
 shapes:
 
 - `applynamedcmm` fuzzes one profile after fixed legacy RGB data arguments.
+  It uses absolute colorimetric intent `3` so the ordinary lane complements
+  the hybrid extended-intent paths. A known sRGB profile guarantees startup;
+  directory candidates must be ICC files that complete the transform with
+  exit 0.
 - `applynamedcmm-cfg` fuzzes the JSON document consumed by `-cfg`.
 - `applynamedcmm-hybrid-chain` applies the fixed CMYK v5 profile at intent
   `10003`, then fuzzes a second profile at intent `10` while exercising
   `-exportcfganddata`.
-- `applynamedcmm-hybrid-pcc` applies the fixed CMYK v5 profile and fuzzes its
-  PCC profile, covering `-ENV` and `-PCC` parsing.
+- `applynamedcmm-hybrid-pcc` applies the fixed CMYK profile and fuzzes its V5
+  PCC profile, covering `-ENV` and `-PCC` parsing. It inventories V5 profiles
+  under `iccDEV/Testing`, guarantees the generated D50 PCC fixture as a
+  bootstrap seed, and also scans the five package `ICC/` directories when an
+  `ICS-POC/` checkout is present. Set `AFL_ICS_POC_ROOT` when that checkout is
+  elsewhere.
 
 The NamedCMM hybrid lanes deliberately admit only complete ICC files smaller
 than their 1 MiB target policy and dry-run each seed to require exit 0. This
 avoids AFL++ silently fuzzing a partial read of a larger profile. Export paths
 use the target scratch prefix so parallel workers do not overwrite one shared
 JSON file.
+The PCC lane further requires `file(1)` to identify profile version 5, keeping
+XML sources and generated TIFF results out of an ICC-only `@@` position.
 Use `afl/start.sh`'s default map size for these instrumented binaries. A manually
 fixed 131072-byte map can be smaller than the target reports and forces AFL++ to
 reinitialize the map before fuzzing.
@@ -157,6 +167,7 @@ the profile to fit that lane's testcase policy.
 
 ```bash
 ./afl/start.sh applynamedcmm-hybrid-chain --run-time 300
+./afl/start.sh applynamedcmm-hybrid-pcc --fresh --seed-only --seed-order sorted
 ./afl/start.sh applynamedcmm-cfg --mode rare --run-time 300
 .github/scripts/validate-afl-applynamedcmm-targets.sh
 bash .github/scripts/test-iccApplyNamedCmm.sh --quick --asan

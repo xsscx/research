@@ -41,6 +41,10 @@ binary-independent contract check:
 
 The four NamedCmm lanes and their intended CLI coverage are documented in
 `docs/afl/index.md`.
+The hybrid PCC lane filters its corpus to V5 ICC files, always stages a known
+D50 PCC seed, and discovers package `ICC/` directories from `ICS-POC/` when
+that separate checkout is available. Override its location with
+`AFL_ICS_POC_ROOT=/path/to/ICS-POC`.
 
 ## Quick Start
 

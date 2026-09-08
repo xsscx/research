@@ -165,6 +165,8 @@ afl_configure_target() {
     local fixed_jpeg
     local fixed_plot_profile
     local iccdev_testing_dir
+    local ics_poc_root
+    local ics_poc_package
     local hybrid_source_dir
     local hybrid_support_dir
     local fromxml_kind
@@ -196,6 +198,7 @@ afl_configure_target() {
     iccdev_testing_dir="$(afl_first_existing \
         "$REPO_ROOT/iccDEV/Testing" \
         "$REPO_ROOT/afl/iccDEV/Testing")"
+    ics_poc_root="${AFL_ICS_POC_ROOT:-$REPO_ROOT/ICS-POC}"
     hybrid_source_dir="$(afl_first_existing \
         "$REPO_ROOT/iccDEV/Testing/hybrid" \
         "$REPO_ROOT/afl/iccDEV/Testing/hybrid")"
@@ -288,7 +291,7 @@ afl_configure_target() {
                 "$REPO_ROOT/extended-test-profiles"
             )
             SEED_MAX_BYTES=1048576
-            SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
+            SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile)'
             REQUIRED_FILES=("$rgb_16_data")
             if [[ "$target" == applynamedcmm-cfg || "$target" == namedcmm-cfg ]]; then
                 AFL_DIR="$AFL_BASE/afl-applynamedcmm-cfg"
@@ -328,7 +331,10 @@ afl_configure_target() {
                 AFL_FAST_CAL_TARGET=1
                 TARGET_NOTE="ApplyNamedCmm calculator lane: float output, linear interpolation, and -debugcalc exercise calculator tracing and non-integer encoding paths."
             else
-                TARGET_NOTE="ApplyNamedCmm ICC lane: 16-bit data output with tetrahedral interpolation exercises a different apply path than the former 8-bit linear shape."
+                SEED_FILES=("$srgb_profile")
+                SEED_DRY_RUN_TARGET=1
+                SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                TARGET_NOTE="ApplyNamedCmm ICC lane: 16-bit data output, tetrahedral interpolation, and absolute colorimetric intent exercise a complete apply path; incompatible profiles are removed by exit-zero seed screening."
             fi
             ;;
         applynamedcmm-hybrid-chain|namedcmm-hybrid-chain)
@@ -369,8 +375,20 @@ afl_configure_target() {
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/extended-test-profiles"
             )
+            for ics_poc_package in \
+                ColorimetricEncoding \
+                HybridMultiSpectralEncoding \
+                HybridPrinterWithOverprintSimulation \
+                HybridPrinterWithReflectance \
+                SpectralEncoding; do
+                if [[ -d "$ics_poc_root/$ics_poc_package/ICC" ]]; then
+                    SEED_DIRS+=("$ics_poc_root/$ics_poc_package/ICC")
+                fi
+            done
+            SEED_FILES=("$HYBRID_SPEC_D50")
+            SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile) 5\.'
             REQUIRED_FILES=("$HYBRID_CMYK_DATA" "$HYBRID_CMYK_PROFILE" "$HYBRID_SPEC_D50")
-            TARGET_NOTE="Hybrid NamedCmm PCC lane: applies the fixed CMYK v5 profile with environment variables, fuzzes its PCC profile, and retains only seeds that build and apply the full transform."
+            TARGET_NOTE="Hybrid NamedCmm PCC lane: applies the fixed CMYK profile with environment variables, fuzzes V5 PCC profiles from iccDEV and an available ICS-POC checkout, and retains only seeds that build and apply the full transform."
             ;;
         applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-cfg|profiles-cfg|applyprofiles-hybrid-embedded|profiles-hybrid-embedded|applyprofiles-hybrid-pcc|profiles-hybrid-pcc|applyprofiles-row|profiles-row)
             BINARY="$BIN_DIR/iccApplyProfiles"

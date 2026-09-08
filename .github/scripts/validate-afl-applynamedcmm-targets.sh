@@ -87,7 +87,12 @@ expect_arg applynamedcmm 0 "$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb
 expect_arg applynamedcmm 1 "5"
 expect_arg applynamedcmm 2 "1"
 expect_arg applynamedcmm 3 "@@"
-expect_arg applynamedcmm 4 "1"
+expect_arg applynamedcmm 4 "3"
+expect_value "applynamedcmm bootstrap seed count" "${#SEED_FILES[@]}" "1"
+expect_value "applynamedcmm bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc"
+expect_value "applynamedcmm seed dry run" "$SEED_DRY_RUN_TARGET" "1"
+expect_value "applynamedcmm exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
+expect_value "applynamedcmm ICC seed type" "$SEED_FILE_TYPE_REGEX" '^(color profile|ColorSync color profile)'
 
 afl_configure_target applynamedcmm-cfg
 expect_arg_count applynamedcmm-cfg 2
@@ -109,6 +114,9 @@ expect_arg applynamedcmm-hybrid-chain 8 "10"
 
 afl_configure_target applynamedcmm-hybrid-pcc
 expect_common_hybrid_policy applynamedcmm-hybrid-pcc
+expect_value "applynamedcmm-hybrid-pcc bootstrap seed count" "${#SEED_FILES[@]}" "1"
+expect_value "applynamedcmm-hybrid-pcc bootstrap seed" "${SEED_FILES[0]}" "$HYBRID_SPEC_D50"
+expect_value "applynamedcmm-hybrid-pcc V5 seed type" "$SEED_FILE_TYPE_REGEX" '^(color profile|ColorSync color profile) 5\.'
 expect_arg_count applynamedcmm-hybrid-pcc 17
 expect_arg applynamedcmm-hybrid-pcc 2 "$HYBRID_CMYK_DATA"
 expect_arg applynamedcmm-hybrid-pcc 3 "5"

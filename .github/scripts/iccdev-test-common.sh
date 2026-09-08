@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2034  # variables used by sourcing scripts
 # =============================================================================
-# iccdev-test-common.sh — Shared test framework for per-tool test scripts
+# iccdev-test-common.sh -- Shared test framework for per-tool test scripts
 # =============================================================================
 # Source this file in each test-icc*.sh script:
 #   source "$(dirname "$0")/iccdev-test-common.sh"
@@ -9,14 +9,14 @@
 # Provides:
 #   - Environment detection (research repo vs iccDEV repo)
 #   - ASAN/UBSAN configuration
-#   - run_test() — single test (sequential)
-#   - run_batch_parallel() — parallel batch over file list
+#   - run_test() -- single test (sequential)
+#   - run_batch_parallel() -- parallel batch over file list
 #   - Profile path variables, summary printing
 #   - sanitize-sed.sh integration for CI output safety
 # =============================================================================
 
 set -uo pipefail
-# Note: NOT set -e — run_test() handles exit codes internally
+# Note: NOT set -e -- run_test() handles exit codes internally
 
 # Source sanitize-sed.sh for safe output handling (CI summaries, filenames)
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,7 +28,7 @@ else
   _HAS_SANITIZER=0
 fi
 
-# _safe_desc — sanitize a filename-derived description for tab-separated result files
+# _safe_desc -- sanitize a filename-derived description for tab-separated result files
 # Strips control chars (tabs, newlines) that would corrupt _classify_result output
 _safe_desc() {
   local raw="$1"
@@ -121,17 +121,17 @@ TOTAL=0
 ASAN_FINDINGS=0
 UBSAN_FINDINGS=0
 
-# Parallel results directory — each job writes a 1-line result file
+# Parallel results directory -- each job writes a 1-line result file
 _PARALLEL_DIR="$OUTDIR/.parallel-$$"
 mkdir -p "$_PARALLEL_DIR"
 
-# Cleanup trap — remove parallel temp on exit (normal or error)
+# Cleanup trap -- remove parallel temp on exit (normal or error)
 _cleanup_parallel() {
   rm -rf "${_PARALLEL_DIR:-/nonexistent}" 2>/dev/null || true
 }
 trap _cleanup_parallel EXIT
 
-# _classify_result — classify exit code + log, write result file
+# _classify_result -- classify exit code + log, write result file
 # Usage: _classify_result <test_id> <description> <exit_code> <logfile>
 _classify_result() {
   local test_id="$1" description="$2" exit_code="$3" logfile="$4"
@@ -141,15 +141,15 @@ _classify_result() {
   if grep -q "runtime error:" "$logfile" 2>/dev/null; then has_ubsan=1; fi
 
   # Classification priority:
-  # 1. ASAN/UBSAN findings → always CRASH regardless of exit code
-  # 2. Known crash signals (SIGABRT=134, SIGFPE=136, SIGKILL=137, SIGSEGV=139) → CRASH
-  # 3. Timeout (exit=124 from timeout(1)) → TIMEOUT
-  # 4. Any non-zero exit (including 252-255 tool error codes) → FAIL (graceful rejection)
-  # 5. Exit 0 → PASS
+  # 1. ASAN/UBSAN findings -> always CRASH regardless of exit code
+  # 2. Known crash signals (SIGABRT=134, SIGFPE=136, SIGKILL=137, SIGSEGV=139) -> CRASH
+  # 3. Timeout (exit=124 from timeout(1)) -> TIMEOUT
+  # 4. Any non-zero exit (including 252-255 tool error codes) -> FAIL (graceful rejection)
+  # 5. Exit 0 -> PASS
   #
   # Note: iccDEV tools use high exit codes for application errors:
   #   255 = validation errors found, 254 = unsupported operation, 252 = parse error
-  #   These are NOT signal deaths — they are graceful rejections.
+  #   These are NOT signal deaths -- they are graceful rejections.
   if [ "$has_asan" -eq 1 ] || [ "$has_ubsan" -eq 1 ]; then
     status="CRASH"; note=" [SANITIZER exit=$exit_code]"
   elif [ "$exit_code" -eq 134 ] || [ "$exit_code" -eq 136 ] || \
@@ -170,7 +170,7 @@ _classify_result() {
     > "$_PARALLEL_DIR/$test_id.result"
 }
 
-# run_test — run a single test sequentially (for named/specific tests)
+# run_test -- run a single test sequentially (for named/specific tests)
 run_test() {
   local test_id="$1"
   local description="$2"
@@ -196,8 +196,8 @@ run_test() {
 
   local status="PASS"
   local note=""
-  # Classification: ASAN/UBSAN → CRASH, known signals → CRASH, timeout → TIMEOUT,
-  # any non-zero (including tool error codes 252-255) → FAIL (graceful rejection)
+  # Classification: ASAN/UBSAN -> CRASH, known signals -> CRASH, timeout -> TIMEOUT,
+  # any non-zero (including tool error codes 252-255) -> FAIL (graceful rejection)
   if [ "$has_asan" -eq 1 ] || [ "$has_ubsan" -eq 1 ]; then
     status="CRASH"
     CRASH=$((CRASH + 1))
@@ -226,7 +226,7 @@ run_test() {
   printf "  [%-7s] %-55s exit=%-3d%s%s\n" "$status" "$description" "$exit_code" "$note" "$sanitizer_note"
 }
 
-# run_batch_parallel — run a tool against a list of files using all CPUs
+# run_batch_parallel -- run a tool against a list of files using all CPUs
 # Usage: run_batch_parallel <id_prefix> <desc_prefix> <tool_binary> [tool_args...] -- <file1> <file2> ...
 # Files come after the -- separator. Each file becomes a parallel job.
 run_batch_parallel() {
@@ -323,7 +323,7 @@ print_summary() {
       local asan_line
       asan_line="$(grep 'ERROR: AddressSanitizer' "$f" | head -1)"
       if echo "$asan_line" | grep -q "alloc-dealloc-mismatch"; then
-        echo "    $(basename "$f"): $asan_line [KNOWN — CWE-762]"
+        echo "    $(basename "$f"): $asan_line [KNOWN -- CWE-762]"
       else
         echo "    $(basename "$f"): $asan_line [INVESTIGATE]"
       fi
@@ -342,8 +342,29 @@ print_summary() {
   echo ""
 }
 
+# Resolve a valid ICC fixture instead of accepting a corpus file that merely
+# has the expected name. Conversion sweeps can leave non-profile output at a
+# tracked corpus path in a dirty research checkout.
+resolve_icc_fixture() {
+  local candidate
+  local signature
+
+  for candidate in "$@"; do
+    [ -f "$candidate" ] || continue
+    signature="$(dd if="$candidate" bs=1 skip=36 count=4 2>/dev/null || true)"
+    if [ "$signature" = "acsp" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  printf '%s' "$1"
+}
+
 # Key test profiles
-SRGB="$TP/sRGB_D65_MAT.icc"
+SRGB="$(resolve_icc_fixture \
+  "$TP/sRGB_D65_MAT.icc" \
+  "$ICCDEV_TESTING/Display/sRGB_D65_MAT.icc")"
 SRGB_500="$TP/sRGB_D65_MAT-500lx.icc"
 CMYK="$TP/CMYK-3DLUTs2.icc"
 REC2020="$TP/Rec2020rgbSpectral.icc"
@@ -371,7 +392,7 @@ SRGB_CALC_DATA="$ICCDEV_TESTING/Calc/srgbCalcTest.txt"
 SIXCHAN_DATA="$ICCDEV_TESTING/SpecRef/sixChanTest.txt"
 CMYK_DATA="$ICCDEV_TESTING/hybrid/Data/cmykGrays.txt"
 HYBRID_XML="$ICCDEV_TESTING/hybrid/LCDDisplay.xml"
-# Fuzz corpus directories — research repo or iccDEV seeds fallback
+# Fuzz corpus directories -- research repo or iccDEV seeds fallback
 if [ -d "$REPO_ROOT/fuzz/graphics" ]; then
   FUZZ_TIF_DIR="$REPO_ROOT/fuzz/graphics/tif"
   FUZZ_JPG_DIR="$REPO_ROOT/fuzz/graphics/jpg"

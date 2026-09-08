@@ -133,6 +133,15 @@ Compare file counts (local must be >= source) before swapping directories.
 - `applyprofiles-hybrid-pcc` has one known-compatible PCC seed and a slow full
   transform. Keep its 15-second timeout and focused seed set; broad corpus
   screening can look like a hung startup before AFL creates stats.
+- `applynamedcmm-hybrid-pcc` fuzzes only V5 ICC profiles in its PCC position,
+  always stages the generated D50 PCC profile, and may discover the five ICS
+  package `ICC/` directories through `AFL_ICS_POC_ROOT`. Do not admit XML or
+  generated TIFF files to this lane; inventory those sources separately and
+  send media only to a matching media target.
+- The ordinary `applynamedcmm` lane always stages its known sRGB profile and
+  requires directory candidates to complete its fixed RGB intent-3 transform
+  with exit 0. Keep soft-failing profiles in parser lanes instead of counting
+  them as apply coverage.
 - `applyprofiles-hybrid-embedded` must retain the full multispectral TIFF but
   skip enhanced deterministic inference, use fast calibration, and enable
   expanded havoc immediately. The inference stage can display `zzzz...` for
