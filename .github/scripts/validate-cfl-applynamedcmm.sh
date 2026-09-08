@@ -27,7 +27,22 @@ mapfile -t seeds < <(find "$SEED_DIR" -maxdepth 1 -type f -name '*.icc' | sort)
 [[ "$(find "$SEED_DIR" -maxdepth 1 -type f ! -name '*.icc' | wc -l)" -eq 0 ]] ||
   fail "non-ICC files found in the pure-profile seed directory"
 
-for seed in "${seeds[@]}"; do
+mapfile -t external_seed_dirs < <(
+  # shellcheck source=cfl/fuzzers.sh
+  source "$CFL_DIR/fuzzers.sh"
+  cfl_applynamedcmm_external_seed_dirs "$CFL_DIR"
+)
+external_seeds=()
+for external_seed_dir in "${external_seed_dirs[@]}"; do
+  while IFS= read -r -d '' seed; do
+    version_major="$(od -A n -t x1 -j 8 -N 1 "$seed" 2>/dev/null | tr -d ' \n')"
+    if [[ "$version_major" == "05" ]]; then
+      external_seeds+=("$seed")
+    fi
+  done < <(find "$external_seed_dir" -maxdepth 1 -type f -name '*.icc' -print0)
+done
+
+for seed in "${seeds[@]}" "${external_seeds[@]}"; do
   file_size="$(stat -c %s "$seed")"
   header_size="$(od -A n -t u4 --endian=big -N 4 "$seed" | tr -d ' ')"
   magic="$(od -A n -t x1 -j 36 -N 4 "$seed" | tr -d ' \n')"
@@ -36,6 +51,16 @@ for seed in "${seeds[@]}"; do
   [[ "$magic" == "61637370" ]] ||
     fail "$(basename "$seed"): missing acsp at byte 36"
 done
+
+if [[ ${#external_seeds[@]} -gt 0 ]]; then
+  versions="$(for seed in "${external_seeds[@]}"; do
+    od -A n -t x1 -j 8 -N 4 "$seed" | tr -d ' \n'
+    printf '\n'
+  done | sort -u)"
+  grep -qx '05000200' <<< "$versions" || fail "ICS seeds do not cover ICC V5.0.2"
+  grep -qx '05100000' <<< "$versions" || fail "ICS seeds do not cover ICC V5.1"
+  grep -qx '05100100' <<< "$versions" || fail "ICS seeds do not cover ICC V5.1.1"
+fi
 
 # shellcheck source=cfl/fuzzers.sh
 source "$CFL_DIR/fuzzers.sh"
@@ -47,11 +72,17 @@ trap 'rm -rf "$tmp_dir"' EXIT
 mkdir -p "$tmp_dir/corpus" "$tmp_dir/artifacts"
 cfl_install_curated_seeds "$CFL_DIR" icc_applynamedcmm_fuzzer "$tmp_dir/corpus"
 installed="$(find "$tmp_dir/corpus" -maxdepth 1 -type f | wc -l)"
-[[ "$installed" -eq "${#seeds[@]}" ]] ||
-  fail "installed $installed of ${#seeds[@]} curated seeds"
+expected_installed=$((${#seeds[@]} + ${#external_seeds[@]}))
+[[ "$installed" -eq "$expected_installed" ]] ||
+  fail "installed $installed of $expected_installed curated and ICS seeds"
 for seed in "${seeds[@]}"; do
   cmp -s "$seed" "$tmp_dir/corpus/$(basename "$seed")" ||
     fail "installed copy differs: $(basename "$seed")"
+done
+for seed in "${external_seeds[@]}"; do
+  package="$(basename "$(dirname "$(dirname "$seed")")")"
+  cmp -s "$seed" "$tmp_dir/corpus/ics-${package}-$(basename "$seed")" ||
+    fail "installed ICS copy differs: $package/$(basename "$seed")"
 done
 
 if [[ "$REPLAY" -eq 1 ]]; then
@@ -75,4 +106,4 @@ if [[ "$REPLAY" -eq 1 ]]; then
     fail "seed replay produced a LibFuzzer artifact"
 fi
 
-echo "[OK] ApplyNamedCmm pure-ICC contract passed (${#seeds[@]} curated seeds)"
+echo "[OK] ApplyNamedCmm pure-ICC contract passed (${#seeds[@]} tracked, ${#external_seeds[@]} ICS seeds)"

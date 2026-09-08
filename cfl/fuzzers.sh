@@ -159,13 +159,33 @@ cfl_curated_seed_dir() {
   esac
 }
 
+cfl_applynamedcmm_external_seed_dirs() {
+  local script_dir="$1"
+  local ics_root="${CFL_ICS_POC_ROOT:-$script_dir/../ICS-POC}"
+  local package
+
+  for package in \
+    ColorimetricEncoding \
+    HybridMultiSpectralEncoding \
+    HybridPrinterWithOverprintSimulation \
+    HybridPrinterWithReflectance \
+    SpectralEncoding; do
+    if [[ -d "$ics_root/$package/ICC" ]]; then
+      printf '%s\n' "$ics_root/$package/ICC"
+    fi
+  done
+}
+
 cfl_install_curated_seeds() {
   local script_dir="$1"
   local fuzzer="$2"
   local corpus_dir="$3"
   local seed_dir
+  local external_seed_dir
+  local package
   local seed
   local target
+  local version_major
 
   case "$fuzzer" in
     icc_applysearch_fuzzer)
@@ -195,6 +215,18 @@ cfl_install_curated_seeds() {
     target="$corpus_dir/$(basename "$seed")"
     cp "$seed" "$target"
   done < <(find "$seed_dir" -maxdepth 1 -type f -print0)
+
+  if [[ "$fuzzer" == "icc_applynamedcmm_fuzzer" ]]; then
+    while IFS= read -r external_seed_dir; do
+      package="$(basename "$(dirname "$external_seed_dir")")"
+      while IFS= read -r -d '' seed; do
+        version_major="$(od -A n -t x1 -j 8 -N 1 "$seed" 2>/dev/null | tr -d ' \n')"
+        [[ "$version_major" == "05" ]] || continue
+        target="$corpus_dir/ics-${package}-$(basename "$seed")"
+        cp "$seed" "$target"
+      done < <(find "$external_seed_dir" -maxdepth 1 -type f -name '*.icc' -print0)
+    done < <(cfl_applynamedcmm_external_seed_dirs "$script_dir")
+  fi
 }
 
 cfl_resolve_dict() {

@@ -76,6 +76,11 @@ profiles in `cfl/seeds-applynamedcmm/` are copied into the runtime
 `cfl/corpus-icc_applynamedcmm_fuzzer/` directory by `fuzz-local.sh`; the tracked
 seed directory is never used as mutable runtime storage. Validate the contract
 with `.github/scripts/validate-cfl-applynamedcmm.sh --replay` after building.
+When the separate `ICS-POC/` checkout is present, the runner also copies pure
+V5 ICC files from each package `ICC/` directory with collision-safe names. This
+adds V5.0.2, V5.1, and V5.1.1 coverage without copying generated package output
+into the tracked CFL seed directory. Set `CFL_ICS_POC_ROOT` when the checkout
+is elsewhere.
 
 An independent PCC needs a second profile and is intentionally outside this
 single-file contract. JSON parsing/export and calculator-debug output are owned

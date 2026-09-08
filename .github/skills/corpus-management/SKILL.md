@@ -53,6 +53,10 @@ Special flags: `icc_link_fuzzer` needs `quarantine_size_mb=256`.
 into the NamedCmm runtime corpus before executing that target. Never fuzz the
 tracked seed directory in place, and never prepend harness controls to those
 profiles.
+If `ICS-POC/` is available, the same installer copies the five package `ICC/`
+directories with package-prefixed names. Override discovery with
+`CFL_ICS_POC_ROOT`; do not copy package TIFF, PNG, XML, or data files into the
+pure-profile corpus.
 
 For the aligned NamedCmm, Connect, config, and JSON/XML conversion lanes, keep
 `max_len = 0`; the CFL runners derive the explicit runtime limit from the
