@@ -52,7 +52,7 @@ jobs:
           cmake --build Build\Cmake\build --config Debug --parallel
           cd examples\hello-iccdev
           Write-Host "========= Configuring hello-iccdev ================`n"
-          cmake -B build -S . -G "Visual Studio 17 2022" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$root\scripts\buildsystems\vcpkg.cmake" -DVCPKG_MANIFEST_MODE=OFF "-DICCDEV_ROOT=$root" "-DICCDEV_BUILD_DIR=$root\Build\Cmake\build" -Wno-dev
+          cmake -B build -S . -G "Visual Studio 18 2026" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$root\scripts\buildsystems\vcpkg.cmake" -DVCPKG_MANIFEST_MODE=OFF "-DICCDEV_ROOT=$root" "-DICCDEV_BUILD_DIR=$root\Build\Cmake\build" -Wno-dev
           Write-Host "========= Building hello-iccdev ================`n"
           cmake --build build --config Debug --parallel
           Write-Host "========= Running hello-iccdev ================`n"
