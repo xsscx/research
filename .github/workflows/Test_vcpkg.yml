@@ -1,0 +1,62 @@
+###############################################################
+#
+## Copyright (©) 2024-2026 David H Hoyt. All rights reserved.
+##                 https://srd.cx
+##
+## Intent: WinCmake
+#
+## TODO: Add Unit Test Suite
+#
+#
+#
+#
+#
+#
+#
+#
+#
+###############################################################
+
+name: Test_vcpkg
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: cmd
+    strategy:
+      matrix:
+        build_type: [Debug]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies & build
+        run: |
+          git clone https://github.com/InternationalColorConsortium/iccDEV.git
+          cd iccDEV
+          $root = (Get-Location).Path
+          Write-Host "========= Fetching dependencies ================`n"
+          Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -Destination "deps.zip"
+          if ((Get-FileHash -LiteralPath "deps.zip" -Algorithm SHA256).Hash -ne "f8c70cb22dfe1ec379549a66a66473ad5f4f1fbe27c2b7340d69112c606a52ff") { throw "Dependency archive SHA256 mismatch" }
+          Write-Host "========= Extracting dependencies ================`n"
+          tar -xf deps.zip
+          Remove-Item deps.zip
+          Write-Host "========= Configuring iccDEV ================`n"
+          cmake -B Build\Cmake\build -S Build\Cmake -G "Visual Studio 17 2022" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$root\scripts\buildsystems\vcpkg.cmake" -DVCPKG_MANIFEST_MODE=OFF -DICCDEV_WINDOWS_UNIFIED_RUNTIME=OFF -Wno-dev
+          Write-Host "========= Building iccDEV ================`n"
+          cmake --build Build\Cmake\build --config Debug --parallel
+          cd examples\hello-iccdev
+          Write-Host "========= Configuring hello-iccdev ================`n"
+          cmake -B build -S . -G "Visual Studio 17 2022" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$root\scripts\buildsystems\vcpkg.cmake" -DVCPKG_MANIFEST_MODE=OFF "-DICCDEV_ROOT=$root" "-DICCDEV_BUILD_DIR=$root\Build\Cmake\build" -Wno-dev
+          Write-Host "========= Building hello-iccdev ================`n"
+          cmake --build build --config Debug --parallel
+          Write-Host "========= Running hello-iccdev ================`n"
+          .\build\Debug\hello-iccdev.exe
+
+
+
