@@ -27,7 +27,7 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
-        shell: cmd
+        shell: pwsh
     strategy:
       matrix:
         build_type: [Debug]
