@@ -111,10 +111,12 @@ AFL_BASE=$PWD/afl/cmplog ./afl/start.sh fromcube --fresh --reseed --cmplog-binar
 
 `build.sh` requires `clang-21`/`clang++-21` and AFL++ wrappers built against
 LLVM 21. `build-afl-runtime.sh` checks out stable commit
-`45bb74bd3a6591e6853b704c390ab6156c0a3c88`, raises the compiled testcase
-ceiling to 4 MiB, and installs the matching runtime and compiler wrappers.
+`45bb74bd3a6591e6853b704c390ab6156c0a3c88`, configures a 64 MiB default
+large-input safety bound, and installs the matching runtime and compiler
+wrappers. Set `AFL_MAX_FILE_BYTES` when still larger images are required;
+image seed discovery itself has no repository byte cap.
 Override `AFL_CLANG_FAST` or `AFL_CLANG_FASTXX` only when pointing at a
-different LLVM 21 wrapper install with an adequate testcase ceiling.
+different LLVM 21 wrapper install with an adequate testcase safety bound.
 
 ## Review-Driven Improvements
 

@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
-# Build the pinned AFL++ runtime with a 4 MiB testcase ceiling and LLVM 21.
+# Build the pinned AFL++ runtime with a configurable large-input ceiling and LLVM 21.
 
 set -euo pipefail
 
 AFL_COMMIT="45bb74bd3a6591e6853b704c390ab6156c0a3c88"
-AFL_MAX_FILE_BYTES=4194304
+AFL_MAX_FILE_BYTES="${AFL_MAX_FILE_BYTES:-67108864}"
 AFL_REPOSITORY="https://github.com/AFLplusplus/AFLplusplus.git"
-AFL_SOURCE_DIR="${AFL_RUNTIME_SOURCE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/aflplusplus-stable-maxfile4m}"
+AFL_SOURCE_DIR="${AFL_RUNTIME_SOURCE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/aflplusplus-stable}"
 LLVM_CONFIG_BIN="${LLVM_CONFIG:-llvm-config-21}"
 INSTALL_PREFIX="${PREFIX:-/usr/local}"
 JOBS="${JOBS:-32}"
 export -n AFL_RUNTIME_SOURCE_DIR 2>/dev/null || true
+
+if [[ ! "$AFL_MAX_FILE_BYTES" =~ ^[0-9]+$ || "$AFL_MAX_FILE_BYTES" -lt 4194304 ]]; then
+    echo "ERROR: AFL_MAX_FILE_BYTES must be an integer of at least 4194304" >&2
+    exit 1
+fi
 
 for tool in git make perl "$LLVM_CONFIG_BIN" clang-21 clang++-21 gcc-15; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -31,8 +36,8 @@ git -C "$AFL_SOURCE_DIR" checkout --detach "$AFL_COMMIT"
 
 config_file="$AFL_SOURCE_DIR/include/config.h"
 git -C "$AFL_SOURCE_DIR" restore --source="$AFL_COMMIT" -- include/config.h
-perl -pi -e 's/^#define MAX_FILE .*$/#define MAX_FILE (4 * 1024 * 1024L)/' "$config_file"
-if ! grep -Fqx '#define MAX_FILE (4 * 1024 * 1024L)' "$config_file"; then
+perl -pi -e "s/^#define MAX_FILE .*\$/#define MAX_FILE (${AFL_MAX_FILE_BYTES}L)/" "$config_file"
+if ! grep -Fqx "#define MAX_FILE (${AFL_MAX_FILE_BYTES}L)" "$config_file"; then
     echo "ERROR: Failed to set AFL++ MAX_FILE to $AFL_MAX_FILE_BYTES in $config_file" >&2
     exit 1
 fi

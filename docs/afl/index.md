@@ -114,18 +114,19 @@ without CLI or filesystem coverage.
 multispectral TIFF. It does not crop or downsample the image, so the lane keeps
 the real-world pixel traversal, planar/compressed TIFF handling, embedded
 profile, PCC, tetrahedral interpolation, and black-point compensation paths.
-The measured sanitizer build needs more than the global five-second default,
-so this target defaults both seed screening and AFL execution to 15 seconds.
+Slower hardware needs substantially more than the global five-second default,
+so this target defaults both seed screening and AFL execution to 120 seconds.
 An explicit `AFL_TIMEOUT` or `--timeout` still takes precedence.
 
 Use LibTIFF tools such as `tiffinfo` for local TIFF structure checks. On
 Ubuntu, install them with `sudo apt-get install libtiff-tools`.
 
-This lane sets both its seed and generated-input ceiling to 3 MiB. The pinned
-AFL++ runtime is stable commit `45bb74bd3a6591e6853b704c390ab6156c0a3c88`,
-built with `-j32` and a 4 MiB `MAX_FILE` ceiling by
-`afl/build-afl-runtime.sh`. `start.sh`
-checks the runtime ceiling before launching, preventing partial seed reads.
+This lane does not set a seed or generated-input byte cap. The pinned AFL++
+runtime is stable commit `45bb74bd3a6591e6853b704c390ab6156c0a3c88`,
+built with `-j32` and a configurable 64 MiB default `MAX_FILE` safety bound by
+`afl/build-afl-runtime.sh`. Image seed discovery is uncapped; set
+`AFL_MAX_FILE_BYTES` when building for inputs above the default. `start.sh`
+checks explicit mutation lengths against the runtime before launching.
 
 ### iccApplyNamedCmm argv lanes
 

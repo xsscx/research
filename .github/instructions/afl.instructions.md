@@ -52,11 +52,13 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 ```
 
 The runtime builder pins AFL++ stable commit
-`45bb74bd3a6591e6853b704c390ab6156c0a3c88`, LLVM 21, `-j32`, and a 4 MiB compiled
-testcase ceiling. The `applyprofiles-hybrid-embedded` lane requires that
-runtime, uses the complete generated multispectral TIFF, and sets `-G` to
-3 MiB. Do not restore the historical 64x64 crop. `start.sh` must reject a
-runtime whose compiled ceiling is lower than a target's requested `-G` value.
+`45bb74bd3a6591e6853b704c390ab6156c0a3c88`, LLVM 21, and `-j32`. Its compiled
+large-input safety bound defaults to 64 MiB and can be raised with
+`AFL_MAX_FILE_BYTES`; image seed discovery has no repository byte cap. The
+`applyprofiles-hybrid-embedded` lane requires that runtime, uses the complete
+generated multispectral TIFF, and leaves `-G` at the runtime bound. Do not
+restore the historical 64x64 crop. `start.sh` must reject a runtime whose
+compiled safety bound is lower than a target's requested `-G` value.
 
 ## iccApplyNamedCmm CLI Shapes
 

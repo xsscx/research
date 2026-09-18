@@ -153,6 +153,49 @@ afl_first_existing() {
     printf '%s' "$1"
 }
 
+afl_ics_package_roots() {
+    local configured_root="${AFL_ICS_ROOT:-${AFL_ICS_POC_ROOT:-}}"
+    local candidate
+
+    if [[ -n "$configured_root" ]]; then
+        if [[ -d "$configured_root/packages" ]]; then
+            printf '%s\n' "$configured_root/packages"
+        elif [[ -d "$configured_root" ]]; then
+            printf '%s\n' "$configured_root"
+        fi
+        return 0
+    fi
+
+    for candidate in "$REPO_ROOT/ICS-POC" "$REPO_ROOT/ics/packages"; do
+        [[ -d "$candidate" ]] && printf '%s\n' "$candidate"
+    done
+}
+
+afl_append_seed_dir_once() {
+    local candidate="$1"
+    local existing
+
+    for existing in "${SEED_DIRS[@]}"; do
+        [[ "$existing" == "$candidate" ]] && return 0
+    done
+    SEED_DIRS+=("$candidate")
+}
+
+afl_append_ics_seed_dirs() {
+    local extension="$1"
+    local package_root
+    local seed_dir
+
+    while IFS= read -r package_root; do
+        while IFS= read -r seed_dir; do
+            afl_append_seed_dir_once "$seed_dir"
+        done < <(
+            find "$package_root" -type f -name "*.$extension" -printf '%h\n' 2>/dev/null |
+                sort -u
+        )
+    done < <(afl_ics_package_roots)
+}
+
 afl_configure_target() {
     local target="$1"
     local tmp_root="${AFL_TMP_ROOT:-$AFL_BASE/tmp}"
@@ -168,8 +211,6 @@ afl_configure_target() {
     local fixed_jpeg
     local fixed_plot_profile
     local iccdev_testing_dir
-    local ics_poc_root
-    local ics_poc_package
     local hybrid_source_dir
     local hybrid_support_dir
     local fromxml_kind
@@ -201,7 +242,6 @@ afl_configure_target() {
     iccdev_testing_dir="$(afl_first_existing \
         "$REPO_ROOT/iccDEV/Testing" \
         "$REPO_ROOT/afl/iccDEV/Testing")"
-    ics_poc_root="${AFL_ICS_POC_ROOT:-$REPO_ROOT/ICS-POC}"
     hybrid_source_dir="$(afl_first_existing \
         "$REPO_ROOT/iccDEV/Testing/hybrid" \
         "$REPO_ROOT/afl/iccDEV/Testing/hybrid")"
@@ -394,16 +434,6 @@ afl_configure_target() {
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/extended-test-profiles"
             )
-            for ics_poc_package in \
-                ColorimetricEncoding \
-                HybridMultiSpectralEncoding \
-                HybridPrinterWithOverprintSimulation \
-                HybridPrinterWithReflectance \
-                SpectralEncoding; do
-                if [[ -d "$ics_poc_root/$ics_poc_package/ICC" ]]; then
-                    SEED_DIRS+=("$ics_poc_root/$ics_poc_package/ICC")
-                fi
-            done
             SEED_FILES=("$HYBRID_SPEC_D50")
             SEED_FILES_SKIP_DRY_RUN_TARGET=1
             SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile) 5\.'
@@ -452,7 +482,7 @@ afl_configure_target() {
                     AFL_DISABLE_TRIM_TARGET=1
                     AFL_FAST_CAL_TARGET=1
                     SEED_DRY_RUN_TARGET=1
-                    SEED_INCLUDE_REGEX='(^|/)(applyprofiles-|sbo-repro-applyprofiles|array-not-object|empty-object|invalid-syntax|null-value|missing-profilesequence|wrong-types|type-confusion-all-fields|empty-arrays|null-all-fields|null-sections|empty-string-paths|nonexistent-profile|path-traversal-|extreme-|negative-nan-infinity|envvars-extreme-values|deep-profile-chain)'
+                    SEED_INCLUDE_REGEX='(^|/)(applyprofiles-|sbo-repro-applyprofiles|ce-|hmse-|hpwr-|sem_mut_|array-not-object|empty-object|invalid-syntax|null-value|missing-profilesequence|wrong-types|type-confusion-all-fields|empty-arrays|null-all-fields|null-sections|empty-string-paths|nonexistent-profile|path-traversal-|extreme-|negative-nan-infinity|envvars-extreme-values|deep-profile-chain)'
                     [[ -z "${AFL_INPUT_FORMAT:-}" ]] && AFL_INPUT_FORMAT="text"
                     [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=65536
                     SEED_EXCLUDE_REGEX='output-to-file\.json$'
@@ -466,13 +496,12 @@ afl_configure_target() {
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-hybrid-embedded"
                     DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
                     HYBRID_NEEDS_SUPPORT=1
-                    SEED_MAX_BYTES=3145728
-                    [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=3145728
+                    SEED_MAX_BYTES=0
                     SEED_LIMIT=300
                     SEED_DRY_RUN_TARGET=1
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-                    SEED_DRY_RUN_TIMEOUT=30
-                    AFL_TARGET_TIMEOUT=30000
+                    SEED_DRY_RUN_TIMEOUT=120
+                    AFL_TARGET_TIMEOUT=120000
                     AFL_FAST_CAL_TARGET=1
                     AFL_EXPAND_HAVOC_TARGET=1
                     AFL_SKIP_DETERMINISTIC_TARGET=1
@@ -1162,6 +1191,24 @@ afl_configure_target() {
             ;;
         *)
             return 1
+            ;;
+    esac
+
+    case "$target" in
+        applynamedcmm-hybrid-pcc|dump|dump-diag|dump-read|pawgreport|pawgreport-fast|profilevisualize|profilevisualize-fast|roundtrip|roundtrip-mpe|tojson|toxml|toxml-fast)
+            afl_append_ics_seed_dirs icc
+            ;;
+        applyprofiles-cfg)
+            afl_append_ics_seed_dirs json
+            ;;
+        fromxml|fromxml-noid)
+            afl_append_ics_seed_dirs xml
+            ;;
+        pngdump|pngdump-inject)
+            afl_append_ics_seed_dirs png
+            ;;
+        tiffdump|tiff|tiffdump-extract)
+            afl_append_ics_seed_dirs tif
             ;;
     esac
 

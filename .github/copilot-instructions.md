@@ -58,7 +58,7 @@ vary by build, so do not hardcode a healthy-tool total.
 #   libpng-dev, libjpeg-dev, libssl-dev, libclang-rt-18-dev
 cd cfl && ./build.sh                    # LibFuzzer harnesses against unpatched upstream
 cd colorbleed_tools && make setup && make # unsafe tools (clang defaults to sanitizer build)
-./afl/build-afl-runtime.sh              # pinned AFL++ stable runtime, LLVM 21, 4 MiB ceiling
+./afl/build-afl-runtime.sh              # pinned AFL++ stable runtime, LLVM 21, large-input support
 ./afl/build.sh                          # AFL-instrumented upstream tools
 .github/ci/quality-assurance/scripts/iccApplyProfiles_sanitizer_qa.sh --seconds 300
 ```

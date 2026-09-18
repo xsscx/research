@@ -468,7 +468,7 @@ if [[ -n "$AFL_MAX_LENGTH" ]]; then
     fi
     if [[ "$AFL_MAX_LENGTH" -gt "$afl_compiled_max" ]]; then
         echo "ERROR: AFL_MAX_LENGTH=$AFL_MAX_LENGTH exceeds the runtime ceiling $afl_compiled_max" >&2
-        echo "Run ./afl/build-afl-runtime.sh to install the pinned 4 MiB AFL++ runtime" >&2
+        echo "Run ./afl/build-afl-runtime.sh to install the pinned large-input AFL++ runtime" >&2
         exit 1
     fi
 fi

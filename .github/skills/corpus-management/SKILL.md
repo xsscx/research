@@ -118,7 +118,7 @@ Compare file counts (local must be >= source) before swapping directories.
   from `fuzz/graphics/jpg` with extractable embedded ICC profiles; never seed
   those lanes with raw `.icc` files.
 - AFL `applyprofiles-hybrid-embedded` keeps the complete generated multispectral
-  TIFF. Install the pinned 4 MiB runtime with `./afl/build-afl-runtime.sh` and
+  TIFF. Install the pinned large-input runtime with `./afl/build-afl-runtime.sh` and
   run `.github/scripts/validate-afl-target-configs.sh --local`; do not crop the
   seed to fit an older AFL++ runtime.
 - AFL ProfilePlot lanes share the durable
@@ -135,7 +135,7 @@ Compare file counts (local must be >= source) before swapping directories.
   `-cfg` lanes must use their isolated `afl/work/<target>/root` directory so
   fuzzed output names cannot litter the repository root.
 - `applyprofiles-hybrid-pcc` has one known-compatible PCC seed and a slow full
-  transform. Keep its 15-second timeout and focused seed set; broad corpus
+  transform. Keep its focused seed set and measured timeout; broad corpus
   screening can look like a hung startup before AFL creates stats.
 - `applynamedcmm-hybrid-pcc` fuzzes only V5 ICC profiles in its PCC position,
   always stages the generated D50 PCC profile, and may discover the five ICS
