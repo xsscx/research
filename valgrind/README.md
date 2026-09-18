@@ -1,4 +1,4 @@
-# Local Valgrind and Helgrind Tooling
+# Local Valgrind Tool-Family Analysis
 
 This component builds a separate non-sanitized Debug iccDEV tree and runs
 registered CLI and threaded-regression targets under the Valgrind tool family.
@@ -8,8 +8,9 @@ Never point it at the ASAN/UBSAN binaries in `iccDEV/Build` or `afl/bin`.
 
 ```bash
 ./valgrind/build.sh
-./valgrind/run.sh --tool memcheck dump fromxml fromjson
-./valgrind/run.sh --tool helgrind connect-thread applyprofiles-row benchapply
+./valgrind/run.sh --tool memcheck all
+./valgrind/run.sh --tool helgrind connect-thread applyprofiles-row applysearch-row benchapply
+./valgrind/run.sh --tool drd connect-thread applyprofiles-row applysearch-row benchapply
 ./valgrind/status.sh
 ```
 
@@ -18,6 +19,47 @@ complete registry. Each run creates an ignored evidence directory under
 `valgrind/output/` containing stdout, stderr, the Valgrind log, generated
 artifacts, and `summary.tsv`. A finding or timeout makes the runner fail unless
 `--allow-findings` is supplied for evidence-collection work.
+
+## One-line analysis commands
+
+Run each supported Valgrind tool across the complete 13-target registry:
+
+```bash
+./valgrind/run.sh --tool memcheck all
+./valgrind/run.sh --tool helgrind all
+./valgrind/run.sh --tool drd all
+./valgrind/run.sh --tool massif all
+./valgrind/run.sh --tool callgrind all
+```
+
+For faster, high-signal race coverage, run Helgrind and DRD only on the four
+targets that exercise threads:
+
+```bash
+./valgrind/run.sh --tool helgrind connect-thread applyprofiles-row applysearch-row benchapply
+./valgrind/run.sh --tool drd connect-thread applyprofiles-row applysearch-row benchapply
+```
+
+For one complete tool-family pass from a single shell line, run the full target
+registry under every supported tool. The loop stops on the first finding or
+timeout:
+
+```bash
+for tool in memcheck helgrind drd massif callgrind; do ./valgrind/run.sh --tool "$tool" all || break; done
+```
+
+For evidence collection that continues after findings, use a unique output
+directory for each tool and allow recorded findings:
+
+```bash
+for tool in memcheck helgrind drd massif callgrind; do ./valgrind/run.sh --tool "$tool" --allow-findings --output-dir "valgrind/output/full-$tool" all || break; done
+```
+
+The complete registry is `connect-thread`, `dump`, `roundtrip`, `fromxml`,
+`fromjson`, `toxml`, `tojson`, `tiffdump`, `applynamedcmm`,
+`applyprofiles-row`, `applysearch-row`, `applytolink`, and `benchapply`. Use
+`./valgrind/run.sh --list` to print the current registry. Repeating a target on
+one command line runs it again; it does not add coverage.
 
 The build defaults to `iccDEV/` and `valgrind/build/`. Override them without
 editing scripts:
