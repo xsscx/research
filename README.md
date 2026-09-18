@@ -25,6 +25,10 @@ removed from active documentation.
 - Patches appear on research
   - Patches then Upstreamed
 
+### Valgrind and Helgrind
+- `valgrind/` builds a separate non-sanitized Debug iccDEV tree.
+- Local and container runners cover Memcheck, Helgrind, DRD, Massif, and Callgrind.
+
 ### LUT Dumper
 - LUT Dumper code will be Upstreamed
 
