@@ -67,6 +67,26 @@ configure_build_install() {
     shift
     local source="$SOURCE_DIR/$name"
     local build="$BUILD_DIR/$name"
+    local cache="$build/CMakeCache.txt"
+    local requested_cc
+    local requested_cxx
+    local cached_cc=""
+    local cached_cxx=""
+    local cached_prefix=""
+
+    requested_cc="$(command -v "$CC_BIN")"
+    requested_cxx="$(command -v "$CXX_BIN")"
+    if [[ -f "$cache" ]]; then
+        cached_cc="$(sed -n 's/^CMAKE_C_COMPILER:[^=]*=//p' "$cache" | head -n 1)"
+        cached_cxx="$(sed -n 's/^CMAKE_CXX_COMPILER:[^=]*=//p' "$cache" | head -n 1)"
+        cached_prefix="$(sed -n 's/^CMAKE_INSTALL_PREFIX:[^=]*=//p' "$cache" | head -n 1)"
+        if [[ "$cached_prefix" != "$PREFIX" ||
+              ( -n "$cached_cc" && "$cached_cc" != "$requested_cc" ) ||
+              ( -n "$cached_cxx" && "$cached_cxx" != "$requested_cxx" ) ]]; then
+            echo "[*] Resetting stale $name CMake cache"
+            rm -rf "$build"
+        fi
+    fi
 
     echo "[*] Configuring $name"
     cmake -S "$source" -B "$build" \
