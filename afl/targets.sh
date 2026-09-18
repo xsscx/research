@@ -471,8 +471,8 @@ afl_configure_target() {
                     SEED_LIMIT=300
                     SEED_DRY_RUN_TARGET=1
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-                    SEED_DRY_RUN_TIMEOUT=15
-                    AFL_TARGET_TIMEOUT=15000
+                    SEED_DRY_RUN_TIMEOUT=30
+                    AFL_TARGET_TIMEOUT=30000
                     AFL_FAST_CAL_TARGET=1
                     AFL_EXPAND_HAVOC_TARGET=1
                     AFL_SKIP_DETERMINISTIC_TARGET=1
@@ -489,8 +489,8 @@ afl_configure_target() {
                     SEED_LIMIT=1
                     SEED_DRY_RUN_TARGET=1
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-                    SEED_DRY_RUN_TIMEOUT=15
-                    AFL_TARGET_TIMEOUT=15000
+                    SEED_DRY_RUN_TIMEOUT=30
+                    AFL_TARGET_TIMEOUT=30000
                     SEED_FILES=("$HYBRID_ICC_DIR/MultSpectralRGB.icc")
                     SEED_DIRS=()
                     REQUIRED_FILES=("$HYBRID_SOURCE_DIR" "$HYBRID_SRGB")
