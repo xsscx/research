@@ -159,21 +159,60 @@ cfl_curated_seed_dir() {
   esac
 }
 
-cfl_applynamedcmm_external_seed_dirs() {
+cfl_ics_package_roots() {
   local script_dir="$1"
-  local ics_root="${CFL_ICS_POC_ROOT:-$script_dir/../ICS-POC}"
-  local package
+  local configured_root="${CFL_ICS_ROOT:-${CFL_ICS_POC_ROOT:-}}"
+  local candidate
 
-  for package in \
-    ColorimetricEncoding \
-    HybridMultiSpectralEncoding \
-    HybridPrinterWithOverprintSimulation \
-    HybridPrinterWithReflectance \
-    SpectralEncoding; do
-    if [[ -d "$ics_root/$package/ICC" ]]; then
-      printf '%s\n' "$ics_root/$package/ICC"
+  if [[ -n "$configured_root" ]]; then
+    if [[ -d "$configured_root/packages" ]]; then
+      printf '%s\n' "$configured_root/packages"
+    elif [[ -d "$configured_root" ]]; then
+      printf '%s\n' "$configured_root"
     fi
+    return 0
+  fi
+
+  for candidate in "$script_dir/../ICS-POC" "$script_dir/../ics/packages"; do
+    [[ -d "$candidate" ]] && printf '%s\n' "$candidate"
   done
+}
+
+cfl_ics_external_seed_dirs() {
+  local script_dir="$1"
+  local extension="$2"
+  local package_root
+
+  while IFS= read -r package_root; do
+    find "$package_root" -type f -name "*.$extension" -printf '%h\n' 2>/dev/null
+  done < <(cfl_ics_package_roots "$script_dir") | sort -u
+}
+
+cfl_applynamedcmm_external_seed_dirs() {
+  cfl_ics_external_seed_dirs "$1" icc
+}
+
+cfl_ics_seed_name() {
+  local seed="$1"
+  local relative
+  local source_name
+
+  case "$seed" in
+    */ics/packages/*)
+      relative="${seed#*/ics/packages/}"
+      source_name="ics"
+      ;;
+    */ICS-POC/*)
+      relative="${seed#*/ICS-POC/}"
+      source_name="ics-poc"
+      ;;
+    *)
+      relative="$(basename "$seed")"
+      source_name="external"
+      ;;
+  esac
+
+  printf 'ics-%s-%s-%s\n' "$source_name" "${relative%%/*}" "$(basename "$seed")"
 }
 
 cfl_install_curated_seeds() {
@@ -182,7 +221,6 @@ cfl_install_curated_seeds() {
   local corpus_dir="$3"
   local seed_dir
   local external_seed_dir
-  local package
   local seed
   local target
   local version_major
@@ -206,15 +244,13 @@ cfl_install_curated_seeds() {
       ;;
   esac
 
-  if ! seed_dir="$(cfl_curated_seed_dir "$script_dir" "$fuzzer")" ||
-     [[ ! -d "$seed_dir" ]]; then
-    return 0
+  if seed_dir="$(cfl_curated_seed_dir "$script_dir" "$fuzzer")" &&
+     [[ -d "$seed_dir" ]]; then
+    while IFS= read -r -d '' seed; do
+      target="$corpus_dir/$(basename "$seed")"
+      cp "$seed" "$target"
+    done < <(find "$seed_dir" -maxdepth 1 -type f -print0)
   fi
-
-  while IFS= read -r -d '' seed; do
-    target="$corpus_dir/$(basename "$seed")"
-    cp "$seed" "$target"
-  done < <(find "$seed_dir" -maxdepth 1 -type f -print0)
 
   if [[ "$fuzzer" == "icc_applynamedcmm_fuzzer" ]]; then
     while IFS= read -r external_seed_dir; do
@@ -222,11 +258,50 @@ cfl_install_curated_seeds() {
       while IFS= read -r -d '' seed; do
         version_major="$(od -A n -t x1 -j 8 -N 1 "$seed" 2>/dev/null | tr -d ' \n')"
         [[ "$version_major" == "05" ]] || continue
-        target="$corpus_dir/ics-${package}-$(basename "$seed")"
+        target="$corpus_dir/$(cfl_ics_seed_name "$seed")"
         cp "$seed" "$target"
       done < <(find "$external_seed_dir" -maxdepth 1 -type f -name '*.icc' -print0)
     done < <(cfl_applynamedcmm_external_seed_dirs "$script_dir")
   fi
+
+  case "$fuzzer" in
+    icc_dump_fuzzer|icc_pawgreport_fuzzer|icc_profilevisualize_fuzzer|icc_proflib_fuzzer|icc_roundtrip_fuzzer|icc_tojson_fuzzer|icc_toxml_fuzzer)
+      while IFS= read -r external_seed_dir; do
+        while IFS= read -r -d '' seed; do
+          cp "$seed" "$corpus_dir/$(cfl_ics_seed_name "$seed")"
+        done < <(find "$external_seed_dir" -maxdepth 1 -type f -name '*.icc' -print0)
+      done < <(cfl_ics_external_seed_dirs "$script_dir" icc)
+      ;;
+    icc_cfg_fuzzer)
+      while IFS= read -r external_seed_dir; do
+        while IFS= read -r -d '' seed; do
+          target="$corpus_dir/$(cfl_ics_seed_name "$seed")"
+          { printf '\001'; cat "$seed"; } > "$target"
+        done < <(find "$external_seed_dir" -maxdepth 1 -type f -name '*.json' -print0)
+      done < <(cfl_ics_external_seed_dirs "$script_dir" json)
+      ;;
+    icc_fromxml_fuzzer)
+      while IFS= read -r external_seed_dir; do
+        while IFS= read -r -d '' seed; do
+          cp "$seed" "$corpus_dir/$(cfl_ics_seed_name "$seed")"
+        done < <(find "$external_seed_dir" -maxdepth 1 -type f -name '*.xml' -print0)
+      done < <(cfl_ics_external_seed_dirs "$script_dir" xml)
+      ;;
+    icc_pngdump_fuzzer)
+      while IFS= read -r external_seed_dir; do
+        while IFS= read -r -d '' seed; do
+          cp "$seed" "$corpus_dir/$(cfl_ics_seed_name "$seed")"
+        done < <(find "$external_seed_dir" -maxdepth 1 -type f -name '*.png' -print0)
+      done < <(cfl_ics_external_seed_dirs "$script_dir" png)
+      ;;
+    icc_tiffdump_fuzzer)
+      while IFS= read -r external_seed_dir; do
+        while IFS= read -r -d '' seed; do
+          cp "$seed" "$corpus_dir/$(cfl_ics_seed_name "$seed")"
+        done < <(find "$external_seed_dir" -maxdepth 1 -type f -name '*.tif' -print0)
+      done < <(cfl_ics_external_seed_dirs "$script_dir" tif)
+      ;;
+  esac
 }
 
 cfl_resolve_dict() {

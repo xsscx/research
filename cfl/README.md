@@ -91,9 +91,9 @@ ignorelist. This keeps known libstdc++ integer idioms out of fuzzer findings
 without suppressing project-owned code; it also prevents repeated diagnostics
 from turning the weighted ApplySearch seed replay into a false timeout.
 
-The NamedCmm, Connect, config, and JSON/XML conversion harnesses do not impose
-a fixed input-size ceiling. Their `.options` use `max_len = 0`, so the CFL
-runners derive and pass the largest supplied corpus-file size without a
+The NamedCmm, Connect, config, TIFF image, and JSON/XML conversion harnesses do
+not impose a fixed input-size ceiling. Their `.options` use `max_len = 0`, so
+the CFL runners derive and pass the largest supplied corpus-file size without a
 repository ceiling; add representative large profiles when testing those
 lanes. Keep RSS and per-input timeouts as the resource controls. This matters
 for conversion lanes: a 3.8 MiB ICC QA input has been observed to serialize to

@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <climits>
+#include <limits>
 
 // In-memory TIFF structure for zero-copy processing
 struct MemTIFF {
@@ -56,17 +57,34 @@ static tmsize_t mem_write(thandle_t, void*, tmsize_t) { return 0; }
 
 static toff_t mem_seek(thandle_t handle, toff_t offset, int whence) {
   MemTIFF* mem = (MemTIFF*)handle;
-  if (!mem) return 0;
-  size_t new_offset = mem->offset;
+  const toff_t invalid_offset = std::numeric_limits<toff_t>::max();
+  if (!mem) return invalid_offset;
+
+  size_t base = 0;
   switch (whence) {
-    case SEEK_SET: new_offset = offset; break;
-    case SEEK_CUR: new_offset = mem->offset + offset; break;
-    case SEEK_END: new_offset = mem->size + offset; break;
-    default: return -1;
+    case SEEK_SET: base = 0; break;
+    case SEEK_CUR: base = mem->offset; break;
+    case SEEK_END: base = mem->size; break;
+    default: return invalid_offset;
   }
-  if (new_offset > mem->size) return -1;
+  if (base > mem->size)
+    return invalid_offset;
+
+  size_t new_offset = 0;
+  const toff_t max_positive = invalid_offset >> 1;
+  if (offset <= max_positive) {
+    if (offset > mem->size - base)
+      return invalid_offset;
+    new_offset = base + static_cast<size_t>(offset);
+  } else {
+    const toff_t magnitude = (~offset) + 1;
+    if (magnitude > base)
+      return invalid_offset;
+    new_offset = base - static_cast<size_t>(magnitude);
+  }
+
   mem->offset = new_offset;
-  return (toff_t)new_offset;
+  return static_cast<toff_t>(new_offset);
 }
 
 static int mem_close(thandle_t) { return 0; }

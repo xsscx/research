@@ -50,10 +50,10 @@ The NamedCmm lane keeps pure ICC fixtures in `cfl/seeds-applynamedcmm/`.
 harness-control prefix or suffix and must not be used as mutable runtime
 storage.
 
-The aligned NamedCmm, Connect, config, and JSON/XML conversion harnesses use
-`max_len = 0`: the CFL runners pass the largest corpus-file size instead of a
-repository ceiling. Include large real profiles for large-input testing; RSS
-and timeout settings remain active.
+The aligned NamedCmm, Connect, config, TIFF image, and JSON/XML conversion
+harnesses use `max_len = 0`: the CFL runners pass the largest corpus-file size
+instead of a repository ceiling. Include large real profiles for large-input
+testing; RSS and timeout settings remain active.
 
 ProfilePlot uses the same raw ICC corpus on both sides of the A/B model. CFL's
 `profileplot` alias selects `icc_profilevisualize_fuzzer` for in-memory

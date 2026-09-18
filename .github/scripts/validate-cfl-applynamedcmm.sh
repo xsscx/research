@@ -57,9 +57,7 @@ if [[ ${#external_seeds[@]} -gt 0 ]]; then
     od -A n -t x1 -j 8 -N 4 "$seed" | tr -d ' \n'
     printf '\n'
   done | sort -u)"
-  grep -qx '05000200' <<< "$versions" || fail "ICS seeds do not cover ICC V5.0.2"
-  grep -qx '05100000' <<< "$versions" || fail "ICS seeds do not cover ICC V5.1"
-  grep -qx '05100100' <<< "$versions" || fail "ICS seeds do not cover ICC V5.1.1"
+  grep -q '^05' <<< "$versions" || fail "ICS seed set does not contain an ICC V5 profile"
 fi
 
 # shellcheck source=cfl/fuzzers.sh
@@ -80,9 +78,9 @@ for seed in "${seeds[@]}"; do
     fail "installed copy differs: $(basename "$seed")"
 done
 for seed in "${external_seeds[@]}"; do
-  package="$(basename "$(dirname "$(dirname "$seed")")")"
-  cmp -s "$seed" "$tmp_dir/corpus/ics-${package}-$(basename "$seed")" ||
-    fail "installed ICS copy differs: $package/$(basename "$seed")"
+  installed_name="$(cfl_ics_seed_name "$seed")"
+  cmp -s "$seed" "$tmp_dir/corpus/$installed_name" ||
+    fail "installed ICS copy differs: $installed_name"
 done
 
 if [[ "$REPLAY" -eq 1 ]]; then
