@@ -21,6 +21,7 @@ AFL_TARGETS=(
     applyprofiles-fast
     applyprofiles-deep
     applyprofiles-cfg
+    applyprofiles-search
     applyprofiles-hybrid-embedded
     applyprofiles-hybrid-pcc
     applyprofiles-row
@@ -86,6 +87,7 @@ afl_print_targets() {
     echo "  applyprofiles-fast - iccApplyProfiles (small ICC profile lane)"
     echo "  applyprofiles-deep - iccApplyProfiles (large ICC profile lane)"
     echo "  applyprofiles-cfg - iccApplyProfiles (-cfg JSON config lane)"
+    echo "  applyprofiles-search - iccApplyProfiles (spectral inverse-search JSON lane)"
     echo "  applyprofiles-hybrid-embedded - iccApplyProfiles hybrid embedded/PCC argv lane"
     echo "  applyprofiles-hybrid-pcc - iccApplyProfiles hybrid -exportcfg PCC lane"
     echo "  applyprofiles-row - iccApplyProfiles (-threads row-apply lane)"
@@ -292,6 +294,7 @@ afl_configure_target() {
     HYBRID_ICC_DIR="$hybrid_support_dir/ICC"
     HYBRID_RESULTS_DIR="$hybrid_support_dir/Results"
     HYBRID_MS_TIFF="$hybrid_support_dir/Results/MS_smCows.tif"
+    HYBRID_SEARCH_TIFF="$hybrid_support_dir/Data/afl-search-source.tif"
     HYBRID_CMYK_DATA="$hybrid_support_dir/Data/cmykGrays.txt"
     HYBRID_CMYK_REF="$hybrid_support_dir/Results/cmykGraysRef.txt"
     HYBRID_CMYK_PROFILE="$hybrid_support_dir/ICC/CMYK_Hybrid_Profile.icc"
@@ -440,7 +443,7 @@ afl_configure_target() {
             REQUIRED_FILES=("$HYBRID_CMYK_DATA" "$HYBRID_CMYK_PROFILE" "$HYBRID_SPEC_D50")
             TARGET_NOTE="Hybrid NamedCmm PCC lane: applies the fixed CMYK profile with environment variables, fuzzes V5 PCC profiles from iccDEV and an available ICS-POC checkout, and retains only seeds that build and apply the full transform."
             ;;
-        applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-cfg|profiles-cfg|applyprofiles-hybrid-embedded|profiles-hybrid-embedded|applyprofiles-hybrid-pcc|profiles-hybrid-pcc|applyprofiles-row|profiles-row)
+        applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-cfg|profiles-cfg|applyprofiles-search|profiles-search|applyprofiles-hybrid-embedded|profiles-hybrid-embedded|applyprofiles-hybrid-pcc|profiles-hybrid-pcc|applyprofiles-row|profiles-row)
             BINARY="$BIN_DIR/iccApplyProfiles"
             DICT="$REPO_ROOT/cfl/icc_applyprofiles_fuzzer.dict"
             SEED_DIRS=(
@@ -491,6 +494,33 @@ afl_configure_target() {
                         "$REPO_ROOT/docs/Testing/malformed-json"
                     )
                     TARGET_NOTE="ApplyProfiles JSON config lane: fuzzes the documented -threads N -cfg config_file shape from the iccApplyProfiles CLI."
+                    ;;
+                applyprofiles-search|profiles-search)
+                    AFL_DIR="$AFL_BASE/afl-applyprofiles-search"
+                    AFL_WORK_DIR="$HYBRID_SUPPORT_DIR"
+                    DICT="$REPO_ROOT/cfl/icc_cfg.dict"
+                    HYBRID_NEEDS_SUPPORT=1
+                    SEED_FILES=("$REPO_ROOT/afl/applyprofiles-search.json")
+                    SEED_DIRS=()
+                    SEED_MAX_BYTES=65536
+                    SEED_FILE_TYPE_REGEX='^(JSON text data|ASCII text)'
+                    SEED_LIMIT=1
+                    SEED_DRY_RUN_TARGET=1
+                    SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                    SEED_DRY_RUN_TIMEOUT=5
+                    AFL_TARGET_TIMEOUT=5000
+                    AFL_DISABLE_TRIM_TARGET=1
+                    AFL_FAST_CAL_TARGET=1
+                    AFL_EXPAND_HAVOC_TARGET=1
+                    AFL_SKIP_DETERMINISTIC_TARGET=1
+                    [[ -z "${AFL_INPUT_FORMAT:-}" ]] && AFL_INPUT_FORMAT="text"
+                    [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=65536
+                    REQUIRED_FILES=(
+                        "$HYBRID_SOURCE_DIR"
+                        "$REPO_ROOT/fuzz/graphics/tif/1x1-rgb8--Rec2020rgbSpectral.tiff"
+                        "${SEED_FILES[@]}"
+                    )
+                    TARGET_NOTE="ApplyProfiles spectral-search lane: fuzzes a known-good useSearch JSON config against a 1x1 TIFF with an embedded spectral profile, three-profile inverse chain, initial transform, and four weighted PCCs added upstream in #2498."
                     ;;
                 applyprofiles-hybrid-embedded|profiles-hybrid-embedded)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-hybrid-embedded"
@@ -1266,6 +1296,9 @@ afl_prepare_hybrid_support_files() {
     fi
     afl_copy_if_missing "$HYBRID_SOURCE_DIR/Data/cmykGrays.txt" "$HYBRID_CMYK_DATA"
     afl_copy_if_missing "$HYBRID_SOURCE_DIR/Data/smCows380_5_780.tif" "$HYBRID_DATA_DIR/smCows380_5_780.tif"
+    afl_copy_if_missing \
+        "$REPO_ROOT/fuzz/graphics/tif/1x1-rgb8--Rec2020rgbSpectral.tiff" \
+        "$HYBRID_SEARCH_TIFF"
 
     afl_fromxml_if_missing "$HYBRID_SOURCE_DIR/CMYK_Hybrid_Profile.xml" "$HYBRID_CMYK_PROFILE"
     afl_fromxml_if_missing "$HYBRID_SOURCE_DIR/MultSpectralRGB.xml" "$HYBRID_ICC_DIR/MultSpectralRGB.icc"

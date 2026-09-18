@@ -127,6 +127,7 @@ check_apply_argc applyprofiles 9
 check_apply_argc applyprofiles-fast 9
 check_apply_argc applyprofiles-deep 9
 check_apply_argc applyprofiles-cfg 4
+check_apply_argc applyprofiles-search 4
 check_apply_argc applyprofiles-hybrid-embedded 13
 check_apply_argc applyprofiles-hybrid-pcc 15
 check_apply_argc applyprofiles-row 11
@@ -210,6 +211,19 @@ for target in applynamedcmm-cfg applyprofiles-cfg applysearch-cfg; do
         fail "$target must not run config-controlled outputs from the repository root"
     fi
 done
+
+afl_configure_target applyprofiles-search
+expect_arg applyprofiles-search 0 "-threads"
+expect_arg applyprofiles-search 1 "1"
+expect_arg applyprofiles-search 2 "-cfg"
+expect_arg applyprofiles-search 3 "@@"
+expect_value "ApplyProfiles search seed" "${SEED_FILES[0]}" "$REPO_ROOT/afl/applyprofiles-search.json"
+expect_value "ApplyProfiles search hybrid support" "$HYBRID_NEEDS_SUPPORT" "1"
+expect_value "ApplyProfiles search source" "$HYBRID_SEARCH_TIFF" "$HYBRID_DATA_DIR/afl-search-source.tif"
+expect_value "ApplyProfiles search exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
+expect_value "ApplyProfiles search timeout" "$AFL_TARGET_TIMEOUT" "5000"
+expect_value "ApplyProfiles search expanded havoc" "$AFL_EXPAND_HAVOC_TARGET" "1"
+expect_value "ApplyProfiles search deterministic skip" "$AFL_SKIP_DETERMINISTIC_TARGET" "1"
 
 afl_configure_target applyprofiles-hybrid-pcc
 expect_value "hybrid PCC seed file count" "${#SEED_FILES[@]}" "1"
