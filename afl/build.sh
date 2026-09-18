@@ -29,6 +29,7 @@ AFL_CTX_BUILD=0
 AFL_NGRAM_SIZE_VAL="${AFL_NGRAM_SIZE:-}"
 AFL_LINK_MODE="${AFL_LINK_MODE:-static}"
 AFL_UBSAN_IGNORELIST="${AFL_UBSAN_IGNORELIST:-.github/ci/ubsan-ignorelist.txt}"
+AFL_REQUIRED_VERSION="5.03a"
 CLEAN_THIRD_PARTY=0
 
 usage() {
@@ -202,6 +203,14 @@ afl_wrappers_compile() {
     return 0
 }
 
+afl_wrapper_has_required_version() {
+    local wrapper="$1"
+    local banner
+
+    banner="$("$wrapper" -h 2>&1 | head -n 1 || true)"
+    [[ "$banner" == *"afl-cc++${AFL_REQUIRED_VERSION}"* ]]
+}
+
 select_afl_wrappers() {
     local cc_backend="$1"
     local cxx_backend="$2"
@@ -232,6 +241,11 @@ select_afl_wrappers() {
             wrapperxx="${wrapper}++"
         fi
         [[ -x "$wrapperxx" ]] || continue
+        if ! afl_wrapper_has_required_version "$wrapper" ||
+            ! afl_wrapper_has_required_version "$wrapperxx"; then
+            echo "[WARN] Skipping AFL++ wrapper that is not ${AFL_REQUIRED_VERSION}: $wrapper" >&2
+            continue
+        fi
         if afl_wrappers_compile "$wrapper" "$wrapperxx" "$cc_backend" "$cxx_backend"; then
             AFL_CLANG_FAST_BIN="$wrapper"
             AFL_CLANG_FASTXX_BIN="$wrapperxx"
@@ -318,8 +332,8 @@ fi
 AFL_CLANG_FAST_BIN=""
 AFL_CLANG_FASTXX_BIN=""
 if ! select_afl_toolchain; then
-    echo "ERROR: no afl-clang-fast wrapper can compile with clang-21" >&2
-    echo "       Rebuild AFL++ against llvm-config-21 or set AFL_CLANG_FAST/AFL_CLANG_FASTXX to LLVM 21 wrappers." >&2
+    echo "ERROR: no AFL++ ${AFL_REQUIRED_VERSION} afl-clang-fast wrapper can compile with clang-21" >&2
+    echo "       Run ./afl/build-afl-runtime.sh or set AFL_CLANG_FAST/AFL_CLANG_FASTXX to AFL++ ${AFL_REQUIRED_VERSION} LLVM 21 wrappers." >&2
     exit 1
 fi
 
@@ -358,6 +372,7 @@ echo "    Bin dir: $BIN_DIR"
 echo "    Link mode: $AFL_LINK_MODE"
 echo "    AFL backend: $AFL_CC_BACKEND / $AFL_CXX_BACKEND"
 echo "    AFL wrapper: $AFL_CLANG_FAST_BIN / $AFL_CLANG_FASTXX_BIN"
+echo "    AFL version: $AFL_REQUIRED_VERSION"
 echo "    LLVM binutils: $AFL_LLVM_AR / $AFL_LLVM_RANLIB / $AFL_LLVM_NM"
 echo "    Third-party prefix: $THIRD_PARTY_PREFIX"
 if [[ -n "$ICCDEV_BRANCH" ]]; then

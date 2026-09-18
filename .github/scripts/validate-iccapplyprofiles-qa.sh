@@ -29,6 +29,10 @@ grep -Fq '45bb74bd3a6591e6853b704c390ab6156c0a3c88' \
     "$repo_root/afl/build-afl-runtime.sh" || fail "AFL++ stable pin is stale"
 grep -Fq "JOBS=\"\${JOBS:-32}\"" "$repo_root/afl/build-afl-runtime.sh" || \
     fail "AFL++ runtime builder does not default to -j32"
+grep -Fq 'AFL_REQUIRED_VERSION="5.03a"' "$repo_root/afl/build.sh" || \
+    fail "AFL++ tool build does not require the pinned 5.03a wrappers"
+grep -Fq 'afl_wrapper_has_required_version' "$repo_root/afl/build.sh" || \
+    fail "AFL++ tool build does not validate wrapper versions"
 if rg -n '05507e1880dc6df997c19e01423444ef37c36846' \
     "$repo_root/AGENTS.md" "$repo_root/afl" "$repo_root/docs/afl" \
     "$repo_root/.github" --glob '!**/validate-iccapplyprofiles-qa.sh' >/dev/null; then
