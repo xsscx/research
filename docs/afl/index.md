@@ -143,7 +143,9 @@ shapes:
   intent, and tetrahedral paths.
 - `applynamedcmm-debugcalc` guarantees the calculator-bearing `argbCalc.icc`
   bootstrap while exercising float output, formatting, linear interpolation,
-  and calculator tracing.
+  and calculator tracing. It uses a one-second execution timeout so malformed
+  calculator profiles cannot hold a worker at the global five-second default;
+  use an explicit `AFL_TIMEOUT` or `--timeout` for longer-path experiments.
 - `applynamedcmm-cfg` fuzzes the JSON document consumed by `-cfg`.
 - `applynamedcmm-hybrid-chain` explicitly selects the spectral transform in
   the fixed CMYK V5 sub-profile at intent `10103`, then fuzzes a second profile

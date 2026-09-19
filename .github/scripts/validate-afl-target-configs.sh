@@ -160,6 +160,7 @@ expect_value "V5 BRDF seed" "${SEED_FILES[0]}" "$REPO_ROOT/extended-test-profile
 
 afl_configure_target applynamedcmm-debugcalc
 expect_value "debugcalc bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/argbCalc.icc"
+expect_value "debugcalc AFL timeout" "$AFL_TARGET_TIMEOUT" "1000"
 
 afl_configure_target applynamedcmm-hybrid-chain
 expect_arg applynamedcmm-hybrid-chain 6 "10103"

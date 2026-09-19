@@ -386,9 +386,10 @@ afl_configure_target() {
                 SEED_LIMIT=96
                 SEED_DRY_RUN_TARGET=1
                 SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+                AFL_TARGET_TIMEOUT=1000
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
-                TARGET_NOTE="ApplyNamedCmm calculator lane: float output, linear interpolation, and -debugcalc exercise calculator tracing and non-integer encoding paths."
+                TARGET_NOTE="ApplyNamedCmm calculator lane: float output, linear interpolation, and -debugcalc exercise calculator tracing and non-integer encoding paths with a one-second execution limit."
             else
                 SEED_FILES=("$srgb_profile")
                 SEED_FILES_SKIP_DRY_RUN_TARGET=1
