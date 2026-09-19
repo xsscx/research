@@ -61,6 +61,15 @@ The complete registry is `connect-thread`, `dump`, `roundtrip`, `fromxml`,
 `./valgrind/run.sh --list` to print the current registry. Repeating a target on
 one command line runs it again; it does not add coverage.
 
+## Known findings and tool limitations
+
+See [`KNOWN_FINDINGS.md`](KNOWN_FINDINGS.md) for reviewed false positives,
+affected targets, reference counts, and the boundaries of each classification.
+Known findings remain visible in logs and `summary.tsv`; they are not silently
+suppressed. Use `--allow-findings` only to finish evidence collection, then
+compare every reported context with the catalog. A changed or unlisted
+signature requires investigation.
+
 The build defaults to `iccDEV/` and `valgrind/build/`. Override them without
 editing scripts:
 
