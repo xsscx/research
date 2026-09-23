@@ -18,7 +18,7 @@ on:
 
 jobs:
   linux:
-    name: "Linux ${{ matrix.compiler }}"
+    name: ubuntu-latest
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,28 +32,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libpng-dev libjpeg-dev libtiff-dev libxml2-dev zlib1g-dev libwxgtk3.2-dev libwxgtk-media3.2-dev libwxgtk-webview3.2-dev wx-common wx3.2-headers nlohmann-json3-dev cmake make ninja-build
-
-      - name: Set Compiler
-        run: |
-          if [ "${{ matrix.compiler }}" = "gcc" ]; then
-            echo "CC=gcc" >> $GITHUB_ENV
-            echo "CXX=g++" >> $GITHUB_ENV
-          else
-            echo "CC=clang" >> $GITHUB_ENV
-            echo "CXX=clang++" >> $GITHUB_ENV
-          fi
-
-      - name: Print Compiler Version
-        run: |
-          echo "Compiler Version:" >> $GITHUB_STEP_SUMMARY
-          $CC --version >> $GITHUB_STEP_SUMMARY
-
       - name: CMake Configure
         run: |
-          git clone -b ci-qa-pr-docker-testing https://github.com/InternationalColorConsortium/iccDEV.git
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+          git clone https://github.com/InternationalColorConsortium/iccDEV.git
           cd iccDEV/Build
           git branch&&echo ---&&git log --oneline -1
-          cmake --preset macos-clang-sanitizers -S Cmake -B . -DSANITIZER_RECOVER=ON
+          cmake --preset linux-clang-sanitizers -S Cmake -B . -DSANITIZER_RECOVER=ON
           cmake --build . -j32
           cd ../Testing
           export PATH="$(echo "$PWD"/../Build/Tools/*|tr ' ' :)":$PATH
