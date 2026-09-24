@@ -21,6 +21,8 @@ scripts and filesystem in the current checkout.
 ```bash
 cd cfl && ./build.sh --refresh-iccdev
 cd cfl && ./fuzz-local.sh -t 60 -w 1
+cd cfl && ./build.sh --sanitizer memory
+cd cfl && ./build.sh --sanitizer thread
 cd cfl && ./status.sh --detail
 cd cfl && ./status.sh --json | jq .
 ```
@@ -79,6 +81,9 @@ cd cfl && ./build.sh --refresh-iccdev
 
 ## Runtime Notes
 
+- Keep ASan/UBSan, MSan, and TSan as separate builds. Use `-s memory` or
+  `-s thread` with `fuzz-local.sh`, and the matching `--sanitizer` value with
+  `start.sh`, `status.sh`, and `stop.sh`.
 - Use `ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1` for clear
   sanitizer exits.
 - `icc_applynamedcmm_fuzzer` consumes pure raw ICC files. Do not add a control

@@ -15,10 +15,18 @@ policy. Edit `afl/iccapply-args.conf` to change `iccApply*` target argv.
 # Build AFL-instrumented upstream iccDEV tools without local AFL patches.
 ./afl/build.sh
 
+# Build isolated MemorySanitizer and ThreadSanitizer variants.
+./afl/build.sh --sanitizer memory
+./afl/build.sh --sanitizer thread
+
 # List targets and start a run.
 ./afl/start.sh --list
 ./afl/start.sh dump
 ./afl/start.sh toxml --parallel 4
+
+# Select the matching sanitizer binary set at run and replay time.
+AFL_SANITIZER=memory ./afl/start.sh dump
+AFL_SANITIZER=thread ./afl/triage.sh dump
 
 # Inspect, stop, and triage.
 ./afl/status.sh
@@ -75,7 +83,15 @@ The restart resumes the existing queue by default. Use `--fresh` when the edit
 changes the fuzzed input's role or format. Triage, mapping, coverage, and
 minimization source the same config and therefore replay with the same argv.
 
-`./afl/build.sh` builds the current upstream `master` checkout.
+`./afl/build.sh` builds the current upstream `master` checkout. Sanitizer modes
+are intentionally separate: `address` (the default) combines ASan, UBSan,
+IntegerSanitizer, and the float checks; `memory` uses MSan with origin tracking;
+and `thread` uses TSan. The default output directories are `afl/bin/`,
+`afl/bin-msan/`, and `afl/bin-tsan/`, with matching isolated build and
+third-party prefixes. Set `AFL_SANITIZER=memory` or `thread` when using
+`start.sh`, `screen-corpus.sh`, `map.sh`, `minimize.sh`, or `triage.sh`; an
+explicit `AFL_BIN_DIR` still takes precedence. Do not combine these sanitizer
+modes in one binary.
 
 The current target list includes tool-level coverage for profile dumping,
 XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile

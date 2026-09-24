@@ -21,6 +21,10 @@ KEEP_ORDER="${AFL_SCREEN_ORDER:-sorted}"
 
 source "$REPO_ROOT/afl/targets.sh"
 source "$REPO_ROOT/afl/sanitizer-env.sh"
+BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
+    echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}'" >&2
+    exit 1
+}
 
 usage() {
     sed -n '2,5p' "$0" | sed 's/^# \?//'
@@ -185,9 +189,8 @@ replay_seed() {
     start_ns="$(date +%s%N)"
     output=$(
         cd "$AFL_WORK_DIR" && \
+        afl_export_triage_sanitizer_env "$BIN_DIR" && \
         LD_LIBRARY_PATH="$ICC_RUNTIME_LIB_PATH" \
-        ASAN_OPTIONS="$AFL_ASAN_OPTIONS_TRIAGE" \
-        UBSAN_OPTIONS="$AFL_UBSAN_OPTIONS_TRIAGE" \
         timeout "$timeout_sec" "$BINARY" "${replay_args[@]}" 2>&1
     ) || exit_code=$?
     exit_code="${exit_code:-0}"
@@ -198,7 +201,7 @@ replay_seed() {
         REJECT_REASON="timeout_or_signal"
         return 1
     fi
-    if printf '%s\n' "$output" | grep -Eaiq 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:'; then
+    if printf '%s\n' "$output" | grep -Eaiq 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer)|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer)|runtime error:'; then
         REJECT_REASON="sanitizer"
         return 1
     fi

@@ -10,6 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/fuzzers.sh"
 
 RUNS_DIR="$SCRIPT_DIR/runs"
+RUNS_DIR_EXPLICIT=0
+SANITIZER_MODE="${CFL_SANITIZER:-address}"
 DETAIL=0
 JSON=0
 TARGETS=()
@@ -19,6 +21,7 @@ usage() {
   echo ""
   echo "Options:"
   echo "  --runs-dir DIR   run state directory (default: cfl/runs)"
+  echo "  --sanitizer MODE address (default), memory, or thread"
   echo "  --detail         show paths and latest actionable log event"
   echo "  --json           emit stable machine-readable status"
   echo "  -h, --help       show help"
@@ -26,7 +29,8 @@ usage() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --runs-dir) RUNS_DIR="$2"; shift 2 ;;
+    --runs-dir) RUNS_DIR="$2"; RUNS_DIR_EXPLICIT=1; shift 2 ;;
+    --sanitizer) SANITIZER_MODE="$2"; shift 2 ;;
     --detail) DETAIL=1; shift ;;
     --json) JSON=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -34,6 +38,13 @@ while [[ $# -gt 0 ]]; do
     *) TARGETS+=("$1"); shift ;;
   esac
 done
+
+case "$SANITIZER_MODE" in
+  address|asan) SANITIZER_MODE=address ;;
+  memory|msan) SANITIZER_MODE=memory; [[ "$RUNS_DIR_EXPLICIT" -eq 1 ]] || RUNS_DIR="$SCRIPT_DIR/runs-msan" ;;
+  thread|tsan) SANITIZER_MODE=thread; [[ "$RUNS_DIR_EXPLICIT" -eq 1 ]] || RUNS_DIR="$SCRIPT_DIR/runs-tsan" ;;
+  *) echo "ERROR: --sanitizer must be address, memory, or thread" >&2; exit 1 ;;
+esac
 
 FUZZER_LIST="$(cfl_resolve_fuzzers "${TARGETS[@]:-all}")" || exit 1
 mapfile -t FUZZERS <<< "$FUZZER_LIST"
@@ -69,7 +80,7 @@ latest_relevant_event() {
       break
     done < <(
       LC_ALL=C grep -Eai \
-        'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|libFuzzer)|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|libFuzzer)|runtime error:|DEADLYSIGNAL|Test unit written to|DEDUP_TOKEN:|ALARM:' \
+        'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer|libFuzzer)|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer|libFuzzer)|runtime error:|WARNING: ThreadSanitizer|DEADLYSIGNAL|Test unit written to|DEDUP_TOKEN:|ALARM:' \
         "$log" 2>/dev/null | tac || true
     )
     [[ -n "$event" ]] && break

@@ -153,7 +153,11 @@ After branch switches or upstream syncs, delete `Build/CMakeCache.txt` and
 - The tool exit code is authoritative. The fuzzer DEADLYSIGNAL is a test artifact.
 
 ### Sanitizer flags
-- **Fuzzers**: `-fsanitize=fuzzer,address,undefined`
+- **Default fuzzers**: `-fsanitize=fuzzer,address,undefined`
+- **MSan fuzzers**: separate `memory` builds with origin tracking; never combine
+  MSan with ASan or TSan
+- **TSan fuzzers**: separate `thread` builds; CFL uses deterministic corpus
+  replay and AFL uses its matching instrumented tool build
 - **Analyzer**: `-fsanitize=address,undefined,float-divide-by-zero,float-cast-overflow,integer -g3 -O0`
 - Both iccDEV libs AND the linking tool must use matching sanitizer flags
 - `-fsanitize=integer` required for unsigned overflow detection

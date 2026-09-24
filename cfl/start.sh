@@ -16,7 +16,7 @@
 #   --rss MB           override rss_limit_mb per worker (default: fuzzer options)
 #   --max-len BYTES    override max_len passed to LibFuzzer (default: fuzzer options)
 #   --runs-dir DIR     run state directory (default: cfl/runs)
-#   --sanitizer MODE   address (default) or thread
+#   --sanitizer MODE   address (default), memory, or thread
 #   --foreground       run a single fuzzer in the foreground
 #   -h, --help         show help
 
@@ -62,7 +62,19 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$SANITIZER_MODE" in
+  address|asan) SANITIZER_MODE=address ;;
+  memory|msan) SANITIZER_MODE=memory ;;
+  thread|tsan) SANITIZER_MODE=thread ;;
+esac
+
+case "$SANITIZER_MODE" in
   address) BIN_DIR="$SCRIPT_DIR/bin" ;;
+  memory)
+    BIN_DIR="$SCRIPT_DIR/bin-msan"
+    if [[ "$RUNS_DIR_EXPLICIT" -eq 0 ]]; then
+      RUNS_DIR="$SCRIPT_DIR/runs-msan"
+    fi
+    ;;
   thread)
     BIN_DIR="$SCRIPT_DIR/bin-tsan"
     if [[ "$FUZZ_SECONDS" == "0" ]]; then
@@ -72,7 +84,7 @@ case "$SANITIZER_MODE" in
       RUNS_DIR="$SCRIPT_DIR/runs-tsan"
     fi
     ;;
-  *) echo "ERROR: --sanitizer must be address or thread" >&2; exit 1 ;;
+  *) echo "ERROR: --sanitizer must be address, memory, or thread" >&2; exit 1 ;;
 esac
 
 if [[ $# -gt 0 ]]; then
@@ -170,10 +182,14 @@ start_fuzzer() {
     echo "[*] Log: stdout/stderr"
     export FUZZ_TMPDIR="$run_dir"
     if [[ "$SANITIZER_MODE" == "thread" ]]; then
-      unset ASAN_OPTIONS UBSAN_OPTIONS LLVM_PROFILE_FILE
+      unset ASAN_OPTIONS UBSAN_OPTIONS MSAN_OPTIONS LLVM_PROFILE_FILE
       export TSAN_OPTIONS="halt_on_error=1:history_size=7"
+    elif [[ "$SANITIZER_MODE" == "memory" ]]; then
+      unset ASAN_OPTIONS UBSAN_OPTIONS TSAN_OPTIONS
+      export LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw"
+      export MSAN_OPTIONS="halt_on_error=1:abort_on_error=1:symbolize=1:exit_code=86"
     else
-      unset TSAN_OPTIONS
+      unset MSAN_OPTIONS TSAN_OPTIONS
       export LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw"
       export ASAN_OPTIONS="$asan_options"
       export UBSAN_OPTIONS="halt_on_error=0,print_stacktrace=1"
@@ -189,12 +205,18 @@ start_fuzzer() {
   echo "    Runs:   $run_dir"
 
   if [[ "$SANITIZER_MODE" == "thread" ]]; then
-    (cd "$run_dir" && exec setsid env -u ASAN_OPTIONS -u UBSAN_OPTIONS \
+    (cd "$run_dir" && exec setsid env -u ASAN_OPTIONS -u UBSAN_OPTIONS -u MSAN_OPTIONS \
         FUZZ_TMPDIR="$run_dir" \
         TSAN_OPTIONS="halt_on_error=1:history_size=7" \
         "${cmd[@]}") > "$log" 2>&1 &
+  elif [[ "$SANITIZER_MODE" == "memory" ]]; then
+    (cd "$run_dir" && exec setsid env -u ASAN_OPTIONS -u UBSAN_OPTIONS -u TSAN_OPTIONS \
+        FUZZ_TMPDIR="$run_dir" \
+        LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw" \
+        MSAN_OPTIONS="halt_on_error=1:abort_on_error=1:symbolize=1:exit_code=86" \
+        "${cmd[@]}") > "$log" 2>&1 &
   else
-    (cd "$run_dir" && exec setsid env -u TSAN_OPTIONS \
+    (cd "$run_dir" && exec setsid env -u MSAN_OPTIONS -u TSAN_OPTIONS \
         FUZZ_TMPDIR="$run_dir" \
         LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw" \
         ASAN_OPTIONS="$asan_options" \

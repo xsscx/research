@@ -10,6 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/fuzzers.sh"
 
 RUNS_DIR="$SCRIPT_DIR/runs"
+RUNS_DIR_EXPLICIT=0
+SANITIZER_MODE="${CFL_SANITIZER:-address}"
 STOP_TIMEOUT=10
 FORCE=0
 REAP=0
@@ -22,7 +24,8 @@ while [[ $# -gt 0 ]]; do
     --reap) REAP=1; shift ;;
     --quiet) QUIET=1; shift ;;
     --timeout) STOP_TIMEOUT="$2"; shift 2 ;;
-    --runs-dir) RUNS_DIR="$2"; shift 2 ;;
+    --runs-dir) RUNS_DIR="$2"; RUNS_DIR_EXPLICIT=1; shift 2 ;;
+    --sanitizer) SANITIZER_MODE="$2"; shift 2 ;;
     -h|--help)
       sed -n '2,5p' "$0" | sed 's/^# \?//'
       echo ""
@@ -31,6 +34,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --reap             remove stale pid files for non-running fuzzers"
       echo "  --timeout SECONDS  wait for graceful shutdown (default: 10)"
       echo "  --runs-dir DIR     run state directory (default: cfl/runs)"
+      echo "  --sanitizer MODE   address (default), memory, or thread"
       echo "  --quiet            suppress non-error output"
       exit 0
       ;;
@@ -38,6 +42,13 @@ while [[ $# -gt 0 ]]; do
     *) TARGETS+=("$1"); shift ;;
   esac
 done
+
+case "$SANITIZER_MODE" in
+  address|asan) SANITIZER_MODE=address ;;
+  memory|msan) SANITIZER_MODE=memory; [[ "$RUNS_DIR_EXPLICIT" -eq 1 ]] || RUNS_DIR="$SCRIPT_DIR/runs-msan" ;;
+  thread|tsan) SANITIZER_MODE=thread; [[ "$RUNS_DIR_EXPLICIT" -eq 1 ]] || RUNS_DIR="$SCRIPT_DIR/runs-tsan" ;;
+  *) echo "ERROR: --sanitizer must be address, memory, or thread" >&2; exit 1 ;;
+esac
 
 FUZZER_LIST="$(cfl_resolve_fuzzers "${TARGETS[@]:-all}")" || exit 1
 mapfile -t FUZZERS <<< "$FUZZER_LIST"

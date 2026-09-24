@@ -15,9 +15,13 @@ echo "[*] Full CFL rebuild requested"
 echo ""
 
 "$SCRIPT_DIR/stop.sh" all --quiet || true
+"$SCRIPT_DIR/stop.sh" all --sanitizer memory --quiet || true
+"$SCRIPT_DIR/stop.sh" all --sanitizer thread --quiet || true
 
 echo "[*] Removing CFL build outputs"
 rm -rf "${SCRIPT_DIR:?}/bin" \
+       "${SCRIPT_DIR:?}/bin-msan" \
+       "${SCRIPT_DIR:?}/bin-tsan" \
        "${SCRIPT_DIR:?}/profraw" \
        "${SCRIPT_DIR:?}/.build_tmp" \
        "${SCRIPT_DIR:?}/.build_cfg_tmp"

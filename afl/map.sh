@@ -15,6 +15,10 @@ OUT_FILE=""
 
 source "$REPO_ROOT/afl/targets.sh"
 source "$REPO_ROOT/afl/sanitizer-env.sh"
+BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
+    echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}'" >&2
+    exit 1
+}
 
 usage() {
     sed -n '2,5p' "$0" | sed 's/^# \?//'
@@ -166,8 +170,9 @@ if command -v readelf >/dev/null 2>&1 && readelf -d "$BINARY" 2>/dev/null | grep
 else
     unset LD_LIBRARY_PATH
 fi
-afl_export_fuzz_sanitizer_env
+afl_export_fuzz_sanitizer_env "$BIN_DIR"
 
+# shellcheck disable=SC2016
 env -u AFL_BASE -u AFL_BIN_DIR \
     bash -c 'cd "$1" && shift && exec "$@"' bash "$AFL_WORK_DIR" \
     afl-showmap -q -C -e -I "$FILE_LIST" -o "$OUT_FILE" -m none -t "${AFL_TIMEOUT:-${TIMEOUT:-5000}}" -- "$BINARY" "${AFL_ARGS[@]}"

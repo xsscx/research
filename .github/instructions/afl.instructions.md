@@ -37,6 +37,8 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 ```bash
 ./afl/build-afl-runtime.sh
 ./afl/build.sh          # default: unpatched upstream iccDEV
+./afl/build.sh --sanitizer memory
+./afl/build.sh --sanitizer thread
 ./afl/start.sh --list
 ./afl/start.sh dump
 ./afl/start.sh toxml --parallel 4
@@ -50,6 +52,10 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 .github/scripts/validate-afl-profileplot-targets.sh
 .github/scripts/validate-afl-target-configs.sh --local
 ```
+
+MSan and TSan use isolated `Build-AFL-*`, `bin-*`, and third-party dependency
+directories. Select the matching runtime with `AFL_SANITIZER=memory` or
+`AFL_SANITIZER=thread`; do not combine sanitizer modes in one binary.
 
 The runtime builder pins AFL++ stable commit
 `45bb74bd3a6591e6853b704c390ab6156c0a3c88`, LLVM 21, and `-j32`. Its compiled

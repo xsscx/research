@@ -20,6 +20,10 @@ TRIAGE_MARK_TIMEOUTS="${AFL_TRIAGE_MARK_TIMEOUTS:-1}"
 
 source "$REPO_ROOT/afl/targets.sh"
 source "$REPO_ROOT/afl/sanitizer-env.sh"
+BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
+    echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}'" >&2
+    exit 1
+}
 
 if [[ "$TARGET" == "--help" || "$TARGET" == "-h" ]]; then
     echo "Usage: $0 <target>"
@@ -202,7 +206,7 @@ if [[ -n "$REPLAY_LIB" ]]; then
 else
     unset LD_LIBRARY_PATH
 fi
-afl_export_triage_sanitizer_env
+afl_export_triage_sanitizer_env "$BIN_DIR"
 
 quote_shell_arg() {
     local quoted
@@ -224,10 +228,22 @@ write_confirmation_command() {
         quote_shell_arg "$CONFIRM_LIB"
         printf ' '
     fi
-    printf 'ASAN_OPTIONS='
-    quote_shell_arg "$ASAN_OPTIONS"
-    printf ' UBSAN_OPTIONS='
-    quote_shell_arg "$UBSAN_OPTIONS"
+    case "$AFL_ACTIVE_SANITIZER" in
+        address)
+            printf 'ASAN_OPTIONS='
+            quote_shell_arg "$ASAN_OPTIONS"
+            printf ' UBSAN_OPTIONS='
+            quote_shell_arg "$UBSAN_OPTIONS"
+            ;;
+        memory)
+            printf 'MSAN_OPTIONS='
+            quote_shell_arg "$MSAN_OPTIONS"
+            ;;
+        thread)
+            printf 'TSAN_OPTIONS='
+            quote_shell_arg "$TSAN_OPTIONS"
+            ;;
+    esac
     printf ' timeout 60s '
     quote_shell_arg "$CONFIRM_BIN"
     for arg in "${AFL_ARGS[@]}"; do

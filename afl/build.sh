@@ -1,10 +1,10 @@
 #!/bin/bash
-# afl/build.sh - Build iccDEV with AFL++ instrumentation and full sanitizers
+# afl/build.sh - Build iccDEV with AFL++ and selectable sanitizer instrumentation
 #
-# Usage: ./afl/build.sh [--clean] [--with-patches] [--refresh-iccdev]
+# Usage: ./afl/build.sh [--clean] [--sanitizer MODE] [--refresh-iccdev]
 #
-# Builds the full iccDEV library and tools using afl-clang-fast++ with ASan,
-# UBSan, IntegerSanitizer, float-divide-by-zero, and float-cast-overflow.
+# MODE is address (default), memory, or thread. Each mode uses separate build,
+# binary, and third-party dependency directories unless explicitly overridden.
 
 set -euo pipefail
 
@@ -12,11 +12,8 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_DIR="$REPO_ROOT/afl"
 AFL_BASE="${AFL_BASE:-$SCRIPT_DIR}"
 ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
-BUILD_DIR="${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL}"
 CMAKE_DIR="$ICCDEV_DIR/Build/Cmake"
-BIN_DIR="${AFL_BIN_DIR:-$SCRIPT_DIR/bin}"
 THIRD_PARTY_DIR="$SCRIPT_DIR/third_party"
-THIRD_PARTY_PREFIX="${AFL_THIRD_PARTY_PREFIX:-$THIRD_PARTY_DIR/install}"
 JOBS=$(nproc)
 PATCH_DIR="$SCRIPT_DIR/patches"
 WITH_PATCHES="${AFL_WITH_PATCHES:-0}"
@@ -31,6 +28,10 @@ AFL_LINK_MODE="${AFL_LINK_MODE:-static}"
 AFL_UBSAN_IGNORELIST="${AFL_UBSAN_IGNORELIST:-.github/ci/ubsan-ignorelist.txt}"
 AFL_REQUIRED_VERSION="5.03a"
 CLEAN_THIRD_PARTY=0
+SANITIZER_MODE="${AFL_SANITIZER:-address}"
+
+# shellcheck source=afl/sanitizer-env.sh
+source "$SCRIPT_DIR/sanitizer-env.sh"
 
 usage() {
     sed -n '2,8p' "$0" | sed 's/^# \?//'
@@ -38,6 +39,7 @@ usage() {
     echo "Options:"
     echo "  --clean           remove Build-AFL before building"
     echo "  --clean-third-party rebuild all AFL-instrumented dependencies"
+    echo "  --sanitizer MODE build with address (default), memory, or thread sanitizer"
     echo "  --with-patches    apply local patches from afl/patches"
     echo "  --branch NAME     use iccDEV branch NAME; existing checkout stays local-only"
     echo "  --refresh-iccdev  fetch selected branch or origin/master and reset the nested checkout"
@@ -53,6 +55,7 @@ usage() {
     echo "  AFL_BUILD_DIR     override build directory"
     echo "  AFL_BIN_DIR       override deployed binary directory"
     echo "  AFL_THIRD_PARTY_PREFIX override the dependency install prefix"
+    echo "  AFL_SANITIZER     default --sanitizer value"
     echo "  AFL_ICCDEV_BRANCH default --branch value"
     echo "  AFL_CLANG_FAST    override the afl-clang-fast wrapper path"
     echo "  AFL_CLANG_FASTXX  override the afl-clang-fast++ wrapper path"
@@ -68,6 +71,14 @@ while [[ $# -gt 0 ]]; do
         --clean-third-party)
             CLEAN_THIRD_PARTY=1
             shift
+            ;;
+        --sanitizer)
+            if [[ $# -lt 2 || "$2" == --* ]]; then
+                echo "ERROR: --sanitizer requires address, memory, or thread"
+                exit 1
+            fi
+            SANITIZER_MODE="$2"
+            shift 2
             ;;
         --with-patches)
             WITH_PATCHES=1
@@ -128,6 +139,34 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+REQUESTED_SANITIZER_MODE="$SANITIZER_MODE"
+if ! SANITIZER_MODE="$(afl_normalize_sanitizer_mode "$REQUESTED_SANITIZER_MODE")"; then
+    echo "ERROR: unsupported sanitizer '$REQUESTED_SANITIZER_MODE' (use address, memory, or thread)" >&2
+    exit 1
+fi
+
+case "$SANITIZER_MODE" in
+    address)
+        BUILD_SUFFIX=""
+        BIN_SUFFIX=""
+        THIRD_PARTY_SUFFIX=""
+        ;;
+    memory)
+        BUILD_SUFFIX="-MSan"
+        BIN_SUFFIX="-msan"
+        THIRD_PARTY_SUFFIX="-msan"
+        ;;
+    thread)
+        BUILD_SUFFIX="-TSan"
+        BIN_SUFFIX="-tsan"
+        THIRD_PARTY_SUFFIX="-tsan"
+        ;;
+esac
+BUILD_DIR="${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL$BUILD_SUFFIX}"
+BIN_DIR="${AFL_BIN_DIR:-$SCRIPT_DIR/bin$BIN_SUFFIX}"
+THIRD_PARTY_PREFIX="${AFL_THIRD_PARTY_PREFIX:-$THIRD_PARTY_DIR/install$THIRD_PARTY_SUFFIX}"
+THIRD_PARTY_BUILD_DIR="${AFL_THIRD_PARTY_BUILD_DIR:-$THIRD_PARTY_DIR/build$THIRD_PARTY_SUFFIX}"
 
 if [[ "$REFRESH_ICCDEV" = "1" && "$KEEP_ICCDEV" = "1" ]]; then
     echo "ERROR: --refresh-iccdev and --keep-iccdev are mutually exclusive"
@@ -342,19 +381,25 @@ THIRD_PARTY_ARGS=()
 if [[ "$CLEAN_THIRD_PARTY" == "1" ]]; then
     THIRD_PARTY_ARGS+=(--clean)
 fi
+case "$SANITIZER_MODE" in
+    address) AFL_SANITIZER_ENV=(AFL_USE_ASAN=1 AFL_USE_UBSAN=1) ;;
+    memory) AFL_SANITIZER_ENV=(AFL_USE_MSAN=1) ;;
+    thread) AFL_SANITIZER_ENV=(AFL_USE_TSAN=1) ;;
+esac
 env \
     -u AFL_CLANG_FAST \
     -u AFL_CLANG_FASTXX \
     AFL_CC="$AFL_CC_BACKEND" \
     AFL_CXX="$AFL_CXX_BACKEND" \
-    AFL_USE_ASAN=1 \
-    AFL_USE_UBSAN=1 \
+    "${AFL_SANITIZER_ENV[@]}" \
     CC="$AFL_CLANG_FAST_BIN" \
     CXX="$AFL_CLANG_FASTXX_BIN" \
     AR="$AFL_LLVM_AR" \
     RANLIB="$AFL_LLVM_RANLIB" \
     NM="$AFL_LLVM_NM" \
     AFL_THIRD_PARTY_PREFIX="$THIRD_PARTY_PREFIX" \
+    AFL_THIRD_PARTY_BUILD_DIR="$THIRD_PARTY_BUILD_DIR" \
+    AFL_THIRD_PARTY_SANITIZER="$SANITIZER_MODE" \
     "$THIRD_PARTY_DIR/build.sh" "${THIRD_PARTY_ARGS[@]}"
 
 # Clean build if requested
@@ -365,7 +410,12 @@ fi
 
 echo "[*] Configuring iccDEV with AFL++ instrumentation..."
 echo "    Compiler: afl-clang-fast++"
-echo "    Sanitizers: ASAN + UBSAN + integer + float-divide-by-zero + float-cast-overflow"
+case "$SANITIZER_MODE" in
+    address) SANITIZER_LABEL="ASAN + UBSAN + integer + float-divide-by-zero + float-cast-overflow" ;;
+    memory) SANITIZER_LABEL="MemorySanitizer with origin tracking" ;;
+    thread) SANITIZER_LABEL="ThreadSanitizer" ;;
+esac
+echo "    Sanitizer: $SANITIZER_LABEL"
 echo "    Jobs: $JOBS"
 echo "    Build dir: $BUILD_DIR"
 echo "    Bin dir: $BIN_DIR"
@@ -382,7 +432,7 @@ if [[ "$AFL_CMPLOG_BUILD" = "1" || "$AFL_LAF_BUILD" = "1" || "$AFL_CTX_BUILD" = 
     echo "    AFL modes: cmplog=$AFL_CMPLOG_BUILD laf=$AFL_LAF_BUILD ctx=$AFL_CTX_BUILD ngram=${AFL_NGRAM_SIZE_VAL:-off}"
 fi
 UBSAN_IGNORELIST_ARGS=()
-if [[ -n "$AFL_UBSAN_IGNORELIST" ]]; then
+if [[ "$SANITIZER_MODE" == "address" && -n "$AFL_UBSAN_IGNORELIST" ]]; then
     if [[ -f "$ICCDEV_DIR/$AFL_UBSAN_IGNORELIST" ]]; then
         UBSAN_IGNORELIST_ARGS=(-DUBSAN_IGNORELIST="$AFL_UBSAN_IGNORELIST")
         echo "    UBSAN ignorelist: $AFL_UBSAN_IGNORELIST"
@@ -391,8 +441,19 @@ if [[ -n "$AFL_UBSAN_IGNORELIST" ]]; then
     fi
 fi
 
-AFL_BUILD_ENV=(AFL_USE_ASAN=1 AFL_USE_UBSAN=1)
+AFL_BUILD_ENV=("${AFL_SANITIZER_ENV[@]}")
 AFL_ENABLE_SHARED_LIBS="OFF"
+AFL_ENABLE_SANITIZERS="OFF"
+AFL_CMAKE_C_FLAGS="-g -O0"
+AFL_CMAKE_CXX_FLAGS="-g -O0"
+AFL_CMAKE_EXE_LINKER_FLAGS=""
+if [[ "$SANITIZER_MODE" == "address" ]]; then
+    AFL_ENABLE_SANITIZERS="ON"
+elif [[ "$SANITIZER_MODE" == "memory" ]]; then
+    AFL_CMAKE_C_FLAGS+=" -fPIE"
+    AFL_CMAKE_CXX_FLAGS+=" -fPIE"
+    AFL_CMAKE_EXE_LINKER_FLAGS="-pie"
+fi
 if [[ "$AFL_LINK_MODE" == "shared" ]]; then
     AFL_ENABLE_SHARED_LIBS="ON"
 fi
@@ -421,9 +482,10 @@ env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_B
     -DCMAKE_CXX_COMPILER_RANLIB="$AFL_LLVM_RANLIB" \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_PREFIX_PATH="$THIRD_PARTY_PREFIX" \
-    -DCMAKE_C_FLAGS="-g -O0" \
-    -DCMAKE_CXX_FLAGS="-g -O0" \
-    -DENABLE_SANITIZERS=ON \
+    -DCMAKE_C_FLAGS="$AFL_CMAKE_C_FLAGS" \
+    -DCMAKE_CXX_FLAGS="$AFL_CMAKE_CXX_FLAGS" \
+    -DCMAKE_EXE_LINKER_FLAGS="$AFL_CMAKE_EXE_LINKER_FLAGS" \
+    -DENABLE_SANITIZERS="$AFL_ENABLE_SANITIZERS" \
     -DSANITIZER_RECOVER=OFF \
     -DENABLE_TOOLS=ON \
     -DENABLE_WXWIDGETS=OFF \
@@ -447,11 +509,11 @@ env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_B
 echo "[*] Building with $JOBS cores..."
 env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_BACKEND" "${AFL_BUILD_ENV[@]}" cmake --build "$BUILD_DIR" --parallel "$JOBS"
 
-if ! grep -q '^ENABLE_SANITIZERS:BOOL=ON$' "$BUILD_DIR/CMakeCache.txt"; then
-    echo "[FAIL] CMake cache does not enable the full sanitizer set"
+if ! grep -q "^ENABLE_SANITIZERS:BOOL=$AFL_ENABLE_SANITIZERS$" "$BUILD_DIR/CMakeCache.txt"; then
+    echo "[FAIL] CMake cache sanitizer setting does not match $SANITIZER_MODE mode"
     exit 1
 fi
-if ! grep -q '^SANITIZER_RECOVER:BOOL=OFF$' "$BUILD_DIR/CMakeCache.txt"; then
+if [[ "$SANITIZER_MODE" == "address" ]] && ! grep -q '^SANITIZER_RECOVER:BOOL=OFF$' "$BUILD_DIR/CMakeCache.txt"; then
     echo "[FAIL] CMake cache does not enforce fatal sanitizer findings"
     exit 1
 fi
@@ -490,6 +552,7 @@ for tool_dir in "$BUILD_DIR"/Tools/*/; do
     done < <(find "$tool_dir" -maxdepth 1 -type f -executable 2>/dev/null)
 done
 echo "  $DEPLOYED tool binaries deployed"
+printf '%s\n' "$SANITIZER_MODE" > "$BIN_DIR/.sanitizer-mode"
 
 # Deploy shared libraries only for shared-link builds. Static builds are the
 # default so AFL instrumentation and post-campaign coverage stay in one image.
@@ -563,11 +626,17 @@ verify_sanitizer_symbol() {
 
 echo ""
 echo "Sanitizer instrumentation:"
-verify_sanitizer_symbol "AddressSanitizer" '__asan_init'
-verify_sanitizer_symbol "UndefinedBehaviorSanitizer" '__ubsan_handle_(type_mismatch|add_overflow)'
-verify_sanitizer_symbol "IntegerSanitizer" '__ubsan_handle_(implicit_conversion|unsigned_add_overflow|shift_out_of_bounds)'
-verify_sanitizer_symbol "float-divide-by-zero" '__ubsan_handle_divrem_overflow'
-verify_sanitizer_symbol "float-cast-overflow" '__ubsan_handle_float_cast_overflow'
+case "$SANITIZER_MODE" in
+    address)
+        verify_sanitizer_symbol "AddressSanitizer" '__asan_init'
+        verify_sanitizer_symbol "UndefinedBehaviorSanitizer" '__ubsan_handle_(type_mismatch|add_overflow)'
+        verify_sanitizer_symbol "IntegerSanitizer" '__ubsan_handle_(implicit_conversion|unsigned_add_overflow|shift_out_of_bounds)'
+        verify_sanitizer_symbol "float-divide-by-zero" '__ubsan_handle_divrem_overflow'
+        verify_sanitizer_symbol "float-cast-overflow" '__ubsan_handle_float_cast_overflow'
+        ;;
+    memory) verify_sanitizer_symbol "MemorySanitizer" '__msan_init' ;;
+    thread) verify_sanitizer_symbol "ThreadSanitizer" '__tsan_init' ;;
+esac
 
 echo ""
 echo "[OK] $DEPLOYED AFL-instrumented tools deployed to $BIN_DIR"

@@ -20,6 +20,12 @@ cd cfl && ./build.sh --refresh-iccdev
 # Smoke-test all fuzzers from local corpora.
 cd cfl && ./fuzz-local.sh -t 60 -w 1
 
+# Build and replay the same corpora under MSan or TSan.
+cd cfl && ./build.sh --sanitizer memory
+cd cfl && ./fuzz-local.sh -s memory -t 60 -w 1
+cd cfl && ./build.sh --sanitizer thread
+cd cfl && ./fuzz-local.sh -s thread -t 60 -w 1
+
 # Run longer fuzzing on mounted storage.
 cd cfl && ./fuzz-local.sh -t 14400 -w 4 -r /mnt/g/fuzz-ssd
 ```
@@ -90,6 +96,15 @@ Address-sanitizer builds consume iccDEV's standard-library-only UBSAN
 ignorelist. This keeps known libstdc++ integer idioms out of fuzzer findings
 without suppressing project-owned code; it also prevents repeated diagnostics
 from turning the weighted ApplySearch seed replay into a false timeout.
+
+Sanitizer modes are separate builds. `address` writes `cfl/bin/` and uses the
+normal LibFuzzer engine. `memory` writes `cfl/bin-msan/`, enables MSan origin
+tracking, and also uses LibFuzzer. `thread` writes `cfl/bin-tsan/` and uses the
+bounded corpus runner because it is intended for deterministic concurrent
+replay rather than mutation. The runners keep state in `cfl/runs/`,
+`cfl/runs-msan/`, and `cfl/runs-tsan/` respectively. Use matching
+`--sanitizer` values with `start.sh`, `status.sh`, and `stop.sh`, or `-s` with
+`fuzz-local.sh`.
 
 The NamedCmm, Connect, config, TIFF image, and JSON/XML conversion harnesses do
 not impose a fixed input-size ceiling. Their `.options` use `max_len = 0`, so
@@ -181,6 +196,9 @@ commit that curated file.
 cd cfl
 ./fuzz-local.sh -t 60           # smoke test
 ./fuzz-local.sh -t 120 dump     # target alias accepted by helper scripts
+./fuzz-local.sh -s memory -t 60 dump
+./start.sh dump --sanitizer thread --time 60 --foreground
+./status.sh dump --sanitizer thread --detail
 ```
 
 Both `start.sh` and `fuzz-local.sh` execute each harness from runtime state below

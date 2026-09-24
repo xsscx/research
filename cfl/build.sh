@@ -1,11 +1,12 @@
 #!/bin/bash -eu
 #
-# CFL Local Build - instrumented LibFuzzer or TSAN corpus replay
+# CFL Local Build - instrumented LibFuzzer or sanitizer corpus replay
 #
 # Clones iccDEV, builds static libraries, then compiles all fuzzers.
 #
 # Usage:  ./build.sh                         # build all fuzzers against upstream master
 #         ./build.sh clean                   # remove build artifacts and start fresh
+#         ./build.sh --sanitizer memory
 #         ./build.sh --sanitizer thread
 #
 # Requirements: clang-22/clang++-22, cmake 3.15+, libxml2-dev, libtiff-dev,
@@ -35,10 +36,12 @@ COMMON_CFLAGS="-g3 -O0 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -Werror"
 COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
 SANITIZER_FLAGS=""
 FUZZER_FLAGS=""
+FUZZER_LINK_FLAGS=""
 ENABLE_FUZZING_VALUE="ON"
 
 configure_sanitizer() {
   COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+  FUZZER_LINK_FLAGS=""
   ENABLE_FUZZING_VALUE="ON"
   case "$SANITIZER_MODE" in
     address)
@@ -57,8 +60,14 @@ configure_sanitizer() {
       COVERAGE_FLAGS=""
       ENABLE_FUZZING_VALUE="OFF"
       ;;
+    memory)
+      OUTPUT_DIR="$SCRIPT_DIR/bin-msan"
+      SANITIZER_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize=fuzzer-no-link -fPIC"
+      FUZZER_FLAGS="-fsanitize=fuzzer,memory -fsanitize-memory-track-origins=2 -fPIE"
+      FUZZER_LINK_FLAGS="-pie"
+      ;;
     *)
-      echo "[FAIL] ERROR: unsupported sanitizer '$SANITIZER_MODE' (use address or thread)" >&2
+      echo "[FAIL] ERROR: unsupported sanitizer '$SANITIZER_MODE' (use address, memory, or thread)" >&2
       exit 1
       ;;
   esac
@@ -172,7 +181,8 @@ usage() {
   echo "  --branch REF      clone/fetch the named iccDEV branch or tag (default: master)"
   echo "  --ref REF         alias for --branch"
   echo "  --keep-iccdev     preserve current cfl/iccDEV source edits"
-  echo "  --sanitizer MODE  address (default) or thread; thread writes bin-tsan/"
+  echo "  --sanitizer MODE  address (default), memory, or thread"
+  echo "                    memory writes bin-msan/; thread writes bin-tsan/"
   echo "  --refresh-iccdev  fetch the selected iccDEV ref and reset the nested checkout"
 }
 
@@ -200,7 +210,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --sanitizer)
       if [[ $# -lt 2 || "$2" == --* ]]; then
-        echo "[FAIL] ERROR: --sanitizer requires address or thread"
+        echo "[FAIL] ERROR: --sanitizer requires address, memory, or thread"
         exit 1
       fi
       SANITIZER_MODE="$2"
@@ -222,6 +232,15 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+case "$SANITIZER_MODE" in
+  address|asan) SANITIZER_MODE=address ;;
+  memory|msan) SANITIZER_MODE=memory ;;
+  thread|tsan) SANITIZER_MODE=thread ;;
+  *)
+    echo "[FAIL] ERROR: unsupported sanitizer '$SANITIZER_MODE' (use address, memory, or thread)" >&2
+    exit 1
+    ;;
+esac
 configure_sanitizer
 
 if [[ "$REFRESH_ICCDEV" = "1" && "$KEEP_ICCDEV" = "1" ]]; then
@@ -246,8 +265,9 @@ fi
 
 if [ "${CLEAN:-0}" = "1" ]; then
   banner "Cleaning build artifacts"
-  rm -rf "$SCRIPT_DIR/bin" "$SCRIPT_DIR/bin-tsan" "$SCRIPT_DIR/.build_tmp" \
-    "$SCRIPT_DIR/.build_viz_tmp"
+  rm -rf "${SCRIPT_DIR:?}/bin" "${SCRIPT_DIR:?}/bin-msan" \
+    "${SCRIPT_DIR:?}/bin-tsan" "${SCRIPT_DIR:?}/.build_tmp" \
+    "${SCRIPT_DIR:?}/.build_viz_tmp"
   if [[ "$ICCDEV_DIR" == "$DEFAULT_ICCDEV_DIR" ]]; then
     rm -rf "$ICCDEV_DIR"
   else
@@ -265,27 +285,27 @@ for tool in "$CC" "$CXX" cmake pkg-config; do
 done
 
 # Verify the selected sanitizer runtime is available.
-ASAN_TEST=$(mktemp /tmp/asan_test.XXXXXX.cpp)
-trap 'rm -f "$ASAN_TEST"' EXIT
-echo 'int main(){}' > "$ASAN_TEST"
-if [[ "$SANITIZER_MODE" == "thread" ]]; then
-  RUNTIME_FLAGS="-fsanitize=thread"
-else
-  RUNTIME_FLAGS="-fsanitize=address,undefined"
-fi
-if ! $CXX $RUNTIME_FLAGS "$ASAN_TEST" -o /dev/null 2>/dev/null; then
+SANITIZER_TEST=$(mktemp /tmp/cfl_sanitizer_test.XXXXXX.cpp)
+trap 'rm -f "$SANITIZER_TEST"' EXIT
+echo 'int main(){}' > "$SANITIZER_TEST"
+case "$SANITIZER_MODE" in
+  address) RUNTIME_FLAGS=("-fsanitize=address,undefined") ;;
+  memory) RUNTIME_FLAGS=("-fsanitize=memory") ;;
+  thread) RUNTIME_FLAGS=("-fsanitize=thread") ;;
+esac
+if ! "$CXX" "${RUNTIME_FLAGS[@]}" "$SANITIZER_TEST" -o /dev/null 2>/dev/null; then
   CLANG_VER=$($CXX --version | grep -oP '\d+' | head -1)
   echo "[FAIL] ERROR: Clang sanitizer runtime not found."
   echo ""
-  echo "   The ASan/UBSan runtime library is required but missing."
+  echo "   The $SANITIZER_MODE sanitizer runtime library is required but missing."
   echo "   On Ubuntu/Debian, install it with:"
   echo ""
   echo "     sudo apt install libclang-rt-${CLANG_VER}-dev"
   echo ""
-  echo "   This provides libclang_rt.asan, libclang_rt.ubsan, and fuzzer runtimes."
+  echo "   This provides the Clang sanitizer and fuzzer runtimes."
   exit 1
 fi
-rm -f "$ASAN_TEST"
+rm -f "$SANITIZER_TEST"
 trap - EXIT
 
 banner "CFL Fuzzer Build - $SANITIZER_MODE instrumentation"
@@ -400,13 +420,16 @@ echo "  IccXML cov:       $XML_COV_SYM"
 echo "  IccConnect cov:   $CONNECT_COV_SYM"
 echo "  IccJSON cov:      $JSON_COV_SYM"
 TSAN_SYM=$(nm "$LIB_PROF" | grep -c '__tsan' || true)
+MSAN_SYM=$(nm "$LIB_PROF" | grep -c '__msan' || true)
 echo "  TSan symbols:     $TSAN_SYM"
+echo "  MSan symbols:     $MSAN_SYM"
 
 if { [[ "$SANITIZER_MODE" == "address" ]] && \
      { [ "$ASAN_SYM" -eq 0 ] || [ "$UBSAN_SYM" -eq 0 ] || \
        [ "$COV_SYM" -eq 0 ] || [ "$XML_COV_SYM" -eq 0 ] || \
        [ "$CONNECT_COV_SYM" -eq 0 ] || [ "$JSON_COV_SYM" -eq 0 ]; }; } || \
-   { [[ "$SANITIZER_MODE" == "thread" ]] && [ "$TSAN_SYM" -eq 0 ]; }; then
+   { [[ "$SANITIZER_MODE" == "thread" ]] && [ "$TSAN_SYM" -eq 0 ]; } || \
+   { [[ "$SANITIZER_MODE" == "memory" ]] && [ "$MSAN_SYM" -eq 0 ]; }; then
   echo "[FAIL] ERROR: Missing instrumentation - aborting"
   exit 1
 fi
@@ -448,6 +471,7 @@ build_fuzzer() {
     -Wl,--whole-archive "$LIB_PROF" -Wl,--no-whole-archive \
     "${extra_libs[@]}" \
     $ZLIB_LIBS \
+    $FUZZER_LINK_FLAGS \
     -o "$OUTPUT_DIR/$name" 2>&1; then
     SIZE=$(du -h "$OUTPUT_DIR/$name" | cut -f1)
     echo "  [OK] $name ($SIZE)"

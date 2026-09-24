@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build iccDEV's non-wxWidgets dependencies with AFL and full sanitizers.
+# Build iccDEV's non-wxWidgets dependencies with AFL and one sanitizer mode.
 
 set -euo pipefail
 
@@ -26,8 +26,29 @@ CXX_BIN="${CXX:-clang++-21}"
 AR_BIN="${AR:-llvm-ar-21}"
 RANLIB_BIN="${RANLIB:-llvm-ranlib-21}"
 NM_BIN="${NM:-llvm-nm-21}"
-SANITIZERS="address,undefined,integer,float-divide-by-zero,float-cast-overflow"
-SAN_FLAGS="-g -O1 -fno-omit-frame-pointer -fsanitize=$SANITIZERS -fno-sanitize-recover=undefined,integer,float-divide-by-zero,float-cast-overflow -fsanitize-ignorelist=$ROOT/ubsan-ignorelist.txt"
+SANITIZER_MODE="${AFL_THIRD_PARTY_SANITIZER:-address}"
+unset AFL_THIRD_PARTY_SANITIZER
+case "$SANITIZER_MODE" in
+    address)
+        SANITIZERS="address,undefined,integer,float-divide-by-zero,float-cast-overflow"
+        SAN_FLAGS="-g -O1 -fno-omit-frame-pointer -fsanitize=$SANITIZERS -fno-sanitize-recover=undefined,integer,float-divide-by-zero,float-cast-overflow -fsanitize-ignorelist=$ROOT/ubsan-ignorelist.txt"
+        SAN_SYMBOLS=('__asan_' '__ubsan_handle_')
+        ;;
+    memory)
+        SANITIZERS="memory"
+        SAN_FLAGS="-g -O1 -fno-omit-frame-pointer -fsanitize=memory -fsanitize-memory-track-origins=2"
+        SAN_SYMBOLS=('__msan_')
+        ;;
+    thread)
+        SANITIZERS="thread"
+        SAN_FLAGS="-g -O1 -fno-omit-frame-pointer -fsanitize=thread"
+        SAN_SYMBOLS=('__tsan_')
+        ;;
+    *)
+        echo "[FAIL] Unsupported AFL third-party sanitizer: $SANITIZER_MODE" >&2
+        exit 1
+        ;;
+esac
 
 for tool in "$CC_BIN" "$CXX_BIN" "$AR_BIN" "$RANLIB_BIN" "$NM_BIN" cmake git; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -194,10 +215,12 @@ configure_build_install nlohmann-json \
 for archive in libz.a libjpeg.a libpng.a libtiff.a libxml2.a; do
     symbol_file="$BUILD_DIR/$archive.symbols"
     "$NM_BIN" "$PREFIX/lib/$archive" > "$symbol_file"
-    if ! grep -q '__asan_' "$symbol_file" || ! grep -q '__ubsan_handle_' "$symbol_file"; then
-        echo "[FAIL] Missing sanitizer instrumentation in $PREFIX/lib/$archive" >&2
-        exit 1
-    fi
+    for sanitizer_symbol in "${SAN_SYMBOLS[@]}"; do
+        if ! grep -q "$sanitizer_symbol" "$symbol_file"; then
+            echo "[FAIL] Missing $SANITIZER_MODE sanitizer instrumentation in $PREFIX/lib/$archive" >&2
+            exit 1
+        fi
+    done
     if [[ "$CC_BIN" == *afl* ]] && ! grep -q '__afl_' "$symbol_file"; then
         echo "[FAIL] Missing AFL instrumentation in $PREFIX/lib/$archive" >&2
         exit 1
@@ -207,4 +230,4 @@ done
 
 echo ""
 echo "[OK] AFL/sanitizer third-party prefix: $PREFIX"
-echo "     Sanitizers: $SANITIZERS"
+echo "     Sanitizer: $SANITIZER_MODE ($SANITIZERS)"
