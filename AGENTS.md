@@ -56,6 +56,18 @@ JPEG lane with raw `.icc` files from `test-profiles/`, `extended-test-profiles/`
 or `fuzz/graphics/icc/`. Keep the JPEG seed cap at 200 and run
 `.github/scripts/validate-afl-jpeg-seeds.sh` after changing AFL JPEG seeding.
 
+## AFL/CFL Config Alignment
+
+`icc_cfg_fuzzer` consumes ordinary JSON and must round-trip top-level and
+nested `CIccCfg*` objects. The three AFL `-cfg` lanes and CFL share
+`cfl/icc_cfg.dict` plus
+`docs/Testing/json-configs/connect-config-complete.json`. Connect harness
+controls are optional bytes after the declared ICC payload; never truncate a
+raw profile to obtain them. Run
+`.github/scripts/validate-afl-cfl-config-alignment.sh` and
+`.github/scripts/validate-afl-target-configs.sh` after changing these paths.
+Every active CFL C/C++ harness source requires a complete license block.
+
 ## Latest iccDEV Bisect Context
 JSON/config parser fixes live on upstream `InternationalColorConsortium/iccDEV`
 branch `bisect-60bbb8c-json` (local worktree:

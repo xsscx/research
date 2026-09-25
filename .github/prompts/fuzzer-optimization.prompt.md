@@ -96,12 +96,12 @@ For profile visualization, CFL's `profileplot` alias exercises the in-memory
 | 5 | icc_roundtrip_fuzzer | iccRoundTrip | ICC binary | 128B/2MB | 58% | AToB/BToA transforms |
 | 6 | icc_link_fuzzer | iccLinkCmm | 2x ICC | 256B/4MB | 52% | Profile linking, PCS conversion |
 | 7 | icc_applyprofiles_fuzzer | iccApplyProfiles | ICC+control | 128B/4MB | 55% | CMM Apply, pixel transforms |
-| 8 | icc_applynamedcmm_fuzzer | iccApplyNamedCmm | ICC+control | 128B/2MB | 48% | Named color CMM |
+| 8 | icc_applynamedcmm_fuzzer | iccApplyNamedCmm | raw ICC | 132B/unbounded | 48% | Named color CMM |
 | 9 | icc_applysearch_fuzzer | iccApplySearch | ICC binary | 128B/2MB | 40% | CIccCmmSearch optimization |
 | 10 | icc_v5dspobs_fuzzer | iccV5DspObsToV4 | 2x ICC | 256B/4MB | 61% | v5 DspObs->v4, spectral |
 | 11 | icc_specsep_fuzzer | iccSpecSepToTiff | TIFF+ICC | 128B/4MB | 38% | Spectral separation, TIFF I/O |
 | 12 | icc_tiffdump_fuzzer | iccTiffDump | TIFF | 8B/2MB | 44% | TIFF tag reading, ICC extraction |
-| 13 | icc_cfg_fuzzer | iccApplyNamedCmm | JSON config | 2B/64KB | 35% | JSON config parsing |
+| 13 | icc_cfg_fuzzer | IccConnect config API | JSON config | 1B/unbounded | measure | Top-level and nested config round trips |
 | 14 | icc_profilevisualize_fuzzer | iccProfilePlot | ICC binary | 132B/5MB | measure | IccVizModel enumerate, graph, raster |
 
 ### Multi-Profile Input Formats
@@ -130,7 +130,10 @@ is only the exact fuzzer control/pixel seed bytes.
 
 **tiffdump**: 4215-entry dict combining TIFF 6.0 tags + ICC sigs + corpus tokens.
 
-**cfg_fuzzer**: Tests the JSON config path (`iccApplyNamedCmm -cfg FILE`). Exercises `fromJson()`/`toJson()` round-trip.
+**cfg_fuzzer**: Consumes ordinary JSON without a selector prefix and exercises
+top-level plus nested `fromJson()`/`toJson()` round trips. Seed it with
+`docs/Testing/json-configs/connect-config-complete.json` and use
+`cfl/icc_cfg.dict`.
 
 For AFL tool-level `-cfg` lanes, keep the process working directory in the
 isolated `afl/work/<target>/root` tree. Fuzzed destination fields are target

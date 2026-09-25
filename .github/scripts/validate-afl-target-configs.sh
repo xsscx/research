@@ -234,6 +234,10 @@ expect_value "hybrid embedded deterministic skip" "$AFL_SKIP_DETERMINISTIC_TARGE
 for target in applynamedcmm-cfg applyprofiles-cfg applysearch-cfg; do
     afl_configure_target "$target"
     expect_value "$target isolated work flag" "$ISOLATED_WORK_NEEDS_SUPPORT" "1"
+    expect_value "$target config dictionary" "$DICT" "$REPO_ROOT/cfl/icc_cfg.dict"
+    if [[ "$SEED_INCLUDE_REGEX" != *"connect-config-complete"* ]]; then
+        fail "$target does not admit the complete IccConnect configuration seed"
+    fi
     if [[ "$AFL_WORK_DIR" != "$AFL_BASE/work/"*"/root" ]]; then
         fail "$target work directory is not isolated under AFL_BASE/work: $AFL_WORK_DIR"
     fi

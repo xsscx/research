@@ -17,6 +17,9 @@ json_comma=","
 
 # --- Top-level config sections ---
 key_dataFiles="\"dataFiles\""
+key_imageFiles="\"imageFiles\""
+key_connect="\"connect\""
+key_createLink="\"createLink\""
 key_profileSequence="\"profileSequence\""
 key_searchApply="\"searchApply\""
 key_colorData="\"colorData\""
@@ -35,6 +38,23 @@ key_debugCalc="\"debugCalc\""
 # --- CIccCfgImageApply fields ---
 key_srcImageFile="\"srcImageFile\""
 key_dstImageFile="\"dstImageFile\""
+key_dstCompression="\"dstCompression\""
+key_dstPlanar="\"dstPlanar\""
+key_dstEmbedIcc="\"dstEmbedIcc\""
+
+# --- CIccCfgConnectOptions fields ---
+key_threads="\"threads\""
+key_useSearch="\"useSearch\""
+
+# --- CIccCfgCreateLink fields ---
+key_linkFile="\"linkFile\""
+key_linkGridSize="\"linkGridSize\""
+key_linkMaxRange="\"linkMaxRange\""
+key_linkMinRange="\"linkMinRange\""
+key_linkPrecision="\"linkPrecision\""
+key_linkTitle="\"linkTitle\""
+key_linkType="\"linkType\""
+key_useSourceTransform="\"useSourceTransform\""
 
 # --- CIccCfgProfile fields (profileSequence entry) ---
 key_iccFile="\"iccFile\""

@@ -246,6 +246,10 @@ cfl_install_curated_seeds() {
       seed="$script_dir/../test-profiles/sRGB_v4_ICC_preference.icc"
       [[ -f "$seed" ]] && cp "$seed" "$corpus_dir/$(basename "$seed")"
       ;;
+    icc_cfg_fuzzer)
+      seed="$script_dir/../docs/Testing/json-configs/connect-config-complete.json"
+      [[ -f "$seed" ]] && cp "$seed" "$corpus_dir/$(basename "$seed")"
+      ;;
   esac
 
   if seed_dir="$(cfl_curated_seed_dir "$script_dir" "$fuzzer")" &&
@@ -280,7 +284,7 @@ cfl_install_curated_seeds() {
       while IFS= read -r external_seed_dir; do
         while IFS= read -r -d '' seed; do
           target="$corpus_dir/$(cfl_ics_seed_name "$seed")"
-          { printf '\001'; cat "$seed"; } > "$target"
+          cp "$seed" "$target"
         done < <(find "$external_seed_dir" -maxdepth 1 -type f -name '*.json' -print0)
       done < <(cfl_ics_external_seed_dirs "$script_dir" json)
       ;;
@@ -315,7 +319,7 @@ cfl_resolve_dict() {
   local mapped=""
 
   case "$fuzzer" in
-    icc_connect_fuzzer) mapped="icc_cfg.dict" ;;
+    icc_cfg_fuzzer|icc_connect_fuzzer) mapped="icc_cfg.dict" ;;
     icc_fromjson_fuzzer) mapped="icc_json.dict" ;;
     icc_proflib_fuzzer) mapped="icc_core.dict" ;;
     icc_roundtrip_fuzzer) mapped="icc_core.dict" ;;

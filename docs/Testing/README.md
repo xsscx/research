@@ -16,7 +16,7 @@ ICC and TIFF-related validation work in this repository.
 
 | Path | Purpose |
 |------|---------|
-| `json-configs/` | Valid JSON inputs for `iccApplyNamedCmm` and `iccApplySearch` |
+| `json-configs/` | Valid JSON inputs for all three apply tools, including the shared AFL/CFL complete config |
 | `malformed-json/` | Negative test cases for parser and validation behavior |
 | `test-data/` | Small input files used by scripted tests |
 | `results/` | Saved logs and artifacts; evidence, not onboarding material |

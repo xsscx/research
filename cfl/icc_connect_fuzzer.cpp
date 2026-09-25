@@ -1,4 +1,39 @@
 /*
+ * Copyright (c) 1994 - 2026 David H Hoyt LLC
+ * All Rights Reserved.
+ *
+ * This software and associated documentation files (the "Software") are the
+ * exclusive intellectual property of David H Hoyt LLC.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. The name "David H Hoyt LLC" must not be used to endorse or promote
+ *    products derived from this software without prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY DAVID H HOYT LLC "AS IS" AND ANY EXPRESSED
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL DAVID H HOYT LLC BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Contact: https://hoyt.net
+ *
  * CFL icc_connect_fuzzer - direct IccConnect library coverage.
  *
  * Builds CIccCfgProfileSequence objects from fuzzed ICC data and exercises
@@ -44,6 +79,13 @@ static bool WriteTempProfile(const uint8_t *data, size_t size, char *path, size_
   return true;
 }
 
+static uint32_t ReadBigEndian32(const uint8_t *data) {
+  return (static_cast<uint32_t>(data[0]) << 24) |
+         (static_cast<uint32_t>(data[1]) << 16) |
+         (static_cast<uint32_t>(data[2]) << 8) |
+         static_cast<uint32_t>(data[3]);
+}
+
 static void FillConfig(CIccCfgProfile &cfg, const char *path, uint8_t flags) {
   cfg.reset();
   cfg.m_iccFile = path ? path : "";
@@ -82,12 +124,23 @@ static void ExerciseApply(CIccConnectCmm *conn, uint8_t seed, uint8_t mode) {
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (!data || size < 136)
+  if (!data || size < 132)
     return 0;
 
-  const size_t profile_size = size - 4;
+  const uint32_t declared_size = ReadBigEndian32(data);
+  const size_t profile_size = declared_size >= 132 && declared_size <= size
+                                  ? declared_size
+                                  : size;
   const uint8_t *profile_data = data;
-  const uint8_t *ctrl = data + profile_size;
+  const uint8_t default_control[4] = {
+      0x02,
+      0,
+      static_cast<uint8_t>(ReadBigEndian32(data + 64) % 4),
+      data[68],
+  };
+  const uint8_t *ctrl = size - profile_size >= 4
+                            ? data + profile_size
+                            : default_control;
 
   const bool use_embedded = (ctrl[0] & 0x01) != 0;
   const bool try_named = (ctrl[0] & 0x02) != 0;

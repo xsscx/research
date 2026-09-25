@@ -82,8 +82,8 @@ expect_cfl_install icc_cfg_fuzzer json
   fail "TIFF fuzzer still has a fixed input-size ceiling"
 
 cfg_seed="$(find "$scratch_root/icc_cfg_fuzzer" -maxdepth 1 -type f -name 'ics-*-*.json' -print -quit)"
-[[ "$(od -A n -t u1 -N 1 "$cfg_seed" | tr -d ' ')" -eq 1 ]] ||
-  fail "ICS config seed is missing the image-apply selector byte"
+python3 -m json.tool "$cfg_seed" >/dev/null ||
+  fail "ICS config seed is not an ordinary JSON document"
 
 if [[ "$REPLAY" -eq 1 ]]; then
   for fuzzer in \

@@ -107,6 +107,16 @@ the target map can exceed 131072 bytes.
 Run `.github/scripts/validate-afl-applynamedcmm-targets.sh` after changing any
 NamedCMM target arguments, seed limits, dry-run policy, or export path handling.
 
+## JSON Config Lanes
+
+`applynamedcmm-cfg`, `applyprofiles-cfg`, and `applysearch-cfg` share the
+canonical `cfl/icc_cfg.dict` dictionary and the schema-shaped
+`docs/Testing/json-configs/connect-config-complete.json` seed. Keep the
+tool-specific positive seeds too, require seed dry runs, and retain isolated
+`afl/work/<target>/root` directories for config-controlled paths. Run
+`.github/scripts/validate-afl-cfl-config-alignment.sh` and
+`.github/scripts/validate-afl-target-configs.sh` after changing this contract.
+
 ## iccProfilePlot CLI Shapes
 
 Keep separate `profileplot`, `profileplot-graph`, and `profileplot-raster`

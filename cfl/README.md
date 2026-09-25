@@ -93,6 +93,21 @@ An independent PCC needs a second profile and is intentionally outside this
 single-file contract. JSON parsing/export and calculator-debug output are owned
 by `icc_cfg_fuzzer` and tool QA respectively.
 
+`icc_connect_fuzzer` also accepts an ordinary raw ICC profile. It reads the
+encoded profile size and treats four bytes after that payload as optional
+controls; it never removes the final four bytes from a raw seed. The config
+fuzzer accepts ordinary JSON with no selector prefix and round-trips all public
+top-level and nested `CIccCfg*` objects. Both AFL and CFL use
+`cfl/icc_cfg.dict`, and
+`docs/Testing/json-configs/connect-config-complete.json` is the shared
+schema-shaped seed. Validate these contracts with
+`.github/scripts/validate-afl-cfl-config-alignment.sh`.
+
+The local inventory already has separately attributable multi-profile,
+XML/JSON serializer, V5 display-observer, and image/carrier targets. Strengthen
+those targets before adding overlapping harnesses, and keep image/carrier MSan
+findings behind fully instrumented dependency boundaries.
+
 Address-sanitizer builds consume iccDEV's standard-library-only UBSAN
 ignorelist. This keeps known libstdc++ integer idioms out of fuzzer findings
 without suppressing project-owned code; it also prevents repeated diagnostics

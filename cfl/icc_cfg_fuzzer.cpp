@@ -1,270 +1,134 @@
 /*
- * Copyright (c) 1994 - 2026 David H Hoyt LLC. All rights reserved.
+ * Copyright (c) 1994 - 2026 David H Hoyt LLC
+ * All Rights Reserved.
  *
- * CFL icc_cfg_fuzzer - Structured JSON config mutation fuzzer
+ * This software and associated documentation files (the "Software") are the
+ * exclusive intellectual property of David H Hoyt LLC.
  *
- * Target: iccDEV JSON configuration parsing subsystem
- *   - IccCmmConfig.cpp (2,175 LOC) - 9 config classes with fromJson()/toJson()
- *   - IccJsonUtil.cpp (459 LOC)    - JSON file I/O, jsonToValue() templates
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * Attack surface:
- *   - 106 unsafe j["field"] accesses (missing .find() checks)
- *   - Type confusion: string<->number<->bool<->null<->array<->object
- *   - Field name typos / swaps (BUG-1: CFL-033, BUG-7: CFL-034)
- *   - Extreme numeric values (INT_MAX, NaN, Inf, negative)
- *   - Deeply nested arrays / objects (stack exhaustion)
- *   - Empty / null / oversized strings
- *   - Array element count explosion (colorData, envVars, profileSequence)
- *   - fromArgs() enum cast from unchecked atoi() (32 sites)
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * Architecture:
- *   Phase 1 (cheap): Parse fuzz input as JSON via nlohmann::json::parse()
- *   Phase 2 (deep): Call all 3 top-level fromJson() entry points:
- *     - CIccCfgDataApply::fromJson()     (iccApplyNamedCmm config)
- *     - CIccCfgImageApply::fromJson()    (iccApplyProfiles config)
- *     - CIccCfgSearchApply::fromJson()   (iccApplySearch config)
- *   Phase 3 (round-trip): toJson() -> fromJson() divergence detection
- *   Phase 4 (sub-objects): Direct exercise of CIccCfgProfile, CIccCfgColorData,
- *     CIccCfgDataEntry, CIccCfgPccWeight, CIccCfgCreateLink, CIccCfgProfileSequence
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
  *
- * NO profile files needed - fromJson() only stores parsed values into member
- * variables. Actual ICC profile loading happens later in the tool's Apply() path.
+ * 3. The name "David H Hoyt LLC" must not be used to endorse or promote
+ *    products derived from this software without prior written permission.
  *
- * Dictionary: cfl/icc_cfg.dict (115 entries: 38 field names, 7 encodings, edge cases)
+ * THIS SOFTWARE IS PROVIDED BY DAVID H HOYT LLC "AS IS" AND ANY EXPRESSED
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL DAVID H HOYT LLC BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Contact: https://hoyt.net
  */
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <cmath>
-#include <string>
-#include <stdint.h>
+/** @file
+    LibFuzzer harness for public IccConnect JSON configuration objects.
+
+    Input is one ordinary JSON document. Top-level sections and nested objects
+    are parsed, serialized, and parsed again without invoking a CLI or opening
+    any path named by the input.
+ */
+
 #include <stddef.h>
-#include <new>
+#include <stdint.h>
 
 #include "IccCmmConfig.h"
 #include "IccJsonUtil.h"
-#include "IccProfile.h"
-#include "IccCmm.h"
 
-// ===============================================================
-// Phase 2: Exercise all 3 top-level config fromJson() paths
-// ===============================================================
+static const json &SectionOrRoot(const json &root, const char *name) {
+  if (root.is_object()) {
+    const auto section = root.find(name);
+    if (section != root.end())
+      return *section;
+  }
 
-static void FuzzDataApply(const json& j) {
-  CIccCfgDataApply cfg;
-  cfg.fromJson(j, true);
-
-  // Round-trip: toJson -> fromJson - should produce identical state
-  json roundtrip;
-  cfg.toJson(roundtrip);
-
-  CIccCfgDataApply cfg2;
-  cfg2.fromJson(roundtrip, true);
+  return root;
 }
 
-static void FuzzImageApply(const json& j) {
-  CIccCfgImageApply cfg;
-  cfg.fromJson(j, true);
-
-  json roundtrip;
-  cfg.toJson(roundtrip);
-
-  CIccCfgImageApply cfg2;
-  cfg2.fromJson(roundtrip, true);
-}
-
-static void FuzzSearchApply(const json& j) {
-  CIccCfgSearchApply cfg;
-  cfg.fromJson(j, true);
-
-  json roundtrip;
-  cfg.toJson(roundtrip);
-
-  CIccCfgSearchApply cfg2;
-  cfg2.fromJson(roundtrip, true);
-}
-
-// ===============================================================
-// Phase 4: Exercise sub-object config classes directly
-// ===============================================================
-
-static void FuzzProfile(const json& j) {
-  CIccCfgProfile cfg;
-  cfg.fromJson(j, true);
-
-  json roundtrip;
-  cfg.toJson(roundtrip);
-
-  CIccCfgProfile cfg2;
-  cfg2.fromJson(roundtrip, true);
-}
-
-static void FuzzProfileSequence(const json& j) {
-  CIccCfgProfileSequence cfg;
-  cfg.fromJson(j, true);
-
-  json roundtrip;
-  cfg.toJson(roundtrip);
-
-  CIccCfgProfileSequence cfg2;
-  cfg2.fromJson(roundtrip, true);
-}
-
-static void FuzzPccWeight(const json& j) {
-  CIccCfgPccWeight cfg;
-  cfg.fromJson(j, true);
-
-  json roundtrip;
-  cfg.toJson(roundtrip);
-
-  CIccCfgPccWeight cfg2;
-  cfg2.fromJson(roundtrip, true);
-}
-
-static void FuzzCreateLink(const json& j) {
-  CIccCfgCreateLink cfg;
-  cfg.fromJson(j, true);
-
-  json roundtrip;
-  cfg.toJson(roundtrip);
-
-  CIccCfgCreateLink cfg2;
-  cfg2.fromJson(roundtrip, true);
-}
-
-static void FuzzColorData(const json& j) {
-  CIccCfgColorData cfg;
-  cfg.fromJson(j, true);
-
-  json roundtrip;
-  cfg.toJson(roundtrip);
-
-  CIccCfgColorData cfg2;
-  cfg2.fromJson(roundtrip, true);
-}
-
-static void FuzzDataEntry(const json& j) {
-  CIccCfgDataEntry cfg;
-  cfg.fromJson(j, true);
-
-  json roundtrip;
-  cfg.toJson(roundtrip);
-
-  CIccCfgDataEntry cfg2;
-  cfg2.fromJson(roundtrip, true);
-}
-
-// ===============================================================
-// Dispatch: Use first byte of input to select which config path
-// to exercise, remaining bytes are the JSON payload.
-// This ensures the fuzzer doesn't waste all mutations on a single
-// config class.
-// ===============================================================
-
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (size < 2)
+template <typename T>
+static size_t ExerciseRoundTrip(const json &value) {
+  T parsed;
+  if (!parsed.fromJson(value, true))
     return 0;
 
-  // First byte selects config class, rest is JSON
-  uint8_t selector = data[0];
-  const uint8_t *jsonData = data + 1;
-  size_t jsonSize = size - 1;
+  json serialized;
+  parsed.toJson(serialized);
 
-  // Parse as JSON - nlohmann::json::parse() is safe (no UB on malformed input)
-  json j;
+  T replayed;
+  const bool replayed_ok = replayed.fromJson(serialized, true);
+  return serialized.dump().size() + static_cast<size_t>(replayed_ok);
+}
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+  if (!data || !size)
+    return 0;
+
+  json root;
   try {
-    j = json::parse(jsonData, jsonData + jsonSize, nullptr, false);
+    root = json::parse(data, data + size, nullptr, false);
   } catch (...) {
     return 0;
   }
 
-  // Discard non-parse results (parse with allow_exceptions=false returns discarded)
-  if (j.is_discarded())
+  if (root.is_discarded())
     return 0;
 
-  // Dispatch based on selector byte - 10 config paths
-  switch (selector % 10) {
-    case 0: // Top-level: CIccCfgDataApply (iccApplyNamedCmm)
-      if (j.is_object()) {
-        auto it = j.find("dataFiles");
-        if (it != j.end())
-          FuzzDataApply(*it);
-        else
-          FuzzDataApply(j);
-      }
-      break;
+  size_t observations = 0;
+  observations += ExerciseRoundTrip<CIccCfgDataApply>(
+      SectionOrRoot(root, "dataFiles"));
+  observations += ExerciseRoundTrip<CIccCfgImageApply>(
+      SectionOrRoot(root, "imageFiles"));
+  observations += ExerciseRoundTrip<CIccCfgConnectOptions>(
+      SectionOrRoot(root, "connect"));
+  observations += ExerciseRoundTrip<CIccCfgCreateLink>(
+      SectionOrRoot(root, "createLink"));
+  observations += ExerciseRoundTrip<CIccCfgColorData>(
+      SectionOrRoot(root, "colorData"));
 
-    case 1: // Top-level: CIccCfgImageApply (iccApplyProfiles)
-      if (j.is_object()) {
-        auto it = j.find("dataFiles");
-        if (it != j.end())
-          FuzzImageApply(*it);
-        else
-          FuzzImageApply(j);
-      }
-      break;
+  const json &search_apply = SectionOrRoot(root, "searchApply");
+  observations += ExerciseRoundTrip<CIccCfgSearchApply>(search_apply);
 
-    case 2: // Top-level: CIccCfgSearchApply (iccApplySearch)
-      if (j.is_object()) {
-        auto it = j.find("searchApply");
-        if (it != j.end())
-          FuzzSearchApply(*it);
-        else
-          FuzzSearchApply(j);
-      }
-      break;
+  const json &profiles = SectionOrRoot(root, "profileSequence");
+  observations += ExerciseRoundTrip<CIccCfgProfileSequence>(profiles);
+  if (profiles.is_array() && !profiles.empty())
+    observations += ExerciseRoundTrip<CIccCfgProfile>(profiles.front());
 
-    case 3: // Sub-object: CIccCfgProfile
-      FuzzProfile(j);
-      break;
-
-    case 4: // Sub-object: CIccCfgProfileSequence
-      FuzzProfileSequence(j);
-      break;
-
-    case 5: // Sub-object: CIccCfgPccWeight
-      FuzzPccWeight(j);
-      break;
-
-    case 6: // Sub-object: CIccCfgCreateLink
-      FuzzCreateLink(j);
-      break;
-
-    case 7: // Sub-object: CIccCfgColorData
-      FuzzColorData(j);
-      break;
-
-    case 8: // Sub-object: CIccCfgDataEntry
-      FuzzDataEntry(j);
-      break;
-
-    case 9: { // Full config: parse as complete tool config with all sections
-      if (!j.is_object())
-        break;
-
-      // Exercise all sections present in the JSON
-      auto dfIt = j.find("dataFiles");
-      if (dfIt != j.end()) {
-        FuzzDataApply(*dfIt);
-        FuzzImageApply(*dfIt);
-      }
-
-      auto saIt = j.find("searchApply");
-      if (saIt != j.end())
-        FuzzSearchApply(*saIt);
-
-      auto cdIt = j.find("colorData");
-      if (cdIt != j.end())
-        FuzzColorData(*cdIt);
-
-      auto psIt = j.find("profileSequence");
-      if (psIt != j.end())
-        FuzzProfileSequence(*psIt);
-
-      break;
-    }
+  const json &search_profiles =
+      SectionOrRoot(search_apply, "profileSequence");
+  observations += ExerciseRoundTrip<CIccCfgProfileSequence>(search_profiles);
+  if (search_profiles.is_array() && !search_profiles.empty()) {
+    observations += ExerciseRoundTrip<CIccCfgProfile>(
+        search_profiles.front());
   }
 
+  const json &pcc_weights = SectionOrRoot(search_apply, "pccWeights");
+  if (pcc_weights.is_array() && !pcc_weights.empty()) {
+    observations += ExerciseRoundTrip<CIccCfgPccWeight>(
+        pcc_weights.front());
+  }
+
+  const json &color_data = SectionOrRoot(root, "colorData");
+  const json &data_entries = SectionOrRoot(color_data, "data");
+  if (data_entries.is_array() && !data_entries.empty()) {
+    observations += ExerciseRoundTrip<CIccCfgDataEntry>(
+        data_entries.front());
+  }
+
+  volatile size_t result_sink = observations;
+  (void)result_sink;
   return 0;
 }

@@ -1000,17 +1000,28 @@ unbundle_applynamedcmm() {
 }
 
 unbundle_connect() {
-  echo "Format: [ICC profile][4-byte trailing control]"
-  if [ "$FILE_SIZE" -lt 136 ]; then
+  echo "Format: [declared-size ICC profile][optional 4-byte trailing control]"
+  if [ "$FILE_SIZE" -lt 132 ]; then
     echo "ERROR: file too small for connect layout" >&2
     return 1
   fi
 
-  local profile_size ctrl0=0 ctrl1=0 ctrl2=0 ctrl3=0 use_embedded try_named try_threaded threads
-  profile_size=$((FILE_SIZE - 4))
+  local declared_size profile_size control_size
+  local ctrl0=2 ctrl1=0 ctrl2 ctrl3 use_embedded try_named try_threaded threads
+  declared_size=$(od -A n -t u4 --endian=big -N 4 "$CRASH_FILE" | tr -d ' ')
+  if [ "$declared_size" -ge 132 ] && [ "$declared_size" -le "$FILE_SIZE" ]; then
+    profile_size="$declared_size"
+  else
+    profile_size="$FILE_SIZE"
+  fi
+  control_size=$((FILE_SIZE - profile_size))
   extract_range 0 "$profile_size" "$OUT_DIR/profile.icc"
-  extract_range "$profile_size" 4 "$OUT_DIR/control.bin"
-  read -r ctrl0 ctrl1 ctrl2 ctrl3 < <(od -A n -t u1 -j "$profile_size" -N 4 "$CRASH_FILE")
+  ctrl2=$(od -A n -t u4 --endian=big -j 64 -N 4 "$CRASH_FILE" | awk '{print $1 % 4}')
+  ctrl3=$(od -A n -t u1 -j 68 -N 1 "$CRASH_FILE" | awk '{print $1}')
+  if [ "$control_size" -ge 4 ]; then
+    extract_range "$profile_size" 4 "$OUT_DIR/control.bin"
+    read -r ctrl0 ctrl1 ctrl2 ctrl3 < <(od -A n -t u1 -j "$profile_size" -N 4 "$CRASH_FILE")
+  fi
   use_embedded=$(( (ctrl0 & 1) ? 1 : 0 ))
   try_named=$(( (ctrl0 & 2) ? 1 : 0 ))
   try_threaded=$(( (ctrl0 & 4) ? 1 : 0 ))
@@ -1020,7 +1031,7 @@ unbundle_connect() {
     threads=1
   fi
 
-  echo "Extracted profile=$profile_size bytes control=4 bytes"
+  echo "Extracted profile=$profile_size bytes control=$((control_size >= 4 ? 4 : 0)) bytes"
   echo "Control: use_embedded=$use_embedded try_named=$try_named try_threaded=$try_threaded threads=$threads apply_seed=$ctrl3 profile_flags=$ctrl2"
   check_icc_magic "$OUT_DIR/profile.icc" "Profile"
   icc_header_summary "$OUT_DIR/profile.icc" "Profile"
@@ -1028,31 +1039,16 @@ unbundle_connect() {
 }
 
 unbundle_cfg() {
-  echo "Format: [1-byte selector][JSON payload]"
-  if [ "$FILE_SIZE" -lt 2 ]; then
+  echo "Format: one ordinary JSON configuration document"
+  if [ "$FILE_SIZE" -lt 1 ]; then
     echo "ERROR: file too small for cfg layout" >&2
     return 1
   fi
 
-  local selector payload_size dispatch
-  selector=$(od -A n -t u1 -N 1 "$CRASH_FILE" | awk '{print $1}')
-  payload_size=$((FILE_SIZE - 1))
-  extract_range 0 1 "$OUT_DIR/selector.bin"
-  extract_range 1 "$payload_size" "$OUT_DIR/input.json"
-  case $((selector % 10)) in
-    0) dispatch="CIccCfgDataApply" ;;
-    1) dispatch="CIccCfgImageApply" ;;
-    2) dispatch="CIccCfgSearchApply" ;;
-    3) dispatch="CIccCfgProfile" ;;
-    4) dispatch="CIccCfgProfileSequence" ;;
-    5) dispatch="CIccCfgPccWeight" ;;
-    6) dispatch="CIccCfgCreateLink" ;;
-    7) dispatch="CIccCfgColorData" ;;
-    8) dispatch="CIccCfgDataEntry" ;;
-    *) dispatch="full config sections" ;;
-  esac
-  echo "Extracted selector=$selector dispatch='$dispatch' json_payload=$payload_size bytes"
-  echo "No exact iccDEV CLI equivalent; replay with cfl/bin/icc_cfg_fuzzer for this parser dispatch target."
+  extract_range 0 "$FILE_SIZE" "$OUT_DIR/input.json"
+  echo "Extracted JSON payload=$FILE_SIZE bytes"
+  echo "The harness round-trips all applicable top-level and nested CIccCfg objects."
+  echo "Replay with cfl/bin/icc_cfg_fuzzer before selecting a matching -cfg CLI."
 }
 
 unbundle_single_icc_tool() {

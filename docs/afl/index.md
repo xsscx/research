@@ -195,6 +195,16 @@ shapes:
   calculator profiles cannot hold a worker at the global five-second default;
   use an explicit `AFL_TIMEOUT` or `--timeout` for longer-path experiments.
 - `applynamedcmm-cfg` fuzzes the JSON document consumed by `-cfg`.
+
+The three tool-level JSON configuration lanes share `cfl/icc_cfg.dict` and
+admit `docs/Testing/json-configs/connect-config-complete.json` in addition to
+their tool-specific positive and negative fixtures. The complete fixture keeps
+`dataFiles`, `imageFiles`, `connect`, `createLink`, `profileSequence`,
+`searchApply`, `pccWeights`, and `colorData` mutually reachable. Each AFL
+lane still screens the document through its real CLI from an isolated work
+tree. Run `.github/scripts/validate-afl-cfl-config-alignment.sh` and
+`.github/scripts/validate-afl-target-configs.sh` after changing this contract.
+
 - `applynamedcmm-hybrid-chain` explicitly selects the spectral transform in
   the fixed CMYK V5 sub-profile at intent `10103`, then fuzzes a second profile
   at intent `10` while exercising `-exportcfganddata`.

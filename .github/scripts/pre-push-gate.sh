@@ -27,6 +27,7 @@ SKIPPED=0
 AFL_JPEG_SEED_PATTERN='afl/targets.sh\|afl/start.sh\|afl/README.md\|\.github/scripts/validate-afl-jpeg-seeds.sh\|\.github/instructions/afl.instructions.md\|\.github/instructions/fuzz.instructions.md\|\.github/prompts/.*fuzzer.*\.prompt.md\|\.github/skills/corpus-management/SKILL.md\|AGENTS.md\|\.github/copilot-instructions.md'
 AFL_NAMEDCMM_PATTERN='afl/targets.sh\|afl/start.sh\|afl/README.md\|docs/afl/index.md\|\.github/scripts/validate-afl-applynamedcmm-targets.sh\|\.github/instructions/afl.instructions.md'
 AFL_TARGET_CONFIG_PATTERN='afl/targets.sh\|afl/start.sh\|\.github/scripts/validate-afl-target-configs.sh\|\.github/instructions/afl.instructions.md'
+AFL_CFL_CONFIG_PATTERN='afl/targets.sh\|cfl/fuzzers.sh\|cfl/icc_cfg\|cfl/icc_connect_fuzzer.cpp\|docs/Testing/json-configs/connect-config-complete.json\|\.github/scripts/validate-afl-cfl-config-alignment.sh\|\.github/scripts/unbundle-fuzzer-input.sh\|\.github/instructions/\(afl\|cfl\).instructions.md'
 AFL_PROFILEPLOT_PATTERN='afl/targets.sh\|afl/triage.sh\|afl/README.md\|docs/afl/index.md\|test-profiles/sRGB_v4_ICC_preference.icc\|\.github/scripts/validate-afl-profileplot-targets.sh\|\.github/instructions/afl.instructions.md'
 CFL_NAMEDCMM_PATTERN='cfl/icc_applynamedcmm_fuzzer.cpp\|cfl/fuzzers.sh\|cfl/fuzz-local.sh\|cfl/seeds-applynamedcmm/\|\.github/scripts/validate-cfl-applynamedcmm.sh\|\.github/instructions/cfl.instructions.md'
 ICC_APPLYPROFILES_QA_PATTERN='afl/build-afl-runtime.sh\|docs/afl/iccapplyprofiles-qa.md\|\.github/ci/quality-assurance/scripts/iccApplyProfiles_.*_qa.sh\|\.github/scripts/validate-iccapplyprofiles-qa.sh\|\.github/skills/icc-tool-qa/SKILL.md\|\.github/prompts/iccapplyprofiles-qa.prompt.md\|\.github/agents/icc-tool-qa.agent.md'
@@ -97,6 +98,25 @@ if has_changes "$AFL_TARGET_CONFIG_PATTERN"; then
   fi
 else
   echo -e "  ${YELLOW}(no AFL target configuration changes - skipped)${NC}"
+  SKIPPED=$((SKIPPED + 1))
+fi
+
+echo ""
+
+# ---------------------------------------------------
+# GATE 1A.1: Shared AFL/CFL config contracts
+# ---------------------------------------------------
+echo -e "${BOLD}[GATE 1A.1] Shared AFL/CFL config contracts${NC}"
+
+if has_changes "$AFL_CFL_CONFIG_PATTERN"; then
+  if .github/scripts/validate-afl-cfl-config-alignment.sh; then
+    echo -e "  ${GREEN}Shared AFL/CFL config contracts OK${NC}"
+  else
+    echo -e "  ${RED}Shared AFL/CFL config contracts FAILED${NC}"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  echo -e "  ${YELLOW}(no shared AFL/CFL config changes - skipped)${NC}"
   SKIPPED=$((SKIPPED + 1))
 fi
 

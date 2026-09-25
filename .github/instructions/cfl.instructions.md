@@ -99,6 +99,15 @@ cd cfl && ./build.sh --refresh-iccdev
 - `icc_applynamedcmm_fuzzer` consumes pure raw ICC files. Do not add a control
   prefix, suffix, or reserved-byte selector. Run
   `.github/scripts/validate-cfl-applynamedcmm.sh --replay` after building.
+- `icc_connect_fuzzer` reads the declared ICC size and accepts only an
+  optional four-byte control trailer after that payload. A raw ICC seed must
+  remain intact.
+- `icc_cfg_fuzzer` consumes ordinary JSON without a selector prefix. Keep the
+  complete config seed, shared `icc_cfg.dict`, and all top-level and nested
+  `CIccCfg*` round trips aligned with the AFL `-cfg` lanes. Run
+  `.github/scripts/validate-afl-cfl-config-alignment.sh` after changes.
+- Every active C/C++ harness source must carry a complete redistribution and
+  warranty-disclaimer license block.
 - `fuzz-local.sh` installs `cfl/seeds-applynamedcmm/` into the NamedCmm runtime
   corpus. Keep the tracked seed directory immutable during fuzzing.
 - Do not add fixed input-size guards to the NamedCmm, Connect, config, TIFF
@@ -109,3 +118,6 @@ cd cfl && ./build.sh --refresh-iccdev
 - Use `LLVM_PROFILE_FILE=/dev/null` when coverage files are not needed.
 - Treat OOM and timeout files as evidence candidates, not automatic commits.
 - Keep one-off run counts in dated reports, not hub docs.
+- Strengthen the existing multi-profile, serializer, V5 display-observer, and
+  image/carrier targets before adding overlapping harnesses. Image/carrier
+  MSan findings require fully instrumented dependency boundaries.
