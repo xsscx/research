@@ -41,6 +41,7 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 ./afl/build.sh --sanitizer thread
 ./afl/start.sh --list
 ./afl/start.sh dump
+./afl/start.sh --sanitizer memory dump
 ./afl/start.sh toxml --parallel 4
 ./afl/status.sh --detail
 ./afl/status.sh --json | jq .
@@ -50,12 +51,16 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 .github/scripts/validate-afl-applynamedcmm-targets.sh
 .github/scripts/validate-afl-jpeg-seeds.sh
 .github/scripts/validate-afl-profileplot-targets.sh
-.github/scripts/validate-afl-target-configs.sh --local
+.github/scripts/validate-afl-target-configs.sh
+.github/scripts/validate-afl-target-configs.sh --local --sanitizer memory
 ```
 
 MSan and TSan use isolated `Build-AFL-*`, `bin-*`, and third-party dependency
-directories. Select the matching runtime with `AFL_SANITIZER=memory` or
-`AFL_SANITIZER=thread`; do not combine sanitizer modes in one binary.
+directories. Select the matching runtime with `start.sh --sanitizer memory`,
+`start.sh --sanitizer thread`, or the corresponding `AFL_SANITIZER` variable;
+do not combine sanitizer modes in one binary. MSan builds pin and compile an
+instrumented static libc++ because linking the tools to the system's
+uninstrumented libstdc++ produces invalid shadow-state reports.
 
 The runtime builder pins AFL++ stable commit
 `45bb74bd3a6591e6853b704c390ab6156c0a3c88`, LLVM 21, and `-j32`. Its compiled

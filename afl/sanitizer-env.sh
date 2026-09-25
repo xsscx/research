@@ -83,7 +83,8 @@ afl_export_sanitizer_env() {
             return 1
             ;;
     esac
-    export AFL_ACTIVE_SANITIZER="$mode"
+    AFL_ACTIVE_SANITIZER="$mode"
+    export -n AFL_ACTIVE_SANITIZER
 }
 
 afl_export_fuzz_sanitizer_env() {

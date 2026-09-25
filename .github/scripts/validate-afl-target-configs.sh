@@ -6,20 +6,39 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # shellcheck source=afl/targets.sh
 source "$REPO_ROOT/afl/targets.sh"
+# shellcheck source=afl/sanitizer-env.sh
+source "$REPO_ROOT/afl/sanitizer-env.sh"
 
 LOCAL_AUDIT=0
-if [[ "${1:-}" == "--local" ]]; then
-    LOCAL_AUDIT=1
-elif [[ $# -gt 0 ]]; then
-    echo "Usage: $0 [--local]" >&2
-    exit 1
-fi
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --local)
+            LOCAL_AUDIT=1
+            shift
+            ;;
+        --sanitizer)
+            if [[ $# -lt 2 || "$2" == --* ]]; then
+                echo "ERROR: --sanitizer requires address, memory, or thread" >&2
+                exit 1
+            fi
+            AFL_SANITIZER="$2"
+            shift 2
+            ;;
+        *)
+            echo "Usage: $0 [--local] [--sanitizer MODE]" >&2
+            exit 1
+            ;;
+    esac
+done
 
 scratch_root="$(mktemp -d /tmp/afl-target-contracts-XXXXXX)"
 trap 'rm -rf -- "$scratch_root"' EXIT
 
 AFL_BASE="$scratch_root/afl"
-BIN_DIR="$REPO_ROOT/afl/bin"
+BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
+    echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}' (use address, memory, or thread)" >&2
+    exit 1
+}
 errors=0
 declare -A configured_dirs=()
 

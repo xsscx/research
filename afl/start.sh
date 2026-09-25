@@ -56,10 +56,6 @@ AFL_DIR=""
 
 source "$REPO_ROOT/afl/targets.sh"
 source "$REPO_ROOT/afl/sanitizer-env.sh"
-BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
-    echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}'" >&2
-    exit 1
-}
 
 TARGET=""
 PARALLEL=1
@@ -83,6 +79,7 @@ usage() {
     echo "  --timeout MS          AFL execution timeout"
     echo "  --run-time SEC        stop fuzzing after SEC seconds"
     echo "  --map-size N          AFL map size"
+    echo "  --sanitizer MODE      binary set: address (default), memory, or thread"
     echo "  --cmplog-auto         use matching afl/bin-cmplog binary when available"
     echo "  --cmplog-binary FILE  pass FILE to afl-fuzz -c"
     echo "  --cmplog-opts OPTS    pass OPTS to afl-fuzz -l"
@@ -139,6 +136,7 @@ while [[ $# -gt 0 ]]; do
         --timeout) AFL_TIMEOUT="$(option_arg "$1" "${2:-}")"; AFL_TIMEOUT_EXPLICIT=1; shift 2 ;;
         --run-time) AFL_RUN_TIME="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --map-size) AFL_MAP_SIZE_VAL="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --sanitizer) AFL_SANITIZER="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --cmplog-auto) AFL_CMPLOG_AUTO=1; shift ;;
         --cmplog-binary) AFL_CMPLOG_BINARY="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --cmplog-opts) AFL_CMPLOG_OPTS="$(option_arg "$1" "${2:-}")"; shift 2 ;;
@@ -171,6 +169,11 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
+    echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}' (use address, memory, or thread)" >&2
+    exit 1
+}
 
 case "$AFL_CAMPAIGN_MODE" in
     default)
@@ -1031,7 +1034,9 @@ fi
 export AFL_MAP_SIZE="$AFL_MAP_SIZE_VAL"
 export AFL_SKIP_CPUFREQ=1
 export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
-if [[ "$AFL_AUTORESUME_VAL" != "0" ]]; then
+if [[ "$AFL_FRESH" != "0" ]]; then
+    unset AFL_AUTORESUME
+elif [[ "$AFL_AUTORESUME_VAL" != "0" ]]; then
     export AFL_AUTORESUME="$AFL_AUTORESUME_VAL"
 else
     unset AFL_AUTORESUME

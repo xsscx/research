@@ -193,12 +193,12 @@ wasm/
 
 # AFL++ fuzzing - all input seeds, output queues, crash dirs, stats
 fastresume.bin
-afl/bin/
+afl/bin*/
 afl/iccDEV/
 afl/tmp/
 afl/work/
-afl/third_party/build/
-afl/third_party/install/
+afl/third_party/build*/
+afl/third_party/install*/
 afl/third_party/sources/
 afl/afl-*/*.dict
 afl/afl-*/input/

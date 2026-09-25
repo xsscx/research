@@ -49,6 +49,8 @@ case "$SANITIZER_MODE" in
         exit 1
         ;;
 esac
+CXX_SAN_FLAGS="$SAN_FLAGS"
+LINK_SAN_FLAGS="-fsanitize=$SANITIZERS"
 
 for tool in "$CC_BIN" "$CXX_BIN" "$AR_BIN" "$RANLIB_BIN" "$NM_BIN" cmake git; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -81,6 +83,79 @@ fetch_source() {
         echo "       Remove $source and rerun to fetch the pinned release." >&2
         exit 1
     fi
+}
+
+fetch_llvm_runtimes() {
+    local source="$SOURCE_DIR/llvm-project"
+
+    if [[ ! -d "$source/.git" ]]; then
+        echo "[*] Fetching llvm-project $LLVM_PROJECT_VERSION runtime sources"
+        git clone --depth 1 --filter=blob:none --sparse \
+            --branch "$LLVM_PROJECT_VERSION" \
+            https://github.com/llvm/llvm-project.git "$source"
+        git -C "$source" sparse-checkout set \
+            cmake libc libcxx libcxxabi libunwind llvm/cmake \
+            llvm/utils/llvm-lit runtimes
+    fi
+
+    local actual
+    actual="$(git -C "$source" rev-parse HEAD)"
+    if [[ "$actual" != "$LLVM_PROJECT_COMMIT" ]]; then
+        echo "[FAIL] llvm-project source is $actual; expected $LLVM_PROJECT_COMMIT ($LLVM_PROJECT_VERSION)" >&2
+        echo "       Remove $source and rerun to fetch the pinned release." >&2
+        exit 1
+    fi
+}
+
+build_msan_libcxx() {
+    local source="$SOURCE_DIR/llvm-project"
+    local build="$BUILD_DIR/llvm-runtimes"
+    local backend_cc
+    local backend_cxx
+    local ar_bin
+    local ranlib_bin
+
+    backend_cc="$(command -v "${AFL_CC:-clang-21}")"
+    backend_cxx="$(command -v "${AFL_CXX:-clang++-21}")"
+    ar_bin="$(command -v "$AR_BIN")"
+    ranlib_bin="$(command -v "$RANLIB_BIN")"
+
+    echo "[*] Configuring MemorySanitizer-instrumented libc++"
+    cmake -G Ninja -S "$source/runtimes" -B "$build" \
+        -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
+        -DLLVM_USE_SANITIZER=MemoryWithOrigins \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DCMAKE_C_COMPILER="$backend_cc" \
+        -DCMAKE_CXX_COMPILER="$backend_cxx" \
+        -DCMAKE_AR="$ar_bin" \
+        -DCMAKE_RANLIB="$ranlib_bin" \
+        -DLIBCXX_ENABLE_SHARED=OFF \
+        -DLIBCXX_ENABLE_STATIC=ON \
+        -DLIBCXX_INCLUDE_TESTS=OFF \
+        -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
+        -DLIBCXXABI_ENABLE_SHARED=OFF \
+        -DLIBCXXABI_ENABLE_STATIC=ON \
+        -DLIBCXXABI_INCLUDE_TESTS=OFF \
+        -DLIBCXXABI_USE_LLVM_UNWINDER=OFF \
+        -DLIBCXX_STATICALLY_LINK_ABI_IN_STATIC_LIBRARY=ON
+    cmake --build "$build" --parallel "$JOBS" --target cxx cxxabi cxx_experimental
+    cmake --install "$build" --component cxx
+    cmake --install "$build" --component cxxabi
+    cmake --install "$build" --component cxx-headers
+    cmake --install "$build" --component cxxabi-headers
+
+    if [[ ! -f "$PREFIX/lib/libc++.a" ||
+          ! -f "$PREFIX/include/c++/v1/__config" ]]; then
+        echo "[FAIL] Instrumented libc++ installation is incomplete: $PREFIX" >&2
+        exit 1
+    fi
+    "$NM_BIN" "$PREFIX/lib/libc++.a" > "$build/libc++.symbols"
+    if ! grep -q '__msan_' "$build/libc++.symbols"; then
+        echo "[FAIL] Missing MemorySanitizer instrumentation in $PREFIX/lib/libc++.a" >&2
+        exit 1
+    fi
+    echo "[OK] MemorySanitizer-instrumented libc++: $PREFIX/lib/libc++.a"
 }
 
 configure_build_install() {
@@ -121,9 +196,9 @@ configure_build_install() {
         -DCMAKE_NM="$NM_BIN" \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_C_FLAGS="$SAN_FLAGS" \
-        -DCMAKE_CXX_FLAGS="$SAN_FLAGS" \
-        -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=$SANITIZERS" \
-        -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=$SANITIZERS" \
+        -DCMAKE_CXX_FLAGS="$CXX_SAN_FLAGS" \
+        -DCMAKE_EXE_LINKER_FLAGS="$LINK_SAN_FLAGS" \
+        -DCMAKE_SHARED_LINKER_FLAGS="$LINK_SAN_FLAGS" \
         -DBUILD_SHARED_LIBS=OFF \
         "$@"
     echo "[*] Building $name"
@@ -137,6 +212,17 @@ fetch_source libjpeg-turbo https://github.com/libjpeg-turbo/libjpeg-turbo.git "$
 fetch_source libtiff https://gitlab.com/libtiff/libtiff.git "$LIBTIFF_VERSION" "$LIBTIFF_COMMIT"
 fetch_source libxml2 https://gitlab.gnome.org/GNOME/libxml2.git "$LIBXML2_VERSION" "$LIBXML2_COMMIT"
 fetch_source nlohmann-json https://github.com/nlohmann/json.git "$NLOHMANN_JSON_VERSION" "$NLOHMANN_JSON_COMMIT"
+
+if [[ "$SANITIZER_MODE" == "memory" ]]; then
+    if ! command -v ninja >/dev/null 2>&1; then
+        echo "[FAIL] Ninja is required to build the MSan libc++ runtime" >&2
+        exit 1
+    fi
+    fetch_llvm_runtimes
+    build_msan_libcxx
+    CXX_SAN_FLAGS+=" -stdlib=libc++ -nostdinc++ -isystem $PREFIX/include/c++/v1"
+    LINK_SAN_FLAGS+=" -stdlib=libc++ -L$PREFIX/lib"
+fi
 
 configure_build_install zlib \
     -DZLIB_BUILD_SHARED=OFF \

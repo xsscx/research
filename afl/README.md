@@ -51,8 +51,10 @@ that separate checkout is available. Override its location with
 ```bash
 ./afl/build-afl-runtime.sh
 ./afl/build.sh
+./afl/build.sh --sanitizer memory
 ./afl/start.sh --list
 ./afl/start.sh dump
+./afl/start.sh --sanitizer memory dump
 ./afl/status.sh dump --detail
 ./afl/report.sh all --no-coverage
 ./afl/triage.sh dump
@@ -65,12 +67,14 @@ image, avoiding split executable/shared-library coverage maps. Use
 `./afl/build.sh --shared` only when intentionally comparing shared-library
 behavior.
 
-Every AFL build enables the full Clang sanitizer set used for security testing:
-AddressSanitizer, UndefinedBehaviorSanitizer, IntegerSanitizer,
-float-divide-by-zero, and float-cast-overflow. Sanitizer findings are fatal, and
-`build.sh` verifies the deployed `iccDumpProfile` contains each sanitizer
-runtime handler before reporting success. Runtime options shared by fuzzing,
-mapping, minimization, seed validation, and triage live in
+The default AFL build enables AddressSanitizer, UndefinedBehaviorSanitizer,
+IntegerSanitizer, float-divide-by-zero, and float-cast-overflow. Separate
+`memory` and `thread` builds enable MSan and TSan. The MSan build compiles and
+statically links a pinned, instrumented LLVM libc++; an uninstrumented system
+C++ library does not satisfy MSan's dependency contract. Sanitizer findings
+are fatal, and `build.sh` verifies the deployed `iccDumpProfile` contains the
+expected runtime handler before reporting success. Runtime options shared by
+fuzzing, mapping, minimization, seed validation, and triage live in
 `afl/sanitizer-env.sh`.
 
 When an `iccApplyToLink` AFL artifact remains actionable under canonical

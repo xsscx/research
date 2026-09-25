@@ -154,8 +154,8 @@ After branch switches or upstream syncs, delete `Build/CMakeCache.txt` and
 
 ### Sanitizer flags
 - **Default fuzzers**: `-fsanitize=fuzzer,address,undefined`
-- **MSan fuzzers**: separate `memory` builds with origin tracking; never combine
-  MSan with ASan or TSan
+- **MSan fuzzers**: separate `memory` builds with origin tracking and an
+  instrumented static libc++; never combine MSan with ASan or TSan
 - **TSan fuzzers**: separate `thread` builds; CFL uses deterministic corpus
   replay and AFL uses its matching instrumented tool build
 - **Analyzer**: `-fsanitize=address,undefined,float-divide-by-zero,float-cast-overflow,integer -g3 -O0`

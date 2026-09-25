@@ -25,7 +25,7 @@ policy. Edit `afl/iccapply-args.conf` to change `iccApply*` target argv.
 ./afl/start.sh toxml --parallel 4
 
 # Select the matching sanitizer binary set at run and replay time.
-AFL_SANITIZER=memory ./afl/start.sh dump
+./afl/start.sh --sanitizer memory dump
 AFL_SANITIZER=thread ./afl/triage.sh dump
 
 # Inspect, stop, and triage.
@@ -90,8 +90,15 @@ and `thread` uses TSan. The default output directories are `afl/bin/`,
 `afl/bin-msan/`, and `afl/bin-tsan/`, with matching isolated build and
 third-party prefixes. Set `AFL_SANITIZER=memory` or `thread` when using
 `start.sh`, `screen-corpus.sh`, `map.sh`, `minimize.sh`, or `triage.sh`; an
-explicit `AFL_BIN_DIR` still takes precedence. Do not combine these sanitizer
-modes in one binary.
+explicit `AFL_BIN_DIR` still takes precedence. `start.sh` also accepts the
+equivalent `--sanitizer memory` or `--sanitizer thread` option. Do not combine
+these sanitizer modes in one binary.
+
+The memory build also fetches pinned LLVM 21.1.8 runtime sources and builds a
+MemorySanitizer-instrumented static libc++. MSan requires instrumented C++
+dependencies; using the system's uninstrumented libstdc++ can taint ordinary
+standard-library state and make every seed look like a crash. `build.sh`
+rejects an MSan tool that retains a shared libstdc++ or libc++ dependency.
 
 The current target list includes tool-level coverage for profile dumping,
 XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile

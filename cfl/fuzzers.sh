@@ -189,7 +189,11 @@ cfl_ics_external_seed_dirs() {
 }
 
 cfl_applynamedcmm_external_seed_dirs() {
-  cfl_ics_external_seed_dirs "$1" icc
+  local package_root
+
+  while IFS= read -r package_root; do
+    find "$package_root" -type f -path '*/ICC/*.icc' -printf '%h\n' 2>/dev/null
+  done < <(cfl_ics_package_roots "$1") | sort -u
 }
 
 cfl_ics_seed_name() {

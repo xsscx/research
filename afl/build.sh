@@ -451,8 +451,8 @@ if [[ "$SANITIZER_MODE" == "address" ]]; then
     AFL_ENABLE_SANITIZERS="ON"
 elif [[ "$SANITIZER_MODE" == "memory" ]]; then
     AFL_CMAKE_C_FLAGS+=" -fPIE"
-    AFL_CMAKE_CXX_FLAGS+=" -fPIE"
-    AFL_CMAKE_EXE_LINKER_FLAGS="-pie"
+    AFL_CMAKE_CXX_FLAGS+=" -fPIE -stdlib=libc++ -nostdinc++ -isystem $THIRD_PARTY_PREFIX/include/c++/v1"
+    AFL_CMAKE_EXE_LINKER_FLAGS="-pie -stdlib=libc++ -L$THIRD_PARTY_PREFIX/lib"
 fi
 if [[ "$AFL_LINK_MODE" == "shared" ]]; then
     AFL_ENABLE_SHARED_LIBS="ON"
@@ -527,6 +527,14 @@ for dependency in libxml2.a libpng.a libtiff.a libjpeg.a libz.a; do
         exit 1
     fi
 done
+if [[ "$SANITIZER_MODE" == "memory" ]]; then
+    for dependency in libc++.a libc++abi.a; do
+        if [[ ! -f "$THIRD_PARTY_PREFIX/lib/$dependency" ]]; then
+            echo "[FAIL] Missing MemorySanitizer C++ runtime: $THIRD_PARTY_PREFIX/lib/$dependency"
+            exit 1
+        fi
+    done
+fi
 
 echo ""
 echo "[OK] AFL-instrumented iccDEV built successfully"
@@ -637,6 +645,14 @@ case "$SANITIZER_MODE" in
     memory) verify_sanitizer_symbol "MemorySanitizer" '__msan_init' ;;
     thread) verify_sanitizer_symbol "ThreadSanitizer" '__tsan_init' ;;
 esac
+
+if [[ "$SANITIZER_MODE" == "memory" ]]; then
+    if ldd "$SANITIZER_PROBE" 2>/dev/null | grep -Eq 'libstdc\+\+|libc\+\+'; then
+        echo "[FAIL] MemorySanitizer binary depends on an uninstrumented shared C++ standard library"
+        exit 1
+    fi
+    echo "  [OK] Instrumented static libc++"
+fi
 
 echo ""
 echo "[OK] $DEPLOYED AFL-instrumented tools deployed to $BIN_DIR"
