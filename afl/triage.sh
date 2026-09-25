@@ -1,7 +1,7 @@
 #!/bin/bash
 # afl/triage.sh - Triage AFL++ crashes and hangs against isolated upstream
 #
-# Usage: ./afl/triage.sh <target>
+# Usage: ./afl/triage.sh [--sanitizer MODE] <target>
 #
 # Runs each crash/hang through the isolated afl/iccDEV build deployed by
 # afl/build.sh to determine if it is a real upstream bug or AFL artifact.
@@ -11,7 +11,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AFL_BASE="${AFL_BASE:-$REPO_ROOT/afl}"
 BIN_DIR="${AFL_BIN_DIR:-$REPO_ROOT/afl/bin}"
-TARGET="${1:-}"
+TARGET=""
 TRIAGE_JOBS="${AFL_TRIAGE_JOBS:-$(nproc 2>/dev/null || echo 1)}"
 TRIAGE_TIMEOUT="${AFL_TRIAGE_TIMEOUT:-15}"
 TRIAGE_HANG_TIMEOUT="${AFL_TRIAGE_HANG_TIMEOUT:-30}"
@@ -20,27 +20,35 @@ TRIAGE_MARK_TIMEOUTS="${AFL_TRIAGE_MARK_TIMEOUTS:-1}"
 
 source "$REPO_ROOT/afl/targets.sh"
 source "$REPO_ROOT/afl/sanitizer-env.sh"
-BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
-    echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}'" >&2
-    exit 1
-}
 
-if [[ "$TARGET" == "--help" || "$TARGET" == "-h" ]]; then
+usage() {
     echo "Usage: $0 <target>"
-    echo "       $0 <target> --jobs N"
-    echo "       $0 <target> --mark [DIR]"
+    echo "       $0 [--sanitizer MODE] <target> [--jobs N] [--mark [DIR]]"
     echo ""
     afl_print_targets
-    exit 0
-fi
+}
 
-if [[ $# -gt 0 ]]; then
-    TARGET="$1"
-    shift
-fi
+option_arg() {
+    local opt="$1"
+    local value="${2:-}"
+
+    if [[ -z "$value" || "$value" == --* ]]; then
+        echo "ERROR: $opt requires a value" >&2
+        exit 1
+    fi
+    printf '%s' "$value"
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        --sanitizer)
+            AFL_SANITIZER="$(option_arg "$1" "${2:-}")"
+            shift 2
+            ;;
         --jobs)
             if [[ $# -lt 2 || ! "$2" =~ ^[0-9]+$ || "$2" -lt 1 ]]; then
                 echo "ERROR: --jobs requires a positive integer" >&2
@@ -59,15 +67,26 @@ while [[ $# -gt 0 ]]; do
             fi
             ;;
         -*) echo "ERROR: Unknown option: $1" >&2; exit 1 ;;
-        *) echo "ERROR: Unexpected argument: $1" >&2; exit 1 ;;
+        *)
+            if [[ -n "$TARGET" ]]; then
+                echo "ERROR: multiple targets specified: $TARGET and $1" >&2
+                exit 1
+            fi
+            TARGET="$1"
+            shift
+            ;;
     esac
 done
 
 if [[ -z "$TARGET" ]]; then
-    echo "Usage: $0 <target>"
-    afl_print_targets
+    usage
     exit 1
 fi
+
+BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
+    echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}' (use address, memory, or thread)" >&2
+    exit 1
+}
 
 if ! afl_configure_target "$TARGET"; then
     echo "ERROR: Unknown target '$TARGET'"
@@ -169,9 +188,11 @@ select_confirmation_binary() {
     if tool_dir="$(canonical_tool_dir "$tool_name")"; then
         CONFIRM_BIN="$REPO_ROOT/iccDEV/Build/Tools/$tool_dir/$tool_name"
         CONFIRM_LIB="$REPO_ROOT/iccDEV/Build/IccProfLib:$REPO_ROOT/iccDEV/Build/IccXML:$REPO_ROOT/iccDEV/Build/IccJSON:$REPO_ROOT/iccDEV/Build/IccConnect"
+        CONFIRM_SANITIZER="address"
     else
         CONFIRM_BIN="$UPSTREAM_BIN"
         CONFIRM_LIB="$REPLAY_LIB"
+        CONFIRM_SANITIZER="$(afl_detect_sanitizer_mode "$BIN_DIR")"
     fi
 }
 
@@ -180,6 +201,7 @@ REPLAY_SOURCE=""
 REPLAY_LIB=""
 CONFIRM_BIN=""
 CONFIRM_LIB=""
+CONFIRM_SANITIZER=""
 select_replay_binary
 select_confirmation_binary
 AFL_OUTPUT_DIR="$AFL_DIR/output"
@@ -228,20 +250,20 @@ write_confirmation_command() {
         quote_shell_arg "$CONFIRM_LIB"
         printf ' '
     fi
-    case "$AFL_ACTIVE_SANITIZER" in
+    case "$CONFIRM_SANITIZER" in
         address)
             printf 'ASAN_OPTIONS='
-            quote_shell_arg "$ASAN_OPTIONS"
+            quote_shell_arg "$AFL_ASAN_OPTIONS_TRIAGE"
             printf ' UBSAN_OPTIONS='
-            quote_shell_arg "$UBSAN_OPTIONS"
+            quote_shell_arg "$AFL_UBSAN_OPTIONS_TRIAGE"
             ;;
         memory)
             printf 'MSAN_OPTIONS='
-            quote_shell_arg "$MSAN_OPTIONS"
+            quote_shell_arg "$AFL_MSAN_OPTIONS_TRIAGE"
             ;;
         thread)
             printf 'TSAN_OPTIONS='
-            quote_shell_arg "$TSAN_OPTIONS"
+            quote_shell_arg "$AFL_TSAN_OPTIONS_TRIAGE"
             ;;
     esac
     printf ' timeout 60s '
@@ -322,12 +344,12 @@ classify_exit() {
     local output="$2"
 
     if [[ "$exit_code" -eq 124 ]]; then
-        if printf '%s\n' "$output" | grep -Eaiq 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)'; then
+        if printf '%s\n' "$output" | grep -Eaiq '(ERROR|WARNING): (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer)|runtime error:|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer)'; then
             echo "TIMEOUT_WITH_SANITIZER"
         else
             echo "TIMEOUT"
         fi
-    elif printf '%s\n' "$output" | grep -Eaiq 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)'; then
+    elif printf '%s\n' "$output" | grep -Eaiq '(ERROR|WARNING): (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer)|runtime error:|SUMMARY: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer)'; then
         echo "SANITIZER"
     elif [[ "$exit_code" -eq 255 ]]; then
         echo "SOFT_FAIL"
@@ -476,14 +498,14 @@ ${run_output}"
             signal=$((signal + 1))
         elif [[ "$classification" == "SANITIZER" ]]; then
             echo "  [SANITIZER]   $fname - sanitizer finding (exit $exit_code, owner=$owner)"
-            printf '%s\n' "$output" | grep -Eai 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY:' | tail -3 | sed 's/^/    /'
+            printf '%s\n' "$output" | grep -Eai '(ERROR|WARNING): (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer)|runtime error:|SUMMARY:' | tail -3 | sed 's/^/    /'
             print_confirmation_command "${files[$idx]}"
             write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
             sanitizer=$((sanitizer + 1))
         elif [[ "$classification" == "TIMEOUT_WITH_SANITIZER" ]]; then
             echo "  [TIMEOUT+SAN] $fname - sanitizer output before ${timeout_sec}s timeout (owner=$owner)"
-            printf '%s\n' "$output" | grep -Eai 'ERROR: (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer)|runtime error:|SUMMARY:' | tail -3 | sed 's/^/    /'
+            printf '%s\n' "$output" | grep -Eai '(ERROR|WARNING): (AddressSanitizer|UndefinedBehaviorSanitizer|LeakSanitizer|MemorySanitizer|ThreadSanitizer)|runtime error:|SUMMARY:' | tail -3 | sed 's/^/    /'
             print_confirmation_command "${files[$idx]}"
             write_marked_artifact "$kind" "$classification" "$exit_code" "${files[$idx]}"
             upstream_bug=$((upstream_bug + 1))
