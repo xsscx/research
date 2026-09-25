@@ -508,8 +508,8 @@ afl_configure_target() {
                     SEED_LIMIT=1
                     SEED_DRY_RUN_TARGET=1
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-                    SEED_DRY_RUN_TIMEOUT=5
-                    AFL_TARGET_TIMEOUT=5000
+                    SEED_DRY_RUN_TIMEOUT=30
+                    AFL_TARGET_TIMEOUT=30000
                     AFL_DISABLE_TRIM_TARGET=1
                     AFL_FAST_CAL_TARGET=1
                     AFL_EXPAND_HAVOC_TARGET=1
@@ -521,7 +521,7 @@ afl_configure_target() {
                         "$REPO_ROOT/fuzz/graphics/tif/1x1-rgb8--Rec2020rgbSpectral.tiff"
                         "${SEED_FILES[@]}"
                     )
-                    TARGET_NOTE="ApplyProfiles spectral-search lane: fuzzes a known-good useSearch JSON config against a 1x1 TIFF with an embedded spectral profile, three-profile inverse chain, initial transform, and four weighted PCCs added upstream in #2498."
+                    TARGET_NOTE="ApplyProfiles spectral-search lane: fuzzes a known-good useSearch JSON config against a 1x1 TIFF with an embedded spectral profile, three-profile inverse chain, initial transform, and four weighted PCCs added upstream in #2498. The 30-second timeout preserves this path on slower MSan and WSL2 hosts."
                     ;;
                 applyprofiles-hybrid-embedded|profiles-hybrid-embedded)
                     AFL_DIR="$AFL_BASE/afl-applyprofiles-hybrid-embedded"

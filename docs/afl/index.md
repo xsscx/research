@@ -288,9 +288,25 @@ JSON `-cfg` targets deliberately run from `afl/work/<target>/root`, populated
 with read-only copies of required input fixtures. Fuzzed relative output fields
 therefore land in disposable target work state rather than the repository root.
 
+`applyprofiles-search` keeps one valid `useSearch` configuration alive long
+enough to reach the spectral inverse-search transform, initial transform, and
+four weighted PCC paths. Both seed screening and AFL execution default to 30
+seconds because an MSan-instrumented first execution can exceed five seconds on
+WSL2 even though the same seed is much faster on native Linux. The target uses
+fast calibration, skips deterministic inference, and starts expanded havoc so
+the additional timeout margin does not delay ordinary mutation work. For a
+fresh MSan campaign, run:
+
+```bash
+./afl/start.sh --sanitizer memory --fresh --mode rare applyprofiles-search
+```
+
+An explicit `AFL_TIMEOUT` or `--timeout` still overrides the AFL execution
+timeout. It does not change the target's 30-second seed-screening safety bound.
+
 `applyprofiles-hybrid-pcc` seeds only the known-compatible
 `MultSpectralRGB.icc` PCC fixture. Its complete multispectral TIFF transform is
-slow enough to require a 15-second dry-run and AFL timeout; broad ICC directories
+slow enough to require a 30-second dry-run and AFL timeout; broad ICC directories
 must not be reintroduced because screening them delays AFL startup without
 adding usable seeds.
 

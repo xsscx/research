@@ -255,7 +255,8 @@ expect_value "ApplyProfiles search seed" "${SEED_FILES[0]}" "$REPO_ROOT/afl/appl
 expect_value "ApplyProfiles search hybrid support" "$HYBRID_NEEDS_SUPPORT" "1"
 expect_value "ApplyProfiles search source" "$HYBRID_SEARCH_TIFF" "$HYBRID_DATA_DIR/afl-search-source.tif"
 expect_value "ApplyProfiles search exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
-expect_value "ApplyProfiles search timeout" "$AFL_TARGET_TIMEOUT" "5000"
+expect_value "ApplyProfiles search dry-run timeout" "$SEED_DRY_RUN_TIMEOUT" "30"
+expect_value "ApplyProfiles search AFL timeout" "$AFL_TARGET_TIMEOUT" "30000"
 expect_value "ApplyProfiles search expanded havoc" "$AFL_EXPAND_HAVOC_TARGET" "1"
 expect_value "ApplyProfiles search deterministic skip" "$AFL_SKIP_DETERMINISTIC_TARGET" "1"
 
