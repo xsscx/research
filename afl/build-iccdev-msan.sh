@@ -61,7 +61,7 @@ AR_BIN="$(command -v llvm-ar-21)"
 RANLIB_BIN="$(command -v llvm-ranlib-21)"
 NM_BIN="$(command -v llvm-nm-21)"
 
-for source_path in IccProfLib IccConnect IccJSON Tools/CmdLine/IccApplyNamedCmm Tools/CmdLine/IccApplyProfiles Build/Cmake; do
+for source_path in IccProfLib IccConnect IccJSON IccXML Tools Build/Cmake; do
     if ! git -C "$ICCDEV_DIR" diff --quiet -- "$source_path" ||
        ! git -C "$ICCDEV_DIR" diff --cached --quiet -- "$source_path"; then
         if [[ "$ALLOW_PATCHED_SOURCE" -ne 1 ]]; then
@@ -86,7 +86,7 @@ if [[ "$SKIP_DEPENDENCIES" -eq 0 ]]; then
         "$REPO_ROOT/afl/third_party/build.sh"
 fi
 
-for archive in libc++.a libz.a libjpeg.a libpng.a libtiff.a; do
+for archive in libc++.a libxml2.a libz.a libjpeg.a libpng.a libtiff.a; do
     if [[ ! -f "$PREFIX/lib/$archive" ]]; then
         echo "ERROR: missing MSan dependency: $PREFIX/lib/$archive" >&2
         exit 1
@@ -114,7 +114,7 @@ ICCDEV_MSAN_LIBCXX_DIR="$PREFIX" cmake \
     -DENABLE_TOOLS=ON \
     -DENABLE_IMAGE_TOOLS=ON \
     -DENABLE_WXWIDGETS=OFF \
-    -DENABLE_ICCXML=OFF \
+    -DENABLE_ICCXML=ON \
     -DENABLE_ICCJSON=ON \
     -DENABLE_SHARED_LIBS=OFF \
     -DENABLE_STATIC_LIBS=ON \
@@ -129,11 +129,51 @@ ICCDEV_MSAN_LIBCXX_DIR="$PREFIX" cmake \
     -DJPEG_INCLUDE_DIR="$PREFIX/include" \
     -DJPEG_LIBRARY="$PREFIX/lib/libjpeg.a"
 
-cmake --build "$BUILD_DIR" --target iccApplyNamedCmm iccApplyProfiles --parallel "$JOBS"
+MSAN_TOOL_TARGETS=(
+    iccApplyNamedCmm
+    iccApplyProfiles
+    iccApplySearch
+    iccApplyToLink
+    iccBenchApply
+    iccDumpProfile
+    iccFromCube
+    iccFromJson
+    iccFromXml
+    iccJpegDump
+    iccPawgReport
+    iccPngDump
+    iccProfilePlot
+    iccProfileVisualize
+    iccRoundTrip
+    iccSpecSepToTiff
+    iccTiffDump
+    iccToJson
+    iccToXml
+    iccV5DspObsToV4Dsp
+)
+cmake --build "$BUILD_DIR" --target "${MSAN_TOOL_TARGETS[@]}" --parallel "$JOBS"
 
 MSAN_BINS=(
     "$BUILD_DIR/Tools/IccApplyNamedCmm/iccApplyNamedCmm"
     "$BUILD_DIR/Tools/IccApplyProfiles/iccApplyProfiles"
+    "$BUILD_DIR/Tools/IccApplySearch/iccApplySearch"
+    "$BUILD_DIR/Tools/IccApplyToLink/iccApplyToLink"
+    "$BUILD_DIR/Tools/IccBenchApply/iccBenchApply"
+    "$BUILD_DIR/Tools/IccDumpProfile/iccDumpProfile"
+    "$BUILD_DIR/Tools/IccFromCube/iccFromCube"
+    "$BUILD_DIR/Tools/IccFromJson/iccFromJson"
+    "$BUILD_DIR/Tools/IccFromXml/iccFromXml"
+    "$BUILD_DIR/Tools/IccJpegDump/iccJpegDump"
+    "$BUILD_DIR/Tools/IccPawgReport/iccPawgReport"
+    "$BUILD_DIR/Tools/IccPngDump/iccPngDump"
+    "$BUILD_DIR/Tools/IccProfilePlot/iccProfilePlot"
+    "$BUILD_DIR/Tools/IccProfileVisualize/iccProfileVisualize"
+    "$BUILD_DIR/Tools/IccRoundTrip/iccRoundTrip"
+    "$BUILD_DIR/Tools/IccSpecSepToTiff/iccSpecSepToTiff"
+    "$BUILD_DIR/Tools/IccTiffDump/iccTiffDump"
+    "$BUILD_DIR/Tools/IccToJson/iccToJson"
+    "$BUILD_DIR/Tools/IccToXml/iccToXml"
+    "$BUILD_DIR/Tools/IccV5DspObsToV4Dsp/iccV5DspObsToV4Dsp"
 )
 for MSAN_BIN in "${MSAN_BINS[@]}"; do
     if [[ ! -x "$MSAN_BIN" ]] ||
@@ -155,8 +195,7 @@ printf 'memory\n' > "$BUILD_DIR/.sanitizer-mode"
 git -C "$ICCDEV_DIR" rev-parse HEAD > "$BUILD_DIR/.iccdev-source-commit"
 printf '%s\n' "$SOURCE_STATE" > "$BUILD_DIR/.iccdev-source-state"
 git -C "$ICCDEV_DIR" diff --binary -- \
-    IccProfLib IccConnect IccJSON Tools/CmdLine/IccApplyNamedCmm \
-    Tools/CmdLine/IccApplyProfiles Build/Cmake |
+    IccProfLib IccConnect IccJSON IccXML Tools Build/Cmake |
     git hash-object --stdin > "$BUILD_DIR/.iccdev-source-diff"
 for MSAN_BIN in "${MSAN_BINS[@]}"; do
     printf '[OK] Independent %s iccDEV MSan tool: %s\n' "$SOURCE_STATE" "$MSAN_BIN"

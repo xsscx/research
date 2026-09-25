@@ -116,12 +116,12 @@ standard-library state and make every seed look like a crash. `build.sh`
 rejects an MSan tool that retains a shared libstdc++ or libc++ dependency.
 
 `./afl/build-iccdev-msan.sh` separately builds the unpatched `iccDEV/` checkout
-with plain Clang and MSan-instrumented image dependencies. Its default tools are
-`iccDEV/Build-MSan/Tools/IccApplyProfiles/iccApplyProfiles` and
-`iccDEV/Build-MSan/Tools/IccApplyNamedCmm/iccApplyNamedCmm`. MSan triage requires
-this non-AFL build, verifies that it contains MSan and no AFL instrumentation or
-shared C++ runtime boundary, and stops instead of falling back to
-`afl/bin-msan/`. Override a build outside the checkout with
+with plain Clang and MSan-instrumented C++, XML, and image dependencies. It
+builds and verifies every command-line tool selected by MSan triage, including
+the JSON and XML conversion tools. MSan triage requires this non-AFL build,
+verifies that it contains MSan and no AFL instrumentation or shared C++ runtime
+boundary, and stops instead of falling back to `afl/bin-msan/`. Override a build
+outside the checkout with
 `ICCDEV_MSAN_BUILD_DIR=/path/to/build`; use `ICCDEV_MSAN_BIN=/path/to/tool` only
 for an equivalently verified independent build.
 
