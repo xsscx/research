@@ -54,7 +54,7 @@ AR_BIN="$(command -v llvm-ar-21)"
 RANLIB_BIN="$(command -v llvm-ranlib-21)"
 NM_BIN="$(command -v llvm-nm-21)"
 
-for source_path in IccProfLib IccConnect IccJSON Tools/CmdLine/IccApplyProfiles Build/Cmake; do
+for source_path in IccProfLib IccConnect IccJSON Tools/CmdLine/IccApplyNamedCmm Tools/CmdLine/IccApplyProfiles Build/Cmake; do
     if ! git -C "$ICCDEV_DIR" diff --quiet -- "$source_path" ||
        ! git -C "$ICCDEV_DIR" diff --cached --quiet -- "$source_path"; then
         echo "ERROR: tracked changes prevent an unpatched MSan build: $ICCDEV_DIR/$source_path" >&2
@@ -116,23 +116,28 @@ ICCDEV_MSAN_LIBCXX_DIR="$PREFIX" cmake \
     -DJPEG_INCLUDE_DIR="$PREFIX/include" \
     -DJPEG_LIBRARY="$PREFIX/lib/libjpeg.a"
 
-cmake --build "$BUILD_DIR" --target iccApplyProfiles --parallel "$JOBS"
+cmake --build "$BUILD_DIR" --target iccApplyNamedCmm iccApplyProfiles --parallel "$JOBS"
 
-MSAN_BIN="$BUILD_DIR/Tools/IccApplyProfiles/iccApplyProfiles"
-if [[ ! -x "$MSAN_BIN" ]] ||
-   ! "$NM_BIN" "$MSAN_BIN" 2>/dev/null | grep '__msan_init' >/dev/null; then
-    echo "ERROR: independent iccApplyProfiles is not MSan-instrumented" >&2
-    exit 1
-fi
-if "$NM_BIN" "$MSAN_BIN" 2>/dev/null | grep '__afl_' >/dev/null; then
-    echo "ERROR: independent iccApplyProfiles contains AFL instrumentation" >&2
-    exit 1
-fi
-if ldd "$MSAN_BIN" 2>/dev/null | grep -Eq 'libstdc\+\+|libc\+\+'; then
-    echo "ERROR: independent iccApplyProfiles uses an uninstrumented shared C++ runtime" >&2
-    exit 1
-fi
+MSAN_BINS=(
+    "$BUILD_DIR/Tools/IccApplyNamedCmm/iccApplyNamedCmm"
+    "$BUILD_DIR/Tools/IccApplyProfiles/iccApplyProfiles"
+)
+for MSAN_BIN in "${MSAN_BINS[@]}"; do
+    if [[ ! -x "$MSAN_BIN" ]] ||
+       ! "$NM_BIN" "$MSAN_BIN" 2>/dev/null | grep '__msan_init' >/dev/null; then
+        echo "ERROR: independent $(basename "$MSAN_BIN") is not MSan-instrumented" >&2
+        exit 1
+    fi
+    if "$NM_BIN" "$MSAN_BIN" 2>/dev/null | grep '__afl_' >/dev/null; then
+        echo "ERROR: independent $(basename "$MSAN_BIN") contains AFL instrumentation" >&2
+        exit 1
+    fi
+    if ldd "$MSAN_BIN" 2>/dev/null | grep -Eq 'libstdc\+\+|libc\+\+'; then
+        echo "ERROR: independent $(basename "$MSAN_BIN") uses an uninstrumented shared C++ runtime" >&2
+        exit 1
+    fi
+done
 
 printf 'memory\n' > "$BUILD_DIR/.sanitizer-mode"
 git -C "$ICCDEV_DIR" rev-parse HEAD > "$BUILD_DIR/.iccdev-source-commit"
-echo "[OK] Independent unpatched iccDEV MSan tool: $MSAN_BIN"
+printf '[OK] Independent unpatched iccDEV MSan tool: %s\n' "${MSAN_BINS[@]}"

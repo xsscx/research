@@ -240,6 +240,22 @@ needed.
 
 ## Triage Rules
 
+- Replay one CFL artifact and require confirmation from an independently built,
+  unpatched iccDEV tool with `./cfl/triage.sh --sanitizer memory
+  applynamedcmm /path/to/artifact`. Add `--mark` only after confirmation is
+  wanted under `cfl/marked/`; the generated `.cmd` invokes the command-line
+  tool, never the LibFuzzer harness. The generated `.docker.cmd` uses the
+  published upstream image. Build the independent MSan tools with
+  `./afl/build-iccdev-msan.sh`.
+- Reproduce the named-CMM finding entirely inside the published container with
+  `./cfl/reproduce-applynamedcmm-msan-docker.sh /path/to/profile.icc`. The
+  wrapper uses the [published iccDEV package](https://github.com/InternationalColorConsortium/iccDEV/pkgs/container/iccdev/1290825757?tag=latest)
+  and pins image digest
+  `sha256:0504c43e0204e36aa36377fceee1de9c5f49468d578202c388525c75d42da079`
+  (iccDEV `da7e075`), disables networking, mounts the input read-only, relaxes
+  seccomp only for MSan shadow mapping, builds the unpatched command-line tool,
+  verifies the expected signature and tool `EXIT=134`, then returns 86 to mark
+  a confirmed MSan reproduction.
 - A finding is actionable only after reproducing against the intended baseline.
 - Bundled LibFuzzer inputs are canonical CFL artifacts. Treat unbundled ICC,
   TIFF, XML, or control files as derived triage views only.
