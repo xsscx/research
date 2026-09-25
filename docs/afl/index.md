@@ -19,6 +19,9 @@ policy. Edit `afl/iccapply-args.conf` to change `iccApply*` target argv.
 ./afl/build.sh --sanitizer memory
 ./afl/build.sh --sanitizer thread
 
+# Build the independent, non-AFL unpatched iccDEV MSan confirmation tools.
+./afl/build-iccdev-msan.sh
+
 # List targets and start a run.
 ./afl/start.sh --list
 ./afl/start.sh dump
@@ -51,11 +54,17 @@ bash .github/scripts/test-iccApplyToLink.sh --quick --asan
 ```
 
 `--mark` copies sanitizer, signal, and timeout artifacts into
-`afl/marked/<target>/` and writes a neighboring `.cmd` file with the exact
-canonical iccDEV replay command. `test-iccApplyToLink.sh` automatically sweeps
-`afl/marked/applytolink/` and `afl/marked/applytolink-cube/` when those
-directories exist. Override the sweep inputs with colon-separated
-`ICCDEV_APPLYTOLINK_AFL_DIRS` and `ICCDEV_APPLYTOLINK_CUBE_AFL_DIRS`.
+`afl/marked/<target>/` only after the selected independent upstream tool
+reproduces the result. For MSan, triage requires the non-AFL unpatched build
+from `./afl/build-iccdev-msan.sh`; it never treats an `afl/bin-msan/` replay as
+independent confirmation. A neighboring `.cmd` file runs the verified upstream
+sanitizer reproducer and prints its exit status. When the confirmation tool
+differs from the triage tool, `.canonical.cmd` records that secondary check.
+`test-iccApplyToLink.sh`
+automatically sweeps `afl/marked/applytolink/` and
+`afl/marked/applytolink-cube/` when those directories exist. Override the sweep
+inputs with colon-separated `ICCDEV_APPLYTOLINK_AFL_DIRS` and
+`ICCDEV_APPLYTOLINK_CUBE_AFL_DIRS`.
 
 ## Target Model
 
@@ -100,6 +109,15 @@ MemorySanitizer-instrumented static libc++. MSan requires instrumented C++
 dependencies; using the system's uninstrumented libstdc++ can taint ordinary
 standard-library state and make every seed look like a crash. `build.sh`
 rejects an MSan tool that retains a shared libstdc++ or libc++ dependency.
+
+`./afl/build-iccdev-msan.sh` separately builds the unpatched `iccDEV/` checkout
+with plain Clang and MSan-instrumented image dependencies. Its default tool is
+`iccDEV/Build-MSan/Tools/IccApplyProfiles/iccApplyProfiles`. MSan triage requires
+this non-AFL build, verifies that it contains MSan and no AFL instrumentation or
+shared C++ runtime boundary, and stops instead of falling back to
+`afl/bin-msan/`. Override a build outside the checkout with
+`ICCDEV_MSAN_BUILD_DIR=/path/to/build`; use `ICCDEV_MSAN_BIN=/path/to/tool` only
+for an equivalently verified independent build.
 
 The current target list includes tool-level coverage for profile dumping,
 XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile

@@ -140,6 +140,17 @@ select_replay_binary() {
     local tool_name
     local tool_dir
     local canonical_bin
+    local canonical_msan_build
+
+    tool_name="$(basename "$BINARY")"
+    if [[ "$REPLAY_SANITIZER" == "memory" ]] &&
+       tool_dir="$(canonical_tool_dir "$tool_name")"; then
+        canonical_msan_build="${ICCDEV_MSAN_BUILD_DIR:-$REPO_ROOT/iccDEV/Build-MSan}"
+        UPSTREAM_BIN="${ICCDEV_MSAN_BIN:-$canonical_msan_build/Tools/$tool_dir/$tool_name}"
+        REPLAY_SOURCE="canonical-msan"
+        REPLAY_LIB=""
+        return
+    fi
 
     if [[ "${AFL_TRIAGE_CANONICAL_BUILD:-0}" != "1" && -x "$BINARY" ]]; then
         UPSTREAM_BIN="$BINARY"
@@ -152,7 +163,6 @@ select_replay_binary() {
         return
     fi
 
-    tool_name="$(basename "$BINARY")"
     if tool_dir="$(canonical_tool_dir "$tool_name")"; then
         canonical_bin="$REPO_ROOT/iccDEV/Build/Tools/$tool_dir/$tool_name"
         if [[ -x "$canonical_bin" ]]; then
@@ -184,6 +194,13 @@ select_confirmation_binary() {
     local tool_name
     local tool_dir
 
+    if [[ "$REPLAY_SANITIZER" == "memory" ]]; then
+        CONFIRM_BIN="$UPSTREAM_BIN"
+        CONFIRM_LIB="$REPLAY_LIB"
+        CONFIRM_SANITIZER="memory"
+        return
+    fi
+
     tool_name="$(basename "$BINARY")"
     if tool_dir="$(canonical_tool_dir "$tool_name")"; then
         CONFIRM_BIN="$REPO_ROOT/iccDEV/Build/Tools/$tool_dir/$tool_name"
@@ -202,6 +219,7 @@ REPLAY_LIB=""
 CONFIRM_BIN=""
 CONFIRM_LIB=""
 CONFIRM_SANITIZER=""
+REPLAY_SANITIZER="$(afl_detect_sanitizer_mode "$BIN_DIR")"
 select_replay_binary
 select_confirmation_binary
 AFL_OUTPUT_DIR="$AFL_DIR/output"
@@ -210,8 +228,26 @@ AFL_TRIAGE_INPUT_DIR="${AFL_TRIAGE_INPUT_DIR:-$AFL_OUTPUT_DIR}"
 
 if [[ ! -x "$UPSTREAM_BIN" ]]; then
     echo "ERROR: Upstream binary not found: $UPSTREAM_BIN"
-    echo "Build with: ./afl/build.sh"
+    if [[ "$REPLAY_SANITIZER" == "memory" ]]; then
+        echo "Build the independent unpatched MSan tools with: ./afl/build-iccdev-msan.sh"
+    else
+        echo "Build with: ./afl/build.sh"
+    fi
     exit 1
+fi
+if [[ "$REPLAY_SANITIZER" == "memory" ]]; then
+    if ! nm "$UPSTREAM_BIN" 2>/dev/null | grep '__msan_init' >/dev/null; then
+        echo "ERROR: Independent upstream binary is not MSan-instrumented: $UPSTREAM_BIN" >&2
+        exit 1
+    fi
+    if nm "$UPSTREAM_BIN" 2>/dev/null | grep '__afl_' >/dev/null; then
+        echo "ERROR: Independent upstream binary contains AFL instrumentation: $UPSTREAM_BIN" >&2
+        exit 1
+    fi
+    if ldd "$UPSTREAM_BIN" 2>/dev/null | grep -E 'libstdc\+\+|libc\+\+' >/dev/null; then
+        echo "ERROR: Independent upstream binary uses an uninstrumented shared C++ runtime: $UPSTREAM_BIN" >&2
+        exit 1
+    fi
 fi
 
 for required_file in "${REQUIRED_FILES[@]}"; do
@@ -236,8 +272,11 @@ quote_shell_arg() {
     printf '%s' "$quoted"
 }
 
-write_confirmation_command() {
+write_replay_command() {
     local source_file="$1"
+    local replay_bin="$2"
+    local replay_lib="$3"
+    local replay_sanitizer="$4"
     local source_file_abs
     local arg
 
@@ -245,12 +284,12 @@ write_confirmation_command() {
     printf 'cd '
     quote_shell_arg "$AFL_WORK_DIR"
     printf ' && '
-    if [[ -n "$CONFIRM_LIB" ]]; then
+    if [[ -n "$replay_lib" ]]; then
         printf 'LD_LIBRARY_PATH='
-        quote_shell_arg "$CONFIRM_LIB"
+        quote_shell_arg "$replay_lib"
         printf ' '
     fi
-    case "$CONFIRM_SANITIZER" in
+    case "$replay_sanitizer" in
         address)
             printf 'ASAN_OPTIONS='
             quote_shell_arg "$AFL_ASAN_OPTIONS_TRIAGE"
@@ -267,7 +306,7 @@ write_confirmation_command() {
             ;;
     esac
     printf ' timeout 60s '
-    quote_shell_arg "$CONFIRM_BIN"
+    quote_shell_arg "$replay_bin"
     for arg in "${AFL_ARGS[@]}"; do
         printf ' '
         if [[ "$arg" == "@@" ]]; then
@@ -276,15 +315,31 @@ write_confirmation_command() {
             quote_shell_arg "$arg"
         fi
     done
+    printf '%s' "; printf 'EXIT=%s\\n' \"\$?\""
+}
+
+write_reproduction_command() {
+    write_replay_command "$1" "$UPSTREAM_BIN" "$REPLAY_LIB" "$AFL_ACTIVE_SANITIZER"
+}
+
+write_confirmation_command() {
+    write_replay_command "$1" "$CONFIRM_BIN" "$CONFIRM_LIB" "$CONFIRM_SANITIZER"
 }
 
 print_confirmation_command() {
     local source_file="$1"
 
-    echo "    Confirm with canonical iccDEV:"
+    echo "    Reproduce with selected sanitizer:"
     printf '    '
-    write_confirmation_command "$source_file"
+    write_reproduction_command "$source_file"
     printf '\n'
+    if [[ "$CONFIRM_BIN" != "$UPSTREAM_BIN" ||
+          "$CONFIRM_SANITIZER" != "$AFL_ACTIVE_SANITIZER" ]]; then
+        echo "    Confirm with canonical iccDEV:"
+        printf '    '
+        write_confirmation_command "$source_file"
+        printf '\n'
+    fi
 }
 
 write_marked_artifact() {
@@ -300,6 +355,7 @@ write_marked_artifact() {
     local safe_base
     local marked_file
     local cmd_file
+    local canonical_cmd_file=""
 
     source_base="$(basename "$source_file")"
     safe_base="$(printf '%s' "$source_base" | tr -c 'A-Za-z0-9._,+-=' '_')"
@@ -307,6 +363,10 @@ write_marked_artifact() {
     marked_file="$mark_subdir/$safe_base"
     cp -f "$source_file" "$marked_file"
     cmd_file="$marked_file.cmd"
+    if [[ "$CONFIRM_BIN" != "$UPSTREAM_BIN" ||
+          "$CONFIRM_SANITIZER" != "$AFL_ACTIVE_SANITIZER" ]]; then
+        canonical_cmd_file="$marked_file.canonical.cmd"
+    fi
 
     {
         printf '# target=%s\n' "$TARGET"
@@ -314,9 +374,26 @@ write_marked_artifact() {
         printf '# classification=%s\n' "$classification"
         printf '# exit_code=%s\n' "$exit_code"
         printf '# source=%s\n' "$source_file"
-        write_confirmation_command "$marked_file"
+        printf '# replay_sanitizer=%s\n' "$AFL_ACTIVE_SANITIZER"
+        printf '# replay_binary=%s\n' "$UPSTREAM_BIN"
+        write_reproduction_command "$marked_file"
         printf '\n'
     } > "$cmd_file"
+
+    if [[ -n "$canonical_cmd_file" ]]; then
+        {
+            printf '# target=%s\n' "$TARGET"
+            printf '# kind=%s\n' "$kind"
+            printf '# classification=%s\n' "$classification"
+            printf '# source=%s\n' "$source_file"
+            printf '# replay_sanitizer=%s\n' "$CONFIRM_SANITIZER"
+            printf '# replay_binary=%s\n' "$CONFIRM_BIN"
+            write_confirmation_command "$marked_file"
+            printf '\n'
+        } > "$canonical_cmd_file"
+    else
+        rm -f -- "$marked_file.canonical.cmd"
+    fi
 }
 
 classify_owner() {

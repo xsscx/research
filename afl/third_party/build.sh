@@ -58,6 +58,11 @@ for tool in "$CC_BIN" "$CXX_BIN" "$AR_BIN" "$RANLIB_BIN" "$NM_BIN" cmake git; do
         exit 1
     fi
 done
+CC_BIN="$(command -v "$CC_BIN")"
+CXX_BIN="$(command -v "$CXX_BIN")"
+AR_BIN="$(command -v "$AR_BIN")"
+RANLIB_BIN="$(command -v "$RANLIB_BIN")"
+NM_BIN="$(command -v "$NM_BIN")"
 
 if [[ "$CLEAN" == "1" ]]; then
     rm -rf "$BUILD_DIR" "$PREFIX"
