@@ -1299,9 +1299,11 @@ afl_prepare_hybrid_support_files() {
     fi
     afl_copy_if_missing "$HYBRID_SOURCE_DIR/Data/cmykGrays.txt" "$HYBRID_CMYK_DATA"
     afl_copy_if_missing "$HYBRID_SOURCE_DIR/Data/smCows380_5_780.tif" "$HYBRID_DATA_DIR/smCows380_5_780.tif"
-    afl_copy_if_missing \
-        "$REPO_ROOT/fuzz/graphics/tif/1x1-rgb8--Rec2020rgbSpectral.tiff" \
-        "$HYBRID_SEARCH_TIFF"
+    if [[ -f "$REPO_ROOT/fuzz/graphics/tif/1x1-rgb8--Rec2020rgbSpectral.tiff" ]]; then
+        afl_copy_if_missing \
+            "$REPO_ROOT/fuzz/graphics/tif/1x1-rgb8--Rec2020rgbSpectral.tiff" \
+            "$HYBRID_SEARCH_TIFF"
+    fi
 
     afl_fromxml_if_missing "$HYBRID_SOURCE_DIR/CMYK_Hybrid_Profile.xml" "$HYBRID_CMYK_PROFILE"
     afl_fromxml_if_missing "$HYBRID_SOURCE_DIR/MultSpectralRGB.xml" "$HYBRID_ICC_DIR/MultSpectralRGB.icc"

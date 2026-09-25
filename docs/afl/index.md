@@ -125,6 +125,15 @@ shared C++ runtime boundary, and stops instead of falling back to
 `ICCDEV_MSAN_BUILD_DIR=/path/to/build`; use `ICCDEV_MSAN_BIN=/path/to/tool` only
 for an equivalently verified independent build.
 
+To confirm a finding against the local AFL patch stack, first run
+`./afl/build.sh --with-patches`, then build a non-AFL binary from that isolated
+source with `ICCDEV_MSAN_SOURCE_DIR=$PWD/afl/iccDEV`, an external
+`ICCDEV_MSAN_BUILD_DIR`, and
+`./afl/build-iccdev-msan.sh --skip-dependencies --allow-patched-source`.
+Set the same `ICCDEV_MSAN_BUILD_DIR` while running `triage.sh`. The report labels
+that replay `canonical-msan-patched`; the default root build is labeled
+`canonical-msan-unpatched`.
+
 The current target list includes tool-level coverage for profile dumping,
 XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile
 visualization, profile linking, and CMM apply flows. Run `./afl/start.sh --list`

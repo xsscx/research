@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build non-AFL, unpatched iccDEV tools with MemorySanitizer.
+# Build non-AFL iccDEV tools with MemorySanitizer.
 
 set -euo pipefail
 
@@ -10,9 +10,11 @@ PREFIX="${ICCDEV_MSAN_PREFIX:-$REPO_ROOT/afl/third_party/install-canonical-msan}
 THIRD_PARTY_BUILD_DIR="${ICCDEV_MSAN_THIRD_PARTY_BUILD_DIR:-$REPO_ROOT/afl/third_party/build-canonical-msan}"
 JOBS="${ICCDEV_MSAN_JOBS:-32}"
 SKIP_DEPENDENCIES=0
+ALLOW_PATCHED_SOURCE=0
+SOURCE_STATE="unpatched"
 
 usage() {
-    echo "Usage: $0 [--jobs N] [--skip-dependencies]"
+    echo "Usage: $0 [--jobs N] [--skip-dependencies] [--allow-patched-source]"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -27,6 +29,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-dependencies)
             SKIP_DEPENDENCIES=1
+            shift
+            ;;
+        --allow-patched-source)
+            ALLOW_PATCHED_SOURCE=1
+            SOURCE_STATE="patched"
             shift
             ;;
         -h|--help)
@@ -57,10 +64,16 @@ NM_BIN="$(command -v llvm-nm-21)"
 for source_path in IccProfLib IccConnect IccJSON Tools/CmdLine/IccApplyNamedCmm Tools/CmdLine/IccApplyProfiles Build/Cmake; do
     if ! git -C "$ICCDEV_DIR" diff --quiet -- "$source_path" ||
        ! git -C "$ICCDEV_DIR" diff --cached --quiet -- "$source_path"; then
-        echo "ERROR: tracked changes prevent an unpatched MSan build: $ICCDEV_DIR/$source_path" >&2
-        exit 1
+        if [[ "$ALLOW_PATCHED_SOURCE" -ne 1 ]]; then
+            echo "ERROR: tracked changes prevent an unpatched MSan build: $ICCDEV_DIR/$source_path" >&2
+            echo "       Use --allow-patched-source only for an intentional patch-stack comparison." >&2
+            exit 1
+        fi
     fi
 done
+if [[ "$ALLOW_PATCHED_SOURCE" -eq 1 ]]; then
+    git -C "$ICCDEV_DIR" diff --check
+fi
 
 if [[ "$SKIP_DEPENDENCIES" -eq 0 ]]; then
     AFL_THIRD_PARTY_SOURCE_DIR="$REPO_ROOT/afl/third_party/sources" \
@@ -140,4 +153,11 @@ done
 
 printf 'memory\n' > "$BUILD_DIR/.sanitizer-mode"
 git -C "$ICCDEV_DIR" rev-parse HEAD > "$BUILD_DIR/.iccdev-source-commit"
-printf '[OK] Independent unpatched iccDEV MSan tool: %s\n' "${MSAN_BINS[@]}"
+printf '%s\n' "$SOURCE_STATE" > "$BUILD_DIR/.iccdev-source-state"
+git -C "$ICCDEV_DIR" diff --binary -- \
+    IccProfLib IccConnect IccJSON Tools/CmdLine/IccApplyNamedCmm \
+    Tools/CmdLine/IccApplyProfiles Build/Cmake |
+    git hash-object --stdin > "$BUILD_DIR/.iccdev-source-diff"
+for MSAN_BIN in "${MSAN_BINS[@]}"; do
+    printf '[OK] Independent %s iccDEV MSan tool: %s\n' "$SOURCE_STATE" "$MSAN_BIN"
+done

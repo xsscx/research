@@ -147,7 +147,12 @@ select_replay_binary() {
        tool_dir="$(canonical_tool_dir "$tool_name")"; then
         canonical_msan_build="${ICCDEV_MSAN_BUILD_DIR:-$REPO_ROOT/iccDEV/Build-MSan}"
         UPSTREAM_BIN="${ICCDEV_MSAN_BIN:-$canonical_msan_build/Tools/$tool_dir/$tool_name}"
-        REPLAY_SOURCE="canonical-msan"
+        if [[ -f "$canonical_msan_build/.iccdev-source-state" ]] &&
+           [[ "$(<"$canonical_msan_build/.iccdev-source-state")" == "patched" ]]; then
+            REPLAY_SOURCE="canonical-msan-patched"
+        else
+            REPLAY_SOURCE="canonical-msan-unpatched"
+        fi
         REPLAY_LIB=""
         return
     fi
