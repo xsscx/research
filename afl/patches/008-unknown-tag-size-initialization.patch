@@ -1,0 +1,9 @@
+diff --git a/IccProfLib/IccTagBasic.cpp b/IccProfLib/IccTagBasic.cpp
+--- a/IccProfLib/IccTagBasic.cpp
++++ b/IccProfLib/IccTagBasic.cpp
+@@ -383,4 +383,5 @@ CIccTagUnknown::CIccTagUnknown()
+ {
+   m_nType = icSigUnknownType;
+   m_pData = NULL;
++  m_nSize = 0;
+ }

@@ -9,6 +9,9 @@ Active patches can be applied to the isolated `afl/iccDEV` checkout:
 - `005-issue-2704-pixel-buffer-initialization.patch`
 - `006-issue-2705-apply-scratch-initialization.patch`
 - `007-mpe-curve-position-bounds.patch`
+- `008-unknown-tag-size-initialization.patch` - initialize empty unknown tags
+  before JSON serialization reads their payload size. Regression fixture:
+  `docs/Testing/test-data/fromjson-unknown-tag-empty.json`.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.

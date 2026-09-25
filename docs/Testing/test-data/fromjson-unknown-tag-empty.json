@@ -1,0 +1,15 @@
+{
+  "IccProfile": {
+    "Header": {},
+    "Tags": [
+      {
+        "PrivateTag_1": {
+          "sig": "W1B0",
+          "data": {
+            "type": "ut!16Type"
+          }
+        }
+      }
+    ]
+  }
+}
