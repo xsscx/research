@@ -208,6 +208,16 @@ done
 afl_configure_target applytolink-v5
 expect_value "ApplyToLink V5 bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc"
 
+afl_configure_target pawgreport
+expect_value "PawgReport trimming disabled" "$AFL_DISABLE_TRIM_TARGET" "1"
+expect_value "PawgReport full calibration" "$AFL_FAST_CAL_TARGET" "0"
+expect_arg pawgreport 0 "--json"
+expect_arg pawgreport 1 "@@"
+
+afl_configure_target pawgreport-fast
+expect_value "fast PawgReport trimming disabled" "$AFL_DISABLE_TRIM_TARGET" "1"
+expect_value "fast PawgReport fast calibration" "$AFL_FAST_CAL_TARGET" "1"
+
 AFL_MAX_LENGTH=""
 afl_configure_target applyprofiles-hybrid-embedded
 expect_value "hybrid embedded seed count" "${#SEED_FILES[@]}" "1"

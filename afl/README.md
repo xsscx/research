@@ -377,6 +377,11 @@ resuming a stale queue:
 ./afl/start.sh applysearch-hybrid-pcc --fresh --reseed
 ```
 
+Both PawgReport lanes disable AFL testcase trimming because malformed report
+inputs can amplify a one-byte trim mutation into a multi-second report. The
+standard `pawgreport` lane retains full calibration and the broad corpus;
+`pawgreport-fast` also enables fast calibration and limits seeds to 8 KiB.
+
 For `iccProfilePlot`, keep the CLI surfaces separate and validate the shared
 fixture before starting:
 

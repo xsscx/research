@@ -921,12 +921,14 @@ afl_configure_target() {
             )
             SEED_MAX_BYTES=1048576
             SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
+            AFL_DISABLE_TRIM_TARGET=1
             if [[ "$target" == "pawgreport-fast" ]]; then
                 SEED_MAX_BYTES=8192
                 SEED_LIMIT=96
-                AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
                 TARGET_NOTE="Fast PAWG report lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+            else
+                TARGET_NOTE="PAWG report lane: broad ICC corpus up to 1 MiB, AFL_DISABLE_TRIM=1 to avoid report-amplification timeouts during testcase trimming."
             fi
             AFL_ARGS=("--json" "@@")
             ;;
