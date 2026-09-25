@@ -29,6 +29,7 @@ policy. Edit `afl/iccapply-args.conf` to change `iccApply*` target argv.
 
 # Select the matching sanitizer binary set at run and replay time.
 ./afl/start.sh --sanitizer memory dump
+./afl/start.sh --sanitizer thread --time 60 applyprofiles-row
 ./afl/triage.sh --sanitizer memory dump
 ./afl/triage.sh --sanitizer thread dump
 
@@ -103,6 +104,10 @@ third-party prefixes. Set `AFL_SANITIZER=memory` or `thread` when using
 explicit `AFL_BIN_DIR` still takes precedence. `start.sh` and `triage.sh` also
 accept the equivalent `--sanitizer memory` or `--sanitizer thread` option. Do
 not combine these sanitizer modes in one binary.
+
+`start.sh` accepts `--time SEC` as the cross-launcher spelling for AFL's
+`--run-time SEC`; both pass AFL++ `-V SEC`. For `iccApplyProfiles`, the
+`applyprofiles-row` target selects the explicit `-threads` row-apply lane.
 
 The memory build also fetches pinned LLVM 21.1.8 runtime sources and builds a
 MemorySanitizer-instrumented static libc++. MSan requires instrumented C++

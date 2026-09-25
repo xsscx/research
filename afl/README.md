@@ -55,6 +55,7 @@ that separate checkout is available. Override its location with
 ./afl/start.sh --list
 ./afl/start.sh dump
 ./afl/start.sh --sanitizer memory dump
+./afl/start.sh --sanitizer thread --time 60 applyprofiles-row
 ./afl/status.sh dump --detail
 ./afl/report.sh all --no-coverage
 ./afl/triage.sh dump

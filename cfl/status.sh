@@ -20,7 +20,7 @@ usage() {
   sed -n '2,5p' "$0" | sed 's/^# \?//'
   echo ""
   echo "Options:"
-  echo "  --runs-dir DIR   run state directory (default: cfl/runs)"
+  echo "  --runs-dir DIR   run state directory (default: cfl/runs[-msan|-tsan])"
   echo "  --sanitizer MODE address (default), memory, or thread"
   echo "  --detail         show paths and latest actionable log event"
   echo "  --json           emit stable machine-readable status"

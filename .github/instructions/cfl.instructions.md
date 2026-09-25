@@ -85,6 +85,11 @@ cd cfl && ./build.sh --refresh-iccdev
 - Keep ASan/UBSan, MSan, and TSan as separate builds. Use `-s memory` or
   `-s thread` with `fuzz-local.sh`, and the matching `--sanitizer` value with
   `start.sh`, `status.sh`, and `stop.sh`.
+- TSan uses deterministic corpus replay rather than LibFuzzer mutation. Its
+  log must identify the corpus immediately, report progress every 10 seconds,
+  and print the final executed-unit count. Bound background replay wall time by
+  the requested duration plus one target timeout. Use `applyprofiles-row` when
+  the intended surface is the batched row-apply path used by `-threads`.
 - Keep the MSan build on its pinned, instrumented static libc++ runtime. Reject
   MSan binaries that dynamically load `libstdc++` or `libc++`.
 - Do not enable source-profile instrumentation or `LLVM_PROFILE_FILE` for MSan;

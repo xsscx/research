@@ -209,6 +209,16 @@ cd cfl
 ./status.sh dump --sanitizer thread --detail
 ```
 
+ThreadSanitizer builds use a deterministic corpus replayer rather than
+LibFuzzer mutation. The replay log is written below `cfl/runs-tsan/`, starts
+with the corpus and duration, reports progress every 10 seconds, and ends with
+`stat::number_of_executed_units`. A ThreadSanitizer finding is written to the
+same log and stops the run. The launcher allows one target timeout beyond the
+requested duration so a slow final input cannot leave a background replay
+running indefinitely. Use `applyprofiles` for the general image pipeline or
+`applyprofiles-row` to force the batched row-apply path corresponding to the
+tool's `-threads` mode.
+
 Both `start.sh` and `fuzz-local.sh` execute each harness from runtime state below
 `cfl/runs/`, with `FUZZ_TMPDIR` pointing at that fuzzer's work directory.
 Corpora remain under `cfl/corpus-*`, findings use the configured artifact

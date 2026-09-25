@@ -15,8 +15,9 @@
 #   --jobs N           LibFuzzer jobs per fuzzer (default: workers)
 #   --rss MB           override rss_limit_mb per worker (default: fuzzer options)
 #   --max-len BYTES    override max_len passed to LibFuzzer (default: fuzzer options)
-#   --runs-dir DIR     run state directory (default: cfl/runs)
+#   --runs-dir DIR     run state directory (default: cfl/runs[-msan|-tsan])
 #   --sanitizer MODE   address (default), memory, or thread
+#                      thread replays the corpus and logs progress every 10s
 #   --foreground       run a single fuzzer in the foreground
 #   -h, --help         show help
 
@@ -117,6 +118,7 @@ start_fuzzer() {
   local rss_limit
   local max_len
   local asan_options
+  local wall_limit
   local cmd=()
   local pid
 
@@ -159,7 +161,8 @@ start_fuzzer() {
   asan_options="$(cfl_asan_options "$fuzzer")"
 
   if [[ "$SANITIZER_MODE" == "thread" ]]; then
-    cmd=("$bin" "$FUZZ_SECONDS" "$corpus")
+    wall_limit=$((FUZZ_SECONDS + timeout_value))
+    cmd=(timeout --kill-after=10s "${wall_limit}s" "$bin" "$FUZZ_SECONDS" "$corpus")
   else
     cmd=(
       "$bin"

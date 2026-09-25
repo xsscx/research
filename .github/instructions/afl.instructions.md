@@ -42,6 +42,7 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 ./afl/start.sh --list
 ./afl/start.sh dump
 ./afl/start.sh --sanitizer memory dump
+./afl/start.sh --sanitizer thread --time 60 applyprofiles-row
 ./afl/start.sh toxml --parallel 4
 ./afl/status.sh --detail
 ./afl/status.sh --json | jq .

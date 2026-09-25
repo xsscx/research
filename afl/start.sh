@@ -77,7 +77,8 @@ usage() {
     echo "  --input-dir DIR       use an external AFL -i directory"
     echo "  --dictionary FILE     override the target dictionary"
     echo "  --timeout MS          AFL execution timeout"
-    echo "  --run-time SEC        stop fuzzing after SEC seconds"
+    echo "  --run-time, --time SEC"
+    echo "                        stop fuzzing after SEC seconds"
     echo "  --map-size N          AFL map size"
     echo "  --sanitizer MODE      binary set: address (default), memory, or thread"
     echo "  --cmplog-auto         use matching afl/bin-cmplog binary when available"
@@ -134,7 +135,7 @@ while [[ $# -gt 0 ]]; do
         --input-dir) AFL_INPUT_DIR="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --dictionary) AFL_DICT_OVERRIDE="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --timeout) AFL_TIMEOUT="$(option_arg "$1" "${2:-}")"; AFL_TIMEOUT_EXPLICIT=1; shift 2 ;;
-        --run-time) AFL_RUN_TIME="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --run-time|--time) AFL_RUN_TIME="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --map-size) AFL_MAP_SIZE_VAL="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --sanitizer) AFL_SANITIZER="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --cmplog-auto) AFL_CMPLOG_AUTO=1; shift ;;
@@ -482,19 +483,21 @@ fi
 
 # Verify binary exists
 if [[ ! -x "$BINARY" ]]; then
-    echo "ERROR: Binary not found: $BINARY"
+    echo "ERROR: Binary not found: $BINARY" >&2
+    if [[ "$AFL_SANITIZER" == "address" ]]; then
+        echo "Build it with: ./afl/build.sh" >&2
+    else
+        echo "Build it with: ./afl/build.sh --sanitizer $AFL_SANITIZER" >&2
+    fi
     binary_name="$(basename "$BINARY")"
     for alternate_mode in memory thread; do
         alternate_suffix="msan"
         [[ "$alternate_mode" == "thread" ]] && alternate_suffix="tsan"
         alternate_binary="$REPO_ROOT/afl/bin-$alternate_suffix/$binary_name"
         if [[ -x "$alternate_binary" ]]; then
-            echo "A $alternate_mode-sanitizer build exists: $alternate_binary"
-            echo "Rerun with: ./afl/start.sh --sanitizer $alternate_mode $TARGET"
-            exit 1
+            echo "Available $alternate_mode-sanitizer build: $alternate_binary" >&2
         fi
     done
-    echo "Run ./afl/build.sh first"
     exit 1
 fi
 

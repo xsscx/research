@@ -36,19 +36,25 @@
  */
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
 
 int main(int argc, char **argv)
 {
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
+
     if (argc != 3) {
         std::fprintf(stderr, "usage: %s seconds corpus-directory\n", argv[0]);
         return 2;
@@ -61,6 +67,9 @@ int main(int argc, char **argv)
         return 2;
     }
 
+    std::printf("tsan-replay: scanning corpus=%s duration=%ld seconds\n",
+                argv[2], seconds);
+
     std::vector<std::filesystem::path> inputs;
     for (const auto& entry : std::filesystem::directory_iterator(argv[2])) {
         if (entry.is_regular_file())
@@ -72,8 +81,27 @@ int main(int argc, char **argv)
         return 2;
     }
 
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
-    uint64_t runs = 0;
+    const auto started = std::chrono::steady_clock::now();
+    const auto deadline = started + std::chrono::seconds(seconds);
+    std::atomic<uint64_t> runs{0};
+    bool finished = false;
+    std::mutex progress_mutex;
+    std::condition_variable progress_cv;
+    std::printf("tsan-replay: corpus=%s inputs=%llu duration=%ld seconds\n",
+                argv[2], static_cast<unsigned long long>(inputs.size()), seconds);
+
+    std::thread progress_thread([&]() {
+        std::unique_lock<std::mutex> lock(progress_mutex);
+        while (!progress_cv.wait_for(lock, std::chrono::seconds(10),
+                                     [&]() { return finished; })) {
+            const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::steady_clock::now() - started).count();
+            std::printf("tsan-replay: elapsed=%lld seconds runs=%llu\n",
+                        static_cast<long long>(elapsed),
+                        static_cast<unsigned long long>(runs.load(std::memory_order_relaxed)));
+        }
+    });
+
     do {
         for (const auto& path : inputs) {
             std::ifstream stream(path, std::ios::binary);
@@ -81,14 +109,21 @@ int main(int argc, char **argv)
                                       std::istreambuf_iterator<char>());
             if (!data.empty()) {
                 LLVMFuzzerTestOneInput(data.data(), data.size());
-                ++runs;
+                runs.fetch_add(1, std::memory_order_relaxed);
             }
-            if (std::chrono::steady_clock::now() >= deadline)
+            const auto now = std::chrono::steady_clock::now();
+            if (now >= deadline)
                 break;
         }
     } while (std::chrono::steady_clock::now() < deadline);
 
+    {
+        std::lock_guard<std::mutex> lock(progress_mutex);
+        finished = true;
+    }
+    progress_cv.notify_one();
+    progress_thread.join();
     std::printf("stat::number_of_executed_units: %llu\n",
-                static_cast<unsigned long long>(runs));
+                static_cast<unsigned long long>(runs.load(std::memory_order_relaxed)));
     return 0;
 }

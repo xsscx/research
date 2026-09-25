@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --force            send TERM/KILL if SIGINT does not stop the process"
       echo "  --reap             remove stale pid files for non-running fuzzers"
       echo "  --timeout SECONDS  wait for graceful shutdown (default: 10)"
-      echo "  --runs-dir DIR     run state directory (default: cfl/runs)"
+      echo "  --runs-dir DIR     run state directory (default: cfl/runs[-msan|-tsan])"
       echo "  --sanitizer MODE   address (default), memory, or thread"
       echo "  --quiet            suppress non-error output"
       exit 0
