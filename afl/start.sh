@@ -483,6 +483,17 @@ fi
 # Verify binary exists
 if [[ ! -x "$BINARY" ]]; then
     echo "ERROR: Binary not found: $BINARY"
+    binary_name="$(basename "$BINARY")"
+    for alternate_mode in memory thread; do
+        alternate_suffix="msan"
+        [[ "$alternate_mode" == "thread" ]] && alternate_suffix="tsan"
+        alternate_binary="$REPO_ROOT/afl/bin-$alternate_suffix/$binary_name"
+        if [[ -x "$alternate_binary" ]]; then
+            echo "A $alternate_mode-sanitizer build exists: $alternate_binary"
+            echo "Rerun with: ./afl/start.sh --sanitizer $alternate_mode $TARGET"
+            exit 1
+        fi
+    done
     echo "Run ./afl/build.sh first"
     exit 1
 fi

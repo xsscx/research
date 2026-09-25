@@ -122,6 +122,16 @@ start_fuzzer() {
 
   if [[ ! -x "$bin" ]]; then
     echo "[FAIL] $fuzzer binary not found: $bin"
+    if [[ "$SANITIZER_MODE" == "address" ]]; then
+      if [[ -x "$SCRIPT_DIR/bin-msan/$fuzzer" ]]; then
+        echo "       An MSan build exists; rerun with --sanitizer memory"
+        return 1
+      fi
+      if [[ -x "$SCRIPT_DIR/bin-tsan/$fuzzer" ]]; then
+        echo "       A TSan build exists; rerun with --sanitizer thread"
+        return 1
+      fi
+    fi
     echo "       Run ./cfl/build.sh first"
     return 1
   fi
@@ -185,8 +195,7 @@ start_fuzzer() {
       unset ASAN_OPTIONS UBSAN_OPTIONS MSAN_OPTIONS LLVM_PROFILE_FILE
       export TSAN_OPTIONS="halt_on_error=1:history_size=7"
     elif [[ "$SANITIZER_MODE" == "memory" ]]; then
-      unset ASAN_OPTIONS UBSAN_OPTIONS TSAN_OPTIONS
-      export LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw"
+      unset ASAN_OPTIONS UBSAN_OPTIONS TSAN_OPTIONS LLVM_PROFILE_FILE
       export MSAN_OPTIONS="halt_on_error=1:abort_on_error=1:symbolize=1:exit_code=86"
     else
       unset MSAN_OPTIONS TSAN_OPTIONS
@@ -211,8 +220,8 @@ start_fuzzer() {
         "${cmd[@]}") > "$log" 2>&1 &
   elif [[ "$SANITIZER_MODE" == "memory" ]]; then
     (cd "$run_dir" && exec setsid env -u ASAN_OPTIONS -u UBSAN_OPTIONS -u TSAN_OPTIONS \
+        -u LLVM_PROFILE_FILE \
         FUZZ_TMPDIR="$run_dir" \
-        LLVM_PROFILE_FILE="$profraw_dir/${fuzzer}_%m_%p.profraw" \
         MSAN_OPTIONS="halt_on_error=1:abort_on_error=1:symbolize=1:exit_code=86" \
         "${cmd[@]}") > "$log" 2>&1 &
   else

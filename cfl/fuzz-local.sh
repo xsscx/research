@@ -186,8 +186,7 @@ for f in "${FUZZERS[@]}"; do
     (cd "$work_dir" && timeout --kill-after=10s $((FUZZ_SECONDS + FUZZER_TIMEOUT))s \
       "$BIN_DIR/$f" "$FUZZ_SECONDS" "$corpus") > "$log" 2>&1 || rc=$?
   elif [ "$SANITIZER_MODE" = "memory" ]; then
-    unset ASAN_OPTIONS UBSAN_OPTIONS TSAN_OPTIONS
-    export LLVM_PROFILE_FILE="$PROFRAW_DIR/${f}_%m_%p.profraw"
+    unset ASAN_OPTIONS UBSAN_OPTIONS TSAN_OPTIONS LLVM_PROFILE_FILE
     export MSAN_OPTIONS="halt_on_error=1:abort_on_error=1:symbolize=1:exit_code=86"
     (cd "$work_dir" && timeout --kill-after=10s $((FUZZ_SECONDS + FUZZER_TIMEOUT))s \
       "$BIN_DIR/$f" \

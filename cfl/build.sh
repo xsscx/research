@@ -38,6 +38,8 @@ SANITIZER_FLAGS=""
 FUZZER_FLAGS=""
 FUZZER_LINK_FLAGS=""
 ENABLE_FUZZING_VALUE="ON"
+MSAN_LIBCXX_PREFIX="$SCRIPT_DIR/third_party/install-msan-libcxx"
+MSAN_CXX_FLAGS=""
 
 configure_sanitizer() {
   COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
@@ -62,9 +64,11 @@ configure_sanitizer() {
       ;;
     memory)
       OUTPUT_DIR="$SCRIPT_DIR/bin-msan"
+      COVERAGE_FLAGS=""
       SANITIZER_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fsanitize=fuzzer-no-link -fPIC"
-      FUZZER_FLAGS="-fsanitize=fuzzer,memory -fsanitize-memory-track-origins=2 -fPIE"
-      FUZZER_LINK_FLAGS="-pie"
+      FUZZER_FLAGS="-fsanitize=fuzzer-no-link,memory -fsanitize-memory-track-origins=2 -fPIE"
+      MSAN_CXX_FLAGS="-nostdinc++ -isystem $MSAN_LIBCXX_PREFIX/include/c++/v1"
+      FUZZER_LINK_FLAGS="$MSAN_LIBCXX_PREFIX/lib/libclang_rt.fuzzer.a -pie -stdlib=libc++ -L$MSAN_LIBCXX_PREFIX/lib"
       ;;
     *)
       echo "[FAIL] ERROR: unsupported sanitizer '$SANITIZER_MODE' (use address, memory, or thread)" >&2
@@ -72,7 +76,7 @@ configure_sanitizer() {
       ;;
   esac
   CFLAGS_LIB="$COMMON_CFLAGS $SANITIZER_FLAGS $COVERAGE_FLAGS"
-  CXXFLAGS_FUZZER="$COMMON_CFLAGS $FUZZER_FLAGS $COVERAGE_FLAGS -std=c++17 -frtti"
+  CXXFLAGS_FUZZER="$COMMON_CFLAGS $FUZZER_FLAGS $COVERAGE_FLAGS $MSAN_CXX_FLAGS -std=c++17 -frtti"
 }
 
 INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
@@ -284,6 +288,15 @@ for tool in "$CC" "$CXX" cmake pkg-config; do
   fi
 done
 
+if [[ "$SANITIZER_MODE" == "memory" ]]; then
+  CC="$CC" CXX="$CXX" "$SCRIPT_DIR/third_party/build-msan-libcxx.sh"
+  if [[ ! -f "$MSAN_LIBCXX_PREFIX/lib/libc++.a" ||
+        ! -f "$MSAN_LIBCXX_PREFIX/lib/libclang_rt.fuzzer.a" ]]; then
+    echo "[FAIL] ERROR: incomplete instrumented MSan C++ runtime: $MSAN_LIBCXX_PREFIX/lib" >&2
+    exit 1
+  fi
+fi
+
 # Verify the selected sanitizer runtime is available.
 SANITIZER_TEST=$(mktemp /tmp/cfl_sanitizer_test.XXXXXX.cpp)
 trap 'rm -f "$SANITIZER_TEST"' EXIT
@@ -319,6 +332,9 @@ echo ""
 echo "Flags:"
 echo "  Library:  $CFLAGS_LIB"
 echo "  Fuzzer:   $CXXFLAGS_FUZZER"
+if [[ "$SANITIZER_MODE" == "memory" ]]; then
+  echo "  C++ MSan: $MSAN_CXX_FLAGS"
+fi
 echo "  Coverage: $COVERAGE_FLAGS"
 
 banner "Step 1: iccDEV source"
@@ -381,7 +397,7 @@ cmake -S "$ICCDEV_DIR/Build/Cmake" -B "$BUILD_DIR" \
   -DCMAKE_C_COMPILER="$CC" \
   -DCMAKE_CXX_COMPILER="$CXX" \
   -DCMAKE_C_FLAGS="$CFLAGS_LIB" \
-  -DCMAKE_CXX_FLAGS="$CFLAGS_LIB -std=c++17 -frtti" \
+  -DCMAKE_CXX_FLAGS="$CFLAGS_LIB $MSAN_CXX_FLAGS -std=c++17 -frtti" \
   -DCMAKE_BUILD_TYPE=Debug \
   -DENABLE_STATIC_LIBS=ON \
   -DENABLE_SHARED_LIBS=ON \
@@ -451,7 +467,7 @@ build_fuzzer() {
     return
   fi
 
-  local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS $COVERAGE_FLAGS -std=c++17 -frtti"
+  local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS $COVERAGE_FLAGS $MSAN_CXX_FLAGS -std=c++17 -frtti"
   local extra_sources=()
   local target_defines=()
   if [[ "$SANITIZER_MODE" == "thread" ]]; then
@@ -641,6 +657,15 @@ if [ "$FAILED" -gt 0 ]; then
   echo ""
   echo "[FAIL] fuzzer(s) failed to build"
   exit 1
+fi
+
+if [[ "$SANITIZER_MODE" == "memory" ]]; then
+  MSAN_PROBE="$OUTPUT_DIR/icc_proflib_fuzzer"
+  if ldd "$MSAN_PROBE" 2>/dev/null | grep -Eq 'libstdc\+\+|libc\+\+'; then
+    echo "[FAIL] MemorySanitizer binary depends on an uninstrumented shared C++ standard library"
+    exit 1
+  fi
+  echo "[OK] Instrumented static libc++"
 fi
 
 if [ "$SKIPPED" -gt 0 ]; then

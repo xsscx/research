@@ -23,6 +23,7 @@ cd cfl && ./fuzz-local.sh -t 60 -w 1
 # Build and replay the same corpora under MSan or TSan.
 cd cfl && ./build.sh --sanitizer memory
 cd cfl && ./fuzz-local.sh -s memory -t 60 -w 1
+cd cfl && ./start.sh --sanitizer memory icc_proflib_fuzzer
 cd cfl && ./build.sh --sanitizer thread
 cd cfl && ./fuzz-local.sh -s thread -t 60 -w 1
 
@@ -104,7 +105,14 @@ bounded corpus runner because it is intended for deterministic concurrent
 replay rather than mutation. The runners keep state in `cfl/runs/`,
 `cfl/runs-msan/`, and `cfl/runs-tsan/` respectively. Use matching
 `--sanitizer` values with `start.sh`, `status.sh`, and `stop.sh`, or `-s` with
-`fuzz-local.sh`.
+`fuzz-local.sh`. Omitting the selector chooses the default address build in
+`cfl/bin/`; it does not fall back to `cfl/bin-msan/`.
+
+The MSan build compiles and statically links a pinned, instrumented LLVM
+libc++ runtime. This is required because using the system's uninstrumented
+libstdc++ produces false uninitialized-read reports inside standard-library
+operations. The MSan lane uses LibFuzzer sanitizer-coverage counters but not
+Clang source-profile instrumentation, whose runtime is not MSan-instrumented.
 
 The NamedCmm, Connect, config, TIFF image, and JSON/XML conversion harnesses do
 not impose a fixed input-size ceiling. Their `.options` use `max_len = 0`, so
