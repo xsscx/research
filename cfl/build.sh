@@ -9,8 +9,8 @@
 #         ./build.sh --sanitizer memory
 #         ./build.sh --sanitizer thread
 #
-# Requirements: clang-22/clang++-22, cmake 3.15+, libxml2-dev, libtiff-dev,
-#               zlib, libclang-rt-22-dev (provides ASan/UBSan runtime)
+# Requirements: clang-22/clang++-22, cmake 3.18+, ninja, git, libxml2-dev,
+#               libtiff-dev, zlib, libclang-rt-22-dev
 
 set -euo pipefail
 
@@ -39,7 +39,10 @@ FUZZER_FLAGS=""
 FUZZER_LINK_FLAGS=""
 ENABLE_FUZZING_VALUE="ON"
 MSAN_LIBCXX_PREFIX="$SCRIPT_DIR/third_party/install-msan-libcxx"
+MSAN_LIBXML2_PREFIX="$SCRIPT_DIR/third_party/install-msan-libxml2"
 MSAN_CXX_FLAGS=""
+XML_CFLAGS=""
+XML_LIBS=""
 
 configure_sanitizer() {
   COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
@@ -88,7 +91,6 @@ INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccProfilePlot"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccConnect/IccLibConnect"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccJSON/IccLibJSON"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$BUILD_DIR/IccConnect -I$BUILD_DIR/IccJSON"
-INCLUDE_FLAGS="$INCLUDE_FLAGS $(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
 
 # Upstream cmake may set CMAKE_DEBUG_POSTFIX="d" for Debug builds.
 LIB_PROF="$BUILD_DIR/IccProfLib/libIccProfLib2-static.a"
@@ -247,6 +249,15 @@ case "$SANITIZER_MODE" in
 esac
 configure_sanitizer
 
+if [[ "$SANITIZER_MODE" == "memory" ]]; then
+  XML_CFLAGS="-I$MSAN_LIBXML2_PREFIX/include/libxml2"
+  XML_LIBS="$MSAN_LIBXML2_PREFIX/lib/libxml2.a -lm"
+else
+  XML_CFLAGS="$(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
+  XML_LIBS="$(pkg-config --libs libxml-2.0 2>/dev/null || echo '-lxml2')"
+fi
+INCLUDE_FLAGS="$INCLUDE_FLAGS $XML_CFLAGS"
+
 if [[ "$REFRESH_ICCDEV" = "1" && "$KEEP_ICCDEV" = "1" ]]; then
   echo "[FAIL] ERROR: --refresh-iccdev and --keep-iccdev are mutually exclusive"
   exit 1
@@ -290,9 +301,15 @@ done
 
 if [[ "$SANITIZER_MODE" == "memory" ]]; then
   CC="$CC" CXX="$CXX" "$SCRIPT_DIR/third_party/build-msan-libcxx.sh"
+  CC="$CC" "$SCRIPT_DIR/third_party/build-msan-libxml2.sh"
   if [[ ! -f "$MSAN_LIBCXX_PREFIX/lib/libc++.a" ||
         ! -f "$MSAN_LIBCXX_PREFIX/lib/libclang_rt.fuzzer.a" ]]; then
     echo "[FAIL] ERROR: incomplete instrumented MSan C++ runtime: $MSAN_LIBCXX_PREFIX/lib" >&2
+    exit 1
+  fi
+  if [[ ! -f "$MSAN_LIBXML2_PREFIX/lib/libxml2.a" ]] ||
+     ! grep -a -q '__msan_' "$MSAN_LIBXML2_PREFIX/lib/libxml2.a"; then
+    echo "[FAIL] ERROR: incomplete instrumented MSan libxml2: $MSAN_LIBXML2_PREFIX/lib" >&2
     exit 1
   fi
 fi
@@ -334,6 +351,7 @@ echo "  Library:  $CFLAGS_LIB"
 echo "  Fuzzer:   $CXXFLAGS_FUZZER"
 if [[ "$SANITIZER_MODE" == "memory" ]]; then
   echo "  C++ MSan: $MSAN_CXX_FLAGS"
+  echo "  XML MSan: $MSAN_LIBXML2_PREFIX/lib/libxml2.a"
 fi
 echo "  Coverage: $COVERAGE_FLAGS"
 
@@ -521,7 +539,8 @@ wait
 echo ""
 echo "XML fuzzers:"
 for f in "${XML_FUZZERS[@]}"; do
-  build_fuzzer "$f" "$LIB_XML" -lxml2 -lz &
+  # shellcheck disable=SC2086
+  build_fuzzer "$f" "$LIB_XML" $XML_LIBS &
 done
 wait
 
@@ -666,6 +685,7 @@ if [[ "$SANITIZER_MODE" == "memory" ]]; then
     exit 1
   fi
   echo "[OK] Instrumented static libc++"
+  "$SCRIPT_DIR/test-msan-dependencies.sh"
 fi
 
 if [ "$SKIPPED" -gt 0 ]; then

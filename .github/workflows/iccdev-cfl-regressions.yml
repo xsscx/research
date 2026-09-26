@@ -86,9 +86,16 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           shellcheck cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
+            cfl/test-msan-dependencies.sh cfl/third_party/build-msan-libcxx.sh \
+            cfl/third_party/build-msan-libxml2.sh \
             .github/scripts/validate-cfl-applynamedcmm.sh
           bash -n cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
+            cfl/test-msan-dependencies.sh cfl/third_party/build-msan-libcxx.sh \
+            cfl/third_party/build-msan-libxml2.sh \
             .github/scripts/validate-cfl-applynamedcmm.sh
+          grep -Fq '3d840e17858de03a09fba8b202e3a89267d5795a' \
+            cfl/third_party/build-msan-libxml2.sh
+          grep -Fq 'test-msan-dependencies.sh' cfl/build.sh
           source cfl/fuzzers.sh
           test "$(cfl_list_fuzzers | wc -l)" -eq "${#CFL_FUZZERS[@]}"
           test "${#CFL_FUZZERS[@]}" -gt 0
