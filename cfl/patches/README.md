@@ -12,6 +12,8 @@ Active patches can be applied to the isolated `cfl/iccDEV` checkout:
 - `008-unknown-tag-size-initialization.patch` - initialize empty unknown tags
   before JSON serialization reads their payload size. Regression fixture:
   `docs/Testing/test-data/fromjson-unknown-tag-empty.json`.
+- `009-issue-2707-calculator-temp-initialization.patch` - initialize calculator
+  temporary channels before a `tget` can read them.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
