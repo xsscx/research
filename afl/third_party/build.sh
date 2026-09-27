@@ -27,7 +27,13 @@ AR_BIN="${AR:-llvm-ar-21}"
 RANLIB_BIN="${RANLIB:-llvm-ranlib-21}"
 NM_BIN="${NM:-llvm-nm-21}"
 SANITIZER_MODE="${AFL_THIRD_PARTY_SANITIZER:-address}"
+SKIP_MSAN_LIBCXX="${AFL_THIRD_PARTY_SKIP_LIBCXX:-0}"
 unset AFL_THIRD_PARTY_SANITIZER
+unset AFL_THIRD_PARTY_SKIP_LIBCXX
+if [[ "$SKIP_MSAN_LIBCXX" != "0" && "$SKIP_MSAN_LIBCXX" != "1" ]]; then
+    echo "[FAIL] AFL_THIRD_PARTY_SKIP_LIBCXX must be 0 or 1" >&2
+    exit 1
+fi
 case "$SANITIZER_MODE" in
     address)
         SANITIZERS="address,undefined,integer,float-divide-by-zero,float-cast-overflow"
@@ -219,14 +225,16 @@ fetch_source libxml2 https://gitlab.gnome.org/GNOME/libxml2.git "$LIBXML2_VERSIO
 fetch_source nlohmann-json https://github.com/nlohmann/json.git "$NLOHMANN_JSON_VERSION" "$NLOHMANN_JSON_COMMIT"
 
 if [[ "$SANITIZER_MODE" == "memory" ]]; then
-    if ! command -v ninja >/dev/null 2>&1; then
-        echo "[FAIL] Ninja is required to build the MSan libc++ runtime" >&2
-        exit 1
+    if [[ "$SKIP_MSAN_LIBCXX" == "0" ]]; then
+        if ! command -v ninja >/dev/null 2>&1; then
+            echo "[FAIL] Ninja is required to build the MSan libc++ runtime" >&2
+            exit 1
+        fi
+        fetch_llvm_runtimes
+        build_msan_libcxx
+        CXX_SAN_FLAGS+=" -stdlib=libc++ -nostdinc++ -isystem $PREFIX/include/c++/v1"
+        LINK_SAN_FLAGS+=" -stdlib=libc++ -L$PREFIX/lib"
     fi
-    fetch_llvm_runtimes
-    build_msan_libcxx
-    CXX_SAN_FLAGS+=" -stdlib=libc++ -nostdinc++ -isystem $PREFIX/include/c++/v1"
-    LINK_SAN_FLAGS+=" -stdlib=libc++ -L$PREFIX/lib"
 fi
 
 configure_build_install zlib \

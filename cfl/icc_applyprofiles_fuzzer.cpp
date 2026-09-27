@@ -136,11 +136,11 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (size < 200 || size > 5 * 1024 * 1024) return 0;
+  if (size > 5 * 1024 * 1024) return 0;
 
   // Split input: first part is profile data, rest is control data
   size_t profile_size = (size * 3) / 4;
-  if (profile_size < 130) return 0;
+  if (profile_size < 132) return 0;
 
   const uint8_t *profile_data = data;
   const uint8_t *control_data = data + profile_size;

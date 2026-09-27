@@ -95,7 +95,7 @@ For profile visualization, CFL's `profileplot` alias exercises the in-memory
 | 4 | icc_fromcube_fuzzer | iccFromCube | .cube text | 16B/128KB | 45% | LUT text parsing, 3D CLUT |
 | 5 | icc_roundtrip_fuzzer | iccRoundTrip | ICC binary | 128B/2MB | 58% | AToB/BToA transforms |
 | 6 | icc_link_fuzzer | iccLinkCmm | 2x ICC | 256B/4MB | 52% | Profile linking, PCS conversion |
-| 7 | icc_applyprofiles_fuzzer | iccApplyProfiles | ICC+control | 128B/4MB | 55% | CMM Apply, pixel transforms |
+| 7 | icc_applyprofiles_fuzzer | iccApplyProfiles | ICC+control | 176B/5MB | 55% | CMM Apply, pixel transforms |
 | 8 | icc_applynamedcmm_fuzzer | iccApplyNamedCmm | raw ICC | 132B/unbounded | 48% | Named color CMM |
 | 9 | icc_applysearch_fuzzer | iccApplySearch | ICC binary | 128B/2MB | 40% | CIccCmmSearch optimization |
 | 10 | icc_v5dspobs_fuzzer | iccV5DspObsToV4 | 2x ICC | 256B/4MB | 61% | v5 DspObs->v4, spectral |

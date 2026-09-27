@@ -39,7 +39,9 @@ FUZZER_FLAGS=""
 FUZZER_LINK_FLAGS=""
 ENABLE_FUZZING_VALUE="ON"
 MSAN_LIBCXX_PREFIX="$SCRIPT_DIR/third_party/install-msan-libcxx"
-MSAN_LIBXML2_PREFIX="$SCRIPT_DIR/third_party/install-msan-libxml2"
+MSAN_DEPS_PREFIX="$SCRIPT_DIR/third_party/install-msan-deps"
+MSAN_DEPS_SOURCE_DIR="$SCRIPT_DIR/third_party/sources-msan-deps"
+MSAN_DEPS_BUILD_DIR="$SCRIPT_DIR/third_party/build-msan-deps"
 MSAN_CXX_FLAGS=""
 XML_CFLAGS=""
 XML_LIBS=""
@@ -160,16 +162,15 @@ PROFILE_VISUALIZE_FUZZERS=(
 
 TIFFIMG_SRC="$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles/TiffImg.cpp"
 TIFFIMG_OBJ="$SCRIPT_DIR/.build_tmp/TiffImg.o"
-TIFF_CFLAGS="$(pkg-config --cflags libtiff-4 2>/dev/null || true)"
-TIFF_LIBS="$(pkg-config --libs libtiff-4 2>/dev/null || echo '-ltiff')"
-PNG_CFLAGS="$(pkg-config --cflags libpng 2>/dev/null || true)"
-PNG_LIBS="$(pkg-config --libs libpng 2>/dev/null || echo '-lpng')"
-ZLIB_LIBS="$(pkg-config --libs zlib 2>/dev/null || echo '-lz')"
+TIFF_CFLAGS=""
+TIFF_LIBS=""
+PNG_CFLAGS=""
+PNG_LIBS=""
+ZLIB_LIBS=""
 PAWG_SRC="$ICCDEV_DIR/Tools/CmdLine/IccPawgReport/PawgReport.cpp"
 PAWG_OBJ="$SCRIPT_DIR/.build_tmp/PawgReport.o"
 ICC_VIZ_MODEL_SRC="$ICCDEV_DIR/Tools/CmdLine/IccProfilePlot/IccVizModel.cpp"
 ICC_VIZ_MODEL_OBJ="$SCRIPT_DIR/.build_viz_tmp/IccVizModel.o"
-INCLUDE_FLAGS="$INCLUDE_FLAGS $PNG_CFLAGS"
 
 banner() {
   echo ""
@@ -250,11 +251,21 @@ esac
 configure_sanitizer
 
 if [[ "$SANITIZER_MODE" == "memory" ]]; then
-  XML_CFLAGS="-I$MSAN_LIBXML2_PREFIX/include/libxml2"
-  XML_LIBS="$MSAN_LIBXML2_PREFIX/lib/libxml2.a -lm"
+  XML_CFLAGS="-I$MSAN_DEPS_PREFIX/include/libxml2"
+  XML_LIBS="$MSAN_DEPS_PREFIX/lib/libxml2.a -lm"
+  TIFF_CFLAGS="-I$MSAN_DEPS_PREFIX/include"
+  TIFF_LIBS="$MSAN_DEPS_PREFIX/lib/libtiff.a $MSAN_DEPS_PREFIX/lib/libjpeg.a -lm"
+  PNG_CFLAGS="-I$MSAN_DEPS_PREFIX/include"
+  PNG_LIBS="$MSAN_DEPS_PREFIX/lib/libpng.a"
+  ZLIB_LIBS="$MSAN_DEPS_PREFIX/lib/libz.a"
 else
   XML_CFLAGS="$(pkg-config --cflags libxml-2.0 2>/dev/null || echo '-I/usr/include/libxml2')"
   XML_LIBS="$(pkg-config --libs libxml-2.0 2>/dev/null || echo '-lxml2')"
+  TIFF_CFLAGS="$(pkg-config --cflags libtiff-4 2>/dev/null || true)"
+  TIFF_LIBS="$(pkg-config --libs libtiff-4 2>/dev/null || echo '-ltiff')"
+  PNG_CFLAGS="$(pkg-config --cflags libpng 2>/dev/null || true)"
+  PNG_LIBS="$(pkg-config --libs libpng 2>/dev/null || echo '-lpng')"
+  ZLIB_LIBS="$(pkg-config --libs zlib 2>/dev/null || echo '-lz')"
 fi
 INCLUDE_FLAGS="$INCLUDE_FLAGS $XML_CFLAGS"
 
@@ -301,17 +312,26 @@ done
 
 if [[ "$SANITIZER_MODE" == "memory" ]]; then
   CC="$CC" CXX="$CXX" "$SCRIPT_DIR/third_party/build-msan-libcxx.sh"
-  CC="$CC" "$SCRIPT_DIR/third_party/build-msan-libxml2.sh"
+  AFL_THIRD_PARTY_SOURCE_DIR="$MSAN_DEPS_SOURCE_DIR" \
+  AFL_THIRD_PARTY_BUILD_DIR="$MSAN_DEPS_BUILD_DIR" \
+  AFL_THIRD_PARTY_PREFIX="$MSAN_DEPS_PREFIX" \
+  AFL_THIRD_PARTY_SANITIZER=memory \
+  AFL_THIRD_PARTY_SKIP_LIBCXX=1 \
+  AFL_THIRD_PARTY_JOBS="$NPROC" \
+  CC="$CC" CXX="$CXX" AR=llvm-ar-22 RANLIB=llvm-ranlib-22 NM=llvm-nm-22 \
+    "$SCRIPT_DIR/../afl/third_party/build.sh"
   if [[ ! -f "$MSAN_LIBCXX_PREFIX/lib/libc++.a" ||
         ! -f "$MSAN_LIBCXX_PREFIX/lib/libclang_rt.fuzzer.a" ]]; then
     echo "[FAIL] ERROR: incomplete instrumented MSan C++ runtime: $MSAN_LIBCXX_PREFIX/lib" >&2
     exit 1
   fi
-  if [[ ! -f "$MSAN_LIBXML2_PREFIX/lib/libxml2.a" ]] ||
-     ! grep -a -q '__msan_' "$MSAN_LIBXML2_PREFIX/lib/libxml2.a"; then
-    echo "[FAIL] ERROR: incomplete instrumented MSan libxml2: $MSAN_LIBXML2_PREFIX/lib" >&2
-    exit 1
-  fi
+  for archive in libxml2.a libz.a libjpeg.a libpng.a libtiff.a; do
+    if [[ ! -f "$MSAN_DEPS_PREFIX/lib/$archive" ]] ||
+       ! grep -a -q '__msan_' "$MSAN_DEPS_PREFIX/lib/$archive"; then
+      echo "[FAIL] ERROR: incomplete instrumented MSan dependency: $MSAN_DEPS_PREFIX/lib/$archive" >&2
+      exit 1
+    fi
+  done
 fi
 
 # Verify the selected sanitizer runtime is available.
@@ -351,7 +371,7 @@ echo "  Library:  $CFLAGS_LIB"
 echo "  Fuzzer:   $CXXFLAGS_FUZZER"
 if [[ "$SANITIZER_MODE" == "memory" ]]; then
   echo "  C++ MSan: $MSAN_CXX_FLAGS"
-  echo "  XML MSan: $MSAN_LIBXML2_PREFIX/lib/libxml2.a"
+  echo "  Dependency MSan: $MSAN_DEPS_PREFIX/lib"
 fi
 echo "  Coverage: $COVERAGE_FLAGS"
 
@@ -488,6 +508,14 @@ build_fuzzer() {
   local CXXFLAGS_THIS="$COMMON_CFLAGS $FUZZER_FLAGS $COVERAGE_FLAGS $MSAN_CXX_FLAGS -std=c++17 -frtti"
   local extra_sources=()
   local target_defines=()
+  case "$name" in
+    icc_applyprofiles_fuzzer|icc_applyprofiles_row_fuzzer|icc_specsep_fuzzer|icc_tiffdump_fuzzer)
+      CXXFLAGS_THIS+=" $TIFF_CFLAGS"
+      ;;
+    icc_pngdump_fuzzer)
+      CXXFLAGS_THIS+=" $PNG_CFLAGS"
+      ;;
+  esac
   if [[ "$SANITIZER_MODE" == "thread" ]]; then
     extra_sources+=("$SCRIPT_DIR/tsan_corpus_runner.cpp")
     case "$name" in

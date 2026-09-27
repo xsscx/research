@@ -771,14 +771,13 @@ unbundle_applysearch() {
 unbundle_applyprofiles() {
   local force_row="$1"
   echo "Format: [75% ICC profile][25% control/pixel seed]"
-  if [ "$FILE_SIZE" -lt 200 ]; then
-    echo "ERROR: file too small for applyprofiles layout" >&2
-    return 1
-  fi
-
   local profile_size control_size
   profile_size=$(((FILE_SIZE * 3) / 4))
   control_size=$((FILE_SIZE - profile_size))
+  if [ "$profile_size" -lt 132 ] || [ "$control_size" -lt 4 ]; then
+    echo "ERROR: file too small for applyprofiles profile/control layout" >&2
+    return 1
+  fi
 
   extract_range 0 "$profile_size" "$OUT_DIR/profile.icc"
   extract_range "$profile_size" "$control_size" "$OUT_DIR/control.bin"

@@ -90,12 +90,14 @@ cd cfl && ./build.sh --refresh-iccdev
   and print the final executed-unit count. Bound background replay wall time by
   the requested duration plus one target timeout. Use `applyprofiles-row` when
   the intended surface is the batched row-apply path used by `-threads`.
-- Keep the MSan build on its pinned, instrumented static libc++ and libxml2
-  runtimes. Reject MSan binaries that dynamically load `libstdc++`, `libc++`,
-  or `libxml2`; an uninstrumented dependency allocation can otherwise appear
-  to be an input-driven uninitialized read at the next intercepted libc call.
+- Keep the MSan build on pinned, instrumented static libc++, zlib,
+  libjpeg-turbo, libpng, libtiff, and libxml2. Reject every MSan fuzzer that
+  dynamically loads one of those libraries; an uninstrumented dependency
+  allocation can otherwise appear to be an input-driven uninitialized read at
+  the next intercepted libc call.
 - Run `cfl/test-msan-dependencies.sh` after memory builds. It checks the linked
-  dependency boundary and replays the preserved FromXml libxml2 artifact.
+  dependency boundary and replays the preserved FromXml artifact plus the
+  apply-profiles `TIFFClose()` false-positive controls.
 - Do not enable source-profile instrumentation or `LLVM_PROFILE_FILE` for MSan;
   use LibFuzzer's sanitizer-coverage counters for that lane.
 - Use `ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1` for clear

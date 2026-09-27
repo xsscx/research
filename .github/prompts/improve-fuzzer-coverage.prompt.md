@@ -247,7 +247,7 @@ trigger the CMM pipeline (AddXform->Begin->Apply). Seed corpora need matched pai
 | Fuzzer | Format | Min Size |
 |--------|--------|----------|
 | `icc_link_fuzzer` | profile1 + profile2 + 4 ctrl bytes | 258 |
-| `icc_applyprofiles_fuzzer` | 75% profile + 25% control [intent, interp, unused, flags] | 200 |
+| `icc_applyprofiles_fuzzer` | 75% profile + 25% control [intent, interp, unused, flags] | 176 (132-byte profile plus control) |
 | `icc_applynamedcmm_fuzzer` | one raw ICC profile; fixed internal control matrix | 132 |
 | `icc_apply_fuzzer` | entire input is one ICC profile | 130 |
 

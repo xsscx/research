@@ -123,15 +123,16 @@ replay rather than mutation. The runners keep state in `cfl/runs/`,
 `fuzz-local.sh`. Omitting the selector chooses the default address build in
 `cfl/bin/`; it does not fall back to `cfl/bin-msan/`.
 
-The MSan build compiles and statically links pinned, instrumented LLVM libc++
-and libxml2 runtimes. This is required because using the system's
-uninstrumented libstdc++ or libxml2 produces false uninitialized-read reports
-when those libraries initialize memory outside MSan's view. The XML dependency
-is libxml2 2.15.2 at commit `3d840e17858de03a09fba8b202e3a89267d5795a`;
-its optional iconv, module, and zlib boundaries are disabled in the MSan build.
-The memory build fails if either XML fuzzer dynamically loads libxml2 and
-replays the preserved `icc_fromxml_fuzzer` boundary artifact before reporting
-success. Run the same gate directly with `cfl/test-msan-dependencies.sh`.
+The MSan build statically links pinned, instrumented LLVM libc++, zlib,
+libjpeg-turbo, libpng, libtiff, and libxml2. The C dependencies use the shared
+pins in `afl/third_party/versions.sh`; XML iconv and module support and optional
+TIFF codecs outside that dependency set stay disabled. This complete boundary
+is required because a system library allocation can otherwise appear to be an
+input-driven uninitialized read at the next intercepted libc call. The memory
+build rejects every fuzzer that dynamically loads one of these dependencies,
+then replays the preserved FromXml boundary artifact plus both apply-profiles
+`TIFFClose()` artifacts from issue #2701 and the U2 run. Run the same gate
+directly with `cfl/test-msan-dependencies.sh`.
 The MSan lane uses LibFuzzer sanitizer-coverage counters but not Clang
 source-profile instrumentation, whose runtime is not MSan-instrumented.
 
