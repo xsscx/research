@@ -22,7 +22,7 @@
 #
 # Requirements (Ubuntu/Debian):
 #   sudo apt install -y build-essential cmake clang clang-tools \
-#     libxml2-dev libtiff-dev zlib1g-dev liblzma-dev pkg-config git
+#     libxml2-dev libtiff-dev libssl-dev zlib1g-dev liblzma-dev pkg-config git jq python3
 #
 # ColorBleed Warning:
 # These Tools will attempt to Load & Store ICC Blobs & XML Representations
@@ -47,7 +47,7 @@ TARGETS = iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe 
 UBSAN_SUPP = $(CURDIR)/silence.txt
 SAN_RUN_ENV = LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1:suppressions=$(UBSAN_SUPP)
 
-.PHONY: all clean distclean test qa setup help
+.PHONY: all clean distclean test qa tiff-qa setup help
 
 # Default target: ensure binaries exist
 all: setup
@@ -100,7 +100,7 @@ test: all colorbleed-test
 	@test -f test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff
 	@test -f $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc
 	@rm -f test-tiff-profile.icc
-	@$(SAN_RUN_ENV) ./iccTiffDump_unsafe test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff test-tiff-profile.icc
+	@$(SAN_RUN_ENV) ./iccTiffDump_unsafe --summary test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff test-tiff-profile.icc
 	@test -s test-tiff-profile.icc
 	@cmp -s test-tiff-profile.icc $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc
 	@echo ""
@@ -110,6 +110,10 @@ test: all colorbleed-test
 
 qa: all
 	@COLORBLEED_TOOLS_DIR="$(CURDIR)" ./qa-roundtrip-colorbleed.sh
+	@COLORBLEED_CONFIGS="$(CONFIG)" ./test-icctiffdump-unsafe.sh
+
+tiff-qa: all
+	@COLORBLEED_CONFIGS="$(CONFIG)" ./test-icctiffdump-unsafe.sh
 
 help:
 	@echo "ColorBleed Unsafe ICC Representation and TIFF Tools Makefile"
@@ -121,6 +125,7 @@ help:
 	@echo "  distclean - Remove everything including iccDEV clone"
 	@echo "  test      - Build and run basic tests"
 	@echo "  qa        - Build and run XML/JSON/TIFF/blob QA"
+	@echo "  tiff-qa   - Run focused TIFF evidence and extraction regression tests"
 	@echo "  help      - Show this help message"
 	@echo ""
 	@echo "Config override:"
@@ -133,7 +138,7 @@ help:
 	@echo ""
 	@echo "Requirements (Ubuntu/Debian):"
 	@echo "  sudo apt install -y build-essential cmake clang clang-tools \\"
-	@echo "    libxml2-dev libtiff-dev zlib1g-dev liblzma-dev pkg-config git"
+	@echo "    libxml2-dev libtiff-dev libssl-dev zlib1g-dev liblzma-dev pkg-config git jq python3"
 	@echo ""
 	@echo "ColorBleed Warning:"
 	@echo "These tools Load & Store unsafe code for Icc Profiles"

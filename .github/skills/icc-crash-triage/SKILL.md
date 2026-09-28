@@ -25,7 +25,12 @@ or AFL++ campaigns against iccDEV ICC profile tools.
 
 Before classifying ANY finding, determine the exit code:
 
-- Exit 1-127: Tool rejected input gracefully. NOT a crash. STOP.
+- ColorBleed exit 86, JSON `sandbox.sanitizerFinding=true`, or ASAN/UBSAN
+  stderr: memory-safety finding. Proceed to step 2 even though the status may be
+  below 128.
+- External `timeout` exit 124: harness timeout. Report separately.
+- Exit 1-127 otherwise: Tool rejected input gracefully or returned a forensic
+  soft failure. NOT a crash. STOP.
 - Exit 128+: Signal termination. Proceed to step 2.
 - Exit 0 with ASAN/UBSAN stderr: Memory safety bug. Proceed to step 2.
 
@@ -126,11 +131,14 @@ cd colorbleed_tools && make qa
 For TIFF findings, preserve the embedded bytes before deeper parser triage:
 
 ```bash
-colorbleed_tools/iccTiffDump_unsafe <finding.tif> /tmp/finding-embedded.icc
+colorbleed_tools/iccTiffDump_unsafe --evidence-json <finding.tif> /tmp/finding-embedded.icc
 ```
 
-Treat exit 6 as an ICC validation finding with a recovered artifact, not a
-crash. Continue crash attribution only for sanitizer output or signal status.
+Check the JSON `sandbox` object before generic exit-code classification. Treat
+strict sanitizer exit 86 as a finding even though it is below 128. Treat exits
+4-6 as ICC parse, tag-load, or validation findings with a recovered artifact,
+not crashes. External timeout exit 124 is a harness timeout. Continue crash
+attribution only for sanitizer evidence or signal status.
 
 ### 7. Reproduction Discipline
 

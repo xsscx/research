@@ -49,6 +49,37 @@ run_tool() {
     fi
 }
 
+run_tiff_tool() {
+    local config="$1"
+    local label="$2"
+    local tool="$3"
+    local input="$4"
+    local output="$5"
+    local log="$out_root/$config/$label.log"
+    local evidence="$out_root/$config/$label.evidence.json"
+    local rc=0
+
+    if env COLORBLEED_STRICT_SANITIZERS=1 timeout "$timeout_seconds" \
+        "$tool" --evidence-json "$input" "$output" >"$evidence" 2>"$log"; then
+        rc=0
+    else
+        rc=$?
+        failures=$((failures + 1))
+    fi
+
+    printf '%s\t%s\t%s\n' "$config" "$label" "$rc" >>"$out_root/commands.tsv"
+    if ! jq -e --argjson rc "$rc" \
+        '.schema == "colorbleed-tiff-evidence/v1" and
+         .sandbox.exitCode == $rc and .sandbox.crashed == false and
+         .sandbox.sanitizerFinding == false' "$evidence" >/dev/null; then
+        failures=$((failures + 1))
+        printf '[FAIL] invalid TIFF evidence: %s\n' "$evidence" >&2
+    fi
+    if [ "$rc" -ne 0 ]; then
+        printf '[FAIL] %s/%s exited %s; log: %s\n' "$config" "$label" "$rc" "$log" >&2
+    fi
+}
+
 file_size() {
     stat -c '%s' "$1"
 }
@@ -117,8 +148,10 @@ for config in $configs; do
         "$config_out/xml-return.icc"
     run_tool "$config" diagnose_json_return "$tools_dir/iccDiagnosticLoad" --all --dump \
         "$config_out/json-return.icc"
-    run_tool "$config" tiff_extract "$tools_dir/iccTiffDump_unsafe" \
+    run_tiff_tool "$config" tiff_extract "$tools_dir/iccTiffDump_unsafe" \
         "$source_tiff" "$config_out/tiff-extracted.icc"
+    jq -S 'del(.output)' "$config_out/tiff_extract.evidence.json" \
+        >"$config_out/tiff-evidence-normalized.json"
 
     xmllint --c14n "$config_out/source.xml" >"$config_out/source.c14n.xml"
     xmllint --c14n "$config_out/xml-return.xml" >"$config_out/xml-return.c14n.xml"
@@ -157,7 +190,8 @@ reference_config="${configs%% *}"
 for config in $configs; do
     [ "$config" = "$reference_config" ] && continue
     for artifact in source.xml xml-return.icc xml-return.xml source.json \
-        json-return.icc json-return.json json-return.xml tiff-extracted.icc; do
+        json-return.icc json-return.json json-return.xml tiff-extracted.icc \
+        tiff-evidence-normalized.json; do
         if ! cmp -s "$out_root/$reference_config/$artifact" "$out_root/$config/$artifact"; then
             failures=$((failures + 1))
             printf '[FAIL] cross-config delta: %s differs between %s and %s\n' \

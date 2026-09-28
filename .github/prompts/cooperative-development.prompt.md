@@ -51,7 +51,7 @@ alias.
 Before seeding a TIFF on WSL-2, retain a structure log and byte-exact profile:
 
 ```bash
-colorbleed_tools/iccTiffDump_unsafe fuzz/graphics/tif/<seed>.tif /tmp/<seed>.icc
+colorbleed_tools/iccTiffDump_unsafe --evidence-json fuzz/graphics/tif/<seed>.tif /tmp/<seed>.icc
 ```
 
 ### WSL-2 -> macOS: Crash Artifacts

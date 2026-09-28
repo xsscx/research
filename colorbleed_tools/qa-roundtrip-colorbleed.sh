@@ -3,6 +3,11 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 
+if ! command -v jq >/dev/null 2>&1; then
+  printf 'ColorBleed QA ERROR: missing required command: jq\n' >&2
+  exit 69
+fi
+
 if [ -n "${COLORBLEED_TOOLS_DIR:-}" ]; then
   tools_dir="$COLORBLEED_TOOLS_DIR"
 elif [ -x "$script_dir/iccToXml_unsafe" ]; then
@@ -66,6 +71,38 @@ run_tool() {
   return "$rc"
 }
 
+run_tiff_tool() {
+  local name="$1"
+  local output_icc="$2"
+  shift 2
+  local evidence="$out_dir/$name.evidence.json"
+  local log="$out_dir/$name.log"
+  local rc=0
+
+  set +e
+  timeout 45 "$@" --evidence-json "$input_tiff" "$output_icc" \
+    >"$evidence" 2>"$log"
+  rc=$?
+  set -e
+
+  printf '%-22s rc=%s\n' "$name" "$rc" | tee -a "$out_dir/summary.txt"
+  if scan_findings "$log" "$out_dir/$name.findings"; then
+    sed "s#^#$name:#" "$out_dir/$name.findings" >> "$out_dir/findings.txt"
+  fi
+  if ! jq -e --argjson rc "$rc" \
+      '.schema == "colorbleed-tiff-evidence/v1" and
+       .sandbox.exitCode == $rc and .sandbox.crashed == false and
+       .sandbox.sanitizerFinding == false' "$evidence" >/dev/null; then
+    printf '%s\n' "$name: invalid or inconsistent TIFF evidence" \
+      >> "$out_dir/findings.txt"
+  fi
+  if [ "$rc" -ne 0 ]; then
+    printf 'ColorBleed QA ERROR: %s failed; captured stderr follows:\n' "$name" >&2
+    sed -n '1,120p' "$log" >&2
+  fi
+  return "$rc"
+}
+
 : >"$out_dir/summary.txt"
 : >"$out_dir/findings.txt"
 
@@ -78,10 +115,17 @@ run_tool json_icc_to_xml "$tools_dir/iccToXml_unsafe" "$out_dir/base-json.icc" "
 run_tool dumpall "$tools_dir/iccDumpAll" --diag --read "$out_dir/base-roundtrip.icc" ALL
 run_tool diagnostic "$tools_dir/iccDiagnosticLoad" --all --dump "$out_dir/base-roundtrip.icc"
 rm -f "$out_dir/tiff-embedded.icc"
-run_tool tiff_dump_extract "$tools_dir/iccTiffDump_unsafe" "$input_tiff" "$out_dir/tiff-embedded.icc"
+run_tiff_tool tiff_dump_extract "$out_dir/tiff-embedded.icc" \
+  "$tools_dir/iccTiffDump_unsafe"
 
 if ! cmp -s "$out_dir/tiff-embedded.icc" "$expected_tiff_icc"; then
   echo "tiff_dump_extract: embedded ICC is not byte-identical to $expected_tiff_icc" >> "$out_dir/findings.txt"
+fi
+if ! jq -e '.outcome == "clean" and .tiff.directoriesRead == 1 and
+    .tiff.iccDirectories == 1 and .icc.extracted == true and
+    .icc.validation == "valid"' "$out_dir/tiff_dump_extract.evidence.json" >/dev/null; then
+  echo "tiff_dump_extract: evidence does not describe a clean extraction" \
+    >> "$out_dir/findings.txt"
 fi
 
 if [ -s "$out_dir/findings.txt" ]; then

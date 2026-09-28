@@ -58,6 +58,8 @@ cd colorbleed_tools && make setup && make
 
 # Dump TIFF structure, ICC diagnostics, and exact embedded profile bytes
 ./iccTiffDump_unsafe input.tif output.icc
+./iccTiffDump_unsafe --summary input.tif output.icc
+./iccTiffDump_unsafe --evidence-json input.tif output.icc >evidence.json
 
 # Round-trip test
 ./qa-roundtrip-colorbleed.sh
@@ -102,6 +104,8 @@ colorbleed_tools/
 |-- build.sh           # Alternative build script
 |-- Readme.md          # Usage documentation
 |-- qa-roundtrip-colorbleed.sh # XML/JSON/TIFF/blob QA sweep
+|-- test-icctiffdump-unsafe.sh # Focused multi-config TIFF regression suite
+|-- generate-tiff-regression-fixtures.py # Temporary negative-fixture generator
 |-- sanitizer-ignorelist.txt # Compile-time sanitizer ignorelist
 |-- silence.txt        # Runtime UBSAN suppressions for ad hoc reproductions
 |-- iccToXml_unsafe    # Binary: ICC -> XML converter (built, not committed)
@@ -121,6 +125,13 @@ ERROR: Failed to read tag data at offset 0x1234
 
 Stdout is reserved for status and structured dump messages. Converted XML,
 JSON, and extracted ICC bytes are written to the requested output path.
+For TIFF automation, use `--evidence-json`: stdout then contains exactly one
+`colorbleed-tiff-evidence/v1` object, while diagnostics remain on stderr. Do not
+parse the verbose directory dump. The extraction is atomically published before
+ICC parsing, and evidence separately records extraction, parse, tag-load,
+validation, libtiff, sanitizer, signal, and timeout state. See the exit table in
+`colorbleed_tools/Readme.md`; check strict sanitizer exit 86 before applying the
+generic 1-127 soft-failure rule.
 Exit 66 means an input path could not be resolved. For `make qa`, first verify
 that the tracked TIFF fixture above is present rather than treating 66 as a
 parser or libtiff failure.
@@ -131,3 +142,8 @@ ColorBleed wrapper independently preserves the same forensic ordering. A nested
 profile may therefore be extracted successfully and then exit 5 when recursive
 tag loading is rejected; keep the artifact and treat the status as a soft parser
 failure, not a crash.
+
+Run `colorbleed_tools/test-icctiffdump-unsafe.sh` after TIFF source, sandbox,
+fixture generation, logging, evidence, or exit-contract changes. Generated
+negative fixtures and logs belong in its temporary evidence directory, not the
+repository.

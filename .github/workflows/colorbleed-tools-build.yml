@@ -16,11 +16,27 @@ on:
   push:
     paths:
       - 'colorbleed_tools/**'
+      - '.github/agents/crash-triage.agent.md'
+      - '.github/instructions/colorbleed_tools.instructions.md'
+      - '.github/prompts/cooperative-development.prompt.md'
+      - '.github/prompts/tiff-icc-colorbleed.prompt.md'
+      - '.github/scripts/colorbleed-crosscheck.sh'
+      - '.github/skills/icc-crash-triage/SKILL.md'
+      - '.github/skills/icc-security-analysis/SKILL.md'
       - '.github/workflows/colorbleed-tools-build.yml'
+      - 'docs/LOCAL_MACOS_ARM64_ONBOARDING.md'
   pull_request:
     paths:
       - 'colorbleed_tools/**'
+      - '.github/agents/crash-triage.agent.md'
+      - '.github/instructions/colorbleed_tools.instructions.md'
+      - '.github/prompts/cooperative-development.prompt.md'
+      - '.github/prompts/tiff-icc-colorbleed.prompt.md'
+      - '.github/scripts/colorbleed-crosscheck.sh'
+      - '.github/skills/icc-crash-triage/SKILL.md'
+      - '.github/skills/icc-security-analysis/SKILL.md'
       - '.github/workflows/colorbleed-tools-build.yml'
+      - 'docs/LOCAL_MACOS_ARM64_ONBOARDING.md'
 
 jobs:
   linux:
@@ -42,10 +58,10 @@ jobs:
           persist-credentials: false
 
       - name: Install build dependencies
-        uses: ./.github/actions/setup-build-env
+        uses: ./.github/actions/setup-build-env  # zizmor: ignore[self-repository]
         with:
           preset: 'colorbleed'
-          extra-packages: 'libxml2 libwxgtk3.2-dev wx-common'
+          extra-packages: 'libxml2 libwxgtk3.2-dev wx-common jq'
 
       - name: Set Compiler
         env:
@@ -301,3 +317,86 @@ jobs:
             echo '```'
           )
           printf '%s\n' "$(sanitize_print "$summary")" >> "$GITHUB_STEP_SUMMARY"
+
+  tiff-regression:
+    name: TIFF evidence and extraction regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash --noprofile --norc {0}
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-build-env  # zizmor: ignore[self-repository]
+        with:
+          preset: 'colorbleed'
+          extra-packages: 'libxml2 libwxgtk3.2-dev wx-common jq'
+
+      - name: Build all ColorBleed configurations
+        env:
+          BASH_ENV: /dev/null
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          colorbleed_tools/build.sh all
+
+      - name: Run deterministic TIFF and cross-configuration QA
+        env:
+          BASH_ENV: /dev/null
+          COLORBLEED_STRICT_SANITIZERS: "1"
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          export COLORBLEED_TIFF_TEST_OUTDIR="$RUNNER_TEMP/colorbleed-tiff-regression"
+          colorbleed_tools/test-icctiffdump-unsafe.sh
+          .github/scripts/colorbleed-crosscheck.sh \
+            colorbleed_tools/iccDEV/Testing/sRGB_v4_ICC_preference.icc \
+            colorbleed_tools/test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff \
+            "$RUNNER_TEMP/colorbleed-crosscheck"
+
+      - name: Upload TIFF evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: colorbleed-tiff-evidence
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/colorbleed-tiff-regression/
+            ${{ runner.temp }}/colorbleed-crosscheck/
+
+      - name: Summarize TIFF regression
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          git config --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          source .github/scripts/sanitize-sed.sh
+          {
+            sanitize_print "### ColorBleed TIFF evidence regression"
+            sanitize_print ""
+            sanitize_print "Status: $JOB_STATUS"
+            if [ -f "$RUNNER_TEMP/colorbleed-tiff-regression/results.tsv" ]; then
+              sanitize_print ""
+              sanitize_print '```text'
+              while IFS= read -r line; do
+                sanitize_print "$line"
+              done < "$RUNNER_TEMP/colorbleed-tiff-regression/results.tsv"
+              sanitize_print '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY" # sanitize_print output only

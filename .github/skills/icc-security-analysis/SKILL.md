@@ -46,9 +46,11 @@ conformance, and quality assessment. When using MCP or REST, follow the
 For profile-representation mutation, use ColorBleed:
 `colorbleed_tools/iccToXml_unsafe`, `colorbleed_tools/iccFromXml_unsafe`,
 `colorbleed_tools/iccToJson_unsafe`, and `colorbleed_tools/iccFromJson_unsafe`.
-For TIFF containers, run `colorbleed_tools/iccTiffDump_unsafe` first so the
-TIFF directory dump, sandbox status, and byte-exact embedded ICC artifact are
-preserved even when iccDEV parsing or validation fails.
+For TIFF containers, run `colorbleed_tools/iccTiffDump_unsafe --evidence-json`
+first so the structured TIFF evidence, sandbox status, and byte-exact embedded
+ICC artifact are preserved even when iccDEV parsing or validation fails. Keep
+stderr separate and validate the evidence with `jq`; do not scrape the verbose
+directory dump.
 Use `colorbleed_tools/qa-roundtrip-colorbleed.sh` for the full ICC -> XML/JSON
 -> ICC -> XML converter and TIFF extraction sweep. Do not use `-sort` with `iccToJson_unsafe`
 during ColorBleed QA until that wrapper path is sanitizer-clean.
@@ -76,7 +78,7 @@ iccDEV/Build/Tools/IccDumpProfile/iccDumpProfile <profile.icc>
 iccDEV/Build/Tools/IccPawgReport/iccPawgReport --json <profile.icc>
 
 # Sandboxed TIFF inspection and byte-exact ICC extraction
-colorbleed_tools/iccTiffDump_unsafe <input.tif> /tmp/embedded.icc
+colorbleed_tools/iccTiffDump_unsafe --evidence-json <input.tif> /tmp/embedded.icc
 
 # XML/JSON representation checks
 iccDEV/Build/Tools/IccToXml/IccToXml <profile.icc> /tmp/profile.xml

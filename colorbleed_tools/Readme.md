@@ -1,6 +1,6 @@
 # Hoyt's ColorBleed Tooling
 
-Last Updated: 2026-08-17 UTC by David Hoyt
+Last Updated: 2026-09-28 UTC by David Hoyt
 
 ICC Color Profile research tools to load & store unsafe file representations.
 
@@ -55,17 +55,56 @@ Build manually: `make iccDiagnosticLoad` or compile directly against iccDEV.
 
 Reads TIFF directories with libtiff, logs the TIFF and ICC phases, and exercises
 the vanilla iccDEV profile parser under the ColorBleed resource sandbox. When an
-output path is supplied, the first embedded profile is written before iccDEV
-parsing as the original byte sequence. Validation failures do not suppress the
-forensic artifact. Existing output files are refused.
+output path is supplied, the first embedded profile is written to a sibling
+temporary file and atomically published before iccDEV parsing. Validation and
+parser failures do not suppress the complete forensic artifact. Existing output
+files are refused.
 
 ```
-Usage: iccTiffDump_unsafe input.tif [embedded.icc]
+Usage: iccTiffDump_unsafe [--verbose|--summary|--evidence-json] input.tif [embedded.icc]
 ```
 
-The tool reports multiple ICC-bearing TIFF directories and uses the first for
-diagnostics and extraction. Limits are 4 GiB virtual memory (except under ASan),
-60 CPU seconds, 30 wall seconds, and 512 MiB output.
+The default `--verbose` mode emits escaped TIFF metadata and a bounded ICC
+tag dump. `--summary` prints one compact result line. `--evidence-json` reserves
+stdout for one `colorbleed-tiff-evidence/v1` object and sends diagnostic text to
+stderr. Automation must use the JSON mode instead of scraping presentation text.
+
+Evidence records the selected TIFF directory, directory and embedded-profile
+counts, embedded byte length and SHA-256, extraction completion, ICC open and
+recursive-tag-load states, validation status, libtiff warning/error counts, and
+the final sandbox result. The tool reports every ICC-bearing directory and uses
+the first for diagnostics and extraction.
+
+Limits are 4 GiB virtual memory outside ASan, 60 CPU seconds, 30 wall seconds,
+512 MiB output, 256 TIFF directories, 20 libtiff warning/error messages of each
+kind, and a 512 MiB embedded ICC field.
+Tests may lower the ICC field ceiling with `COLORBLEED_MAX_ICC_BYTES`; invalid or
+higher values are ignored.
+
+#### TIFF exit and evidence contract
+
+| Exit | Meaning | Artifact contract |
+|---:|---|---|
+| 0 | Clean completion, including inspection of a TIFF with no ICC when no extraction was requested | Extracted ICC is complete when `icc.extracted` is true |
+| 2 | libtiff could not open the resolved input | No output |
+| 3 | Extraction requested but no embedded ICC exists | No output |
+| 4 | Embedded bytes were preserved but iccDEV rejected the ICC header | Complete output when requested |
+| 5 | Embedded bytes were preserved but recursive tag loading failed or hit its bound | Complete output when requested |
+| 6 | Embedded bytes were preserved but validation was noncompliant or critical | Complete output when requested |
+| 7 | Atomic extraction could not be published, including an existing destination | Existing destination remains unchanged |
+| 8 | TIFF directory traversal failed | No newly published output unless extraction had already completed |
+| 9 | Embedded ICC exceeds the explicit byte ceiling | No output |
+| 64 | Invalid command or output path | No output |
+| 66 | Input path could not be resolved | No output |
+| 70 | Shared evidence allocation failed | No output |
+| 86 | Strict sanitizer finding | Treat as a finding even though it is below 128 |
+| 99 | C++ exception caught by the sandbox | Soft wrapper failure; inspect stderr |
+| 124 | External `timeout` command expired | Harness timeout, not a tool exit |
+| 128+ | Signal-derived sandbox status | Crash or resource-limit termination |
+
+Always interpret the JSON `sandbox` object before the generic numeric ranges.
+In particular, exit 86 is a sanitizer finding, while exits 4-6 are forensic
+soft failures with intentionally retained bytes.
 
 ## Use Cases
 - Fuzzing
@@ -89,7 +128,7 @@ diagnostics and extraction. Limits are 4 GiB virtual memory (except under ASan),
 ### Ubuntu/Debian
 ```
 sudo apt install -y build-essential cmake clang clang-tools \
-  libxml2-dev libtiff-dev zlib1g-dev liblzma-dev pkg-config git
+  libxml2-dev libtiff-dev libssl-dev zlib1g-dev liblzma-dev pkg-config git jq python3
 ```
 
 ## Build
@@ -105,7 +144,8 @@ make test        # build tools and run tests
 ```
 ./iccToJson_unsafe ../test-profiles/sRGB_D65_MAT.icc /tmp/profile.json
 ./iccFromJson_unsafe /tmp/profile.json /tmp/profile-json.icc
-./iccTiffDump_unsafe test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff /tmp/embedded.icc
+./iccTiffDump_unsafe --evidence-json \
+  test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff /tmp/embedded.icc
 ```
 
 TIFF extraction happens before ICC parsing and validation. With upstream
@@ -119,14 +159,18 @@ rejects it with exit code 64 until that path is sanitizer-clean.
 ### XML/JSON/TIFF/Blob QA
 ```
 ./qa-roundtrip-colorbleed.sh
+./test-icctiffdump-unsafe.sh
 COLORBLEED_STRICT_SANITIZERS=1 ./iccFromXml_unsafe input.xml /tmp/out.icc
 ../.github/scripts/colorbleed-crosscheck.sh
 ```
 
-The repository-level cross-check runs release, debug, and sanitizer tools,
+The focused TIFF suite generates temporary positive and negative fixtures and
+checks release, debug, and sanitizer evidence, extraction, escaping, recursion,
+multiple-directory, destination, and size-limit behavior. The repository-level
+cross-check runs release, debug, and sanitizer tools,
 records XML/JSON return deltas, validates returned profiles, verifies TIFF
 extraction, and writes all generated artifacts and metrics under `/tmp`.
-The latest measured baseline is recorded in
+The historical 2026-08-17 measured baseline is recorded in
 [`QA-REPORT-2026-08-17.md`](QA-REPORT-2026-08-17.md).
 
 `qa-roundtrip-colorbleed.sh` runs ICC -> XML -> ICC -> XML, ICC -> JSON -> ICC

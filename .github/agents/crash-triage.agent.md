@@ -31,7 +31,9 @@ ASAN_OPTIONS=halt_on_error=0,detect_leaks=0 \
 echo "EXIT: $?"
 ```
 
-- Exit 1-127: Graceful rejection. NOT a crash. Stop here.
+- ColorBleed exit 86 or JSON `sandbox.sanitizerFinding=true`: sanitizer finding.
+- Exit 1-127 otherwise: Graceful or soft failure. NOT a crash. Stop here.
+- External `timeout` exit 124: harness timeout; report separately.
 - Exit 128+: Signal termination. Continue.
 - Exit 0 with ASAN/UBSAN stderr: Memory safety bug. Continue.
 

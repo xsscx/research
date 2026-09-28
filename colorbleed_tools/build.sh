@@ -22,7 +22,7 @@
 # Output:  bin/release/    bin/debug/    bin/sanitizer/
 #
 # Requirements: clang/clang++ 14+, cmake 3.15+, libxml2-dev,
-#               libtiff-dev, zlib1g-dev, liblzma-dev, pkg-config
+#               libtiff-dev, libssl-dev, zlib1g-dev, liblzma-dev, pkg-config
 #
 # Copyright (c) 2021-2026 David H Hoyt LLC
 
@@ -267,7 +267,7 @@ build_config() {
     fi
 
     if [ "$bin" = "iccTiffDump_unsafe" ]; then
-      tool_link_libs="$(pkg-config --libs libtiff-4 2>/dev/null || echo -ltiff)"
+      tool_link_libs="$(pkg-config --libs libtiff-4 openssl 2>/dev/null || echo '-ltiff -lcrypto')"
     fi
 
     echo "  Building $bin..."
