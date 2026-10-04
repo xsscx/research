@@ -116,10 +116,15 @@ AFL_BASE=$PWD/afl/cmplog ./afl/start.sh fromcube --fresh --reseed --cmplog-binar
 
 `build.sh` requires `clang-21`/`clang++-21` and AFL++ wrappers built against
 LLVM 21. `build-afl-runtime.sh` checks out stable commit
-`45bb74bd3a6591e6853b704c390ab6156c0a3c88`, configures a 64 MiB default
+`f5658bc20962a2556d98ecb21bc269b77d1fa845`, configures a 64 MiB default
 large-input safety bound, and installs the matching runtime and compiler
 wrappers. Set `AFL_MAX_FILE_BYTES` when still larger images are required;
 image seed discovery itself has no repository byte cap.
+Local `include/config.h` changes are replayed onto the pinned revision before
+building; `AFL_MAX_FILE_BYTES` still controls `MAX_FILE`. `start.sh` prints the
+resolved runtime path and version. It uses `afl-fuzz` from `PATH` unless
+`AFL_FUZZ_BIN` explicitly selects another installation. Restart existing
+campaigns to use an updated runtime; running processes keep the old executable.
 Override `AFL_CLANG_FAST` or `AFL_CLANG_FASTXX` only when pointing at a
 different LLVM 21 wrapper install with an adequate testcase safety bound.
 

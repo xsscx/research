@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-AFL_COMMIT="45bb74bd3a6591e6853b704c390ab6156c0a3c88"
+AFL_COMMIT="f5658bc20962a2556d98ecb21bc269b77d1fa845"
 AFL_MAX_FILE_BYTES="${AFL_MAX_FILE_BYTES:-67108864}"
 AFL_REPOSITORY="https://github.com/AFLplusplus/AFLplusplus.git"
 AFL_SOURCE_DIR="${AFL_RUNTIME_SOURCE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/aflplusplus-stable}"
@@ -31,11 +31,39 @@ if [[ ! -d "$AFL_SOURCE_DIR/.git" ]]; then
     git clone --filter=blob:none "$AFL_REPOSITORY" "$AFL_SOURCE_DIR"
 fi
 
+config_file="$AFL_SOURCE_DIR/include/config.h"
+config_backup=""
+config_patch=""
+
+restore_config() {
+    if [[ -n "$config_backup" && -f "$config_backup" ]]; then
+        cp -- "$config_backup" "$config_file"
+    fi
+    rm -f -- "$config_backup" "$config_patch"
+    config_backup=""
+    config_patch=""
+}
+
+if ! git -C "$AFL_SOURCE_DIR" diff --quiet -- include/config.h ||
+    ! git -C "$AFL_SOURCE_DIR" diff --cached --quiet -- include/config.h; then
+    config_backup="$(mktemp)"
+    config_patch="$(mktemp)"
+    cp -- "$config_file" "$config_backup"
+    git -C "$AFL_SOURCE_DIR" diff --binary HEAD -- include/config.h >"$config_patch"
+    trap restore_config EXIT
+    git -C "$AFL_SOURCE_DIR" restore --source=HEAD --staged --worktree -- include/config.h
+fi
+
 git -C "$AFL_SOURCE_DIR" fetch origin "$AFL_COMMIT"
 git -C "$AFL_SOURCE_DIR" checkout --detach "$AFL_COMMIT"
 
-config_file="$AFL_SOURCE_DIR/include/config.h"
-git -C "$AFL_SOURCE_DIR" restore --source="$AFL_COMMIT" -- include/config.h
+if [[ -n "$config_patch" ]]; then
+    git -C "$AFL_SOURCE_DIR" apply --whitespace=nowarn "$config_patch"
+fi
+rm -f -- "$config_backup" "$config_patch"
+config_backup=""
+config_patch=""
+trap - EXIT
 perl -pi -e "s/^#define MAX_FILE .*\$/#define MAX_FILE (${AFL_MAX_FILE_BYTES}L)/" "$config_file"
 if ! grep -Fqx "#define MAX_FILE (${AFL_MAX_FILE_BYTES}L)" "$config_file"; then
     echo "ERROR: Failed to set AFL++ MAX_FILE to $AFL_MAX_FILE_BYTES in $config_file" >&2

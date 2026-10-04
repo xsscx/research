@@ -9,7 +9,7 @@ policy. Edit `afl/iccapply-args.conf` to change `iccApply*` target argv.
 ## Fast Path
 
 ```bash
-# Install the pinned AFL++ 5.03a runtime and LLVM 21 compiler wrappers.
+# Install the pinned AFL++ runtime and LLVM 21 compiler wrappers.
 ./afl/build-afl-runtime.sh
 
 # Build AFL-instrumented upstream iccDEV tools without local AFL patches.
@@ -179,11 +179,16 @@ Use LibTIFF tools such as `tiffinfo` for local TIFF structure checks. On
 Ubuntu, install them with `sudo apt-get install libtiff-tools`.
 
 This lane does not set a seed or generated-input byte cap. The pinned AFL++
-runtime is stable commit `45bb74bd3a6591e6853b704c390ab6156c0a3c88`,
+runtime is stable commit `f5658bc20962a2556d98ecb21bc269b77d1fa845`,
 built with `-j32` and a configurable 64 MiB default `MAX_FILE` safety bound by
 `afl/build-afl-runtime.sh`. Image seed discovery is uncapped; set
 `AFL_MAX_FILE_BYTES` when building for inputs above the default. `start.sh`
 checks explicit mutation lengths against the runtime before launching.
+The builder preserves local `include/config.h` changes across the checkout,
+then sets `MAX_FILE` from `AFL_MAX_FILE_BYTES`. The launcher prints the resolved
+runtime path and version; `AFL_FUZZ_BIN` overrides the `afl-fuzz` found in `PATH`.
+Restart an existing campaign after updating the runtime, since an already
+running process continues using its old executable.
 
 ### iccApplyNamedCmm argv lanes
 

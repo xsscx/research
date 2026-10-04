@@ -64,7 +64,7 @@ instrumented static libc++ because linking the tools to the system's
 uninstrumented libstdc++ produces invalid shadow-state reports.
 
 The runtime builder pins AFL++ stable commit
-`45bb74bd3a6591e6853b704c390ab6156c0a3c88`, LLVM 21, and `-j32`. Its compiled
+`f5658bc20962a2556d98ecb21bc269b77d1fa845`, LLVM 21, and `-j32`. Its compiled
 large-input safety bound defaults to 64 MiB and can be raised with
 `AFL_MAX_FILE_BYTES`; image seed discovery has no repository byte cap. The
 `applyprofiles-hybrid-embedded` lane requires that runtime, uses the complete

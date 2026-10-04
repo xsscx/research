@@ -464,6 +464,9 @@ if ! command -v "$AFL_FUZZ_BIN" >/dev/null 2>&1; then
     echo "Run ./afl/build-afl-runtime.sh first" >&2
     exit 1
 fi
+AFL_FUZZ_BIN="$(realpath -e "$(command -v "$AFL_FUZZ_BIN")")"
+AFL_RUNTIME_VERSION="$("$AFL_FUZZ_BIN" --version)"
+echo "[*] Runtime:    $AFL_FUZZ_BIN ($AFL_RUNTIME_VERSION)"
 if [[ -n "$AFL_MAX_LENGTH" ]]; then
     afl_compiled_max=$(
         { "$AFL_FUZZ_BIN" -hh 2>&1 || true; } |

@@ -27,7 +27,7 @@ if archaeology is required. Current analyzer and server work lives upstream as
 See `.github/copilot-instructions.md` for build/test commands per component.
 Additional repo workflows in active use:
 - `./afl/build-afl-runtime.sh`
-  -- install pinned AFL++ stable commit `45bb74bd3a6591e6853b704c390ab6156c0a3c88`
+  -- install pinned AFL++ stable commit `f5658bc20962a2556d98ecb21bc269b77d1fa845`
      with LLVM 21 wrappers, `-j32`, and a configurable large-input testcase
      ceiling. Image seed discovery itself is uncapped.
 - `.github/ci/quality-assurance/scripts/iccApplyProfiles_sanitizer_qa.sh --seconds 300`
