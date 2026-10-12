@@ -262,7 +262,7 @@ jobs:
 
       - name: Upload Build Artifacts (on failure)
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v6.0.0 (node24)
         with:
           name: build-logs-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
           path: |
@@ -274,7 +274,7 @@ jobs:
 
       - name: Upload Build Artifacts (on success)
         if: success()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v6.0.0 (node24)
         with:
           name: build-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
           path: |
@@ -467,7 +467,7 @@ jobs:
 
       - name: Upload Sanitizer Build Artifacts
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v6.0.0 (node24)
         with:
           name: sanitizer-${{ matrix.sanitizer }}-${{ matrix.build_type }}
           path: |
