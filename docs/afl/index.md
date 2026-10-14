@@ -148,8 +148,12 @@ for the exact list in the active checkout.
 Fresh CLI paths have dedicated lanes rather than sharing a saturated default
 argv: `fromjson-noid` covers profile-ID suppression; `heifdump-extract` uses an
 isolated output directory per execution; `tiffdump-ifd` and `tiffdump-list`
-cover directory selection and inventory; and `specseptotiff-tiles` plus
-`specseptotiff-bigtiff` cover the new TIFF output layouts. The HEIF extraction
+cover directory selection and inventory; and the SpecSep profile lanes use
+channel-compatible conformant bootstrap profiles so their fixed TIFF sets
+reach pixel output. `specseptotiff-tiles` and `specseptotiff-bigtiff` cover the
+new TIFF output layouts. The `specseptotiff-tiff` wrapper derives compression,
+planar, tiled, and BigTIFF modes from the input's final byte while AFL mutates
+the raw one-channel TIFF. The HEIF extraction
 wrapper disables the forkserver because it must create and remove a unique
 directory around each tool invocation. The launcher queries the instrumented
 child for its real map size, so extraction-lane density is not divided by the

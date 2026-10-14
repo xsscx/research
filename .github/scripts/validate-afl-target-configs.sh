@@ -268,15 +268,66 @@ expect_value "first external HEIF seed directory" "${SEED_DIRS[3]}" "$scratch_ro
 expect_value "second external HEIF seed directory" "${SEED_DIRS[4]}" "$scratch_root/heif-b"
 unset ICCDEV_HEIF_SEED_DIRS
 
+afl_configure_target specseptotiff
+expect_value "SpecSep default argc" "${#AFL_ARGS[@]}" "8"
+expect_arg specseptotiff 4 "1"
+expect_arg specseptotiff 5 "9"
+expect_arg specseptotiff 6 "1"
+expect_arg specseptotiff 7 "@@"
+expect_value "SpecSep default bootstrap" "${SEED_FILES[0]}" "$REPO_ROOT/fuzz/graphics/icc/Turquoise-Magenta-Yellow-Violet-Green-Blue-Orange-BlueGreen-PinkViolet_output.icc"
+expect_value "SpecSep default exit-zero seed policy" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
+
+afl_configure_target specseptotiff-compress
+expect_value "SpecSep compressed argc" "${#AFL_ARGS[@]}" "8"
+expect_arg specseptotiff-compress 1 "1"
+expect_arg specseptotiff-compress 2 "0"
+expect_arg specseptotiff-compress 4 "1"
+expect_arg specseptotiff-compress 5 "3"
+expect_value "SpecSep compressed bootstrap" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc"
+
+afl_configure_target specseptotiff-desc
+expect_arg specseptotiff-desc 4 "3"
+expect_arg specseptotiff-desc 5 "1"
+expect_arg specseptotiff-desc 6 "-1"
+
+afl_configure_target specseptotiff-harvest
+expect_arg specseptotiff-harvest 4 "1"
+expect_arg specseptotiff-harvest 5 "8"
+expect_value "SpecSep harvest bootstrap" "${SEED_FILES[0]}" "$REPO_ROOT/fuzz/graphics/icc/Turquoise-Magenta-Yellow-Violet-Green-Blue-Orange-BlueGreen_output.icc"
+expect_value "SpecSep harvest maximum length" "$AFL_MAX_LENGTH" "2097152"
+
+afl_configure_target specseptotiff-short
+expect_arg specseptotiff-short 4 "1"
+expect_arg specseptotiff-short 5 "3"
+expect_value "SpecSep short bootstrap" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc"
+
+afl_configure_target specseptotiff-sep
+expect_arg specseptotiff-sep 1 "0"
+expect_arg specseptotiff-sep 2 "1"
+expect_arg specseptotiff-sep 5 "3"
+
 afl_configure_target specseptotiff-tiles
+expect_value "SpecSep tiled argc" "${#AFL_ARGS[@]}" "11"
 expect_arg specseptotiff-tiles 0 "--tiles"
 expect_arg specseptotiff-tiles 1 "16"
 expect_arg specseptotiff-tiles 2 "16"
 expect_value "SpecSep tiled staged prefix" "${AFL_ARGS[6]}" "$SPECSEP_STAGED_PREFIX"
+expect_arg specseptotiff-tiles 8 "3"
+expect_arg specseptotiff-tiles 10 "@@"
 
 afl_configure_target specseptotiff-bigtiff
+expect_value "SpecSep BigTIFF argc" "${#AFL_ARGS[@]}" "9"
 expect_arg specseptotiff-bigtiff 0 "--bigtiff"
 expect_value "SpecSep BigTIFF staged prefix" "${AFL_ARGS[4]}" "$SPECSEP_STAGED_PREFIX"
+expect_arg specseptotiff-bigtiff 6 "3"
+expect_arg specseptotiff-bigtiff 8 "@@"
+
+afl_configure_target specseptotiff-tiff
+expect_value "SpecSep TIFF wrapper" "$BINARY" "$REPO_ROOT/afl/specsep-tiff-wrapper.sh"
+expect_value "SpecSep TIFF argc" "${#AFL_ARGS[@]}" "1"
+expect_arg specseptotiff-tiff 0 "@@"
+expect_value "SpecSep TIFF no-forkserver policy" "$AFL_NO_FORKSRV_TARGET" "1"
+expect_value "SpecSep TIFF exit-zero seed policy" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
 
 afl_configure_target tiffdump-ifd
 expect_arg tiffdump-ifd 0 "--ifd"

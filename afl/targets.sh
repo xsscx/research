@@ -1166,13 +1166,15 @@ afl_configure_target() {
                 "$REPO_ROOT/fuzz/graphics/icc"
                 "$REPO_ROOT/extended-test-profiles"
             )
-            SEED_MAX_BYTES=1048576
             SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
-            SEED_MAX_BYTES=8192
-            SEED_LIMIT=32
+            SEED_MAX_BYTES=65536
+            SEED_LIMIT=64
+            SEED_DRY_RUN_TARGET=1
+            SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
+            SEED_DRY_RUN_TIMEOUT=10
             AFL_DISABLE_TRIM_TARGET=1
             AFL_FAST_CAL_TARGET=1
-            [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=8192
+            [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=65536
             SPECSEP_SOURCE_PREFIX="$REPO_ROOT/test-profiles/spectral/spec_00"
             SPECSEP_STAGED_PREFIX="${tmp_prefix}-spec_00"
             SPECSEP_COPY_START=1
@@ -1190,18 +1192,27 @@ afl_configure_target() {
             )
             case "$target" in
                 specseptotiff-compress)
-                    SEED_MAX_BYTES=65536
-                    SEED_LIMIT=64
-                    [[ -z "${AFL_MAX_LENGTH:-}" || "${AFL_MAX_LENGTH:-}" == "8192" ]] && AFL_MAX_LENGTH=65536
-                    TARGET_NOTE="SpecSep compressed-output lane: fuzzes a bounded optional ICC profile with compress=1, sep=0, ascending range; 64 KiB cap keeps richer seeds without reopening the oversized corpus."
-                    AFL_ARGS=("${tmp_prefix}.tif" "1" "0" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
+                    SPECSEP_COPY_END=3
+                    SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
+                    REQUIRED_FILES+=("${SEED_FILES[@]}")
+                    TARGET_NOTE="SpecSep compressed-output lane: screened RGB profiles and a conformant bootstrap reach LZW output with three fixed separation TIFFs."
+                    AFL_ARGS=("${tmp_prefix}.tif" "1" "0" "$SPECSEP_STAGED_PREFIX" "1" "3" "1" "@@")
                     ;;
                 specseptotiff-desc)
-                    TARGET_NOTE="SpecSep descending lane: fuzzes a small optional ICC profile with start=9, end=1, increment=-1 to cover reverse channel iteration."
-                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "9" "1" "-1" "@@")
+                    SPECSEP_COPY_END=3
+                    SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
+                    REQUIRED_FILES+=("${SEED_FILES[@]}")
+                    TARGET_NOTE="SpecSep descending lane: screened RGB profiles and a conformant bootstrap reach reverse iteration with start=3, end=1, increment=-1."
+                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "3" "1" "-1" "@@")
                     ;;
                 specseptotiff-harvest)
-                    TARGET_NOTE="SpecSep gray300 lane: fuzzes optional ICC profile parsing while fixed gray300 spectral TIFF inputs exercise larger 8-bit image rows."
+                    SEED_FILES=("$REPO_ROOT/fuzz/graphics/icc/Turquoise-Magenta-Yellow-Violet-Green-Blue-Orange-BlueGreen_output.icc")
+                    SEED_MAX_BYTES=2097152
+                    if [[ "${AFL_MAX_LENGTH_EXPLICIT:-0}" -eq 0 ]]; then
+                        AFL_MAX_LENGTH=2097152
+                    fi
+                    REQUIRED_FILES+=("${SEED_FILES[@]}")
+                    TARGET_NOTE="SpecSep gray300 lane: a conformant 8CLR bootstrap reaches large-row conversion while screened 8-channel profiles exercise validation."
                     SPECSEP_SOURCE_PREFIX="$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_"
                     SPECSEP_STAGED_PREFIX="${tmp_prefix}-harvest-spec_"
                     SPECSEP_COPY_START=1
@@ -1219,25 +1230,37 @@ afl_configure_target() {
                     AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "8" "1" "@@")
                     ;;
                 specseptotiff-short)
-                    TARGET_NOTE="SpecSep short-range lane: fuzzes a small optional ICC profile with start=1, end=3, increment=1, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                    SPECSEP_COPY_END=3
+                    SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
+                    REQUIRED_FILES+=("${SEED_FILES[@]}")
+                    TARGET_NOTE="SpecSep short-range lane: screened RGB profiles and a conformant bootstrap cover the three-channel ascending range."
                     AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "3" "1" "@@")
                     ;;
                 specseptotiff-sep)
-                    TARGET_NOTE="SpecSep separated-plane lane: fuzzes a small optional ICC profile with compress=0, sep=1, ascending range, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
-                    AFL_ARGS=("${tmp_prefix}.tif" "0" "1" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
+                    SPECSEP_COPY_END=3
+                    SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
+                    REQUIRED_FILES+=("${SEED_FILES[@]}")
+                    TARGET_NOTE="SpecSep separated-plane lane: screened RGB profiles and a conformant bootstrap reach planar output."
+                    AFL_ARGS=("${tmp_prefix}.tif" "0" "1" "$SPECSEP_STAGED_PREFIX" "1" "3" "1" "@@")
                     ;;
                 specseptotiff-tiles)
-                    TARGET_NOTE="SpecSep tiled-output lane: fixed spectral inputs and a fuzzed optional ICC profile exercise 16x16 tile creation and tile-band writes."
-                    AFL_ARGS=("--tiles" "16" "16" "${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
+                    SPECSEP_COPY_END=3
+                    SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
+                    REQUIRED_FILES+=("${SEED_FILES[@]}")
+                    TARGET_NOTE="SpecSep tiled-output lane: screened RGB profiles and a conformant bootstrap reach 16x16 tile creation and tile-band writes."
+                    AFL_ARGS=("--tiles" "16" "16" "${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "3" "1" "@@")
                     ;;
                 specseptotiff-bigtiff)
-                    TARGET_NOTE="SpecSep BigTIFF lane: fixed spectral inputs and a fuzzed optional ICC profile exercise 64-bit output-directory offsets."
-                    AFL_ARGS=("--bigtiff" "${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
+                    SPECSEP_COPY_END=3
+                    SEED_FILES=("$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc")
+                    REQUIRED_FILES+=("${SEED_FILES[@]}")
+                    TARGET_NOTE="SpecSep BigTIFF lane: screened RGB profiles and a conformant bootstrap reach 64-bit output-directory creation."
+                    AFL_ARGS=("--bigtiff" "${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "3" "1" "@@")
                     ;;
                 specseptotiff-tiff)
                     BINARY="$REPO_ROOT/afl/specsep-tiff-wrapper.sh"
                     DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
-                    TARGET_NOTE="SpecSep TIFF-input lane: wrapper copies @@ to a one-channel prefix so AFL mutates CTiffImg/open/readline paths instead of the optional ICC profile."
+                    TARGET_NOTE="SpecSep TIFF-input lane: wrapper stages @@ as one channel and derives compression, planar, tiled, and BigTIFF output modes from its final byte."
                     AFL_NO_FORKSRV_TARGET=1
                     AFL_SKIP_BIN_CHECK_TARGET=1
                     SEED_FILE_TYPE_REGEX='^(TIFF image data|Big TIFF image data)'
@@ -1261,7 +1284,13 @@ afl_configure_target() {
                     AFL_ARGS=("@@")
                     ;;
                 *)
-                    TARGET_NOTE="SpecSep default lane: fuzzes a small optional ICC profile with fixed spectral TIFF inputs, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                    SEED_FILES=("$REPO_ROOT/fuzz/graphics/icc/Turquoise-Magenta-Yellow-Violet-Green-Blue-Orange-BlueGreen-PinkViolet_output.icc")
+                    SEED_MAX_BYTES=1048576
+                    if [[ "${AFL_MAX_LENGTH_EXPLICIT:-0}" -eq 0 ]]; then
+                        AFL_MAX_LENGTH=1048576
+                    fi
+                    REQUIRED_FILES+=("${SEED_FILES[@]}")
+                    TARGET_NOTE="SpecSep default lane: a conformant 9CLR bootstrap reaches nine-channel output while screened 9-channel profiles exercise validation."
                     AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
                     ;;
             esac
