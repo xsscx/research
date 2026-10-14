@@ -334,10 +334,32 @@ expect_arg tiffdump-ifd 0 "--ifd"
 expect_arg tiffdump-ifd 1 "1"
 expect_arg tiffdump-ifd 2 "@@"
 expect_value "TIFF IFD bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/tiff-codecs/seed-tiff-multi-ifd-3pages.tif"
+expect_value "TIFF IFD trimming policy" "$AFL_DISABLE_TRIM_TARGET" "1"
+expect_value "TIFF IFD fast calibration" "$AFL_FAST_CAL_TARGET" "1"
+expect_value "TIFF IFD expanded havoc" "$AFL_EXPAND_HAVOC_TARGET" "1"
+expect_value "TIFF IFD deterministic policy" "$AFL_SKIP_DETERMINISTIC_TARGET" "1"
 
 afl_configure_target tiffdump-list
 expect_arg tiffdump-list 0 "--list-directories"
 expect_arg tiffdump-list 1 "@@"
+expect_value "TIFF list bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/tiff-codecs/seed-tiff-multi-ifd-3pages.tif"
+expect_value "TIFF list first seed directory" "${SEED_DIRS[0]}" "$REPO_ROOT/test-profiles/tiff-codecs"
+expect_value "TIFF list second seed directory" "${SEED_DIRS[1]}" "$REPO_ROOT/fuzz/graphics/tif"
+expect_value "TIFF list seed directory count" "${#SEED_DIRS[@]}" "2"
+expect_value "TIFF list per-directory seed limit" "$SEED_LIMIT" "32"
+expect_value "TIFF list maximum seed bytes" "$SEED_MAX_BYTES" "1048576"
+expect_value "TIFF list trimming policy" "$AFL_DISABLE_TRIM_TARGET" "0"
+expect_value "TIFF list fast calibration" "$AFL_FAST_CAL_TARGET" "1"
+expect_value "TIFF list expanded havoc" "$AFL_EXPAND_HAVOC_TARGET" "1"
+expect_value "TIFF list deterministic policy" "$AFL_SKIP_DETERMINISTIC_TARGET" "1"
+
+for target in tiffdump tiffdump-extract; do
+    afl_configure_target "$target"
+    expect_value "$target trimming policy" "$AFL_DISABLE_TRIM_TARGET" "1"
+    expect_value "$target fast calibration" "$AFL_FAST_CAL_TARGET" "1"
+    expect_value "$target expanded havoc" "$AFL_EXPAND_HAVOC_TARGET" "1"
+    expect_value "$target deterministic policy" "$AFL_SKIP_DETERMINISTIC_TARGET" "1"
+done
 
 afl_configure_target pawgreport
 expect_value "PawgReport trimming disabled" "$AFL_DISABLE_TRIM_TARGET" "1"

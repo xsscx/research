@@ -178,6 +178,18 @@ ICCDEV_HEIF_SEED_DIRS=/mnt/f/lynx ./afl/start.sh heifdump --fresh
 ICCDEV_HEIF_SEED_DIRS=/mnt/f/lynx ./afl/start.sh heifdump-extract --fresh
 ```
 
+The TIFF dump, extraction, explicit-IFD, and directory-list lanes skip
+deterministic stages, use fast calibration, and expand havoc. Their large,
+format-aware seed corpus and dictionary already cover byte-level structure;
+this policy avoids multi-hour inference passes and moves the single worker on
+each VM to stochastic mutations sooner. Dump, extraction, and explicit-IFD
+also disable low-yield trimming. The directory-list lane retains trimming
+because its campaign demonstrated substantial size reduction while preserving
+coverage. That lane also bounds fresh startup to one explicit multi-IFD seed
+plus at most 32 sub-1-MiB samples from each of the codec and TIFF fuzz corpora;
+full-image carriers and duplicate external package trees add startup cost but
+do not add directory-list behavior.
+
 The 5 MiB default keeps large-carrier startup and mutation costs bounded, but
 it is an overridable campaign policy rather than a parser limit. With the
 default 64 MiB AFL++ runtime, admit carriers below 64 MiB with matching seed

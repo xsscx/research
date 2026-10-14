@@ -1308,8 +1308,12 @@ afl_configure_target() {
                 "$REPO_ROOT/test-profiles/tiff-codecs"
                 "$REPO_ROOT/test-profiles"
             )
+            AFL_DISABLE_TRIM_TARGET=1
+            AFL_FAST_CAL_TARGET=1
+            AFL_EXPAND_HAVOC_TARGET=1
+            AFL_SKIP_DETERMINISTIC_TARGET=1
             if [[ "$target" == "tiffdump-extract" ]]; then
-                TARGET_NOTE="TIFF ICC extraction lane: supplies argv[2] so embedded profiles are saved through SaveIccProfile."
+                TARGET_NOTE="TIFF ICC extraction lane: supplies argv[2] so embedded profiles are saved through SaveIccProfile; structured-image lanes skip low-yield trimming and deterministic stages."
                 AFL_ARGS=("@@" "${tmp_prefix}.icc")
             elif [[ "$target" == "tiffdump-ifd" ]]; then
                 SEED_FILES=(
@@ -1319,11 +1323,23 @@ afl_configure_target() {
                 TARGET_NOTE="TIFF explicit-directory lane: selects IFD 1 to exercise bounded directory traversal independently of the default first IFD."
                 AFL_ARGS=("--ifd" "1" "@@")
             elif [[ "$target" == "tiffdump-list" ]]; then
+                SEED_FILES=(
+                    "$REPO_ROOT/test-profiles/tiff-codecs/seed-tiff-multi-ifd-3pages.tif"
+                )
+                SEED_DIRS=(
+                    "$REPO_ROOT/test-profiles/tiff-codecs"
+                    "$REPO_ROOT/fuzz/graphics/tif"
+                )
+                SEED_LIMIT=32
+                SEED_MAX_BYTES=1048576
                 SEED_DRY_RUN_TARGET=1
-                TARGET_NOTE="TIFF directory-list lane: inventories every main-chain IFD without extracting or decoding pixels."
+                # This lane has demonstrated substantial size reduction while
+                # preserving directory-list coverage, unlike the dump lane.
+                AFL_DISABLE_TRIM_TARGET=0
+                TARGET_NOTE="TIFF directory-list lane: inventories every main-chain IFD from a bounded structural corpus without extracting or decoding pixels."
                 AFL_ARGS=("--list-directories" "@@")
             else
-                TARGET_NOTE="TIFF dump lane: seed corpus is filtered by file(1) to TIFF/BigTIFF inputs."
+                TARGET_NOTE="TIFF dump lane: seed corpus is filtered by file(1) to TIFF/BigTIFF inputs and advances directly to expanded havoc."
                 AFL_ARGS=("@@")
             fi
             ;;
@@ -1402,7 +1418,7 @@ afl_configure_target() {
         pngdump|pngdump-inject)
             afl_append_ics_seed_dirs png
             ;;
-        tiffdump|tiff|tiffdump-extract|tiffdump-ifd|tiffdump-list)
+        tiffdump|tiff|tiffdump-extract|tiffdump-ifd)
             afl_append_ics_seed_dirs tif
             ;;
     esac
