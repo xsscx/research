@@ -297,7 +297,7 @@ cfl_install_curated_seeds() {
           [[ -f "$target" ]] || cp "$seed" "$target"
         done < <(find "$external_seed_dir" -maxdepth 3 -type f \
           \( -iname '*.heic' -o -iname '*.heif' -o -iname '*.hif' -o -iname '*.avif' \) \
-          -size -5242880c -print0)
+          -print0)
       done < <(cfl_heif_external_seed_dirs)
       ;;
     icc_applysearch_fuzzer)

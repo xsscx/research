@@ -141,8 +141,11 @@ release in address, memory, and thread builds. libheif receives the selected
 sanitizer instrumentation and LibFuzzer coverage in mutating builds, so parser
 edges participate directly in corpus retention. The runner also generates
 three deterministic property-limit carriers and accepts optional external
-HEIF, HEIC, HIF, and AVIF seeds smaller than 5 MiB through the same
-colon-separated variable as AFL. External carriers are copied into the ignored
+HEIF, HEIC, HIF, and AVIF seeds through the same colon-separated variable as
+AFL. External seed discovery has no repository byte cap, and `max_len = 0`
+makes the runners derive their mutation ceiling from the largest supplied
+carrier. The native property reader still rejects carriers larger than 256 MiB
+as an allocation-safety boundary. External carriers are copied into the ignored
 runtime corpus under content-derived names; they are not added to Git:
 
 ```bash

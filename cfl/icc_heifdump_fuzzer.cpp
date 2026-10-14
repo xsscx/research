@@ -35,9 +35,9 @@
     CFL harness for iccDEV iccHeifDump.
 
     The input carrier is parsed through the tool-owned HEIF property reader.
-    Embedded prof and rICC payloads are then loaded through IccProfLib. Normal
-    builds also validate the carrier through libheif; MSan builds omit that
-    uninstrumented dependency while retaining the instrumented parser path.
+    Embedded prof and rICC payloads are then loaded through IccProfLib. Local
+    sanitizer builds also validate the carrier through the pinned,
+    sanitizer-instrumented static libheif dependency.
  */
 
 #include "HeifIccProperties.h"
@@ -48,6 +48,7 @@
 #include <libheif/heif.h>
 #endif
 
+#include <cerrno>
 #include <climits>
 #include <cstddef>
 #include <cstdint>
@@ -65,8 +66,17 @@ static bool write_temp_file(const std::uint8_t *data, std::size_t size,
     if (fd < 0)
         return false;
 
-    const bool wrote = write(fd, data, size) == static_cast<ssize_t>(size);
-    close(fd);
+    std::size_t offset = 0;
+    while (offset < size) {
+        const ssize_t written = write(fd, data + offset, size - offset);
+        if (written < 0 && errno == EINTR)
+            continue;
+        if (written <= 0)
+            break;
+        offset += static_cast<std::size_t>(written);
+    }
+    const int closeResult = close(fd);
+    const bool wrote = offset == size && closeResult == 0;
     if (!wrote)
         unlink(path);
 
