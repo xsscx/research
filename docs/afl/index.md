@@ -155,10 +155,12 @@ directory around each tool invocation. The launcher queries the instrumented
 child for its real map size, so extraction-lane density is not divided by the
 generic 1 MiB bitmap.
 
-Both HEIF lanes accept carriers smaller than 5 MiB and disable AFL trimming so
-the ISO BMFF box hierarchy is not reduced to shallow parser-rejection inputs.
-The carrier lane retains valid and malformed seeds. The extraction lane admits
-only seeds that complete successfully and therefore reach raw ICC output. To
+Both HEIF lanes accept carriers smaller than 5 MiB, disable AFL trimming so the
+ISO BMFF box hierarchy is not reduced to shallow parser-rejection inputs, and
+skip deterministic inference so large carriers reach stochastic mutation
+without multi-hour arithmetic stages. The carrier lane retains valid and
+malformed seeds. The extraction lane admits only seeds that complete
+successfully and therefore reach raw ICC output. To
 cover the tool-owned property, association, and extracted-byte limits, the
 launcher also generates three deterministic structural carriers under the
 ignored `afl/support/` tree. libheif itself is codec-disabled, statically

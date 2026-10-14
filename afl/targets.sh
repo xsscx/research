@@ -733,6 +733,7 @@ afl_configure_target() {
                 TARGET_NOTE="Hybrid ApplySearch lane: fuzzes the first PCC weight profile in the known-good spectral search command-line shape, with fast calibration and trim disabled."
             elif [[ "$target" == applysearch-weight* || "$target" == search-weight* ]]; then
                 local weight_value="1"
+                local weight_corpus_dir="$REPO_ROOT/cfl/corpus-icc_applysearch_weight_fuzzer"
                 case "$target" in
                     *zero) weight_value="0" ;;
                     *negative) weight_value="-1" ;;
@@ -746,9 +747,10 @@ afl_configure_target() {
                     "$REPO_ROOT/test-profiles/issue-809-vendor-flags-cwe681.icc"
                 )
                 SEED_FILES_SKIP_DRY_RUN_TARGET=1
-                SEED_DIRS=(
-                    "$REPO_ROOT/cfl/corpus-icc_applysearch_weight_fuzzer"
-                )
+                SEED_DIRS=()
+                if [[ -d "$weight_corpus_dir" ]]; then
+                    SEED_DIRS=("$weight_corpus_dir")
+                fi
                 REQUIRED_FILES=("$rgb_8_legacy_data" "$srgb_profile" "${SEED_FILES[@]}")
                 AFL_DISABLE_TRIM_TARGET=1
                 AFL_FAST_CAL_TARGET=1
@@ -760,18 +762,18 @@ afl_configure_target() {
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                     AFL_MAX_LENGTH=2048
                     REQUIRED_FILES=("$rgb_float_data" "$srgb_profile" "${SEED_FILES[@]}")
-                    TARGET_NOTE="Fast weight-positive apply-search lane: tiny valid PCC seeds plus screened CFL weight corpus entries, shorter float data, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                    TARGET_NOTE="Fast weight-positive apply-search lane: tiny valid PCC seeds plus optional screened CFL weight corpus entries, shorter float data, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
                 elif [[ "$target" == *nan ]]; then
                     SEED_LIMIT=96
                     SEED_DRY_RUN_TARGET=1
                     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-                    TARGET_NOTE="Extreme-weight apply-search target: @@ is the fuzzed PCC profile; fixed finite max-float weight is $weight_value because iccApplySearch rejects nan/inf at argument parsing; screened positive-result seeds keep calibration tractable."
+                    TARGET_NOTE="Extreme-weight apply-search target: @@ is the fuzzed PCC profile; fixed finite max-float weight is $weight_value because iccApplySearch rejects nan/inf at argument parsing; explicit seeds and optional screened CFL entries keep calibration tractable."
                 else
                     if [[ "$weight_value" == "1" ]]; then
                         SEED_LIMIT=96
                         SEED_DRY_RUN_TARGET=1
                         SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-                        TARGET_NOTE="Weight-focused apply-search target: @@ is the fuzzed PCC profile; fixed weight is $weight_value; screened CFL weight corpus entries keep calibration tractable."
+                        TARGET_NOTE="Weight-focused apply-search target: @@ is the fuzzed PCC profile; fixed weight is $weight_value; explicit seeds and optional screened CFL entries keep calibration tractable."
                     else
                         SEED_DIRS=()
                         TARGET_NOTE="Weight-validation apply-search target: @@ is the fuzzed PCC profile; fixed invalid weight is $weight_value, so this lane intentionally stops at AttachPCC validation and is not a deep coverage lane."
@@ -973,6 +975,7 @@ afl_configure_target() {
             SEED_FIND_MAXDEPTH=3
             SEED_DRY_RUN_TARGET=1
             AFL_DISABLE_TRIM_TARGET=1
+            AFL_SKIP_DETERMINISTIC_TARGET=1
             AFL_MAX_LENGTH=5242880
             SEED_DIRS=(
                 "$REPO_ROOT/afl/iccDEV/.github/ci/tooling/heif/img"
@@ -987,10 +990,10 @@ afl_configure_target() {
                 AFL_INSTRUMENTED_BINARY="$BIN_DIR/iccHeifDump"
                 SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                 REQUIRED_FILES=("$BINARY" "$BIN_DIR/iccHeifDump")
-                TARGET_NOTE="HEIF extraction lane: successful HEIF seeds reach exclusive raw ICC output creation in a temporary directory; trimming is disabled to preserve the ISO BMFF envelope."
+                TARGET_NOTE="HEIF extraction lane: successful HEIF seeds reach exclusive raw ICC output creation in a temporary directory; trimming is disabled and deterministic inference is skipped for large ISO BMFF carriers."
                 AFL_ARGS=("@@" "$BIN_DIR/iccHeifDump")
             else
-                TARGET_NOTE="HEIF carrier lane: valid and malformed HEIF, HEIC, HIF, and AVIF inputs exercise rejection paths, libheif validation, ICC property extraction, and IccProfLib parsing with trimming disabled."
+                TARGET_NOTE="HEIF carrier lane: valid and malformed HEIF, HEIC, HIF, and AVIF inputs exercise rejection paths, libheif validation, ICC property extraction, and IccProfLib parsing with trimming disabled and deterministic inference skipped."
                 AFL_ARGS=("@@")
             fi
             ;;
