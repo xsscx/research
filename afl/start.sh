@@ -18,6 +18,10 @@ if [[ -n "${AFL_TIMEOUT:-}" ]]; then
     AFL_TIMEOUT_EXPLICIT=1
 fi
 AFL_TIMEOUT="${AFL_TIMEOUT:-5000}"
+AFL_MAP_SIZE_EXPLICIT=0
+if [[ -n "${AFL_MAP_SIZE:-}" ]]; then
+    AFL_MAP_SIZE_EXPLICIT=1
+fi
 AFL_RUN_TIME="${AFL_RUN_TIME:-}"
 AFL_MAP_SIZE_VAL="${AFL_MAP_SIZE:-1048576}"
 AFL_AUTORESUME_VAL="${AFL_AUTORESUME:-1}"
@@ -136,7 +140,7 @@ while [[ $# -gt 0 ]]; do
         --dictionary) AFL_DICT_OVERRIDE="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --timeout) AFL_TIMEOUT="$(option_arg "$1" "${2:-}")"; AFL_TIMEOUT_EXPLICIT=1; shift 2 ;;
         --run-time|--time) AFL_RUN_TIME="$(option_arg "$1" "${2:-}")"; shift 2 ;;
-        --map-size) AFL_MAP_SIZE_VAL="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --map-size) AFL_MAP_SIZE_VAL="$(option_arg "$1" "${2:-}")"; AFL_MAP_SIZE_EXPLICIT=1; shift 2 ;;
         --sanitizer) AFL_SANITIZER="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --cmplog-auto) AFL_CMPLOG_AUTO=1; shift ;;
         --cmplog-binary) AFL_CMPLOG_BINARY="$(option_arg "$1" "${2:-}")"; shift 2 ;;
@@ -349,6 +353,26 @@ fi
 
 if [[ "$AFL_TIMEOUT_EXPLICIT" -eq 0 && "${AFL_TARGET_TIMEOUT:-0}" -gt 0 ]]; then
     AFL_TIMEOUT="$AFL_TARGET_TIMEOUT"
+fi
+
+if [[ "$AFL_MAP_SIZE_EXPLICIT" -eq 0 && -n "${AFL_INSTRUMENTED_BINARY:-}" ]]; then
+    if [[ ! -x "$AFL_INSTRUMENTED_BINARY" ]]; then
+        echo "ERROR: Instrumented child binary not found: $AFL_INSTRUMENTED_BINARY" >&2
+        exit 1
+    fi
+    dumped_map_size=$(
+        env -u AFL_MAP_SIZE \
+            AFL_DUMP_MAP_SIZE=1 \
+            ASAN_OPTIONS=detect_leaks=0 \
+            LD_LIBRARY_PATH="$BIN_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+            "$AFL_INSTRUMENTED_BINARY" 2>&1 || true
+    )
+    dumped_map_size=$(printf '%s\n' "$dumped_map_size" | sed -n '/^[0-9][0-9]*$/p' | tail -n 1)
+    if [[ -z "$dumped_map_size" ]]; then
+        echo "ERROR: Could not determine the map size for $AFL_INSTRUMENTED_BINARY" >&2
+        exit 1
+    fi
+    AFL_MAP_SIZE_VAL="$dumped_map_size"
 fi
 
 if [[ -n "$AFL_INPUT_DIR" && ! -d "$AFL_INPUT_DIR" ]]; then
@@ -805,7 +829,7 @@ if [[ -z "$AFL_INPUT_DIR" && ( "$INPUT_SEED_COUNT" -eq 0 || "$AFL_RESEED" != "0"
         fi
     done
     if [[ "${SEED_DRY_RUN_TARGET:-0}" -eq 1 ]]; then
-        echo "    dry-run rejected $SEED_DRY_RUN_REJECTED crashing/hanging seed(s)"
+        echo "    dry-run rejected $SEED_DRY_RUN_REJECTED seed(s) by target policy"
     fi
 fi
 

@@ -150,7 +150,25 @@ isolated output directory per execution; `tiffdump-ifd` and `tiffdump-list`
 cover directory selection and inventory; and `specseptotiff-tiles` plus
 `specseptotiff-bigtiff` cover the new TIFF output layouts. The HEIF extraction
 wrapper disables the forkserver because it must create and remove a unique
-directory around each tool invocation.
+directory around each tool invocation. The launcher queries the instrumented
+child for its real map size, so extraction-lane density is not divided by the
+generic 1 MiB bitmap.
+
+Both HEIF lanes accept carriers smaller than 5 MiB and disable AFL trimming so
+the ISO BMFF box hierarchy is not reduced to shallow parser-rejection inputs.
+The carrier lane retains valid and malformed seeds. The extraction lane admits
+only seeds that complete successfully and therefore reach raw ICC output. To
+add a local corpus without committing it, use the shared colon-separated seed
+variable and start fresh because the seed contract changed:
+
+```bash
+ICCDEV_HEIF_SEED_DIRS=/mnt/f/lynx ./afl/start.sh heifdump --fresh
+ICCDEV_HEIF_SEED_DIRS=/mnt/f/lynx ./afl/start.sh heifdump-extract --fresh
+```
+
+Use `./afl/map.sh TARGET --input` and `--queue` to compare absolute edge counts.
+Map density remains small because the target is linked with the full
+instrumented IccProfLib; it is not by itself a measure of campaign progress.
 
 ### iccProfilePlot modes
 

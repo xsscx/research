@@ -243,6 +243,23 @@ afl_append_ics_seed_dirs() {
     done < <(afl_ics_package_roots)
 }
 
+afl_append_heif_external_seed_dirs() {
+    local configured_dirs="${ICCDEV_HEIF_SEED_DIRS:-}"
+    local seed_dir
+    local seed_dirs=()
+
+    [[ -n "$configured_dirs" ]] || return 0
+
+    IFS=':' read -r -a seed_dirs <<< "$configured_dirs"
+    for seed_dir in "${seed_dirs[@]}"; do
+        if [[ -n "$seed_dir" && -d "$seed_dir" ]]; then
+            afl_append_seed_dir_once "$seed_dir"
+        elif [[ -n "$seed_dir" ]]; then
+            echo "[WARN] HEIF seed directory not found: $seed_dir" >&2
+        fi
+    done
+}
+
 afl_configure_target() {
     local target="$1"
     local tmp_root="${AFL_TMP_ROOT:-$AFL_BASE/tmp}"
@@ -308,6 +325,7 @@ afl_configure_target() {
     AFL_SKIP_DETERMINISTIC_TARGET=0
     AFL_NO_FORKSRV_TARGET=0
     AFL_SKIP_BIN_CHECK_TARGET=0
+    AFL_INSTRUMENTED_BINARY=""
     AFL_TARGET_TIMEOUT=0
     SEED_DRY_RUN_TARGET=0
     SEED_DRY_RUN_REQUIRE_ZERO_TARGET=0
@@ -950,11 +968,12 @@ afl_configure_target() {
             DICT="$REPO_ROOT/cfl/icc_heifdump_fuzzer.dict"
             SEED_FILE_TYPE_REGEX='^ISO Media, (HEIF|AVIF) Image'
             SEED_INCLUDE_REGEX='\.([Aa][Vv][Ii][Ff]|[Hh][Ee][Ii][CcFf]|[Hh][Ii][Ff])$'
-            SEED_MAX_BYTES=1048576
+            SEED_MAX_BYTES=5242880
             SEED_LIMIT=200
-            SEED_FIND_MAXDEPTH=2
+            SEED_FIND_MAXDEPTH=3
             SEED_DRY_RUN_TARGET=1
-            AFL_MAX_LENGTH=1048576
+            AFL_DISABLE_TRIM_TARGET=1
+            AFL_MAX_LENGTH=5242880
             SEED_DIRS=(
                 "$REPO_ROOT/afl/iccDEV/.github/ci/tooling/heif/img"
                 "$REPO_ROOT/fuzz/graphics/heic"
@@ -964,11 +983,13 @@ afl_configure_target() {
                 AFL_DIR="$AFL_BASE/afl-heifdump-extract"
                 AFL_NO_FORKSRV_TARGET=1
                 AFL_SKIP_BIN_CHECK_TARGET=1
+                AFL_INSTRUMENTED_BINARY="$BIN_DIR/iccHeifDump"
+                SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
                 REQUIRED_FILES=("$BINARY" "$BIN_DIR/iccHeifDump")
-                TARGET_NOTE="HEIF extraction lane: a temporary-directory wrapper reaches exclusive raw ICC output creation without cross-testcase file collisions."
+                TARGET_NOTE="HEIF extraction lane: successful HEIF seeds reach exclusive raw ICC output creation in a temporary directory; trimming is disabled to preserve the ISO BMFF envelope."
                 AFL_ARGS=("@@" "$BIN_DIR/iccHeifDump")
             else
-                TARGET_NOTE="HEIF dump lane: screened HEIF, HEIC, HIF, and AVIF carriers exercise libheif validation, ICC property extraction, and IccProfLib parsing."
+                TARGET_NOTE="HEIF carrier lane: valid and malformed HEIF, HEIC, HIF, and AVIF inputs exercise rejection paths, libheif validation, ICC property extraction, and IccProfLib parsing with trimming disabled."
                 AFL_ARGS=("@@")
             fi
             ;;
@@ -1339,6 +1360,9 @@ afl_configure_target() {
             ;;
         fromxml|fromxml-noid)
             afl_append_ics_seed_dirs xml
+            ;;
+        heifdump|heifdump-extract)
+            afl_append_heif_external_seed_dirs
             ;;
         pngdump|pngdump-inject)
             afl_append_ics_seed_dirs png

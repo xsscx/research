@@ -236,11 +236,27 @@ expect_arg fromjson-noid 0 "@@"
 expect_arg fromjson-noid 2 "-noid"
 expect_value "FromJson no-id target directory" "$AFL_DIR" "$AFL_BASE/afl-fromjson-noid"
 
+afl_configure_target heifdump
+expect_value "HEIF carrier maximum seed bytes" "$SEED_MAX_BYTES" "5242880"
+expect_value "HEIF carrier maximum mutation length" "$AFL_MAX_LENGTH" "5242880"
+expect_value "HEIF carrier trimming policy" "$AFL_DISABLE_TRIM_TARGET" "1"
+expect_value "HEIF carrier non-zero seed policy" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "0"
+
 afl_configure_target heifdump-extract
 expect_value "HEIF extraction wrapper" "$BINARY" "$REPO_ROOT/afl/heifdump-extract-wrapper.sh"
 expect_arg heifdump-extract 0 "@@"
 expect_arg heifdump-extract 1 "$BIN_DIR/iccHeifDump"
 expect_value "HEIF extraction no-forkserver policy" "$AFL_NO_FORKSRV_TARGET" "1"
+expect_value "HEIF extraction instrumented child" "$AFL_INSTRUMENTED_BINARY" "$BIN_DIR/iccHeifDump"
+expect_value "HEIF extraction exit-zero seed policy" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
+expect_value "HEIF extraction trimming policy" "$AFL_DISABLE_TRIM_TARGET" "1"
+
+mkdir -p "$scratch_root/heif-a" "$scratch_root/heif-b"
+ICCDEV_HEIF_SEED_DIRS="$scratch_root/heif-a:$scratch_root/heif-b"
+afl_configure_target heifdump
+expect_value "first external HEIF seed directory" "${SEED_DIRS[2]}" "$scratch_root/heif-a"
+expect_value "second external HEIF seed directory" "${SEED_DIRS[3]}" "$scratch_root/heif-b"
+unset ICCDEV_HEIF_SEED_DIRS
 
 afl_configure_target specseptotiff-tiles
 expect_arg specseptotiff-tiles 0 "--tiles"

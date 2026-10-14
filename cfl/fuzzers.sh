@@ -226,6 +226,23 @@ cfl_applynamedcmm_external_seed_dirs() {
   done < <(cfl_ics_package_roots "$1") | sort -u
 }
 
+cfl_heif_external_seed_dirs() {
+  local configured_dirs="${ICCDEV_HEIF_SEED_DIRS:-}"
+  local seed_dir
+  local seed_dirs=()
+
+  [[ -n "$configured_dirs" ]] || return 0
+
+  IFS=':' read -r -a seed_dirs <<< "$configured_dirs"
+  for seed_dir in "${seed_dirs[@]}"; do
+    if [[ -n "$seed_dir" && -d "$seed_dir" ]]; then
+      printf '%s\n' "$seed_dir"
+    elif [[ -n "$seed_dir" ]]; then
+      echo "[WARN] HEIF seed directory not found: $seed_dir" >&2
+    fi
+  done
+}
+
 cfl_ics_seed_name() {
   local seed="$1"
   local relative
@@ -258,6 +275,7 @@ cfl_install_curated_seeds() {
   local seed
   local target
   local version_major
+  local digest
 
   case "$fuzzer" in
     icc_heifdump_fuzzer)
@@ -271,6 +289,15 @@ cfl_install_curated_seeds() {
           \( -iname '*.heic' -o -iname '*.heif' -o -iname '*.hif' -o -iname '*.avif' \) \
           -print0)
       done
+      while IFS= read -r external_seed_dir; do
+        while IFS= read -r -d '' seed; do
+          digest="$(sha256sum "$seed" | awk '{print $1}')"
+          target="$corpus_dir/external-heif-$digest"
+          [[ -f "$target" ]] || cp "$seed" "$target"
+        done < <(find "$external_seed_dir" -maxdepth 3 -type f \
+          \( -iname '*.heic' -o -iname '*.heif' -o -iname '*.hif' -o -iname '*.avif' \) \
+          -size -5242880c -print0)
+      done < <(cfl_heif_external_seed_dirs)
       ;;
     icc_applysearch_fuzzer)
       seed="$script_dir/../test-profiles/sRGB_D65_MAT.icc"
