@@ -43,10 +43,12 @@ AFL_TARGETS=(
     dump-read
     fromcube
     fromjson
+    fromjson-noid
     fromxml
     fromxml-includes
     fromxml-noid
     heifdump
+    heifdump-extract
     jpegdump
     jpegdump-inject
     pawgreport
@@ -66,9 +68,13 @@ AFL_TARGETS=(
     specseptotiff-harvest
     specseptotiff-sep
     specseptotiff-short
+    specseptotiff-tiles
+    specseptotiff-bigtiff
     specseptotiff-tiff
     tiffdump
     tiffdump-extract
+    tiffdump-ifd
+    tiffdump-list
     tojson
     toxml
     toxml-fast
@@ -110,10 +116,12 @@ afl_print_targets() {
     echo "  dump-read        - iccDumpProfile (--read eager profile load)"
     echo "  fromcube         - iccFromCube (.cube LUT text -> ICC)"
     echo "  fromjson         - iccFromJson (ICC JSON -> binary)"
+    echo "  fromjson-noid    - iccFromJson (-noid save policy)"
     echo "  fromxml          - iccFromXml (ICC XML -> binary)"
     echo "  fromxml-includes - iccFromXml (fixed external TXT/XML include tree)"
     echo "  fromxml-noid     - iccFromXml (-noid save policy)"
     echo "  heifdump         - iccHeifDump (HEIF/HEIC/AVIF -> ICC extraction)"
+    echo "  heifdump-extract - iccHeifDump (isolated raw ICC output lane)"
     echo "  jpegdump         - iccJpegDump (JPEG -> ICC extraction)"
     echo "  jpegdump-inject  - iccJpegDump (--write-icc injection lane)"
     echo "  pawgreport       - iccPawgReport (PAWG profile assessment)"
@@ -133,9 +141,13 @@ afl_print_targets() {
     echo "  specseptotiff-harvest - iccSpecSepToTiff (gray300 spectral TIFF lane)"
     echo "  specseptotiff-sep - iccSpecSepToTiff (separated planes lane)"
     echo "  specseptotiff-short - iccSpecSepToTiff (short-range compatibility lane)"
+    echo "  specseptotiff-tiles - iccSpecSepToTiff (tiled output lane)"
+    echo "  specseptotiff-bigtiff - iccSpecSepToTiff (BigTIFF output lane)"
     echo "  specseptotiff-tiff - iccSpecSepToTiff (fuzz spectral TIFF input via wrapper)"
     echo "  tiffdump         - iccTiffDump (TIFF -> ICC extraction)"
     echo "  tiffdump-extract - iccTiffDump (TIFF -> saved embedded ICC extraction)"
+    echo "  tiffdump-ifd     - iccTiffDump (explicit second-directory lane)"
+    echo "  tiffdump-list    - iccTiffDump (directory inventory lane)"
     echo "  tojson           - iccToJson (ICC binary -> JSON)"
     echo "  toxml            - iccToXml (ICC binary -> XML)"
     echo "  toxml-fast       - iccToXml (small/no-trim XML conversion lane)"
@@ -144,6 +156,37 @@ afl_print_targets() {
 
 afl_target_names() {
     printf '%s\n' "${AFL_TARGETS[@]}"
+}
+
+afl_target_is_qa_only() {
+    case "$1" in
+        applynamedcmm-cfg|applyprofiles-cfg|applyprofiles-search|applysearch-cfg)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+afl_continuous_target_names() {
+    local target
+
+    for target in "${AFL_TARGETS[@]}"; do
+        if ! afl_target_is_qa_only "$target"; then
+            printf '%s\n' "$target"
+        fi
+    done
+}
+
+afl_qa_target_names() {
+    local target
+
+    for target in "${AFL_TARGETS[@]}"; do
+        if afl_target_is_qa_only "$target"; then
+            printf '%s\n' "$target"
+        fi
+    done
 }
 
 afl_first_existing() {
@@ -288,6 +331,7 @@ afl_configure_target() {
         "$REPO_ROOT/iccDEV/Testing" \
         "$REPO_ROOT/afl/iccDEV/Testing")"
     FROMXML_INCLUDES_SUPPORT_DIR="$AFL_BASE/support/fromxml-includes"
+    SPECSEP_STAGED_PREFIX=""
     ICCDEV_TESTING_DIR="$iccdev_testing_dir"
     HYBRID_SOURCE_DIR="$hybrid_source_dir"
     HYBRID_SUPPORT_DIR="$hybrid_support_dir"
@@ -839,8 +883,9 @@ afl_configure_target() {
             TARGET_NOTE="FromCube .cube text lane: iccFromCube @@ <output>, checked-in .cube corpora, AFL text mode, fast calibration, and trim disabled. For coverage growth after baseline cycles, build a LAF or CmpLog variant."
             AFL_ARGS=("@@" "${tmp_prefix}.icc")
             ;;
-        fromjson)
+        fromjson|fromjson-noid)
             BINARY="$BIN_DIR/iccFromJson"
+            [[ "$target" == "fromjson-noid" ]] && AFL_DIR="$AFL_BASE/afl-fromjson-noid"
             DICT="$REPO_ROOT/cfl/icc_json.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/fuzz/graphics/json"
@@ -848,7 +893,18 @@ afl_configure_target() {
                 "$REPO_ROOT/docs/Testing/malformed-json"
                 "$REPO_ROOT/afl/iccDEV/Testing"
             )
-            AFL_ARGS=("@@" "${tmp_prefix}.icc")
+            SEED_MAX_BYTES=262144
+            SEED_DRY_RUN_TARGET=1
+            SEED_FILE_TYPE_REGEX='^(JSON text data|ASCII text|Unicode text)'
+            AFL_INPUT_FORMAT="text"
+            AFL_MAX_LENGTH=262144
+            if [[ "$target" == "fromjson-noid" ]]; then
+                TARGET_NOTE="FromJson no-id lane: exercises profile ID clearing and SaveIccProfile with icNeverWriteID."
+                AFL_ARGS=("@@" "${tmp_prefix}.icc" "-noid")
+            else
+                TARGET_NOTE="FromJson lane: bounded JSON text corpus with crash and hang screening."
+                AFL_ARGS=("@@" "${tmp_prefix}.icc")
+            fi
             ;;
         fromxml|fromxml-noid|fromxml-includes)
             BINARY="$BIN_DIR/iccFromXml"
@@ -889,7 +945,7 @@ afl_configure_target() {
                 AFL_ARGS=("@@" "${tmp_prefix}.icc")
             fi
             ;;
-        heifdump)
+        heifdump|heifdump-extract)
             BINARY="$BIN_DIR/iccHeifDump"
             DICT="$REPO_ROOT/cfl/icc_heifdump_fuzzer.dict"
             SEED_FILE_TYPE_REGEX='^ISO Media, (HEIF|AVIF) Image'
@@ -903,8 +959,18 @@ afl_configure_target() {
                 "$REPO_ROOT/afl/iccDEV/.github/ci/tooling/heif/img"
                 "$REPO_ROOT/fuzz/graphics/heic"
             )
-            TARGET_NOTE="HEIF dump lane: screened HEIF, HEIC, HIF, and AVIF carriers exercise libheif validation, ICC property extraction, and IccProfLib parsing."
-            AFL_ARGS=("@@")
+            if [[ "$target" == "heifdump-extract" ]]; then
+                BINARY="$REPO_ROOT/afl/heifdump-extract-wrapper.sh"
+                AFL_DIR="$AFL_BASE/afl-heifdump-extract"
+                AFL_NO_FORKSRV_TARGET=1
+                AFL_SKIP_BIN_CHECK_TARGET=1
+                REQUIRED_FILES=("$BINARY" "$BIN_DIR/iccHeifDump")
+                TARGET_NOTE="HEIF extraction lane: a temporary-directory wrapper reaches exclusive raw ICC output creation without cross-testcase file collisions."
+                AFL_ARGS=("@@" "$BIN_DIR/iccHeifDump")
+            else
+                TARGET_NOTE="HEIF dump lane: screened HEIF, HEIC, HIF, and AVIF carriers exercise libheif validation, ICC property extraction, and IccProfLib parsing."
+                AFL_ARGS=("@@")
+            fi
             ;;
         jpegdump|jpegdump-inject)
             BINARY="$BIN_DIR/iccJpegDump"
@@ -1058,7 +1124,7 @@ afl_configure_target() {
                 AFL_ARGS=("@@")
             fi
             ;;
-        specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-harvest|specseptotiff-sep|specseptotiff-short|specseptotiff-tiff)
+        specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-harvest|specseptotiff-sep|specseptotiff-short|specseptotiff-tiles|specseptotiff-bigtiff|specseptotiff-tiff)
             BINARY="$BIN_DIR/iccSpecSepToTiff"
             if [[ "$target" == "spec" ]]; then
                 AFL_DIR="$AFL_BASE/afl-spec"
@@ -1081,6 +1147,7 @@ afl_configure_target() {
             AFL_FAST_CAL_TARGET=1
             [[ -z "${AFL_MAX_LENGTH:-}" ]] && AFL_MAX_LENGTH=8192
             SPECSEP_SOURCE_PREFIX="$REPO_ROOT/test-profiles/spectral/spec_00"
+            SPECSEP_STAGED_PREFIX="${tmp_prefix}-spec_00"
             SPECSEP_COPY_START=1
             SPECSEP_COPY_END=9
             REQUIRED_FILES=(
@@ -1100,15 +1167,16 @@ afl_configure_target() {
                     SEED_LIMIT=64
                     [[ -z "${AFL_MAX_LENGTH:-}" || "${AFL_MAX_LENGTH:-}" == "8192" ]] && AFL_MAX_LENGTH=65536
                     TARGET_NOTE="SpecSep compressed-output lane: fuzzes a bounded optional ICC profile with compress=1, sep=0, ascending range; 64 KiB cap keeps richer seeds without reopening the oversized corpus."
-                    AFL_ARGS=("${tmp_prefix}.tif" "1" "0" "${tmp_prefix}-spec_00" "1" "9" "1" "@@")
+                    AFL_ARGS=("${tmp_prefix}.tif" "1" "0" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
                     ;;
                 specseptotiff-desc)
                     TARGET_NOTE="SpecSep descending lane: fuzzes a small optional ICC profile with start=9, end=1, increment=-1 to cover reverse channel iteration."
-                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "${tmp_prefix}-spec_00" "9" "1" "-1" "@@")
+                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "9" "1" "-1" "@@")
                     ;;
                 specseptotiff-harvest)
                     TARGET_NOTE="SpecSep gray300 lane: fuzzes optional ICC profile parsing while fixed gray300 spectral TIFF inputs exercise larger 8-bit image rows."
                     SPECSEP_SOURCE_PREFIX="$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_"
+                    SPECSEP_STAGED_PREFIX="${tmp_prefix}-harvest-spec_"
                     SPECSEP_COPY_START=1
                     SPECSEP_COPY_END=8
                     REQUIRED_FILES=(
@@ -1121,15 +1189,23 @@ afl_configure_target() {
                         "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_7"
                         "$REPO_ROOT/fuzz/graphics/spectral/specsep-harvest-gray300/spec_8"
                     )
-                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "${tmp_prefix}-harvest-spec_" "1" "8" "1" "@@")
+                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "8" "1" "@@")
                     ;;
                 specseptotiff-short)
                     TARGET_NOTE="SpecSep short-range lane: fuzzes a small optional ICC profile with start=1, end=3, increment=1, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
-                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "${tmp_prefix}-spec_00" "1" "3" "1" "@@")
+                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "3" "1" "@@")
                     ;;
                 specseptotiff-sep)
                     TARGET_NOTE="SpecSep separated-plane lane: fuzzes a small optional ICC profile with compress=0, sep=1, ascending range, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
-                    AFL_ARGS=("${tmp_prefix}.tif" "0" "1" "${tmp_prefix}-spec_00" "1" "9" "1" "@@")
+                    AFL_ARGS=("${tmp_prefix}.tif" "0" "1" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
+                    ;;
+                specseptotiff-tiles)
+                    TARGET_NOTE="SpecSep tiled-output lane: fixed spectral inputs and a fuzzed optional ICC profile exercise 16x16 tile creation and tile-band writes."
+                    AFL_ARGS=("--tiles" "16" "16" "${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
+                    ;;
+                specseptotiff-bigtiff)
+                    TARGET_NOTE="SpecSep BigTIFF lane: fixed spectral inputs and a fuzzed optional ICC profile exercise 64-bit output-directory offsets."
+                    AFL_ARGS=("--bigtiff" "${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
                     ;;
                 specseptotiff-tiff)
                     BINARY="$REPO_ROOT/afl/specsep-tiff-wrapper.sh"
@@ -1159,17 +1235,14 @@ afl_configure_target() {
                     ;;
                 *)
                     TARGET_NOTE="SpecSep default lane: fuzzes a small optional ICC profile with fixed spectral TIFF inputs, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
-                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "${tmp_prefix}-spec_00" "1" "9" "1" "@@")
+                    AFL_ARGS=("${tmp_prefix}.tif" "0" "0" "$SPECSEP_STAGED_PREFIX" "1" "9" "1" "@@")
                     ;;
             esac
             ;;
-        tiffdump|tiff|tiffdump-extract)
+        tiffdump|tiff|tiffdump-extract|tiffdump-ifd|tiffdump-list)
             BINARY="$BIN_DIR/iccTiffDump"
-            if [[ "$target" == "tiffdump-extract" ]]; then
-                AFL_DIR="$AFL_BASE/afl-tiffdump-extract"
-            else
-                AFL_DIR="$AFL_BASE/afl-tiffdump"
-            fi
+            [[ "$target" == "tiff" ]] && AFL_DIR="$AFL_BASE/afl-tiffdump"
+            [[ "$target" == tiffdump-* ]] && AFL_DIR="$AFL_BASE/afl-$target"
             DICT="$REPO_ROOT/cfl/icc_tiffdump_fuzzer.dict"
             SEED_FILE_TYPE_REGEX='^(TIFF image data|Big TIFF image data)'
             SEED_DIRS=(
@@ -1182,6 +1255,17 @@ afl_configure_target() {
             if [[ "$target" == "tiffdump-extract" ]]; then
                 TARGET_NOTE="TIFF ICC extraction lane: supplies argv[2] so embedded profiles are saved through SaveIccProfile."
                 AFL_ARGS=("@@" "${tmp_prefix}.icc")
+            elif [[ "$target" == "tiffdump-ifd" ]]; then
+                SEED_FILES=(
+                    "$REPO_ROOT/test-profiles/tiff-codecs/seed-tiff-multi-ifd-3pages.tif"
+                )
+                SEED_DRY_RUN_TARGET=1
+                TARGET_NOTE="TIFF explicit-directory lane: selects IFD 1 to exercise bounded directory traversal independently of the default first IFD."
+                AFL_ARGS=("--ifd" "1" "@@")
+            elif [[ "$target" == "tiffdump-list" ]]; then
+                SEED_DRY_RUN_TARGET=1
+                TARGET_NOTE="TIFF directory-list lane: inventories every main-chain IFD without extracting or decoding pixels."
+                AFL_ARGS=("--list-directories" "@@")
             else
                 TARGET_NOTE="TIFF dump lane: seed corpus is filtered by file(1) to TIFF/BigTIFF inputs."
                 AFL_ARGS=("@@")
@@ -1259,7 +1343,7 @@ afl_configure_target() {
         pngdump|pngdump-inject)
             afl_append_ics_seed_dirs png
             ;;
-        tiffdump|tiff|tiffdump-extract)
+        tiffdump|tiff|tiffdump-extract|tiffdump-ifd|tiffdump-list)
             afl_append_ics_seed_dirs tif
             ;;
     esac
@@ -1543,8 +1627,8 @@ afl_prepare_target_support_files() {
     afl_prepare_isolated_work_files || return 1
 
     case "$target" in
-        specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-harvest|specseptotiff-sep|specseptotiff-short)
-            local spectral_prefix="${AFL_ARGS[3]}"
+        specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-harvest|specseptotiff-sep|specseptotiff-short|specseptotiff-tiles|specseptotiff-bigtiff)
+            local spectral_prefix="$SPECSEP_STAGED_PREFIX"
             local n src dst
 
             mkdir -p "$(dirname "$spectral_prefix")"

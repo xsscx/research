@@ -39,6 +39,9 @@ BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
     echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}' (use address, memory, or thread)" >&2
     exit 1
 }
+if [[ "$LOCAL_AUDIT" -eq 1 ]]; then
+    afl_export_triage_sanitizer_env "$BIN_DIR"
+fi
 errors=0
 declare -A configured_dirs=()
 
@@ -164,6 +167,21 @@ check_apply_argc applytolink 13
 check_apply_argc applytolink-v5 13
 check_apply_argc applytolink-cube 11
 
+if ! grep -Fqx "export AFL_TESTCACHE_SIZE=\"\$AFL_TESTCACHE_SIZE_VAL\"" "$REPO_ROOT/afl/start.sh"; then
+    fail "start.sh must export a zero test-cache value so AFL++ disables the cache"
+fi
+
+for target in applynamedcmm-cfg applyprofiles-cfg applyprofiles-search applysearch-cfg; do
+    if ! afl_target_is_qa_only "$target"; then
+        fail "$target is not classified as bounded QA"
+    fi
+done
+for target in fromjson fromjson-noid applyprofiles applysearch heifdump; do
+    if afl_target_is_qa_only "$target"; then
+        fail "$target must remain in the continuous target set"
+    fi
+done
+
 afl_configure_target benchapply
 expect_value "BenchApply binary" "$(basename "$BINARY")" "iccBenchApply"
 expect_value "BenchApply argv count" "${#AFL_ARGS[@]}" "7"
@@ -207,6 +225,42 @@ done
 
 afl_configure_target applytolink-v5
 expect_value "ApplyToLink V5 bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc"
+
+afl_configure_target fromjson
+expect_value "FromJson text input mode" "$AFL_INPUT_FORMAT" "text"
+expect_value "FromJson maximum length" "$AFL_MAX_LENGTH" "262144"
+expect_arg fromjson 0 "@@"
+
+afl_configure_target fromjson-noid
+expect_arg fromjson-noid 0 "@@"
+expect_arg fromjson-noid 2 "-noid"
+expect_value "FromJson no-id target directory" "$AFL_DIR" "$AFL_BASE/afl-fromjson-noid"
+
+afl_configure_target heifdump-extract
+expect_value "HEIF extraction wrapper" "$BINARY" "$REPO_ROOT/afl/heifdump-extract-wrapper.sh"
+expect_arg heifdump-extract 0 "@@"
+expect_arg heifdump-extract 1 "$BIN_DIR/iccHeifDump"
+expect_value "HEIF extraction no-forkserver policy" "$AFL_NO_FORKSRV_TARGET" "1"
+
+afl_configure_target specseptotiff-tiles
+expect_arg specseptotiff-tiles 0 "--tiles"
+expect_arg specseptotiff-tiles 1 "16"
+expect_arg specseptotiff-tiles 2 "16"
+expect_value "SpecSep tiled staged prefix" "${AFL_ARGS[6]}" "$SPECSEP_STAGED_PREFIX"
+
+afl_configure_target specseptotiff-bigtiff
+expect_arg specseptotiff-bigtiff 0 "--bigtiff"
+expect_value "SpecSep BigTIFF staged prefix" "${AFL_ARGS[4]}" "$SPECSEP_STAGED_PREFIX"
+
+afl_configure_target tiffdump-ifd
+expect_arg tiffdump-ifd 0 "--ifd"
+expect_arg tiffdump-ifd 1 "1"
+expect_arg tiffdump-ifd 2 "@@"
+expect_value "TIFF IFD bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/tiff-codecs/seed-tiff-multi-ifd-3pages.tif"
+
+afl_configure_target tiffdump-list
+expect_arg tiffdump-list 0 "--list-directories"
+expect_arg tiffdump-list 1 "@@"
 
 afl_configure_target pawgreport
 expect_value "PawgReport trimming disabled" "$AFL_DISABLE_TRIM_TARGET" "1"

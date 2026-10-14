@@ -27,9 +27,10 @@ if archaeology is required. Current analyzer and server work lives upstream as
 See `.github/copilot-instructions.md` for build/test commands per component.
 Additional repo workflows in active use:
 - `./afl/build-afl-runtime.sh`
-  -- install pinned AFL++ stable commit `f5658bc20962a2556d98ecb21bc269b77d1fa845`
-     with LLVM 21 wrappers, `-j32`, and a configurable large-input testcase
-     ceiling. Image seed discovery itself is uncapped.
+  -- install pinned AFL++ 5.04a development commit
+     `2400206be6fe0d93681c8a5c1535209366602eb1`
+     with wrappers matching the system Clang major, `-j32`, and a configurable
+     large-input testcase ceiling. Image seed discovery itself is uncapped.
 - `.github/ci/quality-assurance/scripts/iccApplyProfiles_sanitizer_qa.sh --seconds 300`
   -- run bounded deterministic sanitizer QA from a native Linux scratch tree.
 - `.github/ci/quality-assurance/scripts/iccApplyProfiles_valgrind_qa.sh --tool memcheck --seconds 300 --binary /path/to/non-sanitized/iccApplyProfiles`

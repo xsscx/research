@@ -58,11 +58,41 @@ if grep -Fq "printf '\\001'" "$cfl_dir/fuzzers.sh"; then
     exit 1
 fi
 
+# shellcheck source=cfl/fuzzers.sh
+source "$cfl_dir/fuzzers.sh"
+cfl_continuous_fuzzers="$(cfl_list_continuous_fuzzers)"
+cfl_qa_fuzzers="$(cfl_list_qa_fuzzers)"
+if grep -Fxq 'icc_cfg_fuzzer' <<< "$cfl_continuous_fuzzers"; then
+    echo "[FAIL] CFL config parsing must remain outside the continuous schedule" >&2
+    exit 1
+fi
+if ! grep -Fxq 'icc_cfg_fuzzer' <<< "$cfl_qa_fuzzers"; then
+    echo "[FAIL] CFL config parsing is missing from the bounded QA schedule" >&2
+    exit 1
+fi
+if ! grep -Fxq 'icc_fromjson_fuzzer' <<< "$cfl_continuous_fuzzers"; then
+    echo "[FAIL] ICC JSON profile import must remain in the continuous schedule" >&2
+    exit 1
+fi
+
 for target in applynamedcmm-cfg applyprofiles-cfg applysearch-cfg; do
     grep -Fq "$target" "$repo_root/afl/targets.sh"
 done
 if [[ "$(grep -Fc 'connect-config-complete' "$repo_root/afl/targets.sh")" -lt 3 ]]; then
     echo "[FAIL] Every AFL config lane must admit the complete config seed" >&2
+    exit 1
+fi
+
+if ! (
+    REPO_ROOT="$repo_root"
+    source "$repo_root/afl/targets.sh"
+    for target in applynamedcmm-cfg applyprofiles-cfg applyprofiles-search applysearch-cfg; do
+        afl_target_is_qa_only "$target" || exit 1
+    done
+    ! afl_target_is_qa_only fromjson
+    ! afl_target_is_qa_only fromjson-noid
+); then
+    echo "[FAIL] AFL continuous and bounded-QA target classification is inconsistent" >&2
     exit 1
 fi
 

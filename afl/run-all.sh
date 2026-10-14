@@ -1,7 +1,7 @@
 #!/bin/bash
 # afl/run-all.sh - Run AFL++ targets from a fresh state, then report
 #
-# Usage: ./afl/run-all.sh [target|all] [--seconds N] [--report-root DIR]
+# Usage: ./afl/run-all.sh [target|continuous|qa|all] [--seconds N] [--report-root DIR]
 
 set -euo pipefail
 
@@ -26,6 +26,7 @@ RUN_ALL_SEED_MAX_BYTES="${AFL_RUN_ALL_SEED_MAX_BYTES:-}"
 RUN_REPORT=1
 RUN_COVERAGE=1
 TARGET_FILTER=""
+TARGET_SET="continuous"
 FILTER_NOT_STARTED=0
 LOW_COVERAGE=""
 DRY_RUN=0
@@ -36,6 +37,9 @@ usage() {
     sed -n '2,5p' "$0" | sed 's/^# \?//'
     echo ""
     echo "Options:"
+    echo "  continuous       run transform/profile/image targets; default"
+    echo "  qa               run the bounded JSON configuration targets"
+    echo "  all              run continuous and QA targets"
     echo "  --seconds N       AFL_RUN_TIME per target; default ${SECONDS_PER_TARGET}"
     echo "  --report-root DIR write logs and generated report under DIR"
     echo "  --jobs N          report coverage replay/build jobs; default ${JOBS}"
@@ -111,7 +115,9 @@ target_best_bitmap() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        all) TARGET_FILTER=""; shift ;;
+        continuous) TARGET_FILTER=""; TARGET_SET="continuous"; shift ;;
+        qa) TARGET_FILTER=""; TARGET_SET="qa"; shift ;;
+        all) TARGET_FILTER=""; TARGET_SET="all"; shift ;;
         --seconds)
             if [[ $# -lt 2 || ! "$2" =~ ^[0-9]+$ || "$2" -lt 1 ]]; then
                 echo "ERROR: --seconds requires a positive integer" >&2
@@ -208,7 +214,7 @@ while [[ $# -gt 0 ]]; do
         --dry-run) DRY_RUN=1; shift ;;
         --help|-h) usage; exit 0 ;;
         -*) echo "ERROR: Unknown option: $1" >&2; usage >&2; exit 1 ;;
-        *) TARGET_FILTER="$1"; shift ;;
+        *) TARGET_FILTER="$1"; TARGET_SET="target"; shift ;;
     esac
 done
 
@@ -254,6 +260,12 @@ if [[ -n "$TARGET_FILTER" ]]; then
     targets=("$TARGET_FILTER")
 else
     for target in "${AFL_TARGETS[@]}"; do
+        if [[ "$TARGET_SET" == "continuous" ]] && afl_target_is_qa_only "$target"; then
+            continue
+        fi
+        if [[ "$TARGET_SET" == "qa" ]] && ! afl_target_is_qa_only "$target"; then
+            continue
+        fi
         set +eu
         afl_configure_target "$target" >/dev/null 2>&1
         set -eu
@@ -276,6 +288,7 @@ fi
 mkdir -p "$REPORT_ROOT/logs"
 
 echo "[*] AFL run-all"
+echo "    Target set: $TARGET_SET"
 echo "    Targets: ${#targets[@]}"
 echo "    Seconds: $SECONDS_PER_TARGET per target"
 echo "    Parallel: $PARALLEL instance(s)"

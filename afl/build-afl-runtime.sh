@@ -3,11 +3,20 @@
 
 set -euo pipefail
 
-AFL_COMMIT="f5658bc20962a2556d98ecb21bc269b77d1fa845"
+AFL_COMMIT="2400206be6fe0d93681c8a5c1535209366602eb1"
 AFL_MAX_FILE_BYTES="${AFL_MAX_FILE_BYTES:-67108864}"
 AFL_REPOSITORY="https://github.com/AFLplusplus/AFLplusplus.git"
 AFL_SOURCE_DIR="${AFL_RUNTIME_SOURCE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/aflplusplus-stable}"
-LLVM_CONFIG_BIN="${LLVM_CONFIG:-llvm-config}"
+if [[ -n "${LLVM_CONFIG:-}" ]]; then
+    LLVM_CONFIG_BIN="$LLVM_CONFIG"
+else
+    CLANG_MAJOR="$(clang -dumpversion 2>/dev/null | cut -d. -f1 || true)"
+    if [[ "$CLANG_MAJOR" =~ ^[0-9]+$ ]] && command -v "llvm-config-$CLANG_MAJOR" >/dev/null 2>&1; then
+        LLVM_CONFIG_BIN="llvm-config-$CLANG_MAJOR"
+    else
+        LLVM_CONFIG_BIN="llvm-config"
+    fi
+fi
 INSTALL_PREFIX="${PREFIX:-/usr/local}"
 JOBS="${JOBS:-32}"
 export -n AFL_RUNTIME_SOURCE_DIR 2>/dev/null || true
@@ -25,6 +34,8 @@ for tool in git make perl "$LLVM_CONFIG_BIN" clang clang++ gcc-15; do
         exit 1
     fi
 done
+
+echo "[*] AFL++ LLVM toolchain: $LLVM_CONFIG_BIN ($("$LLVM_CONFIG_BIN" --version))"
 
 if [[ ! -d "$AFL_SOURCE_DIR/.git" ]]; then
     mkdir -p "$(dirname "$AFL_SOURCE_DIR")"

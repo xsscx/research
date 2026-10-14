@@ -17,8 +17,12 @@ for an explicit compatibility experiment with another matching Clang runtime.
 # Build current upstream master.
 cd cfl && ./build.sh --refresh-iccdev
 
-# Smoke-test all fuzzers from local corpora.
+# Smoke-test the continuous fuzzers from local corpora.
 cd cfl && ./fuzz-local.sh -t 60 -w 1
+
+# Run bounded config-parser QA, or explicitly include every harness.
+cd cfl && ./fuzz-local.sh -t 60 -w 1 qa
+cd cfl && ./fuzz-local.sh -t 60 -w 1 all
 
 # Build and replay the same corpora under MSan or TSan.
 cd cfl && ./build.sh --sanitizer memory
@@ -103,6 +107,14 @@ top-level and nested `CIccCfg*` objects. Both AFL and CFL use
 `docs/Testing/json-configs/connect-config-complete.json` is the shared
 schema-shaped seed. Validate these contracts with
 `.github/scripts/validate-afl-cfl-config-alignment.sh`.
+
+`icc_cfg_fuzzer` is retained as bounded parser and field/value QA, but the
+default `start.sh` and `fuzz-local.sh` schedules exclude it from continuous
+campaigns. Select `qa`, `all`, or `icc_cfg_fuzzer` explicitly when config
+coverage is the goal. This harness parses, serializes, and reparses `CIccCfg*`
+objects; it does not execute the configured file transforms. In contrast,
+`icc_fromjson_fuzzer` remains continuous because its JSON describes an ICC
+profile and exercises profile import, validation, and save paths.
 
 The local inventory already has separately attributable multi-profile,
 XML/JSON serializer, V5 display-observer, and image/carrier targets. Strengthen
@@ -230,7 +242,9 @@ commit that curated file.
 
 ```bash
 cd cfl
-./fuzz-local.sh -t 60           # smoke test
+./fuzz-local.sh -t 60           # continuous smoke test
+./fuzz-local.sh -t 60 qa        # bounded JSON configuration QA
+./fuzz-local.sh -t 60 all       # every harness
 ./fuzz-local.sh -t 120 dump     # target alias accepted by helper scripts
 ./fuzz-local.sh -s memory -t 60 dump
 ./start.sh dump --sanitizer thread --time 60 --foreground

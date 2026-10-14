@@ -62,6 +62,13 @@ that separate checkout is available. Override its location with
 ./afl/stop.sh dump
 ```
 
+The AFL tool build requires `pkg-config` and the libheif development package.
+An existing `afl/iccDEV` checkout is intentionally kept local; if it predates
+the registered HEIF, tiled TIFF, or TIFF-directory CLI contracts, refresh it
+explicitly with `./afl/build.sh --refresh-iccdev`. The build now fails if any
+registered target binary is omitted instead of reporting a partial deployment
+as successful.
+
 `build.sh` links iccDEV libraries statically by default. This keeps AFL
 instrumentation and post-campaign LLVM coverage/profiling in the same binary
 image, avoiding split executable/shared-library coverage maps. Use
@@ -115,8 +122,8 @@ AFL_BASE=$PWD/afl/cmplog ./afl/start.sh fromcube --fresh --reseed --cmplog-binar
 ```
 
 `build.sh` uses the system `clang`/`clang++` and compatible AFL++ wrappers.
-`build-afl-runtime.sh` checks out stable commit
-`f5658bc20962a2556d98ecb21bc269b77d1fa845`, configures a 64 MiB default
+`build-afl-runtime.sh` checks out AFL++ 5.04a development commit
+`2400206be6fe0d93681c8a5c1535209366602eb1`, configures a 64 MiB default
 large-input safety bound, and installs the matching runtime and compiler
 wrappers. Set `AFL_MAX_FILE_BYTES` when still larger images are required;
 image seed discovery itself has no repository byte cap.
@@ -149,6 +156,13 @@ Persistent mode and custom ICC mutators remain future work. They require either
 tool changes or a dedicated AFL custom mutator shared object; do not emulate them
 with shell wrappers around the existing CLI tools.
 
+Current mode-specific lanes cover the newer CLI surfaces that are otherwise
+fixed before mutation: `fromjson-noid`, `tiffdump-ifd`, `tiffdump-list`,
+`specseptotiff-tiles`, and `specseptotiff-bigtiff`. `heifdump-extract` uses a
+temporary-directory wrapper because the tool exclusively creates filenames
+derived from fuzzed item/property identifiers; isolating each execution avoids
+stale files turning later testcases into early output-collision failures.
+
 ## FromXml Include Lane
 
 `fromxml-includes` complements the standalone `fromxml` and `fromxml-noid`
@@ -180,6 +194,14 @@ The JSON `-cfg` lanes use isolated work trees under `afl/work/<target>/root`.
 Config-controlled relative output filenames must never be created in the
 repository root. The work trees are disposable runtime state; AFL queues and
 findings remain under the normal target output directory.
+
+These lanes remain useful for bounded field/value and config-parser QA, but
+they are not substitutes for profile, image, or transform-input campaigns.
+Their fixed config may select real transforms during seed screening, while the
+mutated `@@` document predominantly measures configuration parsing and early
+validation. For that reason, the default `run-all.sh` schedule omits them;
+select `qa`, `all`, or an individual config target when that surface is the
+intended test.
 
 ## Dashboard and Coverage
 
@@ -311,6 +333,16 @@ To run every AFL target from a fresh state and then generate that report:
 source ~/work/copilot/tools/env.sh
 ./afl/run-all.sh all --seconds 300 --jobs 2 --report-target-timeout 3600
 ```
+
+With no selector, `run-all.sh` runs the continuous target set. The
+`applynamedcmm-cfg`, `applyprofiles-cfg`, `applyprofiles-search`, and
+`applysearch-cfg` lanes are bounded configuration QA: they mutate JSON control
+documents and are available through `./afl/run-all.sh qa ...` or explicit
+target names, but they are excluded from the default continuous campaign.
+`fromjson` and `fromjson-noid` remain continuous because their JSON input is an
+ICC profile representation and reaches profile construction, validation, and
+serialization rather than only configuration parsing. Use the explicit `all`
+selector when both groups are required.
 
 When `afl-health` reports dead or plateaued campaigns across many binaries, use
 the coverage-boost preset to resume existing queues, reseed each target, enable

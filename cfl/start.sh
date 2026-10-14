@@ -2,9 +2,10 @@
 # cfl/start.sh - Start one or more CFL LibFuzzer binaries in the background.
 #
 # Usage:
-#   ./cfl/start.sh <fuzzer|alias|all> [options]
+#   ./cfl/start.sh <fuzzer|alias|continuous|qa|all> [options]
 #
 # Examples:
+#   ./cfl/start.sh                            # continuous fuzzers
 #   ./cfl/start.sh dump
 #   ./cfl/start.sh icc_dump_fuzzer --time 3600 --workers 4
 #   ./cfl/start.sh all --time 600
@@ -94,7 +95,11 @@ fi
 
 JOBS="${JOBS:-$WORKERS}"
 
-FUZZER_LIST="$(cfl_resolve_fuzzers "${TARGETS[@]:-all}")" || exit 1
+if [[ ${#TARGETS[@]} -eq 0 ]]; then
+  FUZZER_LIST="$(cfl_resolve_fuzzers continuous)" || exit 1
+else
+  FUZZER_LIST="$(cfl_resolve_fuzzers "${TARGETS[@]}")" || exit 1
+fi
 mapfile -t FUZZERS <<< "$FUZZER_LIST"
 if [[ "$FOREGROUND" -eq 1 && ${#FUZZERS[@]} -ne 1 ]]; then
   echo "ERROR: --foreground requires exactly one fuzzer" >&2

@@ -73,9 +73,10 @@ python3 xnuimagetools/contrib/scripts/extract-icc-seeds.py \
 Targets: ICC profiles -> profile/dump/deep_dump/toxml fuzzers; TIFF files -> tiffdump/specsep fuzzers.
 For AFL `jpegdump` and `jpegdump-inject`, seed only `.jpg`/`.jpeg` files with
 embedded ICC profiles from `fuzz/graphics/jpg`; do not use raw `.icc` seeds.
-Before optimizing AFL lanes, run `./afl/build-afl-runtime.sh`; it pins stable
-commit `45bb74bd3a6591e6853b704c390ab6156c0a3c88`, `-j32`, and configurable
-large-input support with a 64 MiB default safety bound.
+Before optimizing AFL lanes, run `./afl/build-afl-runtime.sh`; it pins AFL++
+5.04a development commit `2400206be6fe0d93681c8a5c1535209366602eb1`,
+`-j32`, and configurable large-input support with a 64 MiB default safety
+bound.
 Keep `applyprofiles-hybrid-embedded` on its complete generated TIFF and validate
 all target assets with `.github/scripts/validate-afl-target-configs.sh --local`.
 For profile visualization, CFL's `profileplot` alias exercises the in-memory

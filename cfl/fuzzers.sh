@@ -32,6 +32,33 @@ cfl_list_fuzzers() {
   printf '%s\n' "${CFL_FUZZERS[@]}"
 }
 
+cfl_fuzzer_is_qa_only() {
+  case "$1" in
+    icc_cfg_fuzzer) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+cfl_list_continuous_fuzzers() {
+  local fuzzer
+
+  for fuzzer in "${CFL_FUZZERS[@]}"; do
+    if ! cfl_fuzzer_is_qa_only "$fuzzer"; then
+      printf '%s\n' "$fuzzer"
+    fi
+  done
+}
+
+cfl_list_qa_fuzzers() {
+  local fuzzer
+
+  for fuzzer in "${CFL_FUZZERS[@]}"; do
+    if cfl_fuzzer_is_qa_only "$fuzzer"; then
+      printf '%s\n' "$fuzzer"
+    fi
+  done
+}
+
 cfl_is_fuzzer() {
   local name="$1"
   local fuzzer
@@ -93,16 +120,17 @@ cfl_resolve_fuzzers() {
   local target
   local fuzzer
 
-  if [[ ${#targets[@]} -eq 0 || "${targets[0]:-}" == "all" ]]; then
-    cfl_list_fuzzers
+  if [[ ${#targets[@]} -eq 0 ]]; then
+    cfl_list_continuous_fuzzers
     return 0
   fi
 
   for target in "${targets[@]}"; do
-    if [[ "$target" == "all" ]]; then
-      cfl_list_fuzzers
-      continue
-    fi
+    case "$target" in
+      all) cfl_list_fuzzers; continue ;;
+      continuous|default) cfl_list_continuous_fuzzers; continue ;;
+      qa) cfl_list_qa_fuzzers; continue ;;
+    esac
 
     if ! fuzzer="$(cfl_normalize_fuzzer "$target")"; then
       echo "ERROR: Unknown CFL fuzzer '$target'" >&2

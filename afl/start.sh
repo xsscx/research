@@ -175,6 +175,10 @@ BIN_DIR="$(afl_default_bin_dir "$REPO_ROOT/afl/bin")" || {
     echo "ERROR: unsupported AFL sanitizer '${AFL_SANITIZER:-unknown}' (use address, memory, or thread)" >&2
     exit 1
 }
+AFL_SANITIZER="$(afl_detect_sanitizer_mode "$BIN_DIR")" || {
+    echo "ERROR: unsupported AFL sanitizer for binary directory: $BIN_DIR" >&2
+    exit 1
+}
 
 case "$AFL_CAMPAIGN_MODE" in
     default)
@@ -1063,11 +1067,7 @@ if [[ "$AFL_IMPORT_FIRST_VAL" != "0" ]]; then
 else
     unset AFL_IMPORT_FIRST
 fi
-if [[ "$AFL_TESTCACHE_SIZE_VAL" != "0" ]]; then
-    export AFL_TESTCACHE_SIZE="$AFL_TESTCACHE_SIZE_VAL"
-else
-    unset AFL_TESTCACHE_SIZE
-fi
+export AFL_TESTCACHE_SIZE="$AFL_TESTCACHE_SIZE_VAL"
 if [[ "${AFL_DISABLE_TRIM_TARGET:-0}" -eq 1 || "${AFL_DISABLE_TRIM:-0}" != "0" ]]; then
     export AFL_DISABLE_TRIM=1
 else

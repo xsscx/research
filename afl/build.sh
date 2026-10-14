@@ -26,7 +26,7 @@ AFL_CTX_BUILD=0
 AFL_NGRAM_SIZE_VAL="${AFL_NGRAM_SIZE:-}"
 AFL_LINK_MODE="${AFL_LINK_MODE:-static}"
 AFL_UBSAN_IGNORELIST="${AFL_UBSAN_IGNORELIST:-.github/ci/ubsan-ignorelist.txt}"
-AFL_REQUIRED_VERSION="5.03a"
+AFL_REQUIRED_VERSION="5.04a"
 CLEAN_THIRD_PARTY=0
 SANITIZER_MODE="${AFL_SANITIZER:-address}"
 
@@ -368,6 +368,38 @@ else
     echo "[*] Patch application disabled for AFL build"
 fi
 
+require_iccdev_source_contract() {
+    local label="$1"
+    local source_file="$2"
+    local marker="$3"
+
+    if [[ ! -f "$source_file" ]] || ! grep -Fq -- "$marker" "$source_file"; then
+        echo "[FAIL] Isolated iccDEV checkout lacks the required $label contract" >&2
+        echo "       Source: $source_file" >&2
+        echo "       Run ./afl/build.sh --refresh-iccdev to update the checkout." >&2
+        exit 1
+    fi
+}
+
+require_iccdev_source_contract \
+    "iccHeifDump" \
+    "$ICCDEV_DIR/Tools/CmdLine/IccHeifDump/iccHeifDump.cpp" \
+    "collectIccProperties"
+require_iccdev_source_contract \
+    "tiled iccSpecSepToTiff" \
+    "$ICCDEV_DIR/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp" \
+    "--tiles"
+require_iccdev_source_contract \
+    "multi-directory iccTiffDump" \
+    "$ICCDEV_DIR/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp" \
+    "--list-directories"
+
+if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists libheif; then
+    echo "[FAIL] libheif development metadata is required for the registered iccHeifDump target" >&2
+    echo "       Install pkg-config and libheif-dev (or the platform equivalents), then rebuild." >&2
+    exit 1
+fi
+
 AFL_CLANG_FAST_BIN=""
 AFL_CLANG_FASTXX_BIN=""
 if ! select_afl_toolchain; then
@@ -562,6 +594,12 @@ done
 echo "  $DEPLOYED tool binaries deployed"
 printf '%s\n' "$SANITIZER_MODE" > "$BIN_DIR/.sanitizer-mode"
 
+if [[ ! -x "$BIN_DIR/iccHeifDump" ]]; then
+    echo "[FAIL] Registered target binary was not deployed: $BIN_DIR/iccHeifDump" >&2
+    echo "       Refresh the isolated checkout and verify that CMake found libheif." >&2
+    exit 1
+fi
+
 # Deploy shared libraries only for shared-link builds. Static builds are the
 # default so AFL instrumentation and post-campaign coverage stay in one image.
 # Debug builds use a "d" suffix in current iccDEV. Preserve active symlink
@@ -653,6 +691,12 @@ if [[ "$SANITIZER_MODE" == "memory" ]]; then
     fi
     echo "  [OK] Instrumented static libc++"
 fi
+
+echo ""
+echo "Target registry:"
+AFL_BIN_DIR="$BIN_DIR" \
+    "$REPO_ROOT/.github/scripts/validate-afl-target-configs.sh" \
+    --local --sanitizer "$SANITIZER_MODE"
 
 echo ""
 echo "[OK] $DEPLOYED AFL-instrumented tools deployed to $BIN_DIR"

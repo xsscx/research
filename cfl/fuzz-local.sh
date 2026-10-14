@@ -7,7 +7,9 @@
 # parallelism within each harness.
 #
 # Usage:
-#   ./fuzz-local.sh                           # all fuzzers, 4 workers, 4h each
+#   ./fuzz-local.sh                           # continuous fuzzers, 4 workers, 4h each
+#   ./fuzz-local.sh all                       # continuous plus bounded QA fuzzers
+#   ./fuzz-local.sh qa                        # bounded QA fuzzers only
 #   ./fuzz-local.sh icc_dump_fuzzer           # single fuzzer
 #   ./fuzz-local.sh -t 3600 icc_dump_fuzzer icc_toxml_fuzzer
 #   ./fuzz-local.sh -w 8 -t 600               # 8 workers per fuzzer, 10 min each

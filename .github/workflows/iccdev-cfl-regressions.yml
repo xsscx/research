@@ -99,6 +99,14 @@ jobs:
           source cfl/fuzzers.sh
           test "$(cfl_list_fuzzers | wc -l)" -eq "${#CFL_FUZZERS[@]}"
           test "${#CFL_FUZZERS[@]}" -gt 0
+          continuous_fuzzers="$(cfl_list_continuous_fuzzers)"
+          qa_fuzzers="$(cfl_list_qa_fuzzers)"
+          if grep -Fxq icc_cfg_fuzzer <<< "$continuous_fuzzers"; then
+            echo "icc_cfg_fuzzer must remain outside continuous fuzzing" >&2
+            exit 1
+          fi
+          grep -Fxq icc_cfg_fuzzer <<< "$qa_fuzzers"
+          grep -Fxq icc_fromjson_fuzzer <<< "$continuous_fuzzers"
           test "$(cfl_normalize_fuzzer visualize)" = \
             icc_profilevisualize_fuzzer
           test "$(cfl_normalize_fuzzer profileplot)" = \

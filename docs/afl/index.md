@@ -40,6 +40,11 @@ policy. Edit `afl/iccapply-args.conf` to change `iccApply*` target argv.
 ./afl/triage.sh dump
 ```
 
+The tool build requires `pkg-config` plus the libheif development package. It
+also verifies that every registered target binary was deployed. If the preserved
+`afl/iccDEV` checkout predates the HEIF or current TIFF CLI contracts, run
+`./afl/build.sh --refresh-iccdev` explicitly.
+
 After triage or a compiler/runtime update, run the bounded deterministic
 `iccApplyProfiles` sanitizer, Memcheck, and Helgrind checks documented in
 `iccapplyprofiles-qa.md`. Their evidence belongs under a native Linux path such
@@ -139,6 +144,14 @@ XML/JSON conversion, image extraction, CUBE import, PAWG reporting, profile
 visualization, profile linking, and CMM apply flows. Run `./afl/start.sh --list`
 for the exact list in the active checkout.
 
+Fresh CLI paths have dedicated lanes rather than sharing a saturated default
+argv: `fromjson-noid` covers profile-ID suppression; `heifdump-extract` uses an
+isolated output directory per execution; `tiffdump-ifd` and `tiffdump-list`
+cover directory selection and inventory; and `specseptotiff-tiles` plus
+`specseptotiff-bigtiff` cover the new TIFF output layouts. The HEIF extraction
+wrapper disables the forkserver because it must create and remove a unique
+directory around each tool invocation.
+
 ### iccProfilePlot modes
 
 The data-first plot tool has three lanes because each CLI mode reaches a
@@ -179,7 +192,8 @@ Use LibTIFF tools such as `tiffinfo` for local TIFF structure checks. On
 Ubuntu, install them with `sudo apt-get install libtiff-tools`.
 
 This lane does not set a seed or generated-input byte cap. The pinned AFL++
-runtime is stable commit `f5658bc20962a2556d98ecb21bc269b77d1fa845`,
+runtime is 5.04a development commit
+`2400206be6fe0d93681c8a5c1535209366602eb1`,
 built with `-j32` and a configurable 64 MiB default `MAX_FILE` safety bound by
 `afl/build-afl-runtime.sh`. Image seed discovery is uncapped; set
 `AFL_MAX_FILE_BYTES` when building for inputs above the default. `start.sh`
@@ -218,6 +232,16 @@ their tool-specific positive and negative fixtures. The complete fixture keeps
 lane still screens the document through its real CLI from an isolated work
 tree. Run `.github/scripts/validate-afl-cfl-config-alignment.sh` and
 `.github/scripts/validate-afl-target-configs.sh` after changing this contract.
+
+Treat these config lanes as bounded field/value QA rather than continuous
+transform fuzzing. Mutating the `-cfg` document primarily covers JSON parsing
+and early configuration validation, even though a valid seed can reach the
+configured transform. Accordingly, `afl/run-all.sh` defaults to `continuous`
+and excludes `applynamedcmm-cfg`, `applyprofiles-cfg`,
+`applyprofiles-search`, and `applysearch-cfg`. Use `run-all.sh qa`,
+`run-all.sh all`, or an explicit target name to run them. The `fromjson` and
+`fromjson-noid` lanes remain continuous because they import an ICC profile
+represented as JSON rather than a tool control document.
 
 - `applynamedcmm-hybrid-chain` explicitly selects the spectral transform in
   the fixed CMYK V5 sub-profile at intent `10103`, then fuzzes a second profile
