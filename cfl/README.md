@@ -80,6 +80,17 @@ Current harness areas:
 | XML export | `icc_toxml_fuzzer` |
 | v5 display observer conversion | `icc_v5dspobs_fuzzer` |
 
+`icc_specsep_fuzzer` accepts ordinary classic TIFF and BigTIFF files directly
+as one-channel inputs. Multi-channel and profile-bearing inputs use the `SSP3`
+length-delimited bundle documented in the harness source. `fuzz-local.sh`
+installs deterministic raw-TIFF and `SSP3` seeds that cover one, three, and
+eight channels; stripped and tiled input; 8-, 16-, and 32-bit integer and float
+samples; MinIsBlack and MinIsWhite; valid RGB profile embedding; compression;
+separate planes; tiled output; and BigTIFF output. Legacy V2 equal-chunk
+artifacts remain replayable. Use
+`.github/scripts/unbundle-fuzzer-input.sh specsep ARTIFACT` to extract a CLI
+reproducer.
+
 `icc_applynamedcmm_fuzzer` accepts one raw ICC profile with no control prefix,
 suffix, or reserved-byte selector. For each parseable profile it runs a bounded
 matrix of the NamedCmm transform, intent, interpolation, hint, environment,

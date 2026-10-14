@@ -100,7 +100,7 @@ For profile visualization, CFL's `profileplot` alias exercises the in-memory
 | 8 | icc_applynamedcmm_fuzzer | iccApplyNamedCmm | raw ICC | 132B/unbounded | 48% | Named color CMM |
 | 9 | icc_applysearch_fuzzer | iccApplySearch | ICC binary | 128B/2MB | 40% | CIccCmmSearch optimization |
 | 10 | icc_v5dspobs_fuzzer | iccV5DspObsToV4 | 2x ICC | 256B/4MB | 61% | v5 DspObs->v4, spectral |
-| 11 | icc_specsep_fuzzer | iccSpecSepToTiff | TIFF+ICC | 128B/4MB | 38% | Spectral separation, TIFF I/O |
+| 11 | icc_specsep_fuzzer | iccSpecSepToTiff | TIFF+ICC | 8B/corpus-derived | measure | Spectral separation, TIFF I/O |
 | 12 | icc_tiffdump_fuzzer | iccTiffDump | TIFF | 8B/2MB | 44% | TIFF tag reading, ICC extraction |
 | 13 | icc_cfg_fuzzer | IccConnect config API | JSON config | 1B/unbounded | measure | Top-level and nested config round trips |
 | 14 | icc_profilevisualize_fuzzer | iccProfilePlot | ICC binary | 132B/5MB | measure | IccVizModel enumerate, graph, raster |
@@ -113,7 +113,7 @@ For profile visualization, CFL's `profileplot` alias exercises the in-memory
 | link | `[50% profile1][50% profile2][4B control]` |
 | applyprofiles | `[75% profile][25% control (intent, interp, WxH, pixels)]`; unbundler emits `profile.icc`, generated `source.tiff`, `repro.json`, `control.txt`, and raw `control.bin` |
 | applynamedcmm | one raw ICC profile; the harness applies a fixed tool-control matrix |
-| specsep | `[1B nFiles][14B TIFF meta][TIFF+ICC data]` |
+| specsep | raw TIFF, or `SSP3` with flags/count/tile selectors, LE ICC and per-TIFF lengths, TIFF payloads, then optional ICC; legacy V2 equal chunks remain accepted |
 
 Unbundle crash files: `.github/scripts/unbundle-fuzzer-input.sh <fuzzer> <crash_file>`.
 For applyprofiles, use the generated `source.tiff` and `repro.json`; `control.bin`
@@ -127,7 +127,9 @@ is only the exact fuzzer control/pixel seed bytes.
 
 **v5dspobs**: Must check `Begin()` return before `Apply()` (CFL-072 fix). Uses SafeDescribe.
 
-**specsep**: 5+ entry-point paths (1-8 channel configs). Seed with xnuimagetools TIFFs.
+**specsep**: Raw TIFF seeds reach one-channel parsing directly. Use generated
+`SSP3` seeds for stable 1-16 channel boundaries, profile embedding, LZW,
+separate planes, tiled output, and BigTIFF output.
 
 **tiffdump**: 4215-entry dict combining TIFF 6.0 tags + ICC sigs + corpus tokens.
 

@@ -223,9 +223,9 @@ ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_roundtrip_fuzze
 
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 specsep
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_specsep_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=10485760 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_specsep_fuzzer.dict cfl/corpus-icc_specsep_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_specsep_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=4096 -max_len=10485760 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_specsep_fuzzer.dict cfl/corpus-icc_specsep_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_specsep_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=10485760 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_specsep_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=0 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_specsep_fuzzer.dict cfl/corpus-icc_specsep_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_specsep_fuzzer -max_total_time=900 -timeout=30 -rss_limit_mb=4096 -max_len=0 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_specsep_fuzzer.dict cfl/corpus-icc_specsep_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_specsep_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=0 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 ### `icc_tiffdump_fuzzer`

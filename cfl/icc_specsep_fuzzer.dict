@@ -1,4 +1,4 @@
-# icc_tiffdump_fuzzer - Consolidated LibFuzzer Dictionary
+# icc_specsep_fuzzer - Consolidated LibFuzzer Dictionary
 # Combines hand-curated TIFF+ICC tokens with auto-extracted corpus tokens
 # Total unique entries: 4215
 #
@@ -8,9 +8,18 @@
 #   - Auto-extracted from corpus via convert-libfuzzer-dict.py
 #   - CTiffImg code path tokens (PLANARCONFIG, PHOTOMETRIC, etc.)
 
-# TIFF + ICC Profile Dictionary for icc_tiffdump_fuzzer
+# TIFF + ICC Profile Dictionary for icc_specsep_fuzzer
 # Combines TIFF format tokens with ICC profile signatures
 # Reference: TIFF 6.0 Specification, ICC.1:2022
+
+# Length-delimited SpecSep bundle magic and output-mode flags
+"SSP3"
+ssp3_none="SSP3\x00"
+ssp3_compress="SSP3\x01"
+ssp3_separate="SSP3\x02"
+ssp3_tiles="SSP3\x04"
+ssp3_bigtiff="SSP3\x08"
+ssp3_all_modes="SSP3\x0f"
 
 # TIFF byte order marks
 "II"

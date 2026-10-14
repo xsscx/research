@@ -278,6 +278,10 @@ cfl_install_curated_seeds() {
   local digest
 
   case "$fuzzer" in
+    icc_specsep_fuzzer)
+      python3 "$script_dir/../.github/scripts/generate-cfl-specsep-seeds.py" \
+        "$corpus_dir"
+      ;;
     icc_heifdump_fuzzer)
       "$script_dir/../.github/scripts/generate-heif-coverage-seeds.py" "$corpus_dir"
       for seed_dir in \
@@ -538,7 +542,7 @@ cfl_tool_command() {
       printf 'iccRoundTrip %s /tmp/cfl-roundtrip-out.icc\n' "$artifact"
       ;;
     icc_specsep_fuzzer)
-      printf 'iccSpecSepToTiff %s _A2B0 /tmp/cfl-specsep 8 0\n' "$artifact"
+      printf '.github/scripts/unbundle-fuzzer-input.sh specsep %s\n' "$artifact"
       ;;
     icc_tiffdump_fuzzer)
       printf 'iccTiffDump %s /tmp/cfl-tiffdump.icc\n' "$artifact"

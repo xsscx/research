@@ -10,7 +10,7 @@
 #   applysearch-weight raw fuzzed PCC ICC; fixed source/destination
 #   applyprofiles     [75% profile][25% control/pixel seed]
 #   applyprofiles-row [75% profile][25% control/pixel seed], forced row-apply harness
-#   specsep           [2B control][N TIFF chunks][optional ICC tail]
+#   specsep           raw TIFF, SSP3 length-delimited bundle, or legacy V2
 #
 # The extracted files are triage aids. They are not maintainer-facing proof by
 # themselves. A bisect report still requires a one-line iccDEV command-line
@@ -900,8 +900,104 @@ EOF
   fi
 }
 
+unbundle_specsep_raw() {
+  local prefix="$OUT_DIR/spec_"
+  local tool
+
+  cp -- "$CRASH_FILE" "${prefix}0"
+  echo "Format: one raw TIFF separation"
+  echo "CLI reproduction candidate:"
+  echo "  iccSpecSepToTiff $OUT_DIR/output.tiff 0 0 $prefix 0 0 1"
+  tool="$(tool_bin IccSpecSepToTiff iccSpecSepToTiff)"
+  run_if_available "$tool" "$OUT_DIR/output.tiff" 0 0 "$prefix" 0 0 1
+}
+
+unbundle_specsep_ssp3() {
+  local flags n_files tile_width_byte tile_height_byte icc_size
+  local lengths_offset=12 cursor prefix="$OUT_DIR/spec_" icc_path=""
+  local compress separate tiled bigtiff i blob_len out tool
+  local options=()
+
+  flags=$(od -A n -t u1 -j 4 -N 1 "$CRASH_FILE" | tr -d ' ')
+  n_files=$(od -A n -t u1 -j 5 -N 1 "$CRASH_FILE" | tr -d ' ')
+  tile_width_byte=$(od -A n -t u1 -j 6 -N 1 "$CRASH_FILE" | tr -d ' ')
+  tile_height_byte=$(od -A n -t u1 -j 7 -N 1 "$CRASH_FILE" | tr -d ' ')
+  icc_size=$(od -A n -t u4 --endian=little -j 8 -N 4 "$CRASH_FILE" | tr -d ' ')
+  if [ "$n_files" -lt 1 ] || [ "$n_files" -gt 16 ] ||
+     [ "$FILE_SIZE" -lt $((lengths_offset + n_files * 4)) ]; then
+    echo "ERROR: invalid SSP3 separation count or header" >&2
+    return 1
+  fi
+
+  compress=$((flags & 1))
+  separate=$(((flags >> 1) & 1))
+  tiled=$(((flags >> 2) & 1))
+  bigtiff=$(((flags >> 3) & 1))
+  cursor=$((lengths_offset + n_files * 4))
+
+  for ((i = 0; i < n_files; i++)); do
+    blob_len=$(od -A n -t u4 --endian=little \
+      -j $((lengths_offset + i * 4)) -N 4 "$CRASH_FILE" | tr -d ' ')
+    if [ "$blob_len" -lt 8 ] || [ "$blob_len" -gt $((FILE_SIZE - cursor)) ]; then
+      echo "ERROR: invalid SSP3 TIFF length at index $i: $blob_len" >&2
+      return 1
+    fi
+    out="${prefix}${i}"
+    extract_range "$cursor" "$blob_len" "$out"
+    cursor=$((cursor + blob_len))
+  done
+
+  if [ "$icc_size" -ne $((FILE_SIZE - cursor)) ]; then
+    echo "ERROR: SSP3 ICC length does not consume the remaining input" >&2
+    return 1
+  fi
+  if [ "$icc_size" -gt 0 ]; then
+    icc_path="$OUT_DIR/profile.icc"
+    extract_range "$cursor" "$icc_size" "$icc_path"
+    check_icc_magic "$icc_path" "Embedded profile"
+    icc_header_summary "$icc_path" "Embedded profile"
+  fi
+
+  if [ "$tiled" -eq 1 ]; then
+    options+=(--tiles "$((16 * ((tile_width_byte & 3) + 1)))" \
+      "$((16 * ((tile_height_byte & 3) + 1)))")
+  fi
+  [ "$bigtiff" -eq 1 ] && options+=(--bigtiff)
+
+  echo "Format: SSP3 length-delimited SpecSep bundle"
+  echo "Extracted tiff_chunks=$n_files compress=$compress sep=$separate tiled=$tiled bigtiff=$bigtiff icc_size=$icc_size"
+  echo "CLI reproduction candidate:"
+  printf '  iccSpecSepToTiff'
+  printf ' %q' "${options[@]}" "$OUT_DIR/output.tiff" "$compress" "$separate" \
+    "$prefix" 0 "$((n_files - 1))" 1
+  [ "$icc_size" -gt 0 ] && printf ' %q' "$icc_path"
+  printf '\n'
+
+  tool="$(tool_bin IccSpecSepToTiff iccSpecSepToTiff)"
+  if [ "$icc_size" -gt 0 ]; then
+    run_if_available "$tool" "${options[@]}" "$OUT_DIR/output.tiff" \
+      "$compress" "$separate" "$prefix" 0 "$((n_files - 1))" 1 "$icc_path"
+  else
+    run_if_available "$tool" "${options[@]}" "$OUT_DIR/output.tiff" \
+      "$compress" "$separate" "$prefix" 0 "$((n_files - 1))" 1
+  fi
+}
+
 unbundle_specsep() {
-  echo "Format: [2-byte control][N equal TIFF chunks][optional ICC tail]"
+  local magic
+  magic=$(od -A n -t x1 -N 4 "$CRASH_FILE" | tr -d ' \n')
+  case "$magic" in
+    49492a00|4d4d002a|49492b00|4d4d002b)
+      unbundle_specsep_raw
+      return
+      ;;
+    53535033)
+      unbundle_specsep_ssp3
+      return
+      ;;
+  esac
+
+  echo "Format: legacy V2 [2-byte control][N equal TIFF chunks][optional ICC tail]"
   if [ "$FILE_SIZE" -lt 10 ]; then
     echo "ERROR: file too small for specsep layout" >&2
     return 1

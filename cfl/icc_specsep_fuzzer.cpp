@@ -36,80 +36,273 @@
  */
 
 /*
- * icc_specsep_fuzzer - 1:1 fidelity with iccSpecSepToTiff tool
+ * icc_specsep_fuzzer - filesystem-backed coverage for iccSpecSepToTiff.
  *
- * Upstream tool: iccDEV/Tools/CmdLine/IccSpecSepToTiff/iccSpecSepToTiff.cpp
+ * Input formats:
  *
- * What the tool does:
- *   Concatenates N single-channel spectral separation TIFF files into one
- *   multi-channel TIFF, optionally embedding an ICC profile. Pure image
- *   format converter - no ICC color management (CIccCmm) is performed.
+ *   Raw TIFF:
+ *     A classic TIFF or BigTIFF is used as one separation. This makes the
+ *     repository's ordinary TIFF corpus directly useful.
  *
- * Architecture (V2 - raw TIFF bytes):
- *   V1 created perfect TIFFs internally then re-opened them. LibFuzzer
- *   could only mutate control bytes and pixel values - never the TIFF
- *   structure itself. Coverage stalled at ~3,975 edges after 3 seconds.
+ *   SSP3 bundle (little-endian lengths):
+ *     "SSP3" flags count tile_w tile_h icc_len
+ *     file_len[count] TIFF[count] ICC
  *
- *   V2 feeds raw TIFF bytes from the fuzz input directly to temp files,
- *   then opens them with CTiffImg::Open(). LibFuzzer can now mutate:
- *   - TIFF headers (magic, IFD pointers, byte order)
- *   - IFD entries (dimensions, BPS, photometric, strip offsets/sizes)
- *   - Strip data (pixel bytes, compression artifacts)
- *   - Cross-file structure mismatches (different dimensions, BPS, etc.)
+ *     flags bit 0: LZW output
+ *     flags bit 1: separated output planes
+ *     flags bit 2: tiled output; tile bytes select 16, 32, 48, or 64
+ *     flags bit 3: BigTIFF output
  *
- *   Seed corpus: single-channel spectral TIFFs from xnuimagegenerator
- *   (fuzz/xnuimagegenerator/tiff/spectral/) - SPP=1, MINISBLACK, 8/16-bit.
+ *   Legacy V2 bundle:
+ *     [count control][flags][equal TIFF chunks][optional ICC tail]
  *
- * Input format:
- *   [0]:     nFiles control (mod 8 + 1 -> 1-8 spectral channels)
- *   [1]:     flags: bit 0 = compress, bit 1 = sep, bit 2 = has ICC profile
- *   [2..]:   divided into nFiles equal chunks - each is raw TIFF bytes
- *            written to a temp file then opened with CTiffImg::Open()
- *            If bit 2 set: last 1/4 of payload is ICC profile data
- *
- * Gate sequence (matches tool main() lines 119-271):
- *   Gate 0:  Input size bounds + parse control
- *   Gate 1:  Write N raw TIFF blobs to temp files
- *   Gate 2:  Open all input files (tool lines 162-165)
- *   Gate 3:  Per-file validation: SPP=1, no PALETTE (tool lines 167-175)
- *   Gate 4:  Format consistency across files (tool lines 177-185)
- *   Gate 5:  Photometric: MINISWHITE or MINISBLACK only (tool lines 196-202)
- *   Gate 6:  Buffer allocation (tool lines 207-210) - OOM-guarded
- *   Gate 7:  Resolution defaults (tool lines 212-218)
- *   Gate 8:  Create output TIFF (tool lines 220-225)
- *   Gate 9:  Optional ICC profile embedding (tool lines 229-238)
- *   Gate 10: Scanline loop: read -> invert -> interleave -> write (lines 240-263)
- *
- * Retired: V1 at cfl/icc_specsep_fuzzer.cpp.retired
+ * SSP3 provides stable boundaries for multi-channel and profile-bearing
+ * seeds. The legacy decoder remains for existing corpora and crash artifacts.
  */
 
-#include <stdint.h>
 #include <stddef.h>
-#include <unistd.h>
+#include <stdint.h>
 #include <fcntl.h>
+#include <unistd.h>
+
+#include <cstdio>
 #include <cstring>
-#include <cmath>
+#include <limits>
 #include <memory>
-#include <vector>
 #include <new>
+#include <string>
+#include <vector>
+
 #include <tiffio.h>
 
 #include "IccDefs.h"
-#include "IccIO.h"
+#include "IccProfile.h"
+#include "IccUtil.h"
 #include "TiffImg.h"
 #include "fuzz_utils.h"
 
-static void SilentTIFFErrorHandler(const char*, const char*, va_list) {}
-static void SilentTIFFWarningHandler(const char*, const char*, va_list) {}
+namespace {
 
-static bool checked_mul_size(size_t a, size_t b, size_t &out) {
-    if (a != 0 && b > ((size_t)-1) / a)
+const size_t kMaxSeparations = 16;
+const unsigned int kMaxInputTileBandBytes = 256u * 1024u * 1024u;
+
+struct Blob {
+    const uint8_t *data;
+    size_t size;
+};
+
+struct ParsedInput {
+    bool compress = false;
+    bool separate = false;
+    bool big_tiff = false;
+    unsigned int tile_width = 0;
+    unsigned int tile_height = 0;
+    std::vector<Blob> tiffs;
+    Blob profile = {nullptr, 0};
+};
+
+static void SilentTIFFErrorHandler(const char *, const char *, va_list) {}
+static void SilentTIFFWarningHandler(const char *, const char *, va_list) {}
+
+static bool checked_mul_size(size_t a, size_t b, size_t &out)
+{
+    if (a != 0 && b > std::numeric_limits<size_t>::max() / a)
         return false;
     out = a * b;
     return true;
 }
 
-extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
+static uint32_t read_le32(const uint8_t *p)
+{
+    return (uint32_t)p[0] |
+           ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) |
+           ((uint32_t)p[3] << 24);
+}
+
+static bool looks_like_tiff(const uint8_t *data, size_t size)
+{
+    if (size < 4)
+        return false;
+
+    return (data[0] == 'I' && data[1] == 'I' &&
+            ((data[2] == 42 && data[3] == 0) ||
+             (data[2] == 43 && data[3] == 0))) ||
+           (data[0] == 'M' && data[1] == 'M' &&
+            ((data[2] == 0 && data[3] == 42) ||
+             (data[2] == 0 && data[3] == 43)));
+}
+
+static bool parse_ssp3(const uint8_t *data, size_t size, ParsedInput &parsed)
+{
+    if (size < 12 || memcmp(data, "SSP3", 4) != 0)
+        return false;
+
+    const uint8_t flags = data[4];
+    const size_t count = data[5];
+    if (!count || count > kMaxSeparations || count > (size - 12) / 4)
+        return false;
+
+    parsed.compress = (flags & 1) != 0;
+    parsed.separate = (flags & 2) != 0;
+    parsed.big_tiff = (flags & 8) != 0;
+    if (flags & 4) {
+        parsed.tile_width = 16u * ((data[6] & 3u) + 1u);
+        parsed.tile_height = 16u * ((data[7] & 3u) + 1u);
+    }
+
+    const size_t profile_size = read_le32(data + 8);
+    const size_t lengths_offset = 12;
+    size_t cursor = lengths_offset + count * 4;
+    parsed.tiffs.reserve(count);
+
+    for (size_t i = 0; i < count; i++) {
+        const size_t blob_size = read_le32(data + lengths_offset + i * 4);
+        if (blob_size < 8 || blob_size > size - cursor)
+            return false;
+        parsed.tiffs.push_back({data + cursor, blob_size});
+        cursor += blob_size;
+    }
+
+    if (profile_size != size - cursor)
+        return false;
+    if (profile_size)
+        parsed.profile = {data + cursor, profile_size};
+
+    return true;
+}
+
+static bool parse_legacy(const uint8_t *data, size_t size, ParsedInput &parsed)
+{
+    if (size < 10)
+        return false;
+
+    const size_t count = (data[0] % 8) + 1;
+    const uint8_t flags = data[1];
+    const uint8_t *payload = data + 2;
+    size_t payload_size = size - 2;
+
+    parsed.compress = (flags & 1) != 0;
+    parsed.separate = (flags & 2) != 0;
+
+    if (flags & 4) {
+        size_t profile_size = payload_size / 4;
+        if (profile_size < 16)
+            profile_size = 16;
+        if (profile_size > 256u * 1024u)
+            profile_size = 256u * 1024u;
+        if (profile_size < payload_size - 8) {
+            parsed.profile = {payload + payload_size - profile_size, profile_size};
+            payload_size -= profile_size;
+        }
+    }
+
+    const size_t chunk_size = payload_size / count;
+    if (chunk_size < 8)
+        return false;
+
+    parsed.tiffs.reserve(count);
+    for (size_t i = 0; i < count; i++) {
+        const size_t blob_size = i + 1 == count
+                                     ? payload_size - i * chunk_size
+                                     : chunk_size;
+        parsed.tiffs.push_back({payload + i * chunk_size, blob_size});
+    }
+    return true;
+}
+
+static bool parse_input(const uint8_t *data, size_t size, ParsedInput &parsed)
+{
+    if (looks_like_tiff(data, size)) {
+        parsed.tiffs.push_back({data, size});
+        return true;
+    }
+    if (size >= 4 && memcmp(data, "SSP3", 4) == 0)
+        return parse_ssp3(data, size, parsed);
+    return parse_legacy(data, size, parsed);
+}
+
+struct TmpFiles {
+    char paths[kMaxSeparations + 2][512];
+    size_t count = 0;
+
+    ~TmpFiles()
+    {
+        for (size_t i = 0; i < count; i++)
+            unlink(paths[i]);
+    }
+
+    bool add(const char *dir, const char *suffix)
+    {
+        if (count >= kMaxSeparations + 2)
+            return false;
+        if (!fuzz_build_path(paths[count], sizeof(paths[count]), dir, suffix))
+            return false;
+        const int fd = mkstemp(paths[count]);
+        if (fd < 0)
+            return false;
+        close(fd);
+        count++;
+        return true;
+    }
+
+    bool write_last(const uint8_t *buf, size_t len)
+    {
+        if (!count)
+            return false;
+        const int fd = open(paths[count - 1], O_WRONLY | O_TRUNC, 0600);
+        if (fd < 0)
+            return false;
+        FILE *fp = fdopen(fd, "wb");
+        if (!fp) {
+            close(fd);
+            return false;
+        }
+        const size_t written = fwrite(buf, 1, len, fp);
+        const int close_status = fclose(fp);
+        return written == len && close_status == 0;
+    }
+};
+
+static bool profile_matches_samples(const uint8_t *data, size_t size,
+                                    size_t samples)
+{
+    if (!data || !size || size > std::numeric_limits<icUInt32Number>::max())
+        return false;
+
+    std::string report;
+    icValidateStatus status = icValidateOK;
+    std::unique_ptr<CIccProfile> profile(
+        ValidateIccProfile(data, (icUInt32Number)size, report, status));
+    if (!profile || status >= icValidateNonCompliant)
+        return false;
+
+    std::unique_ptr<CIccProfile> spectral_profile(
+        OpenIccProfile(data, (icUInt32Number)size, true));
+    const CIccProfile *candidate = profile.get();
+    if (spectral_profile &&
+        spectral_profile->m_Header.spectralPCS != icSigNoSpectralData)
+        candidate = spectral_profile.get();
+
+    const icHeader &header = candidate->m_Header;
+    if (header.deviceClass == icSigLinkClass)
+        return false;
+
+    if (header.deviceClass == icSigAbstractClass &&
+        header.colorSpace == icSigNoColorData) {
+        const icUInt32Number spectral_samples =
+            icGetSpaceSamples((icColorSpaceSignature)header.spectralPCS);
+        return spectral_samples == samples &&
+               header.spectralRange.steps == samples;
+    }
+
+    return icGetSpaceSamples((icColorSpaceSignature)header.colorSpace) == samples;
+}
+
+} // namespace
+
+extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv)
+{
     (void)argc;
     (void)argv;
     TIFFSetErrorHandler(SilentTIFFErrorHandler);
@@ -117,245 +310,152 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
     return 0;
 }
 
-// RAII cleanup for temporary files
-struct TmpFiles {
-    char paths[9][512]; // up to 8 input + 1 output
-    int count = 0;
-    ~TmpFiles() {
-        for (int i = 0; i < count; i++)
-            unlink(paths[i]);
-    }
-    bool add(const char *dir, const char *suffix) {
-        if (count >= 9) return false;
-        if (!fuzz_build_path(paths[count], sizeof(paths[count]), dir, suffix))
-            return false;
-        int fd = mkstemp(paths[count]);
-        if (fd < 0) return false;
-        close(fd);
-        count++;
-        return true;
-    }
-    // Write raw bytes to the last temp file (0600 permissions - not world-writable)
-    bool writeLast(const uint8_t *buf, size_t len) {
-        int fd = open(paths[count - 1], O_WRONLY | O_TRUNC, 0600);
-        if (fd < 0) return false;
-        FILE *fp = fdopen(fd, "wb");
-        if (!fp) { close(fd); return false; }
-        size_t written = fwrite(buf, 1, len, fp);
-        fclose(fp);
-        return written == len;
-    }
-};
-
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-    // --- Gate 0: Size bounds + control parse ---
-    // Minimum: 2 control bytes + at least 8 bytes of TIFF data per file
-    if (size < 10 || size > 2 * 1024 * 1024)
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+{
+    ParsedInput parsed;
+    if (!parse_input(data, size, parsed))
         return 0;
 
-    uint8_t nFiles = (data[0] % 8) + 1;       // 1-8 spectral channels
-    bool bCompress = (data[1] >> 0) & 1;       // tool argv[2]
-    bool bSep      = (data[1] >> 1) & 1;       // tool argv[3]
-    bool hasICC    = (data[1] >> 2) & 1;        // tool argv[8] present
-
-    const uint8_t *payload = data + 2;
-    size_t payloadSize = size - 2;
-
-    // If hasICC, reserve the tail of the payload for ICC profile data.
-    // Tool lines 229-238: CIccFileIO opens profile, reads length, Read8.
-    const uint8_t *iccData = nullptr;
-    size_t iccSize = 0;
-    if (hasICC) {
-        // ICC profile declares its own size at bytes 0-3 (big-endian).
-        // Use the last portion of the payload as ICC data.
-        // Minimum ICC: 128-byte header + 4-byte tag count = 132 bytes.
-        // Split: last 1/4 of payload for ICC, rest for TIFF chunks.
-        iccSize = payloadSize / 4;
-        if (iccSize < 16) iccSize = 16;
-        if (iccSize > 256 * 1024) iccSize = 256 * 1024; // 256K cap
-        if (iccSize >= payloadSize - 8) {
-            hasICC = false;  // not enough room for TIFF data
-        } else {
-            iccData = payload + (payloadSize - iccSize);
-            payloadSize -= iccSize;
-        }
-    }
-
-    // Each file gets an equal share of the TIFF payload
-    size_t chunkSize = payloadSize / nFiles;
-    if (chunkSize < 8) return 0;  // need TIFF magic at minimum
-
+    const size_t count = parsed.tiffs.size();
     const char *tmpdir = fuzz_tmpdir();
     TmpFiles tmp;
 
-    // --- Gate 1: Write N raw TIFF blobs to temp files ---
-    static const char *const kSuffixes[8] = {
-        "/fuzz_sep_00_XXXXXX", "/fuzz_sep_01_XXXXXX",
-        "/fuzz_sep_02_XXXXXX", "/fuzz_sep_03_XXXXXX",
-        "/fuzz_sep_04_XXXXXX", "/fuzz_sep_05_XXXXXX",
-        "/fuzz_sep_06_XXXXXX", "/fuzz_sep_07_XXXXXX",
-    };
-    for (uint8_t i = 0; i < nFiles; i++) {
-
-        if (!tmp.add(tmpdir, kSuffixes[i]))
-            return 0;
-
-        const uint8_t *blob = payload + (size_t)i * chunkSize;
-        size_t blobLen = (i == nFiles - 1) ? (payloadSize - (size_t)i * chunkSize) : chunkSize;
-
-        if (!tmp.writeLast(blob, blobLen))
+    for (size_t i = 0; i < count; i++) {
+        char suffix[40];
+        snprintf(suffix, sizeof(suffix), "/fuzz_sep_%02zu_XXXXXX", i);
+        if (!tmp.add(tmpdir, suffix) ||
+            !tmp.write_last(parsed.tiffs[i].data, parsed.tiffs[i].size))
             return 0;
     }
 
-    // Output temp file
     if (!tmp.add(tmpdir, "/fuzz_out_XXXXXX"))
         return 0;
-    const char *outPath = tmp.paths[tmp.count - 1];
+    const char *out_path = tmp.paths[tmp.count - 1];
 
-    // --- Gate 2: Open all input files (tool lines 162-165) ---
-    std::vector<CTiffImg> infiles(nFiles);
-    for (uint8_t i = 0; i < nFiles; i++) {
-        if (!infiles[i].Open(tmp.paths[i]))
+    unsigned int remaining_tile_bytes = kMaxInputTileBandBytes;
+    std::vector<CTiffImg> inputs(count);
+    for (size_t i = 0; i < count; i++) {
+        if (!inputs[i].Open(tmp.paths[i], false, 0, remaining_tile_bytes))
+            return 0;
+        const unsigned int tile_bytes = inputs[i].GetTileBandSize();
+        if (tile_bytes > remaining_tile_bytes)
+            return 0;
+        remaining_tile_bytes -= tile_bytes;
+
+        if (inputs[i].GetSamples() != 1 ||
+            inputs[i].GetPhoto() == PHOTO_PALETTE)
             return 0;
 
-        // --- Gate 3: Per-file validation (tool lines 167-175) ---
-        if (infiles[i].GetSamples() != 1)
+        if (i && (inputs[i].GetWidth() != inputs[0].GetWidth() ||
+                  inputs[i].GetHeight() != inputs[0].GetHeight() ||
+                  inputs[i].GetBitsPerSample() != inputs[0].GetBitsPerSample() ||
+                  inputs[i].GetPhoto() != inputs[0].GetPhoto() ||
+                  inputs[i].GetXRes() != inputs[0].GetXRes() ||
+                  inputs[i].GetYRes() != inputs[0].GetYRes() ||
+                  inputs[i].GetResolutionUnit() != inputs[0].GetResolutionUnit()))
             return 0;
-        if (infiles[i].GetPhoto() == PHOTOMETRIC_PALETTE)
-            return 0;
-
-        // --- Gate 4: Format consistency (tool lines 177-185) ---
-        if (i > 0) {
-            if (infiles[i].GetWidth() != infiles[0].GetWidth() ||
-                infiles[i].GetHeight() != infiles[0].GetHeight() ||
-                infiles[i].GetBitsPerSample() != infiles[0].GetBitsPerSample() ||
-                infiles[i].GetPhoto() != infiles[0].GetPhoto() ||
-                fabsf(infiles[i].GetXRes() - infiles[0].GetXRes()) > 0.001f ||
-                fabsf(infiles[i].GetYRes() - infiles[0].GetYRes()) > 0.001f)
-                return 0;
-        }
     }
 
-    // --- Gate 5: Photometric validation (tool lines 196-202) ---
-    CTiffImg *f = &infiles[0];
+    CTiffImg *first = &inputs[0];
     bool invert = false;
-    if (f->GetPhoto() == PHOTO_MINISWHITE)
+    if (first->GetPhoto() == PHOTO_MINISWHITE)
         invert = true;
-    else if (f->GetPhoto() != PHOTO_MINISBLACK)
+    else if (first->GetPhoto() != PHOTO_MINISBLACK)
         return 0;
 
-    // OOM guard: reject huge dimensions from malformed TIFFs
-    if (f->GetWidth() > 4096 || f->GetHeight() > 4096)
+    if (invert && first->GetSampleFormat() == SAMPLEFORMAT_IEEEFP)
+        return 0;
+    if (!first->GetBitsPerSample() || first->GetBitsPerSample() % 8)
         return 0;
 
-    // --- Gate 6: BPS validation + buffer allocation (tool lines 204-210) ---
-    // CFL-015: BPS must be byte-aligned; truncation (e.g. 14/8=1) undersizes
-    // output buffer -> HBO in CTiffImg::WriteLine via TIFFWriteEncodedStrip.
-    if (f->GetBitsPerSample() % 8 != 0 || f->GetBitsPerSample() == 0)
-        return 0;
-    long bytePerLine = f->GetBytesPerLine();
-    long bps_img = f->GetBitsPerSample() / 8;
-    if (bytePerLine <= 0 || bps_img <= 0)
-        return 0;
-
-    // OOM guard: cap per-line buffers and total TIFF write work.
-    size_t inBufSize = 0;
-    size_t outBufSize = 0;
-    if (!checked_mul_size((size_t)bytePerLine, (size_t)nFiles, inBufSize) ||
-        !checked_mul_size((size_t)f->GetWidth(), (size_t)bps_img, outBufSize) ||
-        !checked_mul_size(outBufSize, (size_t)nFiles, outBufSize))
-        return 0;
-    if (inBufSize > 2 * 1024 * 1024 || outBufSize > 2 * 1024 * 1024)
+    const size_t bytes_per_line = first->GetBytesPerLine();
+    const size_t bytes_per_sample = first->GetBitsPerSample() / 8;
+    size_t input_size = 0;
+    size_t output_width_size = 0;
+    size_t output_size = 0;
+    size_t total_output_size = 0;
+    if (!bytes_per_line || !bytes_per_sample ||
+        !checked_mul_size(bytes_per_line, count, input_size) ||
+        !checked_mul_size(first->GetWidth(), bytes_per_sample,
+                          output_width_size) ||
+        !checked_mul_size(output_width_size, count, output_size) ||
+        !checked_mul_size(output_size, first->GetHeight(), total_output_size) ||
+        input_size > 2u * 1024u * 1024u ||
+        output_size > 2u * 1024u * 1024u ||
+        total_output_size > 128u * 1024u * 1024u)
         return 0;
 
-    size_t totalOutputBytes = 0;
-    if (!checked_mul_size(outBufSize, (size_t)f->GetHeight(), totalOutputBytes) ||
-        totalOutputBytes > 128 * 1024 * 1024)
+    std::unique_ptr<icUInt8Number[]> input_buffer(
+        new (std::nothrow) icUInt8Number[input_size]);
+    std::unique_ptr<icUInt8Number[]> output_buffer(
+        new (std::nothrow) icUInt8Number[output_size]);
+    if (!input_buffer || !output_buffer)
         return 0;
 
-    std::unique_ptr<icUInt8Number[]> inbuffer(
-        new (std::nothrow) icUInt8Number[inBufSize]);
-    std::unique_ptr<icUInt8Number[]> outbuffer(
-        new (std::nothrow) icUInt8Number[outBufSize]);
-    if (!inbuffer || !outbuffer)
+    if (parsed.profile.data &&
+        !profile_matches_samples(parsed.profile.data, parsed.profile.size, count))
         return 0;
 
-    icUInt8Number *inbuf = inbuffer.get();
-    icUInt8Number *outbuf = outbuffer.get();
-
-    // --- Gate 7: Resolution defaults (tool lines 212-218) ---
-    float xRes = f->GetXRes();
-    float yRes = f->GetYRes();
-    if (xRes < 1) xRes = 72;
-    if (yRes < 1) yRes = 72;
-
-    // --- Gate 8: Create output TIFF (tool lines 220-225) ---
-    CTiffImg outimg;
-    if (!outimg.Create(outPath, f->GetWidth(), f->GetHeight(),
-                       f->GetBitsPerSample(), PHOTO_MINISBLACK, nFiles, 0,
-                       xRes, yRes, bCompress, bSep))
-        return 0;
-
-    // --- Gate 9: Optional ICC profile embedding (tool lines 229-238) ---
-    // Tool reads raw ICC bytes via CIccFileIO.Open() + Read8(), then
-    // calls outfile.SetIccProfile(). This exercises IccIO.cpp paths.
-    std::unique_ptr<unsigned char[]> destProfile;
-    if (hasICC && iccData && iccSize > 0) {
-        // Write ICC data to a temp file, then read via CIccFileIO
-        // (matches tool lines 229-237 exactly)
-        if (tmp.add(tmpdir, "/fuzz_icc_XXXXXX") && tmp.writeLast(iccData, iccSize)) {
-            CIccFileIO io;
-            if (io.Open(tmp.paths[tmp.count - 1], "rb")) {
-                size_t length = io.GetLength();
-                if (length > 0 && length <= 256 * 1024) {
-                    destProfile.reset(new (std::nothrow) unsigned char[length]);
-                    if (destProfile) {
-                        io.Read8(destProfile.get(), (icInt32Number)length);
-                        outimg.SetIccProfile(destProfile.get(), (unsigned int)length);
-                    }
-                }
-                io.Close();
-            }
-        }
+    std::unique_ptr<unsigned char[]> profile_buffer;
+    if (parsed.profile.data) {
+        profile_buffer.reset(new (std::nothrow) unsigned char[parsed.profile.size]);
+        if (!profile_buffer)
+            return 0;
+        memcpy(profile_buffer.get(), parsed.profile.data, parsed.profile.size);
     }
 
-    // --- Gate 10: Scanline loop (tool lines 240-263) ---
-    for (unsigned int i = 0; i < f->GetHeight(); i++) {
-        bool readOk = true;
-        for (uint8_t j = 0; j < nFiles; j++) {
-            icUInt8Number *sptr = inbuf + j * bytePerLine;
+    float x_res = first->GetXRes();
+    float y_res = first->GetYRes();
+    if (x_res < 1)
+        x_res = 72;
+    if (y_res < 1)
+        y_res = 72;
 
-            // Tool line 244: ReadLine per file
-            if (!infiles[j].ReadLine(sptr)) {
-                readOk = false;
-                break;
-            }
+    CTiffImg output;
+    const unsigned int extra_samples = count > 1 ? (unsigned int)count - 1 : 0;
+    if (!output.Create(out_path, first->GetWidth(), first->GetHeight(),
+                       first->GetBitsPerSample(), PHOTO_MINISBLACK,
+                       (unsigned int)count, extra_samples, x_res, y_res,
+                       parsed.compress, parsed.separate,
+                       first->GetResolutionUnit(), parsed.tile_width,
+                       parsed.tile_height, parsed.big_tiff))
+        return 0;
 
-            // Tool lines 248-252: MINISWHITE inversion
+    if (profile_buffer &&
+        !output.SetIccProfile(profile_buffer.get(),
+                              (unsigned int)parsed.profile.size))
+        return 0;
+
+    icUInt8Number *input_line = input_buffer.get();
+    icUInt8Number *output_line = output_buffer.get();
+    for (unsigned int row = 0; row < first->GetHeight(); row++) {
+        for (size_t channel = 0; channel < count; channel++) {
+            icUInt8Number *source = input_line + channel * bytes_per_line;
+            if (!inputs[channel].ReadLine(source))
+                return 0;
             if (invert) {
-                for (long k = 0; k < bytePerLine; k++)
-                    sptr[k] ^= 0xff;
-            }
-        }
-        if (!readOk) break;
-
-        // Tool lines 254-261: Interleave planar -> pixel-interleaved
-        icUInt8Number *tptr = outbuf;
-        for (unsigned int k = 0; k < f->GetWidth(); k++) {
-            for (uint8_t j = 0; j < nFiles; j++) {
-                icUInt8Number *sptr = inbuf + j * bytePerLine + k * bps_img;
-                memcpy(tptr, sptr, bps_img);
-                tptr += bps_img;
+                for (size_t i = 0; i < bytes_per_line; i++)
+                    source[i] ^= 0xff;
             }
         }
 
-        // Tool line 262: Write interleaved scanline
-        if (!outimg.WriteLine(outbuf))
-            break;
+        icUInt8Number *destination = output_line;
+        for (unsigned int column = 0; column < first->GetWidth(); column++) {
+            for (size_t channel = 0; channel < count; channel++) {
+                const icUInt8Number *source =
+                    input_line + channel * bytes_per_line +
+                    column * bytes_per_sample;
+                memcpy(destination, source, bytes_per_sample);
+                destination += bytes_per_sample;
+            }
+        }
+
+        if (!output.WriteLine(output_line))
+            return 0;
     }
 
-    // Tool line 266: Close before buffer destruction
-    outimg.Close();
+    if (!output.Close())
+        return 0;
 
     return 0;
 }
