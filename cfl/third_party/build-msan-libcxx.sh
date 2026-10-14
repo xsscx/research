@@ -9,8 +9,8 @@ BUILD_DIR="$SCRIPT_DIR/build-msan-libcxx"
 PREFIX="$SCRIPT_DIR/install-msan-libcxx"
 LLVM_VERSION="llvmorg-22.1.2"
 LLVM_COMMIT="1ab49a973e210e97d61e5db6557180dcb92c3e98"
-CC_BIN="${CC:-clang-22}"
-CXX_BIN="${CXX:-clang++-22}"
+CC_BIN="${CC:-clang}"
+CXX_BIN="${CXX:-clang++}"
 JOBS="${CFL_BUILD_JOBS:-$(nproc 2>/dev/null || echo 4)}"
 SOURCE="$SOURCE_DIR/llvm-project"
 FUZZER_BUILD_DIR="$BUILD_DIR/libfuzzer"
@@ -22,12 +22,6 @@ for tool in "$CC_BIN" "$CXX_BIN" ar cmake git ninja; do
     exit 1
   fi
 done
-
-compiler_major="$($CXX_BIN --version | sed -n '1s/.*version \([0-9][0-9]*\).*/\1/p')"
-if [[ "$compiler_major" != "22" ]]; then
-  echo "[FAIL] ERROR: the pinned MSan libc++ runtime requires Clang 22; found $($CXX_BIN --version | head -1)" >&2
-  exit 1
-fi
 
 mkdir -p "$SOURCE_DIR"
 if [[ ! -d "$SOURCE/.git" ]]; then

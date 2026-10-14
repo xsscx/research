@@ -10,7 +10,7 @@ Use `cfl/fuzzers.sh` as the source of truth for the current fuzzer list.
 
 ## Fast Path
 
-The default CFL toolchain is `clang-22`/`clang++-22`. Set `CC` and `CXX` only
+The default CFL toolchain is the system `clang`/`clang++`. Set `CC` and `CXX` only
 for an explicit compatibility experiment with another matching Clang runtime.
 
 ```bash

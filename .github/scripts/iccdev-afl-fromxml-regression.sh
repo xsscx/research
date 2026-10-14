@@ -16,8 +16,8 @@ OUT_ICC="${OUT_ICC:-$WORK_ROOT/out.icc}"
 REPORT_FILE="${REPORT_FILE:-$WORK_ROOT/transaction.md}"
 ISSUE_URL="${ISSUE_URL:-https://github.com/InternationalColorConsortium/iccDEV/issues/1851}"
 
-CC_BIN="${CC:-clang-18}"
-CXX_BIN="${CXX:-clang++-18}"
+CC_BIN="${CC:-clang}"
+CXX_BIN="${CXX:-clang++}"
 
 if [ ! -r "$POC_XML" ]; then
   echo "[FAIL] PoC XML not found: $POC_XML" >&2
@@ -28,7 +28,7 @@ if [ ! -r "$PATCH_FILE" ]; then
   exit 1
 fi
 if ! command -v "$CC_BIN" >/dev/null 2>&1 || ! command -v "$CXX_BIN" >/dev/null 2>&1; then
-  echo "[FAIL] clang-18 and clang++-18 are required" >&2
+  echo "[FAIL] clang and clang++ are required" >&2
   exit 1
 fi
 

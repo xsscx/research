@@ -9,7 +9,7 @@ BUILD_DIR="$SCRIPT_DIR/build-msan-libxml2"
 PREFIX="$SCRIPT_DIR/install-msan-libxml2"
 LIBXML2_VERSION="v2.15.2"
 LIBXML2_COMMIT="3d840e17858de03a09fba8b202e3a89267d5795a"
-CC_BIN="${CC:-clang-22}"
+CC_BIN="${CC:-clang}"
 JOBS="${CFL_BUILD_JOBS:-$(nproc 2>/dev/null || echo 4)}"
 SOURCE="$SOURCE_DIR/libxml2"
 ARCHIVE="$PREFIX/lib/libxml2.a"
@@ -20,12 +20,6 @@ for tool in "$CC_BIN" ar cmake git ninja; do
     exit 1
   fi
 done
-
-compiler_major="$($CC_BIN --version | sed -n '1s/.*version \([0-9][0-9]*\).*/\1/p')"
-if [[ "$compiler_major" != "22" ]]; then
-  echo "[FAIL] ERROR: pinned MSan libxml2 requires Clang 22; found $($CC_BIN --version | head -1)" >&2
-  exit 1
-fi
 
 mkdir -p "$SOURCE_DIR"
 if [[ ! -d "$SOURCE/.git" ]]; then

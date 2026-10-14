@@ -296,17 +296,17 @@ select_afl_wrappers() {
 }
 
 select_afl_toolchain() {
-    AFL_CC_BACKEND="$(first_tool clang-21 || true)"
-    AFL_CXX_BACKEND="$(first_tool clang++-21 || true)"
+    AFL_CC_BACKEND="$(first_tool clang || true)"
+    AFL_CXX_BACKEND="$(first_tool clang++ || true)"
     if [[ -z "$AFL_CC_BACKEND" || -z "$AFL_CXX_BACKEND" ]]; then
-        echo "ERROR: clang-21 and clang++-21 are required for AFL builds" >&2
+        echo "ERROR: clang and clang++ are required for AFL builds" >&2
         return 1
     fi
-    AFL_LLVM_AR="$(first_tool llvm-ar-21 || true)"
-    AFL_LLVM_RANLIB="$(first_tool llvm-ranlib-21 || true)"
-    AFL_LLVM_NM="$(first_tool llvm-nm-21 || true)"
+    AFL_LLVM_AR="$(first_tool llvm-ar || true)"
+    AFL_LLVM_RANLIB="$(first_tool llvm-ranlib || true)"
+    AFL_LLVM_NM="$(first_tool llvm-nm || true)"
     if [[ -z "$AFL_LLVM_AR" || -z "$AFL_LLVM_RANLIB" || -z "$AFL_LLVM_NM" ]]; then
-        echo "ERROR: llvm-ar-21, llvm-ranlib-21, and llvm-nm-21 are required for AFL LTO builds" >&2
+        echo "ERROR: llvm-ar, llvm-ranlib, and llvm-nm are required for AFL LTO builds" >&2
         return 1
     fi
 
@@ -371,8 +371,8 @@ fi
 AFL_CLANG_FAST_BIN=""
 AFL_CLANG_FASTXX_BIN=""
 if ! select_afl_toolchain; then
-    echo "ERROR: no AFL++ ${AFL_REQUIRED_VERSION} afl-clang-fast wrapper can compile with clang-21" >&2
-    echo "       Run ./afl/build-afl-runtime.sh or set AFL_CLANG_FAST/AFL_CLANG_FASTXX to AFL++ ${AFL_REQUIRED_VERSION} LLVM 21 wrappers." >&2
+    echo "ERROR: no AFL++ ${AFL_REQUIRED_VERSION} afl-clang-fast wrapper can compile with clang" >&2
+    echo "       Run ./afl/build-afl-runtime.sh or set AFL_CLANG_FAST/AFL_CLANG_FASTXX to compatible AFL++ wrappers." >&2
     exit 1
 fi
 

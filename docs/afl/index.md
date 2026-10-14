@@ -345,13 +345,13 @@ workers with different explore/exploit strategy and power-schedule pairs. Use
 
 ## Coverage and Reachability Toolchain
 
-`afl/build.sh` requires `clang-21`/`clang++-21` and AFL++ wrappers built against
-LLVM 21. Run `afl/build-afl-runtime.sh` to reproduce the pinned runtime. On
-Ubuntu 26.04 its prerequisites include `clang-21`, `llvm-21-tools`,
-`llvm-21-dev`, `lld-21`, `libclang-rt-21-dev`, and `gcc-15-plugin-dev`.
+`afl/build.sh` uses the system `clang`/`clang++` and compatible AFL++ wrappers.
+Run `afl/build-afl-runtime.sh` to reproduce the pinned runtime. On Ubuntu 26.04
+its prerequisites include `clang`, `llvm-tools`, `llvm-dev`, `lld`,
+`libclang-rt-dev`, and `gcc-15-plugin-dev`.
 
-For source coverage, `afl/coverage.sh` selects `clang-21`/`clang++-21` and
-`cov-analysis` then uses the matching `llvm-profdata-21` and `llvm-cov-21`.
+For source coverage, `afl/coverage.sh` selects the system `clang`/`clang++` and
+`cov-analysis` then uses matching LLVM coverage tools.
 Override with `AFL_COVERAGE_CC` and `AFL_COVERAGE_CXX` only when
 running a compatibility experiment or reproducing a report from another LLVM
 major.

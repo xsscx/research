@@ -9,8 +9,8 @@
 #         ./build.sh --sanitizer memory
 #         ./build.sh --sanitizer thread
 #
-# Requirements: clang-22/clang++-22, cmake 3.18+, ninja, git, libheif-dev,
-#               libxml2-dev, libtiff-dev, zlib, libclang-rt-22-dev
+# Requirements: clang/clang++, cmake 3.18+, ninja, git, libheif-dev,
+#               libxml2-dev, libtiff-dev, zlib, libclang-rt-dev
 
 set -euo pipefail
 
@@ -22,8 +22,11 @@ PROFRAW_DIR="$SCRIPT_DIR/profraw"
 PATCH_DIR="$SCRIPT_DIR/patches"
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
-CC="${CC:-clang-22}"
-CXX="${CXX:-clang++-22}"
+CC="${CC:-clang}"
+CXX="${CXX:-clang++}"
+AR_BIN="${AR:-llvm-ar}"
+RANLIB_BIN="${RANLIB:-llvm-ranlib}"
+NM_BIN="${NM:-llvm-nm}"
 WITH_PATCHES="${CFL_WITH_PATCHES:-0}"
 REFRESH_ICCDEV="${CFL_REFRESH_ICCDEV:-0}"
 KEEP_ICCDEV="${CFL_KEEP_ICCDEV:-0}"
@@ -329,7 +332,7 @@ if [[ "$SANITIZER_MODE" == "memory" ]]; then
   AFL_THIRD_PARTY_SANITIZER=memory \
   AFL_THIRD_PARTY_SKIP_LIBCXX=1 \
   AFL_THIRD_PARTY_JOBS="$NPROC" \
-  CC="$CC" CXX="$CXX" AR=llvm-ar-22 RANLIB=llvm-ranlib-22 NM=llvm-nm-22 \
+  CC="$CC" CXX="$CXX" AR="$AR_BIN" RANLIB="$RANLIB_BIN" NM="$NM_BIN" \
     "$SCRIPT_DIR/../afl/third_party/build.sh"
   if [[ ! -f "$MSAN_LIBCXX_PREFIX/lib/libc++.a" ||
         ! -f "$MSAN_LIBCXX_PREFIX/lib/libclang_rt.fuzzer.a" ]]; then

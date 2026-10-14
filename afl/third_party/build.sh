@@ -21,11 +21,11 @@ elif [[ $# -gt 0 ]]; then
     exit 2
 fi
 
-CC_BIN="${CC:-clang-21}"
-CXX_BIN="${CXX:-clang++-21}"
-AR_BIN="${AR:-llvm-ar-21}"
-RANLIB_BIN="${RANLIB:-llvm-ranlib-21}"
-NM_BIN="${NM:-llvm-nm-21}"
+CC_BIN="${CC:-clang}"
+CXX_BIN="${CXX:-clang++}"
+AR_BIN="${AR:-llvm-ar}"
+RANLIB_BIN="${RANLIB:-llvm-ranlib}"
+NM_BIN="${NM:-llvm-nm}"
 SANITIZER_MODE="${AFL_THIRD_PARTY_SANITIZER:-address}"
 SKIP_MSAN_LIBCXX="${AFL_THIRD_PARTY_SKIP_LIBCXX:-0}"
 unset AFL_THIRD_PARTY_SANITIZER
@@ -126,8 +126,8 @@ build_msan_libcxx() {
     local ar_bin
     local ranlib_bin
 
-    backend_cc="$(command -v "${AFL_CC:-clang-21}")"
-    backend_cxx="$(command -v "${AFL_CXX:-clang++-21}")"
+    backend_cc="$(command -v "${AFL_CC:-clang}")"
+    backend_cxx="$(command -v "${AFL_CXX:-clang++}")"
     ar_bin="$(command -v "$AR_BIN")"
     ranlib_bin="$(command -v "$RANLIB_BIN")"
 

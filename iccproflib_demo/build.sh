@@ -4,7 +4,7 @@
 # Usage:  cd iccproflib_demo && ./build.sh
 #
 # Prerequisites:
-#   - clang++ 18 (or g++)
+#   - clang++ (or g++)
 #   - iccDEV built at ../iccDEV/Build/ (static library + headers)
 #
 set -euo pipefail
@@ -52,14 +52,12 @@ fi
 # ── Choose compiler ──────────────────────────────────────────────────
 CXX="${CXX:-}"
 if [ -z "$CXX" ]; then
-    if command -v clang++-18 &>/dev/null; then
-        CXX="clang++-18"
-    elif command -v clang++ &>/dev/null; then
+    if command -v clang++ &>/dev/null; then
         CXX="clang++"
     elif command -v g++ &>/dev/null; then
         CXX="g++"
     else
-        echo "ERROR: No C++ compiler found (tried clang++-18, clang++, g++)"
+        echo "ERROR: No C++ compiler found (tried clang++, g++)"
         exit 1
     fi
 fi

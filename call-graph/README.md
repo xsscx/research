@@ -85,10 +85,10 @@ rerendered the complete SVG set successfully.
 
 ## Method
 
-1. **AST**: `clang++-18 -Xclang -ast-dump=json -fsyntax-only` extracts function declarations,
+1. **AST**: `clang++ -Xclang -ast-dump=json -fsyntax-only` extracts function declarations,
    class hierarchies, and method signatures from each source file.
-2. **Call Graph**: `clang++-18 -S -emit-llvm` compiles to LLVM IR, then
-   `opt-18 -passes=dot-callgraph` extracts caller->callee edges as DOT.
+2. **Call Graph**: `clang++ -S -emit-llvm` compiles to LLVM IR, then
+   `opt -passes=dot-callgraph` extracts caller->callee edges as DOT.
 3. **Rendering**: Graphviz `dot -Tsvg` produces SVG visualizations.
 4. **Demangling**: `c++filt` converts LLVM mangled names to human-readable C++.
 
@@ -97,8 +97,9 @@ call sites from source directly.
 
 ## Requirements
 
-- `clang-18` / `clang++-18` - LLVM IR and AST generation
-- `opt-18` - LLVM call graph pass
+- `clang` / `clang++` - LLVM IR and AST generation
+- `opt` - LLVM call graph pass; the generator selects the installed `opt` that
+  matches `clang++`, unless `OPT` overrides it
 - `dot` (Graphviz) - SVG rendering
 - `c++filt` - name demangling
 

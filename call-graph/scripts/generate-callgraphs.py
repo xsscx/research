@@ -10,8 +10,8 @@ Generates LLVM-based call graphs and Clang AST dumps for all project components:
   - iccanalyzer-lite (24 source files)
 
 Uses:
-  - clang-18 -emit-llvm -> opt-18 -dot-callgraph (LLVM call graphs)
-  - clang-18 -ast-dump=json                        (Clang AST)
+  - clang -emit-llvm -> opt -dot-callgraph (LLVM call graphs)
+  - clang -ast-dump=json                    (Clang AST)
   - Graphviz dot -> SVG/PNG                       (visualization)
 
 Usage:
@@ -44,9 +44,27 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 CALL_GRAPH_DIR = REPO_ROOT / "call-graph"
-CLANG = "clang-18"
-CLANGXX = "clang++-18"
-OPT = "opt-18"
+CLANG = os.environ.get("CLANG", "clang")
+CLANGXX = os.environ.get("CXX", "clang++")
+
+
+def find_matching_opt(compiler: str) -> str:
+    """Prefer the opt binary for the selected Clang major version."""
+    try:
+        result = subprocess.run(
+            [compiler, "--version"], capture_output=True, text=True, check=False
+        )
+    except FileNotFoundError:
+        return "opt"
+    match = re.search(r"(?:clang|LLVM) version (\d+)", result.stdout + result.stderr)
+    if match:
+        matching_opt = shutil.which(f"opt-{match.group(1)}")
+        if matching_opt:
+            return matching_opt
+    return "opt"
+
+
+OPT = os.environ.get("OPT") or find_matching_opt(CLANGXX)
 DOT = "dot"
 
 ICCDEV_ROOT = REPO_ROOT / "iccDEV"
@@ -505,7 +523,7 @@ def generate_llvm_callgraph(target: SourceTarget, output_dir: Path) -> Dict:
                 cwd=str(output_dir)
             )
 
-            # opt-18 writes "{ir_filename}.callgraph.dot" in CWD
+            # opt writes "{ir_filename}.callgraph.dot" in CWD
             expected_dot = output_dir / f"{src_name}.ll.callgraph.dot"
             if expected_dot.exists():
                 final_dot = output_dir / f"{src_name}-callgraph.dot"

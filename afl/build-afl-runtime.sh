@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the pinned AFL++ runtime with a configurable large-input ceiling and LLVM 21.
+# Build the pinned AFL++ runtime with a configurable large-input ceiling.
 
 set -euo pipefail
 
@@ -7,7 +7,7 @@ AFL_COMMIT="f5658bc20962a2556d98ecb21bc269b77d1fa845"
 AFL_MAX_FILE_BYTES="${AFL_MAX_FILE_BYTES:-67108864}"
 AFL_REPOSITORY="https://github.com/AFLplusplus/AFLplusplus.git"
 AFL_SOURCE_DIR="${AFL_RUNTIME_SOURCE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/aflplusplus-stable}"
-LLVM_CONFIG_BIN="${LLVM_CONFIG:-llvm-config-21}"
+LLVM_CONFIG_BIN="${LLVM_CONFIG:-llvm-config}"
 INSTALL_PREFIX="${PREFIX:-/usr/local}"
 JOBS="${JOBS:-32}"
 export -n AFL_RUNTIME_SOURCE_DIR 2>/dev/null || true
@@ -17,11 +17,11 @@ if [[ ! "$AFL_MAX_FILE_BYTES" =~ ^[0-9]+$ || "$AFL_MAX_FILE_BYTES" -lt 4194304 ]
     exit 1
 fi
 
-for tool in git make perl "$LLVM_CONFIG_BIN" clang-21 clang++-21 gcc-15; do
+for tool in git make perl "$LLVM_CONFIG_BIN" clang clang++ gcc-15; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "ERROR: Required build tool not found: $tool" >&2
-        echo "Install build-essential clang-21 llvm-21-dev llvm-21-tools lld-21" >&2
-        echo "libclang-rt-21-dev gcc-15-plugin-dev libpython3-dev zlib1g-dev." >&2
+        echo "Install build-essential clang llvm-dev llvm-tools lld" >&2
+        echo "libclang-rt-dev gcc-15-plugin-dev libpython3-dev zlib1g-dev." >&2
         exit 1
     fi
 done

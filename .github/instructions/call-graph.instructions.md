@@ -77,9 +77,9 @@ noise that makes SVGs unreadable.
 
 ### Method
 
-1. **AST**: `clang++-18 -Xclang -ast-dump=json -fsyntax-only` - function declarations,
+1. **AST**: `clang++ -Xclang -ast-dump=json -fsyntax-only` - function declarations,
    class hierarchies, method signatures
-2. **Call Graph**: `clang++-18 -S -emit-llvm` -> `opt-18 -passes=dot-callgraph` - caller->callee
+2. **Call Graph**: `clang++ -S -emit-llvm` -> `opt -passes=dot-callgraph` - caller->callee
    edges as DOT format
 3. **Demangling**: `c++filt` batch demangling (93%+ success) with regex fallback for
    symbols c++filt cannot handle
@@ -95,8 +95,9 @@ from source directly.
 
 ## Requirements
 
-- `clang-18` / `clang++-18` - LLVM IR and AST generation
-- `opt-18` - LLVM call graph pass
+- `clang` / `clang++` - LLVM IR and AST generation
+- `opt` - LLVM call graph pass; the generator selects the installed `opt` that
+  matches `clang++`, unless `OPT` overrides it
 - `dot` (Graphviz 2.43+) - SVG rendering
 - `c++filt` - C++ name demangling
 - Python 3.10+
@@ -163,7 +164,7 @@ compilation issue and re-run. Common causes:
 ## Common Pitfalls
 
 - **Mangled names in SVGs** - Always run `improve-callgraphs.py` after generation.
-  Raw `opt-18` output uses LLVM IR mangled names that are unreadable.
+  Raw `opt` output uses LLVM IR mangled names that are unreadable.
 - **Stale graphs** - After upstream sync, regenerate to pick up new/changed functions.
   Old call graphs may show deleted functions or miss new call edges.
 - **Missing index.json** - `index.json` is generated and ignored. Summary/report

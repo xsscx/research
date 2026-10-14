@@ -48,18 +48,24 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-for tool in clang-21 clang++-21 llvm-ar-21 llvm-ranlib-21 llvm-nm-21 cmake git; do
+CC_BIN="${CC:-clang}"
+CXX_BIN="${CXX:-clang++}"
+AR_BIN="${AR:-llvm-ar}"
+RANLIB_BIN="${RANLIB:-llvm-ranlib}"
+NM_BIN="${NM:-llvm-nm}"
+
+for tool in "$CC_BIN" "$CXX_BIN" "$AR_BIN" "$RANLIB_BIN" "$NM_BIN" cmake git; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "ERROR: required tool not found: $tool" >&2
         exit 1
     fi
 done
 
-CC_BIN="$(command -v clang-21)"
-CXX_BIN="$(command -v clang++-21)"
-AR_BIN="$(command -v llvm-ar-21)"
-RANLIB_BIN="$(command -v llvm-ranlib-21)"
-NM_BIN="$(command -v llvm-nm-21)"
+CC_BIN="$(command -v "$CC_BIN")"
+CXX_BIN="$(command -v "$CXX_BIN")"
+AR_BIN="$(command -v "$AR_BIN")"
+RANLIB_BIN="$(command -v "$RANLIB_BIN")"
+NM_BIN="$(command -v "$NM_BIN")"
 
 for source_path in IccProfLib IccConnect IccJSON IccXML Tools Build/Cmake; do
     if ! git -C "$ICCDEV_DIR" diff --quiet -- "$source_path" ||
