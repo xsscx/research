@@ -16,15 +16,23 @@ on:
     branches: [main]
     paths:
       - '.github/instructions/cfl.instructions.md'
+      - '.github/scripts/generate-cfl-specsep-seeds.py'
+      - '.github/scripts/generate-heif-coverage-seeds.py'
+      - '.github/scripts/unbundle-fuzzer-input.sh'
       - '.github/scripts/validate-cfl-applynamedcmm.sh'
       - '.github/workflows/iccdev-cfl-regressions.yml'
+      - 'afl/third_party/**'
       - 'cfl/**'
   pull_request:
     branches: [main]
     paths:
       - '.github/instructions/cfl.instructions.md'
+      - '.github/scripts/generate-cfl-specsep-seeds.py'
+      - '.github/scripts/generate-heif-coverage-seeds.py'
+      - '.github/scripts/unbundle-fuzzer-input.sh'
       - '.github/scripts/validate-cfl-applynamedcmm.sh'
       - '.github/workflows/iccdev-cfl-regressions.yml'
+      - 'afl/third_party/**'
       - 'cfl/**'
   workflow_dispatch:
     inputs:
@@ -85,14 +93,20 @@ jobs:
           set -euo pipefail
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          shellcheck cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
+          shellcheck afl/third_party/build.sh \
+            cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
             cfl/test-msan-dependencies.sh cfl/third_party/build-msan-libcxx.sh \
             cfl/third_party/build-msan-libxml2.sh \
+            .github/scripts/unbundle-fuzzer-input.sh \
             .github/scripts/validate-cfl-applynamedcmm.sh
-          bash -n cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
+          bash -n afl/third_party/build.sh \
+            cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
             cfl/test-msan-dependencies.sh cfl/third_party/build-msan-libcxx.sh \
             cfl/third_party/build-msan-libxml2.sh \
+            .github/scripts/unbundle-fuzzer-input.sh \
             .github/scripts/validate-cfl-applynamedcmm.sh
+          grep -Fq -- '-DAVOID_FUZZER_FALSE_POSITIVE=1' \
+            afl/third_party/build.sh
           grep -Fq '3d840e17858de03a09fba8b202e3a89267d5795a' \
             cfl/third_party/build-msan-libxml2.sh
           grep -Fq 'test-msan-dependencies.sh' cfl/build.sh
@@ -147,6 +161,30 @@ jobs:
           unset GITHUB_TOKEN || true
           timeout 120s cfl/bin/icc_profilevisualize_fuzzer \
             -runs=1 test-profiles/sRGB_v4_ICC_preference.icc
+
+      - name: Replay HEIF and SpecSep curated seeds
+        env:
+          BASH_ENV: /dev/null
+          ASAN_OPTIONS: detect_leaks=0,halt_on_error=1,abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1,abort_on_error=1,print_stacktrace=1
+          LLVM_PROFILE_FILE: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          grep -Fq -- '-DAVOID_FUZZER_FALSE_POSITIVE=1' \
+            cfl/third_party/build-heif-address/libheif/CMakeCache.txt
+          source cfl/fuzzers.sh
+          for fuzzer in icc_heifdump_fuzzer icc_specsep_fuzzer; do
+            corpus="/tmp/cfl-${fuzzer}-seeds"
+            mkdir -p "$corpus"
+            cfl_install_curated_seeds "$PWD/cfl" "$fuzzer" "$corpus"
+            configured_max_len="$(cfl_option_max_len "$PWD/cfl" "$fuzzer")"
+            max_len="$(cfl_effective_max_len \
+              "$configured_max_len" "$corpus")"
+            timeout 120s "cfl/bin/$fuzzer" -runs=1 \
+              -max_len="$max_len" "$corpus"
+          done
 
       - name: Replay ApplyNamedCmm curated seeds
         env:

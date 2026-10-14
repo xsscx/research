@@ -69,6 +69,7 @@ esac
 SAN_FLAGS="$SAN_FLAGS${EXTRA_C_FLAGS:+ $EXTRA_C_FLAGS}"
 CXX_SAN_FLAGS="$SAN_FLAGS${EXTRA_CXX_FLAGS:+ $EXTRA_CXX_FLAGS}"
 LINK_SAN_FLAGS="-fsanitize=$SANITIZERS${EXTRA_LINK_FLAGS:+ $EXTRA_LINK_FLAGS}"
+LIBHEIF_FUZZER_COMPAT_FLAG="-DAVOID_FUZZER_FALSE_POSITIVE=1"
 
 for tool in "$CC_BIN" "$CXX_BIN" "$AR_BIN" "$RANLIB_BIN" "$NM_BIN" cmake git; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -208,6 +209,15 @@ configure_build_install() {
     local cached_cc=""
     local cached_cxx=""
     local cached_prefix=""
+    local cxx_flags="$CXX_SAN_FLAGS"
+
+    # libheif enables this definition for its in-tree fuzzers so the integer
+    # sanitizer does not stop on defined unsigned left-shift wraparound. This
+    # build supplies libheif to external AFL/CFL harnesses, so match that
+    # upstream fuzz-build contract even though WITH_FUZZERS remains disabled.
+    if [[ "$name" == "libheif" ]]; then
+        cxx_flags+=" $LIBHEIF_FUZZER_COMPAT_FLAG"
+    fi
 
     requested_cc="$(command -v "$CC_BIN")"
     requested_cxx="$(command -v "$CXX_BIN")"
@@ -235,11 +245,16 @@ configure_build_install() {
         -DCMAKE_NM="$NM_BIN" \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_C_FLAGS="$SAN_FLAGS" \
-        -DCMAKE_CXX_FLAGS="$CXX_SAN_FLAGS" \
+        -DCMAKE_CXX_FLAGS="$cxx_flags" \
         -DCMAKE_EXE_LINKER_FLAGS="$LINK_SAN_FLAGS" \
         -DCMAKE_SHARED_LINKER_FLAGS="$LINK_SAN_FLAGS" \
         -DBUILD_SHARED_LIBS=OFF \
         "$@"
+    if [[ "$name" == "libheif" ]] &&
+       ! grep -Fq -- "$LIBHEIF_FUZZER_COMPAT_FLAG" "$cache"; then
+        echo "[FAIL] libheif CMake cache omitted $LIBHEIF_FUZZER_COMPAT_FLAG" >&2
+        exit 1
+    fi
     echo "[*] Building $name"
     if [[ "$name" == "libheif" ]]; then
         cmake --build "$build" --parallel "$JOBS" --target heif
