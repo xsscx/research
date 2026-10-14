@@ -46,6 +46,7 @@ AFL_TARGETS=(
     fromxml
     fromxml-includes
     fromxml-noid
+    heifdump
     jpegdump
     jpegdump-inject
     pawgreport
@@ -112,6 +113,7 @@ afl_print_targets() {
     echo "  fromxml          - iccFromXml (ICC XML -> binary)"
     echo "  fromxml-includes - iccFromXml (fixed external TXT/XML include tree)"
     echo "  fromxml-noid     - iccFromXml (-noid save policy)"
+    echo "  heifdump         - iccHeifDump (HEIF/HEIC/AVIF -> ICC extraction)"
     echo "  jpegdump         - iccJpegDump (JPEG -> ICC extraction)"
     echo "  jpegdump-inject  - iccJpegDump (--write-icc injection lane)"
     echo "  pawgreport       - iccPawgReport (PAWG profile assessment)"
@@ -886,6 +888,23 @@ afl_configure_target() {
                 TARGET_NOTE="FromXml lane: XML text corpus with dictionary/CmpLog-compatible bounded inputs."
                 AFL_ARGS=("@@" "${tmp_prefix}.icc")
             fi
+            ;;
+        heifdump)
+            BINARY="$BIN_DIR/iccHeifDump"
+            DICT="$REPO_ROOT/cfl/icc_heifdump_fuzzer.dict"
+            SEED_FILE_TYPE_REGEX='^ISO Media, (HEIF|AVIF) Image'
+            SEED_INCLUDE_REGEX='\.([Aa][Vv][Ii][Ff]|[Hh][Ee][Ii][CcFf]|[Hh][Ii][Ff])$'
+            SEED_MAX_BYTES=1048576
+            SEED_LIMIT=200
+            SEED_FIND_MAXDEPTH=2
+            SEED_DRY_RUN_TARGET=1
+            AFL_MAX_LENGTH=1048576
+            SEED_DIRS=(
+                "$REPO_ROOT/afl/iccDEV/.github/ci/tooling/heif/img"
+                "$REPO_ROOT/fuzz/graphics/heic"
+            )
+            TARGET_NOTE="HEIF dump lane: screened HEIF, HEIC, HIF, and AVIF carriers exercise libheif validation, ICC property extraction, and IccProfLib parsing."
+            AFL_ARGS=("@@")
             ;;
         jpegdump|jpegdump-inject)
             BINARY="$BIN_DIR/iccJpegDump"

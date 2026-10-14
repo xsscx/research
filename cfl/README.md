@@ -62,6 +62,7 @@ Current harness areas:
 | CUBE import | `icc_fromcube_fuzzer` |
 | JSON profile import | `icc_fromjson_fuzzer` |
 | XML import | `icc_fromxml_fuzzer` |
+| HEIF/HEIC/AVIF ICC extraction | `icc_heifdump_fuzzer` |
 | JPEG ICC extraction | `icc_jpegdump_fuzzer` |
 | Profile linking | `icc_link_fuzzer` |
 | PAWG report generation | `icc_pawgreport_fuzzer` |
@@ -122,6 +123,11 @@ replay rather than mutation. The runners keep state in `cfl/runs/`,
 `--sanitizer` values with `start.sh`, `status.sh`, and `stop.sh`, or `-s` with
 `fuzz-local.sh`. Omitting the selector chooses the default address build in
 `cfl/bin/`; it does not fall back to `cfl/bin-msan/`.
+
+`icc_heifdump_fuzzer` uses libheif validation in address and thread builds.
+The memory build omits libheif until that dependency has a fully instrumented
+MSan build, while retaining coverage of the tool-owned HEIF property parser
+and the extracted IccProfLib profile path.
 
 The MSan build statically links pinned, instrumented LLVM libc++, zlib,
 libjpeg-turbo, libpng, libtiff, and libxml2. The C dependencies use the shared

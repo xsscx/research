@@ -9,8 +9,8 @@
 #         ./build.sh --sanitizer memory
 #         ./build.sh --sanitizer thread
 #
-# Requirements: clang-22/clang++-22, cmake 3.18+, ninja, git, libxml2-dev,
-#               libtiff-dev, zlib, libclang-rt-22-dev
+# Requirements: clang-22/clang++-22, cmake 3.18+, ninja, git, libheif-dev,
+#               libxml2-dev, libtiff-dev, zlib, libclang-rt-22-dev
 
 set -euo pipefail
 
@@ -88,6 +88,7 @@ INCLUDE_FLAGS="-I$ICCDEV_DIR/IccProfLib -I$ICCDEV_DIR/IccXML/IccLibXML"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccCommon"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccApplyProfiles"
+INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccHeifDump"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccPawgReport"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/Tools/CmdLine/IccProfilePlot"
 INCLUDE_FLAGS="$INCLUDE_FLAGS -I$ICCDEV_DIR/IccConnect/IccLibConnect"
@@ -143,6 +144,10 @@ TIFF_FUZZERS=(
 )
 
 # Media/report fuzzers for ICC-bearing image/report tool surfaces.
+HEIF_FUZZERS=(
+  icc_heifdump_fuzzer
+)
+
 JPEG_FUZZERS=(
   icc_jpegdump_fuzzer
 )
@@ -166,6 +171,8 @@ TIFF_CFLAGS=""
 TIFF_LIBS=""
 PNG_CFLAGS=""
 PNG_LIBS=""
+HEIF_CFLAGS=""
+HEIF_LIBS=""
 ZLIB_LIBS=""
 PAWG_SRC="$ICCDEV_DIR/Tools/CmdLine/IccPawgReport/PawgReport.cpp"
 PAWG_OBJ="$SCRIPT_DIR/.build_tmp/PawgReport.o"
@@ -265,6 +272,10 @@ else
   TIFF_LIBS="$(pkg-config --libs libtiff-4 2>/dev/null || echo '-ltiff')"
   PNG_CFLAGS="$(pkg-config --cflags libpng 2>/dev/null || true)"
   PNG_LIBS="$(pkg-config --libs libpng 2>/dev/null || echo '-lpng')"
+  if pkg-config --exists libheif; then
+    HEIF_CFLAGS="$(pkg-config --cflags libheif)"
+    HEIF_LIBS="$(pkg-config --libs libheif)"
+  fi
   ZLIB_LIBS="$(pkg-config --libs zlib 2>/dev/null || echo '-lz')"
 fi
 INCLUDE_FLAGS="$INCLUDE_FLAGS $XML_CFLAGS"
@@ -515,6 +526,12 @@ build_fuzzer() {
     icc_pngdump_fuzzer)
       CXXFLAGS_THIS+=" $PNG_CFLAGS"
       ;;
+    icc_heifdump_fuzzer)
+      CXXFLAGS_THIS+=" $HEIF_CFLAGS"
+      if [[ -n "$HEIF_LIBS" ]]; then
+        target_defines+=("-DCFL_HAVE_LIBHEIF=1")
+      fi
+      ;;
   esac
   if [[ "$SANITIZER_MODE" == "thread" ]]; then
     extra_sources+=("$SCRIPT_DIR/tsan_corpus_runner.cpp")
@@ -599,6 +616,16 @@ else
   echo "SKIP" >> "$BUILD_RESULTS"
   echo "SKIP" >> "$BUILD_RESULTS"
 fi
+
+echo ""
+echo "HEIF fuzzers:"
+for f in "${HEIF_FUZZERS[@]}"; do
+  # The MSan build intentionally omits libheif until that dependency is built
+  # with MemorySanitizer; the tool-owned carrier parser remains instrumented.
+  # shellcheck disable=SC2086
+  build_fuzzer "$f" $HEIF_LIBS &
+done
+wait
 
 echo ""
 echo "JPEG fuzzers:"

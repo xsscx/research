@@ -34,7 +34,7 @@ if [[ ${#msan_binaries[@]} -eq 0 ]]; then
 fi
 for binary in "${msan_binaries[@]}"; do
   if ldd "$binary" 2>/dev/null |
-     grep -Eq 'libstdc\+\+|libc\+\+|libxml2|libz\.so|libpng|libtiff|libjpeg|libwebp|libzstd|liblzma|libdeflate'; then
+     grep -Eq 'libstdc\+\+|libc\+\+|libheif|libxml2|libz\.so|libpng|libtiff|libjpeg|libwebp|libzstd|liblzma|libdeflate'; then
     echo "[FAIL] MSan fuzzer loads an uninstrumented shared dependency: $binary" >&2
     ldd "$binary" >&2
     exit 1

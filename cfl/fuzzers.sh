@@ -13,6 +13,7 @@ CFL_FUZZERS=(
   icc_fromcube_fuzzer
   icc_fromjson_fuzzer
   icc_fromxml_fuzzer
+  icc_heifdump_fuzzer
   icc_jpegdump_fuzzer
   icc_link_fuzzer
   icc_pawgreport_fuzzer
@@ -56,6 +57,7 @@ cfl_normalize_fuzzer() {
     cube|fromcube) name="icc_fromcube_fuzzer" ;;
     json|fromjson) name="icc_fromjson_fuzzer" ;;
     fromxml) name="icc_fromxml_fuzzer" ;;
+    heif|heic|avif|heifdump) name="icc_heifdump_fuzzer" ;;
     jpeg|jpegdump) name="icc_jpegdump_fuzzer" ;;
     link) name="icc_link_fuzzer" ;;
     pawg|pawgreport) name="icc_pawgreport_fuzzer" ;;
@@ -118,7 +120,7 @@ cfl_corpus_dir() {
   local candidate
 
   case "$fuzzer" in
-    icc_connect_fuzzer|icc_fromjson_fuzzer|icc_tojson_fuzzer)
+    icc_connect_fuzzer|icc_fromjson_fuzzer|icc_heifdump_fuzzer|icc_tojson_fuzzer)
       for candidate in \
         "$script_dir/corpus-$fuzzer" \
         "$script_dir/${fuzzer}_seed_corpus"; do
@@ -230,6 +232,18 @@ cfl_install_curated_seeds() {
   local version_major
 
   case "$fuzzer" in
+    icc_heifdump_fuzzer)
+      for seed_dir in \
+        "$script_dir/iccDEV/.github/ci/tooling/heif/img" \
+        "$script_dir/../fuzz/graphics/heic"; do
+        [[ -d "$seed_dir" ]] || continue
+        while IFS= read -r -d '' seed; do
+          cp "$seed" "$corpus_dir/$(basename "$seed")"
+        done < <(find "$seed_dir" -maxdepth 1 -type f \
+          \( -iname '*.heic' -o -iname '*.heif' -o -iname '*.hif' -o -iname '*.avif' \) \
+          -print0)
+      done
+      ;;
     icc_applysearch_fuzzer)
       seed="$script_dir/../test-profiles/sRGB_D65_MAT.icc"
       [[ -f "$seed" ]] && cp "$seed" "$corpus_dir/$(basename "$seed")"
@@ -442,6 +456,9 @@ cfl_tool_command() {
       ;;
     icc_fromxml_fuzzer)
       printf 'iccFromXml %s /tmp/cfl-fromxml-out.icc [-noid|-v=SampleIccRELAX.rng]\n' "$artifact"
+      ;;
+    icc_heifdump_fuzzer)
+      printf 'iccHeifDump %s\n' "$artifact"
       ;;
     icc_jpegdump_fuzzer)
       printf 'iccJpegDump %s /tmp/cfl-jpegdump.icc\n' "$artifact"

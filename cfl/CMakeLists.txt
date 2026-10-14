@@ -17,6 +17,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ${CMAKE_SOURCE_DIR}/../../IccXML/IccLibXML
     ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccCommon
     ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccApplyProfiles
+    ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccHeifDump
     ${CMAKE_SOURCE_DIR}/../../Tools/CmdLine/IccProfilePlot
     ${CMAKE_SOURCE_DIR}/../../IccConnect/IccLibConnect
     ${CMAKE_SOURCE_DIR}/../../IccJSON/IccLibJSON
@@ -221,6 +222,22 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_link_libraries(icc_tiffdump_fuzzer IccProfLib2 ${TIFF_LIBRARIES})
   endif()
 
+  # HEIF ICC-property extraction. The tool-owned parser is always covered;
+  # libheif validation is added when the optional native dependency is present.
+  add_executable(icc_heifdump_fuzzer icc_heifdump_fuzzer.cpp)
+  target_compile_options(icc_heifdump_fuzzer PRIVATE ${FUZZER_COMPILE_FLAGS})
+  target_link_options(icc_heifdump_fuzzer PRIVATE ${FUZZER_LINK_FLAGS})
+  target_include_directories(icc_heifdump_fuzzer PRIVATE ${FUZZER_INCLUDES})
+  target_link_libraries(icc_heifdump_fuzzer IccProfLib2)
+  find_package(PkgConfig QUIET)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(CFL_HEIF QUIET IMPORTED_TARGET libheif)
+  endif()
+  if(TARGET PkgConfig::CFL_HEIF)
+    target_compile_definitions(icc_heifdump_fuzzer PRIVATE CFL_HAVE_LIBHEIF=1)
+    target_link_libraries(icc_heifdump_fuzzer PkgConfig::CFL_HEIF)
+  endif()
+
   message(STATUS "Fuzzing harnesses configured:")
   message(STATUS "  Core: proflib, v5dspobs, roundtrip, dump, link, fromcube, profilevisualize (7)")
   message(STATUS "  Apply: applynamedcmm, applyprofiles, applyprofiles-row, applysearch, applysearch-weight (5)")
@@ -237,6 +254,7 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   if(TIFF_FOUND)
     message(STATUS "  TIFF: specsep, tiffdump (2)")
   endif()
+  message(STATUS "  HEIF: heifdump")
 else()
   message(STATUS "Fuzzing disabled (requires Clang and -DENABLE_FUZZING=ON)")
 endif()
