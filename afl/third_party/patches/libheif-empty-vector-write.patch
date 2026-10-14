@@ -1,0 +1,10 @@
+diff --git a/libheif/bitstream.cc b/libheif/bitstream.cc
+index 4ac2805..542604c 100644
+--- a/libheif/bitstream.cc
++++ b/libheif/bitstream.cc
+@@ -943,2 +943,4 @@ void StreamWriter::write(const std::vector<uint8_t>& vec)
+-  memcpy(m_data.data() + m_position, vec.data(), vec.size());
++  if (!vec.empty()) {
++    memcpy(m_data.data() + m_position, vec.data(), vec.size());
++  }
+   m_position += vec.size();

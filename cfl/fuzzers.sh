@@ -279,6 +279,7 @@ cfl_install_curated_seeds() {
 
   case "$fuzzer" in
     icc_heifdump_fuzzer)
+      "$script_dir/../.github/scripts/generate-heif-coverage-seeds.py" "$corpus_dir"
       for seed_dir in \
         "$script_dir/iccDEV/.github/ci/tooling/heif/img" \
         "$script_dir/../fuzz/graphics/heic"; do

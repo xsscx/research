@@ -9,15 +9,16 @@ DEPS_PREFIX="$SCRIPT_DIR/third_party/install-msan-deps"
 FROMXML="$BIN_DIR/icc_fromxml_fuzzer"
 TOXML="$BIN_DIR/icc_toxml_fuzzer"
 APPLYPROFILES_ROW="$BIN_DIR/icc_applyprofiles_row_fuzzer"
+HEIFDUMP="$BIN_DIR/icc_heifdump_fuzzer"
 
-for path in "$FROMXML" "$TOXML" "$APPLYPROFILES_ROW"; do
+for path in "$FROMXML" "$TOXML" "$APPLYPROFILES_ROW" "$HEIFDUMP"; do
   if [[ ! -f "$path" ]]; then
     echo "[FAIL] Missing MSan dependency test input: $path" >&2
     exit 1
   fi
 done
 
-for archive in libxml2.a libz.a libjpeg.a libpng.a libtiff.a; do
+for archive in libxml2.a libz.a libjpeg.a libpng.a libtiff.a libheif.a; do
   if [[ ! -f "$DEPS_PREFIX/lib/$archive" ]] ||
      ! grep -a -q '__msan_' "$DEPS_PREFIX/lib/$archive"; then
     echo "[FAIL] MSan dependency is missing or uninstrumented: $DEPS_PREFIX/lib/$archive" >&2
@@ -60,6 +61,7 @@ fi
 
 echo "[OK] MSan XML fuzzers use instrumented static libxml2"
 echo "[OK] icc_fromxml_fuzzer libxml2-boundary artifact replay exited 0"
+echo "[OK] icc_heifdump_fuzzer uses instrumented static libheif"
 
 replay_applyprofiles_artifact() {
   local name="$1"

@@ -9,17 +9,23 @@ BUILD_DIR="${AFL_THIRD_PARTY_BUILD_DIR:-$ROOT/build}"
 PREFIX="${AFL_THIRD_PARTY_PREFIX:-$ROOT/install}"
 JOBS="${AFL_THIRD_PARTY_JOBS:-$(nproc)}"
 CLEAN=0
+ONLY_LIBHEIF=0
 unset AFL_THIRD_PARTY_PREFIX AFL_THIRD_PARTY_SOURCE_DIR AFL_THIRD_PARTY_BUILD_DIR AFL_THIRD_PARTY_JOBS
 
 # shellcheck source=versions.sh
 source "$ROOT/versions.sh"
 
-if [[ "${1:-}" == "--clean" ]]; then
-    CLEAN=1
-elif [[ $# -gt 0 ]]; then
-    echo "Usage: $0 [--clean]" >&2
-    exit 2
-fi
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --clean) CLEAN=1 ;;
+        --only-libheif) ONLY_LIBHEIF=1 ;;
+        *)
+            echo "Usage: $0 [--clean] [--only-libheif]" >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
 
 CC_BIN="${CC:-clang}"
 CXX_BIN="${CXX:-clang++}"
@@ -28,8 +34,13 @@ RANLIB_BIN="${RANLIB:-llvm-ranlib}"
 NM_BIN="${NM:-llvm-nm}"
 SANITIZER_MODE="${AFL_THIRD_PARTY_SANITIZER:-address}"
 SKIP_MSAN_LIBCXX="${AFL_THIRD_PARTY_SKIP_LIBCXX:-0}"
+EXTRA_C_FLAGS="${AFL_THIRD_PARTY_EXTRA_C_FLAGS:-}"
+EXTRA_CXX_FLAGS="${AFL_THIRD_PARTY_EXTRA_CXX_FLAGS:-}"
+EXTRA_LINK_FLAGS="${AFL_THIRD_PARTY_EXTRA_LINK_FLAGS:-}"
 unset AFL_THIRD_PARTY_SANITIZER
 unset AFL_THIRD_PARTY_SKIP_LIBCXX
+unset AFL_THIRD_PARTY_EXTRA_C_FLAGS AFL_THIRD_PARTY_EXTRA_CXX_FLAGS
+unset AFL_THIRD_PARTY_EXTRA_LINK_FLAGS
 if [[ "$SKIP_MSAN_LIBCXX" != "0" && "$SKIP_MSAN_LIBCXX" != "1" ]]; then
     echo "[FAIL] AFL_THIRD_PARTY_SKIP_LIBCXX must be 0 or 1" >&2
     exit 1
@@ -55,8 +66,9 @@ case "$SANITIZER_MODE" in
         exit 1
         ;;
 esac
-CXX_SAN_FLAGS="$SAN_FLAGS"
-LINK_SAN_FLAGS="-fsanitize=$SANITIZERS"
+SAN_FLAGS="$SAN_FLAGS${EXTRA_C_FLAGS:+ $EXTRA_C_FLAGS}"
+CXX_SAN_FLAGS="$SAN_FLAGS${EXTRA_CXX_FLAGS:+ $EXTRA_CXX_FLAGS}"
+LINK_SAN_FLAGS="-fsanitize=$SANITIZERS${EXTRA_LINK_FLAGS:+ $EXTRA_LINK_FLAGS}"
 
 for tool in "$CC_BIN" "$CXX_BIN" "$AR_BIN" "$RANLIB_BIN" "$NM_BIN" cmake git; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -92,6 +104,22 @@ fetch_source() {
     if [[ "$actual" != "$commit" ]]; then
         echo "[FAIL] $name source is $actual; expected $commit ($version)" >&2
         echo "       Remove $source and rerun to fetch the pinned release." >&2
+        exit 1
+    fi
+}
+
+apply_source_patch() {
+    local name="$1"
+    local patch="$2"
+    local source="$SOURCE_DIR/$name"
+
+    if git -C "$source" apply --check "$patch" 2>/dev/null; then
+        git -C "$source" apply "$patch"
+        echo "[OK] Applied $(basename "$patch")"
+    elif git -C "$source" apply --reverse --check "$patch"; then
+        echo "[OK] Already applied: $(basename "$patch")"
+    else
+        echo "[FAIL] Patch does not apply to pinned $name: $patch" >&2
         exit 1
     fi
 }
@@ -213,18 +241,26 @@ configure_build_install() {
         -DBUILD_SHARED_LIBS=OFF \
         "$@"
     echo "[*] Building $name"
-    cmake --build "$build" --parallel "$JOBS"
+    if [[ "$name" == "libheif" ]]; then
+        cmake --build "$build" --parallel "$JOBS" --target heif
+    else
+        cmake --build "$build" --parallel "$JOBS"
+    fi
     cmake --install "$build"
 }
 
-fetch_source zlib https://github.com/madler/zlib.git "$ZLIB_VERSION" "$ZLIB_COMMIT"
-fetch_source libpng https://github.com/pnggroup/libpng.git "$LIBPNG_VERSION" "$LIBPNG_COMMIT"
-fetch_source libjpeg-turbo https://github.com/libjpeg-turbo/libjpeg-turbo.git "$LIBJPEG_TURBO_VERSION" "$LIBJPEG_TURBO_COMMIT"
-fetch_source libtiff https://gitlab.com/libtiff/libtiff.git "$LIBTIFF_VERSION" "$LIBTIFF_COMMIT"
-fetch_source libxml2 https://gitlab.gnome.org/GNOME/libxml2.git "$LIBXML2_VERSION" "$LIBXML2_COMMIT"
-fetch_source nlohmann-json https://github.com/nlohmann/json.git "$NLOHMANN_JSON_VERSION" "$NLOHMANN_JSON_COMMIT"
+fetch_source libheif https://github.com/strukturag/libheif.git "$LIBHEIF_VERSION" "$LIBHEIF_COMMIT"
+apply_source_patch libheif "$ROOT/patches/libheif-empty-vector-write.patch"
+if [[ "$ONLY_LIBHEIF" == "0" ]]; then
+    fetch_source zlib https://github.com/madler/zlib.git "$ZLIB_VERSION" "$ZLIB_COMMIT"
+    fetch_source libpng https://github.com/pnggroup/libpng.git "$LIBPNG_VERSION" "$LIBPNG_COMMIT"
+    fetch_source libjpeg-turbo https://github.com/libjpeg-turbo/libjpeg-turbo.git "$LIBJPEG_TURBO_VERSION" "$LIBJPEG_TURBO_COMMIT"
+    fetch_source libtiff https://gitlab.com/libtiff/libtiff.git "$LIBTIFF_VERSION" "$LIBTIFF_COMMIT"
+    fetch_source libxml2 https://gitlab.gnome.org/GNOME/libxml2.git "$LIBXML2_VERSION" "$LIBXML2_COMMIT"
+    fetch_source nlohmann-json https://github.com/nlohmann/json.git "$NLOHMANN_JSON_VERSION" "$NLOHMANN_JSON_COMMIT"
+fi
 
-if [[ "$SANITIZER_MODE" == "memory" ]]; then
+if [[ "$SANITIZER_MODE" == "memory" && "$ONLY_LIBHEIF" == "0" ]]; then
     if [[ "$SKIP_MSAN_LIBCXX" == "0" ]]; then
         if ! command -v ninja >/dev/null 2>&1; then
             echo "[FAIL] Ninja is required to build the MSan libc++ runtime" >&2
@@ -236,6 +272,40 @@ if [[ "$SANITIZER_MODE" == "memory" ]]; then
         LINK_SAN_FLAGS+=" -stdlib=libc++ -L$PREFIX/lib"
     fi
 fi
+
+configure_build_install libheif \
+    -DENABLE_PLUGIN_LOADING=OFF \
+    -DBUILD_DOCUMENTATION=OFF \
+    -DBUILD_TESTING=OFF \
+    -DWITH_EXAMPLES=OFF \
+    -DWITH_FUZZERS=OFF \
+    -DWITH_GDK_PIXBUF=OFF \
+    -DWITH_LIBDE265=OFF \
+    -DWITH_X265=OFF \
+    -DWITH_KVAZAAR=OFF \
+    -DWITH_OpenH264_DECODER=OFF \
+    -DWITH_OpenH264_ENCODER=OFF \
+    -DWITH_AOM_DECODER=OFF \
+    -DWITH_AOM_ENCODER=OFF \
+    -DWITH_DAV1D=OFF \
+    -DWITH_FFMPEG_DECODER=OFF \
+    -DWITH_RAV1E=OFF \
+    -DWITH_SvtEnc=OFF \
+    -DWITH_JPEG_DECODER=OFF \
+    -DWITH_JPEG_ENCODER=OFF \
+    -DWITH_OpenJPEG_DECODER=OFF \
+    -DWITH_OpenJPEG_ENCODER=OFF \
+    -DWITH_OPENJPH_ENCODER=OFF \
+    -DWITH_UVG266=OFF \
+    -DWITH_VVDEC=OFF \
+    -DWITH_VVENC=OFF \
+    -DWITH_X264=OFF \
+    -DWITH_LIBSHARPYUV=OFF \
+    -DWITH_LIBSHARPYUV_INTERNAL=OFF \
+    -DWITH_UNCOMPRESSED_CODEC=OFF \
+    -DWITH_WEBCODECS=OFF
+
+if [[ "$ONLY_LIBHEIF" == "0" ]]; then
 
 configure_build_install zlib \
     -DZLIB_BUILD_SHARED=OFF \
@@ -311,7 +381,12 @@ configure_build_install nlohmann-json \
     -DJSON_Install=ON \
     -DJSON_MultipleHeaders=ON
 
-for archive in libz.a libjpeg.a libpng.a libtiff.a libxml2.a; do
+    archives=(libz.a libjpeg.a libpng.a libtiff.a libxml2.a libheif.a)
+else
+    archives=(libheif.a)
+fi
+
+for archive in "${archives[@]}"; do
     symbol_file="$BUILD_DIR/$archive.symbols"
     "$NM_BIN" "$PREFIX/lib/$archive" > "$symbol_file"
     for sanitizer_symbol in "${SAN_SYMBOLS[@]}"; do

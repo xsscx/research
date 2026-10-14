@@ -15,6 +15,13 @@ The libjpeg-turbo build disables hand-written SIMD assembly so JPEG processing
 stays in compiler-instrumented C code. This also means NASM is not required for
 the AFL build.
 
+libheif is pinned and linked statically so ISO BMFF parsing contributes AFL
+feedback. Codec backends, plugin loading, and optional compression libraries
+are disabled because the HEIF lanes target carrier and ICC-property parsing,
+not pixel decoding. The local empty-vector patch guards a zero-length write
+that otherwise raises a deterministic `nonnull-attribute` UBSan finding on the
+upstream `empty-prof.heic` QA carrier before fuzzing can begin.
+
 Run a clean dependency rebuild directly with:
 
 ```bash

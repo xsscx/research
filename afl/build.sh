@@ -394,9 +394,8 @@ require_iccdev_source_contract \
     "$ICCDEV_DIR/Tools/CmdLine/IccTiffDump/iccTiffDump.cpp" \
     "--list-directories"
 
-if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists libheif; then
-    echo "[FAIL] libheif development metadata is required for the registered iccHeifDump target" >&2
-    echo "       Install pkg-config and libheif-dev (or the platform equivalents), then rebuild." >&2
+if ! command -v pkg-config >/dev/null 2>&1; then
+    echo "[FAIL] pkg-config is required for the registered iccHeifDump target" >&2
     exit 1
 fi
 
@@ -433,6 +432,13 @@ env \
     AFL_THIRD_PARTY_BUILD_DIR="$THIRD_PARTY_BUILD_DIR" \
     AFL_THIRD_PARTY_SANITIZER="$SANITIZER_MODE" \
     "$THIRD_PARTY_DIR/build.sh" "${THIRD_PARTY_ARGS[@]}"
+
+HEIF_PKGCONFIG_DIR="$THIRD_PARTY_PREFIX/lib/pkgconfig"
+if [[ ! -f "$THIRD_PARTY_PREFIX/lib/libheif.a" ||
+      ! -f "$HEIF_PKGCONFIG_DIR/libheif.pc" ]]; then
+    echo "[FAIL] Pinned instrumented libheif was not installed under $THIRD_PARTY_PREFIX" >&2
+    exit 1
+fi
 
 # Clean build if requested
 if [[ "$CLEAN" == "1" ]]; then
@@ -502,7 +508,11 @@ if [[ -n "$AFL_NGRAM_SIZE_VAL" ]]; then
     AFL_BUILD_ENV+=(AFL_LLVM_NGRAM_SIZE="$AFL_NGRAM_SIZE_VAL")
 fi
 
-env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_BACKEND" "${AFL_BUILD_ENV[@]}" cmake -S "$CMAKE_DIR" -B "$BUILD_DIR" \
+env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_BACKEND" "${AFL_BUILD_ENV[@]}" \
+    PKG_CONFIG_PATH="$HEIF_PKGCONFIG_DIR${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+    cmake -S "$CMAKE_DIR" -B "$BUILD_DIR" \
+    -U 'HEIF_*' \
+    -U 'pkgcfg_lib_HEIF_*' \
     -DCMAKE_C_COMPILER="$AFL_CLANG_FAST_BIN" \
     -DCMAKE_CXX_COMPILER="$AFL_CLANG_FASTXX_BIN" \
     -DCMAKE_AR="$AFL_LLVM_AR" \
@@ -549,11 +559,15 @@ if [[ "$SANITIZER_MODE" == "address" ]] && ! grep -q '^SANITIZER_RECOVER:BOOL=OF
     echo "[FAIL] CMake cache does not enforce fatal sanitizer findings"
     exit 1
 fi
-if grep -E '^(LIBXML2_LIBRARY|PNG_LIBRARY|TIFF_LIBRARY|JPEG_LIBRARY|ZLIB_LIBRARY):.*=/usr/' "$BUILD_DIR/CMakeCache.txt"; then
+if grep -E '^(LIBXML2_LIBRARY|PNG_LIBRARY|TIFF_LIBRARY|JPEG_LIBRARY|ZLIB_LIBRARY|pkgcfg_lib_HEIF_heif):.*=/usr/' "$BUILD_DIR/CMakeCache.txt"; then
     echo "[FAIL] CMake cache selected a system third-party library"
     exit 1
 fi
-for dependency in libxml2.a libpng.a libtiff.a libjpeg.a libz.a; do
+if ! grep -Fq "pkgcfg_lib_HEIF_heif:FILEPATH=$THIRD_PARTY_PREFIX/lib/libheif.a" "$BUILD_DIR/CMakeCache.txt"; then
+    echo "[FAIL] CMake did not select the pinned static libheif archive" >&2
+    exit 1
+fi
+for dependency in libxml2.a libpng.a libtiff.a libjpeg.a libz.a libheif.a; do
     if [[ ! -f "$THIRD_PARTY_PREFIX/lib/$dependency" ]]; then
         echo "[FAIL] Missing AFL third-party archive: $THIRD_PARTY_PREFIX/lib/$dependency"
         exit 1
@@ -599,6 +613,12 @@ if [[ ! -x "$BIN_DIR/iccHeifDump" ]]; then
     echo "       Refresh the isolated checkout and verify that CMake found libheif." >&2
     exit 1
 fi
+if ldd "$BIN_DIR/iccHeifDump" 2>/dev/null | grep -q 'libheif'; then
+    echo "[FAIL] iccHeifDump dynamically loads an uninstrumented libheif" >&2
+    ldd "$BIN_DIR/iccHeifDump" >&2
+    exit 1
+fi
+echo "  [OK] iccHeifDump embeds pinned instrumented libheif"
 
 # Deploy shared libraries only for shared-link builds. Static builds are the
 # default so AFL instrumentation and post-campaign coverage stay in one image.

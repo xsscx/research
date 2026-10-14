@@ -40,8 +40,9 @@ policy. Edit `afl/iccapply-args.conf` to change `iccApply*` target argv.
 ./afl/triage.sh dump
 ```
 
-The tool build requires `pkg-config` plus the libheif development package. It
-also verifies that every registered target binary was deployed. If the preserved
+The tool build requires `pkg-config`; it builds and statically links the pinned
+instrumented libheif release itself. It also verifies that every registered
+target binary was deployed. If the preserved
 `afl/iccDEV` checkout predates the HEIF or current TIFF CLI contracts, run
 `./afl/build.sh --refresh-iccdev` explicitly.
 
@@ -158,6 +159,11 @@ Both HEIF lanes accept carriers smaller than 5 MiB and disable AFL trimming so
 the ISO BMFF box hierarchy is not reduced to shallow parser-rejection inputs.
 The carrier lane retains valid and malformed seeds. The extraction lane admits
 only seeds that complete successfully and therefore reach raw ICC output. To
+cover the tool-owned property, association, and extracted-byte limits, the
+launcher also generates three deterministic structural carriers under the
+ignored `afl/support/` tree. libheif itself is codec-disabled, statically
+linked, and AFL-instrumented, so mutations retained for ISO BMFF parser coverage
+are now visible to both HEIF lanes. To
 add a local corpus without committing it, use the shared colon-separated seed
 variable and start fresh because the seed contract changed:
 

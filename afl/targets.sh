@@ -977,6 +977,7 @@ afl_configure_target() {
             SEED_DIRS=(
                 "$REPO_ROOT/afl/iccDEV/.github/ci/tooling/heif/img"
                 "$REPO_ROOT/fuzz/graphics/heic"
+                "$AFL_BASE/support/heif-coverage"
             )
             if [[ "$target" == "heifdump-extract" ]]; then
                 BINARY="$REPO_ROOT/afl/heifdump-extract-wrapper.sh"
@@ -1651,6 +1652,16 @@ afl_prepare_target_support_files() {
     afl_prepare_isolated_work_files || return 1
 
     case "$target" in
+        heifdump|heifdump-extract)
+            local generator="$REPO_ROOT/.github/scripts/generate-heif-coverage-seeds.py"
+            local seed_dir="$AFL_BASE/support/heif-coverage"
+
+            if [[ ! -x "$generator" ]]; then
+                echo "ERROR: HEIF coverage seed generator is missing: $generator" >&2
+                return 1
+            fi
+            "$generator" "$seed_dir"
+            ;;
         specseptotiff|spec|specseptotiff-compress|specseptotiff-desc|specseptotiff-harvest|specseptotiff-sep|specseptotiff-short|specseptotiff-tiles|specseptotiff-bigtiff)
             local spectral_prefix="$SPECSEP_STAGED_PREFIX"
             local n src dst

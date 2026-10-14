@@ -241,6 +241,7 @@ expect_value "HEIF carrier maximum seed bytes" "$SEED_MAX_BYTES" "5242880"
 expect_value "HEIF carrier maximum mutation length" "$AFL_MAX_LENGTH" "5242880"
 expect_value "HEIF carrier trimming policy" "$AFL_DISABLE_TRIM_TARGET" "1"
 expect_value "HEIF carrier non-zero seed policy" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "0"
+expect_value "HEIF coverage seed directory" "${SEED_DIRS[2]}" "$AFL_BASE/support/heif-coverage"
 
 afl_configure_target heifdump-extract
 expect_value "HEIF extraction wrapper" "$BINARY" "$REPO_ROOT/afl/heifdump-extract-wrapper.sh"
@@ -254,8 +255,8 @@ expect_value "HEIF extraction trimming policy" "$AFL_DISABLE_TRIM_TARGET" "1"
 mkdir -p "$scratch_root/heif-a" "$scratch_root/heif-b"
 ICCDEV_HEIF_SEED_DIRS="$scratch_root/heif-a:$scratch_root/heif-b"
 afl_configure_target heifdump
-expect_value "first external HEIF seed directory" "${SEED_DIRS[2]}" "$scratch_root/heif-a"
-expect_value "second external HEIF seed directory" "${SEED_DIRS[3]}" "$scratch_root/heif-b"
+expect_value "first external HEIF seed directory" "${SEED_DIRS[3]}" "$scratch_root/heif-a"
+expect_value "second external HEIF seed directory" "${SEED_DIRS[4]}" "$scratch_root/heif-b"
 unset ICCDEV_HEIF_SEED_DIRS
 
 afl_configure_target specseptotiff-tiles

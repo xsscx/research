@@ -9,8 +9,8 @@
 #         ./build.sh --sanitizer memory
 #         ./build.sh --sanitizer thread
 #
-# Requirements: clang/clang++, cmake 3.18+, ninja, git, libheif-dev,
-#               libxml2-dev, libtiff-dev, zlib, libclang-rt-dev
+# Requirements: clang/clang++, cmake 3.18+, ninja, git, libxml2-dev,
+#               libtiff-dev, zlib, libclang-rt-dev
 
 set -euo pipefail
 
@@ -45,6 +45,9 @@ MSAN_LIBCXX_PREFIX="$SCRIPT_DIR/third_party/install-msan-libcxx"
 MSAN_DEPS_PREFIX="$SCRIPT_DIR/third_party/install-msan-deps"
 MSAN_DEPS_SOURCE_DIR="$SCRIPT_DIR/third_party/sources-msan-deps"
 MSAN_DEPS_BUILD_DIR="$SCRIPT_DIR/third_party/build-msan-deps"
+HEIF_SOURCE_DIR="$SCRIPT_DIR/third_party/sources"
+HEIF_BUILD_DIR=""
+HEIF_PREFIX=""
 MSAN_CXX_FLAGS=""
 XML_CFLAGS=""
 XML_LIBS=""
@@ -261,6 +264,24 @@ esac
 configure_sanitizer
 
 if [[ "$SANITIZER_MODE" == "memory" ]]; then
+  HEIF_BUILD_DIR="$MSAN_DEPS_BUILD_DIR"
+  HEIF_PREFIX="$MSAN_DEPS_PREFIX"
+  HEIF_SANITIZER_SYMBOL="__msan_"
+else
+  HEIF_BUILD_DIR="$SCRIPT_DIR/third_party/build-heif-$SANITIZER_MODE"
+  HEIF_PREFIX="$SCRIPT_DIR/third_party/install-heif-$SANITIZER_MODE"
+  if [[ "$SANITIZER_MODE" == "address" ]]; then
+    HEIF_SANITIZER_SYMBOL="__asan_"
+  else
+    HEIF_SANITIZER_SYMBOL="__tsan_"
+  fi
+fi
+HEIF_EXTRA_C_FLAGS="$COVERAGE_FLAGS"
+if [[ "$SANITIZER_MODE" == "address" ]]; then
+  HEIF_EXTRA_C_FLAGS+=" -fsanitize=fuzzer-no-link"
+fi
+
+if [[ "$SANITIZER_MODE" == "memory" ]]; then
   XML_CFLAGS="-I$MSAN_DEPS_PREFIX/include/libxml2"
   XML_LIBS="$MSAN_DEPS_PREFIX/lib/libxml2.a -lm"
   TIFF_CFLAGS="-I$MSAN_DEPS_PREFIX/include"
@@ -275,10 +296,6 @@ else
   TIFF_LIBS="$(pkg-config --libs libtiff-4 2>/dev/null || echo '-ltiff')"
   PNG_CFLAGS="$(pkg-config --cflags libpng 2>/dev/null || true)"
   PNG_LIBS="$(pkg-config --libs libpng 2>/dev/null || echo '-lpng')"
-  if pkg-config --exists libheif; then
-    HEIF_CFLAGS="$(pkg-config --cflags libheif)"
-    HEIF_LIBS="$(pkg-config --libs libheif)"
-  fi
   ZLIB_LIBS="$(pkg-config --libs zlib 2>/dev/null || echo '-lz')"
 fi
 INCLUDE_FLAGS="$INCLUDE_FLAGS $XML_CFLAGS"
@@ -331,6 +348,9 @@ if [[ "$SANITIZER_MODE" == "memory" ]]; then
   AFL_THIRD_PARTY_PREFIX="$MSAN_DEPS_PREFIX" \
   AFL_THIRD_PARTY_SANITIZER=memory \
   AFL_THIRD_PARTY_SKIP_LIBCXX=1 \
+  AFL_THIRD_PARTY_EXTRA_C_FLAGS="-fsanitize=fuzzer-no-link" \
+  AFL_THIRD_PARTY_EXTRA_CXX_FLAGS="$MSAN_CXX_FLAGS -stdlib=libc++" \
+  AFL_THIRD_PARTY_EXTRA_LINK_FLAGS="-stdlib=libc++ -L$MSAN_LIBCXX_PREFIX/lib" \
   AFL_THIRD_PARTY_JOBS="$NPROC" \
   CC="$CC" CXX="$CXX" AR="$AR_BIN" RANLIB="$RANLIB_BIN" NM="$NM_BIN" \
     "$SCRIPT_DIR/../afl/third_party/build.sh"
@@ -339,14 +359,37 @@ if [[ "$SANITIZER_MODE" == "memory" ]]; then
     echo "[FAIL] ERROR: incomplete instrumented MSan C++ runtime: $MSAN_LIBCXX_PREFIX/lib" >&2
     exit 1
   fi
-  for archive in libxml2.a libz.a libjpeg.a libpng.a libtiff.a; do
+  for archive in libxml2.a libz.a libjpeg.a libpng.a libtiff.a libheif.a; do
     if [[ ! -f "$MSAN_DEPS_PREFIX/lib/$archive" ]] ||
        ! grep -a -q '__msan_' "$MSAN_DEPS_PREFIX/lib/$archive"; then
       echo "[FAIL] ERROR: incomplete instrumented MSan dependency: $MSAN_DEPS_PREFIX/lib/$archive" >&2
       exit 1
     fi
   done
+else
+  AFL_THIRD_PARTY_SOURCE_DIR="$HEIF_SOURCE_DIR" \
+  AFL_THIRD_PARTY_BUILD_DIR="$HEIF_BUILD_DIR" \
+  AFL_THIRD_PARTY_PREFIX="$HEIF_PREFIX" \
+  AFL_THIRD_PARTY_SANITIZER="$SANITIZER_MODE" \
+  AFL_THIRD_PARTY_SKIP_LIBCXX=1 \
+  AFL_THIRD_PARTY_EXTRA_C_FLAGS="$HEIF_EXTRA_C_FLAGS" \
+  AFL_THIRD_PARTY_JOBS="$NPROC" \
+  CC="$CC" CXX="$CXX" AR="$AR_BIN" RANLIB="$RANLIB_BIN" NM="$NM_BIN" \
+    "$SCRIPT_DIR/../afl/third_party/build.sh" --only-libheif
 fi
+
+if [[ ! -f "$HEIF_PREFIX/lib/libheif.a" ]] ||
+   ! grep -a -q "$HEIF_SANITIZER_SYMBOL" "$HEIF_PREFIX/lib/libheif.a"; then
+  echo "[FAIL] ERROR: missing instrumented static libheif: $HEIF_PREFIX/lib/libheif.a" >&2
+  exit 1
+fi
+if [[ "$SANITIZER_MODE" == "address" ]] &&
+   ! grep -a -q '__sanitizer_cov_' "$HEIF_PREFIX/lib/libheif.a"; then
+  echo "[FAIL] ERROR: static libheif lacks LibFuzzer coverage instrumentation" >&2
+  exit 1
+fi
+HEIF_CFLAGS="-I$HEIF_PREFIX/include -DLIBHEIF_STATIC_BUILD"
+HEIF_LIBS="$HEIF_PREFIX/lib/libheif.a"
 
 # Verify the selected sanitizer runtime is available.
 SANITIZER_TEST=$(mktemp /tmp/cfl_sanitizer_test.XXXXXX.cpp)
@@ -623,12 +666,19 @@ fi
 echo ""
 echo "HEIF fuzzers:"
 for f in "${HEIF_FUZZERS[@]}"; do
-  # The MSan build intentionally omits libheif until that dependency is built
-  # with MemorySanitizer; the tool-owned carrier parser remains instrumented.
   # shellcheck disable=SC2086
   build_fuzzer "$f" $HEIF_LIBS &
 done
 wait
+
+if [[ -x "$OUTPUT_DIR/icc_heifdump_fuzzer" ]] &&
+   ldd "$OUTPUT_DIR/icc_heifdump_fuzzer" 2>/dev/null | grep -q 'libheif'; then
+  echo "[FAIL] icc_heifdump_fuzzer dynamically loads an uninstrumented libheif" >&2
+  ldd "$OUTPUT_DIR/icc_heifdump_fuzzer" >&2
+  echo "FAIL" >> "$BUILD_RESULTS"
+else
+  echo "  [OK] icc_heifdump_fuzzer embeds pinned instrumented libheif"
+fi
 
 echo ""
 echo "JPEG fuzzers:"

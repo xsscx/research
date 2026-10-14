@@ -136,20 +136,21 @@ replay rather than mutation. The runners keep state in `cfl/runs/`,
 `fuzz-local.sh`. Omitting the selector chooses the default address build in
 `cfl/bin/`; it does not fall back to `cfl/bin-msan/`.
 
-`icc_heifdump_fuzzer` uses libheif validation in address and thread builds.
-The memory build omits libheif until that dependency has a fully instrumented
-MSan build, while retaining coverage of the tool-owned HEIF property parser
-and the extracted IccProfLib profile path. It accepts optional external HEIF,
-HEIC, HIF, and AVIF seeds smaller than 5 MiB through the same colon-separated
-variable as AFL. External carriers are copied into the ignored runtime corpus
-under content-derived names; they are not added to Git:
+`icc_heifdump_fuzzer` statically links the same pinned, codec-disabled libheif
+release in address, memory, and thread builds. libheif receives the selected
+sanitizer instrumentation and LibFuzzer coverage in mutating builds, so parser
+edges participate directly in corpus retention. The runner also generates
+three deterministic property-limit carriers and accepts optional external
+HEIF, HEIC, HIF, and AVIF seeds smaller than 5 MiB through the same
+colon-separated variable as AFL. External carriers are copied into the ignored
+runtime corpus under content-derived names; they are not added to Git:
 
 ```bash
 ICCDEV_HEIF_SEED_DIRS=/mnt/f/lynx ./fuzz-local.sh -t 60 -w 1 heif
 ```
 
 The MSan build statically links pinned, instrumented LLVM libc++, zlib,
-libjpeg-turbo, libpng, libtiff, and libxml2. The C dependencies use the shared
+libjpeg-turbo, libpng, libtiff, libxml2, and libheif. The dependencies use the shared
 pins in `afl/third_party/versions.sh`; XML iconv and module support and optional
 TIFF codecs outside that dependency set stay disabled. This complete boundary
 is required because a system library allocation can otherwise appear to be an
