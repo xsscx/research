@@ -244,6 +244,13 @@ expect_value "HEIF carrier deterministic policy" "$AFL_SKIP_DETERMINISTIC_TARGET
 expect_value "HEIF carrier non-zero seed policy" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "0"
 expect_value "HEIF coverage seed directory" "${SEED_DIRS[2]}" "$AFL_BASE/support/heif-coverage"
 
+AFL_MAX_LENGTH_EXPLICIT=1
+AFL_MAX_LENGTH=67108864
+afl_configure_target heifdump
+expect_value "HEIF carrier maximum-length override" "$AFL_MAX_LENGTH" "67108864"
+AFL_MAX_LENGTH_EXPLICIT=0
+AFL_MAX_LENGTH=""
+
 afl_configure_target heifdump-extract
 expect_value "HEIF extraction wrapper" "$BINARY" "$REPO_ROOT/afl/heifdump-extract-wrapper.sh"
 expect_arg heifdump-extract 0 "@@"

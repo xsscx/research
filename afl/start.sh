@@ -39,6 +39,10 @@ AFL_CMPLOG_OPTS="${AFL_CMPLOG_OPTS:-}"
 AFL_EXEC_LIMIT="${AFL_EXEC_LIMIT:-}"
 AFL_INPUT_FORMAT="${AFL_INPUT_FORMAT:-}"
 AFL_MIN_LENGTH="${AFL_MIN_LENGTH:-}"
+AFL_MAX_LENGTH_EXPLICIT=0
+if [[ -n "${AFL_MAX_LENGTH:-}" ]]; then
+    AFL_MAX_LENGTH_EXPLICIT=1
+fi
 AFL_MAX_LENGTH="${AFL_MAX_LENGTH:-}"
 AFL_SEQUENTIAL_QUEUE="${AFL_SEQUENTIAL_QUEUE:-0}"
 AFL_SPLICE="${AFL_SPLICE:-0}"
@@ -153,7 +157,7 @@ while [[ $# -gt 0 ]]; do
         --exec-limit) AFL_EXEC_LIMIT="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --input-format) AFL_INPUT_FORMAT="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --min-length) AFL_MIN_LENGTH="$(option_arg "$1" "${2:-}")"; shift 2 ;;
-        --max-length) AFL_MAX_LENGTH="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --max-length) AFL_MAX_LENGTH="$(option_arg "$1" "${2:-}")"; AFL_MAX_LENGTH_EXPLICIT=1; shift 2 ;;
         --sequential-queue) AFL_SEQUENTIAL_QUEUE=1; shift ;;
         --splice) AFL_SPLICE=1; shift ;;
         --testcache-size) AFL_TESTCACHE_SIZE_VAL="$(option_arg "$1" "${2:-}")"; shift 2 ;;

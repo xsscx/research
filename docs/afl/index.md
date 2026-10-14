@@ -174,6 +174,23 @@ ICCDEV_HEIF_SEED_DIRS=/mnt/f/lynx ./afl/start.sh heifdump --fresh
 ICCDEV_HEIF_SEED_DIRS=/mnt/f/lynx ./afl/start.sh heifdump-extract --fresh
 ```
 
+The 5 MiB default keeps large-carrier startup and mutation costs bounded, but
+it is an overridable campaign policy rather than a parser limit. With the
+default 64 MiB AFL++ runtime, admit carriers below 64 MiB with matching seed
+and mutation ceilings:
+
+```bash
+ICCDEV_HEIF_SEED_DIRS=/mnt/f/lynx ./afl/start.sh heifdump --fresh \
+  --seed-max-bytes 67108864 --max-length 67108864
+ICCDEV_HEIF_SEED_DIRS=/mnt/f/lynx ./afl/start.sh heifdump-extract --fresh \
+  --seed-max-bytes 67108864 --max-length 67108864
+```
+
+For larger campaigns, rebuild the runtime with a higher
+`AFL_MAX_FILE_BYTES`, then raise both launcher values together. The native
+property reader rejects carriers larger than 256 MiB, so increasing AFL beyond
+that boundary adds no iccHeifDump parser coverage.
+
 Use `./afl/map.sh TARGET --input` and `--queue` to compare absolute edge counts.
 Map density remains small because the target is linked with the full
 instrumented IccProfLib; it is not by itself a measure of campaign progress.

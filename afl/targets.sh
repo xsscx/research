@@ -976,7 +976,9 @@ afl_configure_target() {
             SEED_DRY_RUN_TARGET=1
             AFL_DISABLE_TRIM_TARGET=1
             AFL_SKIP_DETERMINISTIC_TARGET=1
-            AFL_MAX_LENGTH=5242880
+            if [[ "${AFL_MAX_LENGTH_EXPLICIT:-0}" -eq 0 ]]; then
+                AFL_MAX_LENGTH=5242880
+            fi
             SEED_DIRS=(
                 "$REPO_ROOT/afl/iccDEV/.github/ci/tooling/heif/img"
                 "$REPO_ROOT/fuzz/graphics/heic"
