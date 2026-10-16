@@ -3,16 +3,15 @@
 
 Parses:
   1. iccanalyzer-lite --registry JSON -> heuristic, CVE, CWE nodes
-  2. Patch coverage CSV -> patch nodes + coverage edges
+  2. Active CFL patch stack -> patch nodes
   3. call-graph/index.json -> component nodes + edge counts
   4. CVE report markdown -> advisory nodes with severity/CVSS
-  5. Fuzzer-tool mappings -> fuzzer nodes + target edges
+  5. CFL and AFL target definitions -> fuzzer nodes + target edges
 
 Output: call-graph/knowledge-graph.json
 """
 
 import argparse
-import csv
 import json
 import os
 import re
@@ -24,7 +23,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # --- Data source paths ---
 REGISTRY_BIN = REPO_ROOT / "iccanalyzer-lite" / "iccanalyzer-lite"
-PATCH_CSV = REPO_ROOT / "docs" / "analysis" / "ICCANALYZER_CFL_PATCH_COVERAGE_MATRIX.csv"
+PATCH_README = REPO_ROOT / "cfl" / "patches" / "README.md"
+AFL_TARGETS = REPO_ROOT / "afl" / "targets.sh"
 CALLGRAPH_INDEX = REPO_ROOT / "call-graph" / "index.json"
 CVE_REPORT = REPO_ROOT / "docs" / "cve" / "iccDEV-CVE-Report.md"
 OUTPUT = REPO_ROOT / "call-graph" / "knowledge-graph.json"
@@ -125,17 +125,66 @@ def parse_existing_registry(graph_path: Path) -> dict:
     }
 
 
-def parse_patch_csv(csv_path: Path) -> list[dict]:
-    """Parse the patch coverage matrix CSV."""
+def parse_active_patches(readme_path: Path) -> list[dict]:
+    """Parse the active CFL patch inventory declared in its README."""
     patches = []
-    if not csv_path.exists():
-        print(f"  WARN: {csv_path} not found", file=sys.stderr)
+    if not readme_path.exists():
+        print(f"  WARN: {readme_path} not found", file=sys.stderr)
         return patches
-    with open(csv_path, newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            patches.append(row)
+
+    pattern = re.compile(r"^-\s+`([^`]+\.patch)`\s+-\s+(.+)$")
+    with open(readme_path) as f:
+        for line in f:
+            match = pattern.match(line.strip())
+            if not match:
+                continue
+            patch_file, description = match.groups()
+            patch_id = patch_file.split("-", 1)[0]
+            patches.append({
+                "patch_id": patch_id,
+                "patch_file": patch_file,
+                "reachability": description,
+                "priority": "ACTIVE",
+                "v1_defense": "active",
+                "v2_defense": "",
+                "review_state": "active",
+                "notes": description,
+            })
     return patches
+
+
+def parse_afl_targets(targets_path: Path) -> list[dict]:
+    """Read the supported AFL target listing from the authoritative shell script."""
+    if not targets_path.exists():
+        print(f"  WARN: {targets_path} not found", file=sys.stderr)
+        return []
+
+    env = os.environ.copy()
+    env["REPO_ROOT"] = str(REPO_ROOT)
+    try:
+        result = subprocess.run(
+            ["bash", "-c", 'source "$1"; afl_print_targets', "--", str(targets_path)],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env=env,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(f"  WARN: unable to list AFL targets: {error}", file=sys.stderr)
+        return []
+
+    if result.returncode != 0:
+        print(f"  WARN: unable to list AFL targets: {result.stderr.strip()}", file=sys.stderr)
+        return []
+
+    targets = []
+    pattern = re.compile(r"^\s*(\S+)\s+-\s+(icc\S+)\s+\(")
+    for line in result.stdout.splitlines():
+        match = pattern.match(line)
+        if match:
+            targets.append({"name": match.group(1), "tool": match.group(2)})
+    return targets
 
 
 def parse_callgraph_index(idx_path: Path) -> dict:
@@ -226,8 +275,8 @@ def parse_cwe_distribution(md_path: Path) -> dict[str, int]:
     return cwe_dist
 
 
-def build_graph(registry: dict, patches: list, cg_index: dict,
-                advisories: list, cwe_dist: dict) -> dict:
+def build_graph(registry: dict, patches: list, afl_targets: list,
+                cg_index: dict, advisories: list, cwe_dist: dict) -> dict:
     """Build the unified knowledge graph."""
     nodes = []
     edges = []
@@ -338,6 +387,20 @@ def build_graph(registry: dict, patches: list, cg_index: dict,
         if cfl_id in node_ids:
             add_edge(fid, cfl_id, "IMPLEMENTED_BY")
 
+    for target in cg_index.get("components", {}).get("cfl", []):
+        fuzzer = target["name"]
+        fid = f"fuzzer:{fuzzer}"
+        add_node(fid, "fuzzer", name=fuzzer)
+        add_edge(fid, f"comp:cfl/{fuzzer}", "IMPLEMENTED_BY")
+
+    for target in afl_targets:
+        aid = f"afl:{target['name']}"
+        add_node(aid, "afl_target", name=target["name"], tool=target["tool"])
+        source_target = target["tool"][:1].upper() + target["tool"][1:]
+        tool_id = f"comp:iccdev/tools/{source_target}"
+        if tool_id in node_ids:
+            add_edge(aid, tool_id, "TARGETS")
+
     # --- Severity distribution summary ---
     severity_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
     severity_dist = {
@@ -359,6 +422,7 @@ def build_graph(registry: dict, patches: list, cg_index: dict,
             "patches": sum(1 for n in nodes if n["type"] == "patch"),
             "components": sum(1 for n in nodes if n["type"] == "component"),
             "fuzzers": sum(1 for n in nodes if n["type"] == "fuzzer"),
+            "afl_targets": sum(1 for n in nodes if n["type"] == "afl_target"),
             "severity_distribution": severity_dist,
         },
         "nodes": nodes,
@@ -382,7 +446,7 @@ def main():
     print("Building knowledge graph...")
 
     # Parse all sources
-    print("  [1/5] Heuristic registry...", end=" ", flush=True)
+    print("  [1/6] Heuristic registry...", end=" ", flush=True)
     if args.no_registry:
         registry = {"heuristics": [], "totalHeuristics": 0, "severity": {}}
         print("skipped")
@@ -390,25 +454,29 @@ def main():
         registry = parse_registry(Path(args.registry_bin))
         print(f"{registry.get('totalHeuristics', 0)} heuristics")
 
-    print("  [2/5] Patch coverage CSV...", end=" ", flush=True)
-    patches = parse_patch_csv(PATCH_CSV)
+    print("  [2/6] Active CFL patches...", end=" ", flush=True)
+    patches = parse_active_patches(PATCH_README)
     print(f"{len(patches)} patches")
 
-    print("  [3/5] Call graph index...", end=" ", flush=True)
+    print("  [3/6] AFL targets...", end=" ", flush=True)
+    afl_targets = parse_afl_targets(AFL_TARGETS)
+    print(f"{len(afl_targets)} targets")
+
+    print("  [4/6] Call graph index...", end=" ", flush=True)
     cg_index = parse_callgraph_index(CALLGRAPH_INDEX)
     n_targets = sum(len(v) for v in cg_index.get("components", {}).values())
     print(f"{n_targets} targets")
 
-    print("  [4/5] CVE report...", end=" ", flush=True)
+    print("  [5/6] CVE report...", end=" ", flush=True)
     advisories = parse_cve_report(CVE_REPORT)
     cwe_dist = parse_cwe_distribution(CVE_REPORT)
     print(f"{len(advisories)} advisories, {len(cwe_dist)} CWEs")
 
-    print("  [5/5] Fuzzer mappings...", end=" ", flush=True)
+    print("  [6/6] CFL fuzzer mappings...", end=" ", flush=True)
     print(f"{len(FUZZER_TOOL_MAP)} fuzzers")
 
     # Build unified graph
-    graph = build_graph(registry, patches, cg_index, advisories, cwe_dist)
+    graph = build_graph(registry, patches, afl_targets, cg_index, advisories, cwe_dist)
 
     if args.summary:
         print(f"\n--- Knowledge Graph Summary ---")

@@ -61,27 +61,20 @@ python3 call-graph/scripts/query-graph.py stats
 python3 call-graph/scripts/generate-mermaid.py all
 ```
 
-## Current Local Report
+Run `improve-callgraphs.py` after raw call-graph generation, before rebuilding
+the report layer:
 
-The latest local rebuild did not have `iccanalyzer-lite/iccanalyzer-lite`
-available, so `build-knowledge-graph.py` reused the existing committed
-registry-derived heuristic nodes and refreshed the call-graph component layer
-from generated `*-summary.json` files.
+```bash
+python3 call-graph/scripts/generate-callgraphs.py
+python3 call-graph/scripts/improve-callgraphs.py
+python3 call-graph/scripts/build-knowledge-graph.py
+python3 call-graph/scripts/query-graph.py stats
+python3 call-graph/scripts/generate-mermaid.py all
+```
 
-Observed command results:
-
-| Command | Result |
-|---------|--------|
-| `python3 call-graph/scripts/generate-callgraphs.py` | 46 targets processed |
-| `python3 call-graph/scripts/improve-callgraphs.py` | 146 SVGs regenerated, 0 failed |
-| `python3 call-graph/scripts/generate-callgraphs.py --summary` | 46 targets, 1159816 AST functions, 105087 call edges |
-| `python3 call-graph/scripts/build-knowledge-graph.py` | 562 nodes, 602 edges |
-| `python3 call-graph/scripts/query-graph.py stats` | 181 heuristics, 98 CVEs, 106 GHSAs, 57 CWEs, 61 patches, 46 components, 13 fuzzers |
-| `python3 call-graph/scripts/query-graph.py attack` | 10/46 generated components have fuzzer target edges |
-
-During raw generation, Graphviz timed out on two large IccLibJSON SVGs at the
-generator's 120-second per-render limit. The required post-processing pass
-rerendered the complete SVG set successfully.
+The knowledge graph derives active patch inventory from `cfl/patches/README.md`
+and AFL lane mappings from `afl/targets.sh`; do not manually edit generated
+Mermaid diagrams or copy retired patch records into them.
 
 ## Method
 

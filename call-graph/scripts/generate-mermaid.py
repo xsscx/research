@@ -136,7 +136,10 @@ def diagram_fuzzer_map(graph: dict) -> str:
     nmap = node_map(graph)
 
     fuzzers = [n for n in graph["nodes"] if n["type"] == "fuzzer"]
+    afl_targets = [n for n in graph["nodes"] if n["type"] == "afl_target"]
+    emitted_tools = set()
 
+    lines.append('    subgraph CFL["CFL LibFuzzer harnesses"]')
     for f in sorted(fuzzers, key=lambda x: x["id"]):
         f_safe = sanitize_id(f["id"])
         f_name = f.get("name", f["id"]).replace("icc_", "").replace("_fuzzer", "")
@@ -148,11 +151,29 @@ def diagram_fuzzer_map(graph: dict) -> str:
                 t_name = nmap.get(e["target"], {}).get("name", e["target"])
                 fidelity = e.get("fidelity_pct", "")
                 label = f"|{fidelity}%|" if fidelity else ""
-                lines.append(f"    {t_safe}([\"{t_name}\"]):::tool")
+                if e["target"] not in emitted_tools:
+                    lines.append(f"    {t_safe}([\"{t_name}\"]):::tool")
+                    emitted_tools.add(e["target"])
                 lines.append(f"    {f_safe} -->{label} {t_safe}")
+    lines.append("    end")
+
+    lines.append('    subgraph AFL["AFL++ CLI lanes"]')
+    for target in sorted(afl_targets, key=lambda x: x["id"]):
+        target_safe = sanitize_id(target["id"])
+        lines.append(f"    {target_safe}[\"{sanitize_label(target['name'])}\"]:::afl")
+        for e in graph["edges"]:
+            if e["source"] == target["id"] and e["relationship"] == "TARGETS":
+                t_safe = sanitize_id(e["target"])
+                t_name = nmap.get(e["target"], {}).get("name", e["target"])
+                if e["target"] not in emitted_tools:
+                    lines.append(f"    {t_safe}([\"{t_name}\"]):::tool")
+                    emitted_tools.add(e["target"])
+                lines.append(f"    {target_safe} --> {t_safe}")
+    lines.append("    end")
 
     lines.append("")
     lines.append("    classDef fuzzer fill:#1565c0,color:#fff,stroke:#0d47a1")
+    lines.append("    classDef afl fill:#6a1b9a,color:#fff,stroke:#4a148c")
     lines.append("    classDef tool fill:#2e7d32,color:#fff,stroke:#1b5e20")
 
     return "\n".join(lines)

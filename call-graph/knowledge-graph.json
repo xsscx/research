@@ -2,15 +2,16 @@
   "version": "1.0.0",
   "generated_by": "build-knowledge-graph.py",
   "stats": {
-    "nodes": 562,
-    "edges": 602,
+    "nodes": 579,
+    "edges": 647,
     "heuristics": 181,
-    "cves": 98,
-    "ghsas": 106,
+    "cves": 97,
+    "ghsas": 105,
     "cwes": 57,
-    "patches": 61,
-    "components": 46,
-    "fuzzers": 13,
+    "patches": 0,
+    "components": 50,
+    "fuzzers": 24,
+    "afl_targets": 65,
     "severity_distribution": {
       "CRITICAL": 62,
       "HIGH": 47,
@@ -98,6 +99,40 @@
       "id": "CWE-682",
       "type": "cwe",
       "name": "CWE-682"
+    },
+    {
+      "id": "H15",
+      "type": "heuristic",
+      "name": "Date Validation",
+      "specRef": "Sec.7.2.4",
+      "phase": "HEADER",
+      "severity": "LOW"
+    },
+    {
+      "id": "H16",
+      "type": "heuristic",
+      "name": "Signature Patterns",
+      "specRef": "Sec.7.2",
+      "phase": "HEADER",
+      "severity": "INFO"
+    },
+    {
+      "id": "CWE-506",
+      "type": "cwe",
+      "name": "CWE-506"
+    },
+    {
+      "id": "H17",
+      "type": "heuristic",
+      "name": "Spectral Range",
+      "specRef": "Sec.7.2.22",
+      "phase": "HEADER",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "CWE-843",
+      "type": "cwe",
+      "name": "CWE-843"
     },
     {
       "id": "H9",
@@ -259,40 +294,6 @@
     {
       "id": "GHSA-965q-9pp6-6vw5",
       "type": "ghsa"
-    },
-    {
-      "id": "H15",
-      "type": "heuristic",
-      "name": "Date Validation",
-      "specRef": "Sec.7.2.4",
-      "phase": "HEADER",
-      "severity": "LOW"
-    },
-    {
-      "id": "H16",
-      "type": "heuristic",
-      "name": "Signature Patterns",
-      "specRef": "Sec.7.2",
-      "phase": "HEADER",
-      "severity": "INFO"
-    },
-    {
-      "id": "CWE-506",
-      "type": "cwe",
-      "name": "CWE-506"
-    },
-    {
-      "id": "H17",
-      "type": "heuristic",
-      "name": "Spectral Range",
-      "specRef": "Sec.7.2.22",
-      "phase": "HEADER",
-      "severity": "MEDIUM"
-    },
-    {
-      "id": "CWE-843",
-      "type": "cwe",
-      "name": "CWE-843"
     },
     {
       "id": "H18",
@@ -835,19 +836,48 @@
       "severity": "HIGH"
     },
     {
-      "id": "H56",
-      "type": "heuristic",
-      "name": "Calculator Stack Depth",
-      "specRef": null,
-      "phase": "DATA_VALIDATION",
-      "severity": "HIGH"
-    },
-    {
       "id": "H57",
       "type": "heuristic",
       "name": "Embedded Profile Recursion Depth",
       "specRef": null,
       "phase": "RAW_POST",
+      "severity": "HIGH"
+    },
+    {
+      "id": "H59",
+      "type": "heuristic",
+      "name": "Spectral Wavelength Range Consistency",
+      "specRef": null,
+      "phase": "RAW_POST",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "H68",
+      "type": "heuristic",
+      "name": "GamutBoundaryDesc Triangle Vertex Overflow",
+      "specRef": null,
+      "phase": "RAW_POST",
+      "severity": "CRITICAL"
+    },
+    {
+      "id": "H69",
+      "type": "heuristic",
+      "name": "Profile ID MD5 Consistency",
+      "specRef": null,
+      "phase": "RAW_POST",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "CWE-345",
+      "type": "cwe",
+      "name": "CWE-345"
+    },
+    {
+      "id": "H56",
+      "type": "heuristic",
+      "name": "Calculator Stack Depth",
+      "specRef": null,
+      "phase": "DATA_VALIDATION",
       "severity": "HIGH"
     },
     {
@@ -870,14 +900,6 @@
     {
       "id": "GHSA-h554-qrfh-53gx",
       "type": "ghsa"
-    },
-    {
-      "id": "H59",
-      "type": "heuristic",
-      "name": "Spectral Wavelength Range Consistency",
-      "specRef": null,
-      "phase": "RAW_POST",
-      "severity": "MEDIUM"
     },
     {
       "id": "H60",
@@ -979,27 +1001,6 @@
     {
       "id": "GHSA-q8g2-mp32-3j7f",
       "type": "ghsa"
-    },
-    {
-      "id": "H68",
-      "type": "heuristic",
-      "name": "GamutBoundaryDesc Triangle Vertex Overflow",
-      "specRef": null,
-      "phase": "RAW_POST",
-      "severity": "CRITICAL"
-    },
-    {
-      "id": "H69",
-      "type": "heuristic",
-      "name": "Profile ID MD5 Consistency",
-      "specRef": null,
-      "phase": "RAW_POST",
-      "severity": "MEDIUM"
-    },
-    {
-      "id": "CWE-345",
-      "type": "cwe",
-      "name": "CWE-345"
     },
     {
       "id": "H70",
@@ -2353,23 +2354,15 @@
       "id": "H173",
       "type": "heuristic",
       "name": "Signature Conversion Shift Overflow",
-      "specRef": "IccUtil.cpp:1088/1130/1167/1187/1228/1253",
+      "specRef": "Resolved upstream in iccDEV #726",
       "phase": "RAW_POST",
       "severity": "MEDIUM"
-    },
-    {
-      "id": "CVE-2026-34549",
-      "type": "cve"
-    },
-    {
-      "id": "GHSA-v7qh-f995-p2fq",
-      "type": "ghsa"
     },
     {
       "id": "H174",
       "type": "heuristic",
       "name": "Half-Float Conversion Unsigned Underflow",
-      "specRef": "IccUtil.cpp:665/677, IccIO.cpp:328",
+      "specRef": "Resolved upstream in iccDEV #724/#727",
       "phase": "RAW_POST",
       "severity": "MEDIUM"
     },
@@ -2419,7 +2412,7 @@
       "id": "H179",
       "type": "heuristic",
       "name": "AddXform Create NULL Guard Detection",
-      "specRef": "IccCmm.cpp:8292 PR#708",
+      "specRef": "Resolved upstream in iccDEV #893",
       "phase": "EXPLOIT_GAP",
       "severity": "HIGH"
     },
@@ -2435,627 +2428,215 @@
       "id": "H181",
       "type": "heuristic",
       "name": "JSON Bitmask Complement CWE-681",
-      "specRef": "IccProfileJson.cpp:85 #809",
+      "specRef": "Resolved upstream in iccDEV #812/#813",
       "phase": "EXPLOIT_GAP",
       "severity": "HIGH"
     },
     {
-      "id": "CFL-001",
-      "type": "patch",
-      "file": "001-icAnsiToUtf8-null-termination.patch",
-      "reachability": "xml-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-002",
-      "type": "patch",
-      "file": "002-gamutboundary-triangles-signed-overflow.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-004",
-      "type": "patch",
-      "file": "004-ToneMapFunc-Read-parameter-count-validation.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-005",
-      "type": "patch",
-      "file": "005-calculatorfunc-read-enum-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P1",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-006",
-      "type": "patch",
-      "file": "006-SpectralMatrix-Describe-iteration-bounds.patch",
-      "reachability": "profile-runtime",
-      "priority": "P1",
-      "v1_defense": "partial",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-007",
-      "type": "patch",
-      "file": "007-TagArray-Read-overflow-guard.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-008",
-      "type": "patch",
-      "file": "008-TagCurve-Apply-NaN-to-unsigned-UBSAN.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P1",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-009",
-      "type": "patch",
-      "file": "009-envvar-exec-enum-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-014",
-      "type": "patch",
-      "file": "014-sequenceneedtempreset-recursion-depth.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P1",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-017",
-      "type": "patch",
-      "file": "017-envvar-getEnvSig-parse-enum-ubsan.patch",
-      "reachability": "xml-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-019",
-      "type": "patch",
-      "file": "019-pcc-getReflectanceObserver-null-guard.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-021",
-      "type": "patch",
-      "file": "021-singlesampled-curve-oom-size-validation.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-022",
-      "type": "patch",
-      "file": "022-calc-trunc-floor-ceil-round-mod-int-overflow.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P0",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-023",
-      "type": "patch",
-      "file": "023-sampled-curve-nan-to-unsigned-cast.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P1",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-025",
-      "type": "patch",
-      "file": "025-clut-interpnd-null-apply-guard.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P0",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-028",
-      "type": "patch",
-      "file": "028-matrixmath-setrange-nan-guard.patch",
-      "reachability": "profile-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-029",
-      "type": "patch",
-      "file": "029-tagarray-operator-eq-loop-var.patch",
-      "reachability": "profile-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-030",
-      "type": "patch",
-      "file": "030-fixednum-getvalues-sbo.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-031",
-      "type": "patch",
-      "file": "031-loadjsonfrom-ftell-overflow.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-032",
-      "type": "patch",
-      "file": "032-icxforminterp-enum-range.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-033",
-      "type": "patch",
-      "file": "033-pccweight-fromjson-field-swap.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-035",
-      "type": "patch",
-      "file": "035-applycmmsearch-m_nApply-oob-clamp.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-036",
-      "type": "patch",
-      "file": "036-createlink-tojson-missing-linkgridsize.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-038",
-      "type": "patch",
-      "file": "038-searchapply-tojsoninit-missing-transform.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-040",
-      "type": "patch",
-      "file": "040-fromit8-cmyk-missing-push-back.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-041",
-      "type": "patch",
-      "file": "041-fromit8-lab-xyz-val4-oob.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-042",
-      "type": "patch",
-      "file": "042-parsenumbers-n-vs-newline-typo.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-043",
-      "type": "patch",
-      "file": "043-tool-tojson-is-object-vs-is-array.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-044",
-      "type": "patch",
-      "file": "044-ndlut-apply-missing-interp-dispatch.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-045",
-      "type": "patch",
-      "file": "045-addxform-null-pcs-guard.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-046",
-      "type": "patch",
-      "file": "046-pcs-step-src-matrix-delete-array.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P1",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-047",
-      "type": "patch",
-      "file": "047-pushXYZNormalize-null-pcc-guard.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-048",
-      "type": "patch",
-      "file": "048-dumplut-iterate-missing-bufsize.patch",
-      "reachability": "profile-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-049",
-      "type": "patch",
-      "file": "049-mbb-describe-btoa-missing-buselegacy.patch",
-      "reachability": "profile-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-050",
-      "type": "patch",
-      "file": "050-formulacurve-describe-param-bounds.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-051",
-      "type": "patch",
-      "file": "051-parametriccurve-describe-param-bounds.patch",
-      "reachability": "profile-runtime",
-      "priority": "P1",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-052",
-      "type": "patch",
-      "file": "052-fromit8-wrong-index-variable.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-053",
-      "type": "patch",
-      "file": "053-formulacurve-describe-format-specifiers.patch",
-      "reachability": "profile-runtime",
-      "priority": "P3",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-054",
-      "type": "patch",
-      "file": "054-parametriccurve-describe-format-specifiers.patch",
-      "reachability": "profile-runtime",
-      "priority": "P3",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-055",
-      "type": "patch",
-      "file": "055-fromit8-signed-unsigned-mismatch.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-056",
-      "type": "patch",
-      "file": "056-spectral-describe-null-pointer-guards.patch",
-      "reachability": "profile-runtime",
-      "priority": "P1",
-      "v1_defense": "partial",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-057",
-      "type": "patch",
-      "file": "057-searchapply-uninitialized-members.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-058",
-      "type": "patch",
-      "file": "058-EmbedIO-size-signed-unsigned-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-059",
-      "type": "patch",
-      "file": "059-TagCurve-Begin-nMaxIndex-underflow.patch",
-      "reachability": "profile-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-060",
-      "type": "patch",
-      "file": "060-icGetSigStr-left-shift-overflow-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-061",
-      "type": "patch",
-      "file": "061-icF16toF-unsigned-underflow-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-062",
-      "type": "patch",
-      "file": "062-icGetSig-implicit-char-conversion-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-063",
-      "type": "patch",
-      "file": "063-bounds-check-unsigned-overflow-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-064",
-      "type": "patch",
-      "file": "064-segmented-curve-subtraction-underflow-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-065",
-      "type": "patch",
-      "file": "065-taglut-nEnd-subtraction-underflow-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P1",
-      "v1_defense": "partial",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-066",
-      "type": "patch",
-      "file": "066-IccUtilXml-bitmask-signed-conversion-ubsan.patch",
-      "reachability": "xml-runtime",
-      "priority": "P0",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-067",
-      "type": "patch",
-      "file": "067-icIsS15Fixed16NumberNear-float-overflow-ubsan.patch",
-      "reachability": "profile-runtime",
-      "priority": "P1",
-      "v1_defense": "covered",
-      "v2_defense": "covered",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-068",
-      "type": "patch",
-      "file": "068-MpeCurveSet-operator-eq-self-assignment.patch",
-      "reachability": "profile-runtime",
-      "priority": "P3",
-      "v1_defense": "todo",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-069",
-      "type": "patch",
-      "file": "069-operator-eq-self-assignment-guards.patch",
-      "reachability": "profile-runtime",
-      "priority": "P3",
-      "v1_defense": "todo",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-070",
-      "type": "patch",
-      "file": "070-missing-member-copies-operator-eq-copyctor.patch",
-      "reachability": "profile-runtime",
-      "priority": "P3",
-      "v1_defense": "todo",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-071",
-      "type": "patch",
-      "file": "071-uninit-default-ctor-members.patch",
-      "reachability": "profile-runtime",
-      "priority": "P3",
-      "v1_defense": "todo",
-      "v2_defense": "todo",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-072",
-      "type": "patch",
-      "file": "072-printf-format-unused-fn.patch",
-      "reachability": "profile-runtime",
-      "priority": "P3",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-073",
-      "type": "patch",
-      "file": "073-IccProfileXml-implicit-fallthrough.patch",
-      "reachability": "xml-runtime",
-      "priority": "P3",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-074",
-      "type": "patch",
-      "file": "074-IccUtilXml-clipTypeRange-if-constexpr.patch",
-      "reachability": "xml-runtime",
-      "priority": "P3",
-      "v1_defense": "partial",
-      "v2_defense": "partial",
-      "review_state": "inferred"
-    },
-    {
-      "id": "CFL-075",
-      "type": "patch",
-      "file": "075-IccCmmConfig-uninit-format-fixes.patch",
-      "reachability": "tool-only",
-      "priority": "OOS",
-      "v1_defense": "oos",
-      "v2_defense": "oos",
-      "review_state": "verified"
-    },
-    {
-      "id": "CFL-078",
-      "type": "patch",
-      "file": "078-addxform-cenc-uaf-guard.patch",
-      "reachability": "cmm-runtime",
-      "priority": "P2",
-      "v1_defense": "partial",
-      "v2_defense": "no",
-      "review_state": "verified"
-    },
-    {
-      "id": "comp:analyzer/iccanalyzer-lite",
+      "id": "comp:iccdev/tools/IccApplyNamedCmm",
       "type": "component",
-      "component": "analyzer",
-      "name": "iccanalyzer-lite",
-      "ast_functions": 313211,
-      "cg_edges": 23689,
+      "component": "iccdev/tools",
+      "name": "IccApplyNamedCmm",
+      "ast_functions": 0,
+      "cg_edges": 104,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/tools/IccApplyProfiles",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccApplyProfiles",
+      "ast_functions": 3455,
+      "cg_edges": 174,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccApplySearch",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccApplySearch",
+      "ast_functions": 0,
+      "cg_edges": 88,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/tools/IccApplyToLink",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccApplyToLink",
+      "ast_functions": 0,
+      "cg_edges": 150,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/tools/IccBenchApply",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccBenchApply",
+      "ast_functions": 12752,
+      "cg_edges": 1383,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccDumpProfile",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccDumpProfile",
+      "ast_functions": 0,
+      "cg_edges": 103,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/tools/IccFromCube",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccFromCube",
+      "ast_functions": 0,
+      "cg_edges": 39,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/tools/IccFromJson",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccFromJson",
+      "ast_functions": 12823,
+      "cg_edges": 129,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccHeifDump",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccHeifDump",
+      "ast_functions": 5541,
+      "cg_edges": 398,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccJpegDump",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccJpegDump",
+      "ast_functions": 0,
+      "cg_edges": 53,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/tools/IccPawgReport",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccPawgReport",
+      "ast_functions": 2658,
+      "cg_edges": 126,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccPngDump",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccPngDump",
+      "ast_functions": 0,
+      "cg_edges": 90,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/tools/IccProfilePlot",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccProfilePlot",
+      "ast_functions": 8722,
+      "cg_edges": 1721,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccProfileVisualize",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccProfileVisualize",
+      "ast_functions": 7377,
+      "cg_edges": 568,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccRoundTrip",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccRoundTrip",
+      "ast_functions": 6518,
+      "cg_edges": 107,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccSpecSepToTiff",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccSpecSepToTiff",
+      "ast_functions": 0,
+      "cg_edges": 140,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/tools/IccTiffDump",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccTiffDump",
+      "ast_functions": 0,
+      "cg_edges": 186,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:iccdev/tools/IccToJson",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccToJson",
+      "ast_functions": 15721,
+      "cg_edges": 2706,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/tools/IccV5DspObsToV4Dsp",
+      "type": "component",
+      "component": "iccdev/tools",
+      "name": "IccV5DspObsToV4Dsp",
+      "ast_functions": 6115,
+      "cg_edges": 225,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/proflib/IccProfLib",
+      "type": "component",
+      "component": "iccdev/proflib",
+      "name": "IccProfLib",
+      "ast_functions": 240920,
+      "cg_edges": 18490,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/xml/IccLibXML",
+      "type": "component",
+      "component": "iccdev/xml",
+      "name": "IccLibXML",
+      "ast_functions": 54798,
+      "cg_edges": 7581,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/json/IccLibJSON",
+      "type": "component",
+      "component": "iccdev/json",
+      "name": "IccLibJSON",
+      "ast_functions": 106000,
+      "cg_edges": 17522,
+      "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:iccdev/connect/IccLibConnect",
+      "type": "component",
+      "component": "iccdev/connect",
+      "name": "IccLibConnect",
+      "ast_functions": 53206,
+      "cg_edges": 8267,
       "cg_method": "llvm-ir"
     },
     {
@@ -3063,8 +2644,8 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_applynamedcmm_fuzzer",
-      "ast_functions": 7030,
-      "cg_edges": 41,
+      "ast_functions": 18448,
+      "cg_edges": 400,
       "cg_method": "llvm-ir"
     },
     {
@@ -3072,7 +2653,7 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_applyprofiles_fuzzer",
-      "ast_functions": 18205,
+      "ast_functions": 18614,
       "cg_edges": 264,
       "cg_method": "llvm-ir"
     },
@@ -3081,7 +2662,7 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_applyprofiles_row_fuzzer",
-      "ast_functions": 18204,
+      "ast_functions": 18613,
       "cg_edges": 264,
       "cg_method": "llvm-ir"
     },
@@ -3090,8 +2671,8 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_applysearch_fuzzer",
-      "ast_functions": 7503,
-      "cg_edges": 46,
+      "ast_functions": 18331,
+      "cg_edges": 113,
       "cg_method": "llvm-ir"
     },
     {
@@ -3099,8 +2680,8 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_applysearch_weight_fuzzer",
-      "ast_functions": 7503,
-      "cg_edges": 46,
+      "ast_functions": 18331,
+      "cg_edges": 113,
       "cg_method": "llvm-ir"
     },
     {
@@ -3108,8 +2689,8 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_cfg_fuzzer",
-      "ast_functions": 17138,
-      "cg_edges": 2575,
+      "ast_functions": 17517,
+      "cg_edges": 2915,
       "cg_method": "llvm-ir"
     },
     {
@@ -3117,8 +2698,8 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_connect_fuzzer",
-      "ast_functions": 18082,
-      "cg_edges": 229,
+      "ast_functions": 18354,
+      "cg_edges": 230,
       "cg_method": "llvm-ir"
     },
     {
@@ -3126,7 +2707,7 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_dump_fuzzer",
-      "ast_functions": 7217,
+      "ast_functions": 7310,
       "cg_edges": 198,
       "cg_method": "llvm-ir"
     },
@@ -3135,7 +2716,7 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_fromcube_fuzzer",
-      "ast_functions": 6209,
+      "ast_functions": 6262,
       "cg_edges": 287,
       "cg_method": "llvm-ir"
     },
@@ -3144,8 +2725,8 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_fromjson_fuzzer",
-      "ast_functions": 14106,
-      "cg_edges": 2392,
+      "ast_functions": 14257,
+      "cg_edges": 2399,
       "cg_method": "llvm-ir"
     },
     {
@@ -3153,17 +2734,26 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_fromxml_fuzzer",
-      "ast_functions": 4981,
+      "ast_functions": 5032,
       "cg_edges": 110,
       "cg_method": "llvm-ir"
+    },
+    {
+      "id": "comp:cfl/icc_heifdump_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_heifdump_fuzzer",
+      "ast_functions": 0,
+      "cg_edges": 8,
+      "cg_method": "regex-fallback"
     },
     {
       "id": "comp:cfl/icc_jpegdump_fuzzer",
       "type": "component",
       "component": "cfl",
       "name": "icc_jpegdump_fuzzer",
-      "ast_functions": 3876,
-      "cg_edges": 442,
+      "ast_functions": 3936,
+      "cg_edges": 446,
       "cg_method": "llvm-ir"
     },
     {
@@ -3171,7 +2761,7 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_link_fuzzer",
-      "ast_functions": 6866,
+      "ast_functions": 6960,
       "cg_edges": 85,
       "cg_method": "llvm-ir"
     },
@@ -3194,11 +2784,29 @@
       "cg_method": "regex-fallback"
     },
     {
+      "id": "comp:cfl/icc_profilevisualize_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_profilevisualize_fuzzer",
+      "ast_functions": 0,
+      "cg_edges": 3,
+      "cg_method": "regex-fallback"
+    },
+    {
+      "id": "comp:cfl/icc_proflib_fuzzer",
+      "type": "component",
+      "component": "cfl",
+      "name": "icc_proflib_fuzzer",
+      "ast_functions": 5637,
+      "cg_edges": 179,
+      "cg_method": "llvm-ir"
+    },
+    {
       "id": "comp:cfl/icc_roundtrip_fuzzer",
       "type": "component",
       "component": "cfl",
       "name": "icc_roundtrip_fuzzer",
-      "ast_functions": 6430,
+      "ast_functions": 6490,
       "cg_edges": 27,
       "cg_method": "llvm-ir"
     },
@@ -3207,8 +2815,8 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_specsep_fuzzer",
-      "ast_functions": 2736,
-      "cg_edges": 137,
+      "ast_functions": 4782,
+      "cg_edges": 277,
       "cg_method": "llvm-ir"
     },
     {
@@ -3216,8 +2824,8 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_tiffdump_fuzzer",
-      "ast_functions": 6856,
-      "cg_edges": 147,
+      "ast_functions": 6973,
+      "cg_edges": 149,
       "cg_method": "llvm-ir"
     },
     {
@@ -3225,7 +2833,7 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_tojson_fuzzer",
-      "ast_functions": 13544,
+      "ast_functions": 13694,
       "cg_edges": 616,
       "cg_method": "llvm-ir"
     },
@@ -3234,7 +2842,7 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_toxml_fuzzer",
-      "ast_functions": 4666,
+      "ast_functions": 4721,
       "cg_edges": 105,
       "cg_method": "llvm-ir"
     },
@@ -3243,7 +2851,7 @@
       "type": "component",
       "component": "cfl",
       "name": "icc_v5dspobs_fuzzer",
-      "ast_functions": 5975,
+      "ast_functions": 6058,
       "cg_edges": 163,
       "cg_method": "llvm-ir"
     },
@@ -3252,7 +2860,7 @@
       "type": "component",
       "component": "colorbleed",
       "name": "ColorBleedAlloc",
-      "ast_functions": 264,
+      "ast_functions": 262,
       "cg_edges": 4,
       "cg_method": "llvm-ir"
     },
@@ -3273,195 +2881,6 @@
       "ast_functions": 0,
       "cg_edges": 39,
       "cg_method": "regex-fallback"
-    },
-    {
-      "id": "comp:iccdev/connect/IccLibConnect",
-      "type": "component",
-      "component": "iccdev/connect",
-      "name": "IccLibConnect",
-      "ast_functions": 52457,
-      "cg_edges": 8168,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/json/IccLibJSON",
-      "type": "component",
-      "component": "iccdev/json",
-      "name": "IccLibJSON",
-      "ast_functions": 104498,
-      "cg_edges": 17043,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/proflib/IccProfLib",
-      "type": "component",
-      "component": "iccdev/proflib",
-      "name": "IccProfLib",
-      "ast_functions": 227043,
-      "cg_edges": 18328,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccApplyNamedCmm",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccApplyNamedCmm",
-      "ast_functions": 18436,
-      "cg_edges": 2060,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccApplyProfiles",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccApplyProfiles",
-      "ast_functions": 19806,
-      "cg_edges": 1696,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccApplySearch",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccApplySearch",
-      "ast_functions": 18432,
-      "cg_edges": 2066,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccApplyToLink",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccApplyToLink",
-      "ast_functions": 8236,
-      "cg_edges": 657,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccDumpProfile",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccDumpProfile",
-      "ast_functions": 7599,
-      "cg_edges": 497,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccFromCube",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccFromCube",
-      "ast_functions": 6345,
-      "cg_edges": 322,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccFromJson",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccFromJson",
-      "ast_functions": 12514,
-      "cg_edges": 86,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccJpegDump",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccJpegDump",
-      "ast_functions": 4741,
-      "cg_edges": 419,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccPawgReport",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccPawgReport",
-      "ast_functions": 12716,
-      "cg_edges": 2141,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccPngDump",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccPngDump",
-      "ast_functions": 7923,
-      "cg_edges": 255,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccProfilePlot",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccProfilePlot",
-      "ast_functions": 38439,
-      "cg_edges": 3817,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccProfileVisualize",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccProfileVisualize",
-      "ast_functions": 33637,
-      "cg_edges": 3863,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccRoundTrip",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccRoundTrip",
-      "ast_functions": 6281,
-      "cg_edges": 25,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccSpecSepToTiff",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccSpecSepToTiff",
-      "ast_functions": 8011,
-      "cg_edges": 356,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccTiffDump",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccTiffDump",
-      "ast_functions": 6503,
-      "cg_edges": 191,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccToJson",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccToJson",
-      "ast_functions": 15871,
-      "cg_edges": 3915,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/tools/IccV5DspObsToV4Dsp",
-      "type": "component",
-      "component": "iccdev/tools",
-      "name": "IccV5DspObsToV4Dsp",
-      "ast_functions": 5855,
-      "cg_edges": 212,
-      "cg_method": "llvm-ir"
-    },
-    {
-      "id": "comp:iccdev/xml/IccLibXML",
-      "type": "component",
-      "component": "iccdev/xml",
-      "name": "IccLibXML",
-      "ast_functions": 53871,
-      "cg_edges": 7030,
-      "cg_method": "llvm-ir"
     },
     {
       "id": "CWE-758",
@@ -3683,6 +3102,451 @@
       "id": "fuzzer:icc_cfg_fuzzer",
       "type": "fuzzer",
       "name": "icc_cfg_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_applyprofiles_row_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_applyprofiles_row_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_applysearch_weight_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_applysearch_weight_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_connect_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_connect_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_fromjson_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_fromjson_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_heifdump_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_heifdump_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_jpegdump_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_jpegdump_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_pawgreport_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_pawgreport_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_pngdump_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_pngdump_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_profilevisualize_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_profilevisualize_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_proflib_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_proflib_fuzzer"
+    },
+    {
+      "id": "fuzzer:icc_tojson_fuzzer",
+      "type": "fuzzer",
+      "name": "icc_tojson_fuzzer"
+    },
+    {
+      "id": "afl:benchapply",
+      "type": "afl_target",
+      "name": "benchapply",
+      "tool": "iccBenchApply"
+    },
+    {
+      "id": "afl:applynamedcmm",
+      "type": "afl_target",
+      "name": "applynamedcmm",
+      "tool": "iccApplyNamedCmm"
+    },
+    {
+      "id": "afl:applynamedcmm-v5-brdf",
+      "type": "afl_target",
+      "name": "applynamedcmm-v5-brdf",
+      "tool": "iccApplyNamedCmm"
+    },
+    {
+      "id": "afl:applynamedcmm-debugcalc",
+      "type": "afl_target",
+      "name": "applynamedcmm-debugcalc",
+      "tool": "iccApplyNamedCmm"
+    },
+    {
+      "id": "afl:applynamedcmm-cfg",
+      "type": "afl_target",
+      "name": "applynamedcmm-cfg",
+      "tool": "iccApplyNamedCmm"
+    },
+    {
+      "id": "afl:applynamedcmm-hybrid-chain",
+      "type": "afl_target",
+      "name": "applynamedcmm-hybrid-chain",
+      "tool": "iccApplyNamedCmm"
+    },
+    {
+      "id": "afl:applyprofiles",
+      "type": "afl_target",
+      "name": "applyprofiles",
+      "tool": "iccApplyProfiles"
+    },
+    {
+      "id": "afl:applyprofiles-fast",
+      "type": "afl_target",
+      "name": "applyprofiles-fast",
+      "tool": "iccApplyProfiles"
+    },
+    {
+      "id": "afl:applyprofiles-deep",
+      "type": "afl_target",
+      "name": "applyprofiles-deep",
+      "tool": "iccApplyProfiles"
+    },
+    {
+      "id": "afl:applyprofiles-cfg",
+      "type": "afl_target",
+      "name": "applyprofiles-cfg",
+      "tool": "iccApplyProfiles"
+    },
+    {
+      "id": "afl:applyprofiles-search",
+      "type": "afl_target",
+      "name": "applyprofiles-search",
+      "tool": "iccApplyProfiles"
+    },
+    {
+      "id": "afl:applyprofiles-row",
+      "type": "afl_target",
+      "name": "applyprofiles-row",
+      "tool": "iccApplyProfiles"
+    },
+    {
+      "id": "afl:applysearch",
+      "type": "afl_target",
+      "name": "applysearch",
+      "tool": "iccApplySearch"
+    },
+    {
+      "id": "afl:applysearch-noinit",
+      "type": "afl_target",
+      "name": "applysearch-noinit",
+      "tool": "iccApplySearch"
+    },
+    {
+      "id": "afl:applysearch-cfg",
+      "type": "afl_target",
+      "name": "applysearch-cfg",
+      "tool": "iccApplySearch"
+    },
+    {
+      "id": "afl:applysearch-fast",
+      "type": "afl_target",
+      "name": "applysearch-fast",
+      "tool": "iccApplySearch"
+    },
+    {
+      "id": "afl:applysearch-weight-positive",
+      "type": "afl_target",
+      "name": "applysearch-weight-positive",
+      "tool": "iccApplySearch"
+    },
+    {
+      "id": "afl:applysearch-weight-positive-fast",
+      "type": "afl_target",
+      "name": "applysearch-weight-positive-fast",
+      "tool": "iccApplySearch"
+    },
+    {
+      "id": "afl:applysearch-weight-zero",
+      "type": "afl_target",
+      "name": "applysearch-weight-zero",
+      "tool": "iccApplySearch"
+    },
+    {
+      "id": "afl:applysearch-weight-negative",
+      "type": "afl_target",
+      "name": "applysearch-weight-negative",
+      "tool": "iccApplySearch"
+    },
+    {
+      "id": "afl:applysearch-weight-nan",
+      "type": "afl_target",
+      "name": "applysearch-weight-nan",
+      "tool": "iccApplySearch"
+    },
+    {
+      "id": "afl:applytolink",
+      "type": "afl_target",
+      "name": "applytolink",
+      "tool": "iccApplyToLink"
+    },
+    {
+      "id": "afl:applytolink-v5",
+      "type": "afl_target",
+      "name": "applytolink-v5",
+      "tool": "iccApplyToLink"
+    },
+    {
+      "id": "afl:applytolink-cube",
+      "type": "afl_target",
+      "name": "applytolink-cube",
+      "tool": "iccApplyToLink"
+    },
+    {
+      "id": "afl:dump",
+      "type": "afl_target",
+      "name": "dump",
+      "tool": "iccDumpProfile"
+    },
+    {
+      "id": "afl:dump-diag",
+      "type": "afl_target",
+      "name": "dump-diag",
+      "tool": "iccDumpProfile"
+    },
+    {
+      "id": "afl:dump-read",
+      "type": "afl_target",
+      "name": "dump-read",
+      "tool": "iccDumpProfile"
+    },
+    {
+      "id": "afl:fromcube",
+      "type": "afl_target",
+      "name": "fromcube",
+      "tool": "iccFromCube"
+    },
+    {
+      "id": "afl:fromjson",
+      "type": "afl_target",
+      "name": "fromjson",
+      "tool": "iccFromJson"
+    },
+    {
+      "id": "afl:fromjson-noid",
+      "type": "afl_target",
+      "name": "fromjson-noid",
+      "tool": "iccFromJson"
+    },
+    {
+      "id": "afl:fromxml",
+      "type": "afl_target",
+      "name": "fromxml",
+      "tool": "iccFromXml"
+    },
+    {
+      "id": "afl:fromxml-includes",
+      "type": "afl_target",
+      "name": "fromxml-includes",
+      "tool": "iccFromXml"
+    },
+    {
+      "id": "afl:fromxml-noid",
+      "type": "afl_target",
+      "name": "fromxml-noid",
+      "tool": "iccFromXml"
+    },
+    {
+      "id": "afl:heifdump",
+      "type": "afl_target",
+      "name": "heifdump",
+      "tool": "iccHeifDump"
+    },
+    {
+      "id": "afl:heifdump-extract",
+      "type": "afl_target",
+      "name": "heifdump-extract",
+      "tool": "iccHeifDump"
+    },
+    {
+      "id": "afl:jpegdump",
+      "type": "afl_target",
+      "name": "jpegdump",
+      "tool": "iccJpegDump"
+    },
+    {
+      "id": "afl:jpegdump-inject",
+      "type": "afl_target",
+      "name": "jpegdump-inject",
+      "tool": "iccJpegDump"
+    },
+    {
+      "id": "afl:pawgreport",
+      "type": "afl_target",
+      "name": "pawgreport",
+      "tool": "iccPawgReport"
+    },
+    {
+      "id": "afl:pawgreport-fast",
+      "type": "afl_target",
+      "name": "pawgreport-fast",
+      "tool": "iccPawgReport"
+    },
+    {
+      "id": "afl:pngdump",
+      "type": "afl_target",
+      "name": "pngdump",
+      "tool": "iccPngDump"
+    },
+    {
+      "id": "afl:pngdump-inject",
+      "type": "afl_target",
+      "name": "pngdump-inject",
+      "tool": "iccPngDump"
+    },
+    {
+      "id": "afl:profileplot",
+      "type": "afl_target",
+      "name": "profileplot",
+      "tool": "iccProfilePlot"
+    },
+    {
+      "id": "afl:profileplot-graph",
+      "type": "afl_target",
+      "name": "profileplot-graph",
+      "tool": "iccProfilePlot"
+    },
+    {
+      "id": "afl:profileplot-raster",
+      "type": "afl_target",
+      "name": "profileplot-raster",
+      "tool": "iccProfilePlot"
+    },
+    {
+      "id": "afl:profilevisualize",
+      "type": "afl_target",
+      "name": "profilevisualize",
+      "tool": "iccProfileVisualize"
+    },
+    {
+      "id": "afl:profilevisualize-fast",
+      "type": "afl_target",
+      "name": "profilevisualize-fast",
+      "tool": "iccProfileVisualize"
+    },
+    {
+      "id": "afl:roundtrip",
+      "type": "afl_target",
+      "name": "roundtrip",
+      "tool": "iccRoundTrip"
+    },
+    {
+      "id": "afl:roundtrip-mpe",
+      "type": "afl_target",
+      "name": "roundtrip-mpe",
+      "tool": "iccRoundTrip"
+    },
+    {
+      "id": "afl:specseptotiff",
+      "type": "afl_target",
+      "name": "specseptotiff",
+      "tool": "iccSpecSepToTiff"
+    },
+    {
+      "id": "afl:specseptotiff-compress",
+      "type": "afl_target",
+      "name": "specseptotiff-compress",
+      "tool": "iccSpecSepToTiff"
+    },
+    {
+      "id": "afl:specseptotiff-desc",
+      "type": "afl_target",
+      "name": "specseptotiff-desc",
+      "tool": "iccSpecSepToTiff"
+    },
+    {
+      "id": "afl:specseptotiff-harvest",
+      "type": "afl_target",
+      "name": "specseptotiff-harvest",
+      "tool": "iccSpecSepToTiff"
+    },
+    {
+      "id": "afl:specseptotiff-sep",
+      "type": "afl_target",
+      "name": "specseptotiff-sep",
+      "tool": "iccSpecSepToTiff"
+    },
+    {
+      "id": "afl:specseptotiff-short",
+      "type": "afl_target",
+      "name": "specseptotiff-short",
+      "tool": "iccSpecSepToTiff"
+    },
+    {
+      "id": "afl:specseptotiff-tiles",
+      "type": "afl_target",
+      "name": "specseptotiff-tiles",
+      "tool": "iccSpecSepToTiff"
+    },
+    {
+      "id": "afl:specseptotiff-bigtiff",
+      "type": "afl_target",
+      "name": "specseptotiff-bigtiff",
+      "tool": "iccSpecSepToTiff"
+    },
+    {
+      "id": "afl:specseptotiff-tiff",
+      "type": "afl_target",
+      "name": "specseptotiff-tiff",
+      "tool": "iccSpecSepToTiff"
+    },
+    {
+      "id": "afl:tiffdump",
+      "type": "afl_target",
+      "name": "tiffdump",
+      "tool": "iccTiffDump"
+    },
+    {
+      "id": "afl:tiffdump-extract",
+      "type": "afl_target",
+      "name": "tiffdump-extract",
+      "tool": "iccTiffDump"
+    },
+    {
+      "id": "afl:tiffdump-ifd",
+      "type": "afl_target",
+      "name": "tiffdump-ifd",
+      "tool": "iccTiffDump"
+    },
+    {
+      "id": "afl:tiffdump-list",
+      "type": "afl_target",
+      "name": "tiffdump-list",
+      "tool": "iccTiffDump"
+    },
+    {
+      "id": "afl:tojson",
+      "type": "afl_target",
+      "name": "tojson",
+      "tool": "iccToJson"
+    },
+    {
+      "id": "afl:toxml",
+      "type": "afl_target",
+      "name": "toxml",
+      "tool": "iccToXml"
+    },
+    {
+      "id": "afl:toxml-fast",
+      "type": "afl_target",
+      "name": "toxml-fast",
+      "tool": "iccToXml"
+    },
+    {
+      "id": "afl:v5dspobs",
+      "type": "afl_target",
+      "name": "v5dspobs",
+      "tool": "iccV5DspObsToV4Dsp"
     }
   ],
   "edges": [
@@ -3724,6 +3588,21 @@
     {
       "source": "H8",
       "target": "CWE-682",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H15",
+      "target": "CWE-20",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H16",
+      "target": "CWE-506",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H17",
+      "target": "CWE-843",
       "relationship": "CLASSIFIES"
     },
     {
@@ -3865,21 +3744,6 @@
       "source": "H14",
       "target": "GHSA-965q-9pp6-6vw5",
       "relationship": "DETECTS"
-    },
-    {
-      "source": "H15",
-      "target": "CWE-20",
-      "relationship": "CLASSIFIES"
-    },
-    {
-      "source": "H16",
-      "target": "CWE-506",
-      "relationship": "CLASSIFIES"
-    },
-    {
-      "source": "H17",
-      "target": "CWE-843",
-      "relationship": "CLASSIFIES"
     },
     {
       "source": "H18",
@@ -4332,6 +4196,26 @@
       "relationship": "CLASSIFIES"
     },
     {
+      "source": "H57",
+      "target": "CWE-674",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H59",
+      "target": "CWE-682",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H68",
+      "target": "CWE-190",
+      "relationship": "CLASSIFIES"
+    },
+    {
+      "source": "H69",
+      "target": "CWE-345",
+      "relationship": "CLASSIFIES"
+    },
+    {
       "source": "H56",
       "target": "CWE-400",
       "relationship": "CLASSIFIES"
@@ -4347,11 +4231,6 @@
       "relationship": "DETECTS"
     },
     {
-      "source": "H57",
-      "target": "CWE-674",
-      "relationship": "CLASSIFIES"
-    },
-    {
       "source": "H58",
       "target": "CWE-126",
       "relationship": "CLASSIFIES"
@@ -4365,11 +4244,6 @@
       "source": "H58",
       "target": "GHSA-h554-qrfh-53gx",
       "relationship": "DETECTS"
-    },
-    {
-      "source": "H59",
-      "target": "CWE-682",
-      "relationship": "CLASSIFIES"
     },
     {
       "source": "H60",
@@ -4460,16 +4334,6 @@
       "source": "H67",
       "target": "GHSA-q8g2-mp32-3j7f",
       "relationship": "DETECTS"
-    },
-    {
-      "source": "H68",
-      "target": "CWE-190",
-      "relationship": "CLASSIFIES"
-    },
-    {
-      "source": "H69",
-      "target": "CWE-345",
-      "relationship": "CLASSIFIES"
     },
     {
       "source": "H70",
@@ -6002,16 +5866,6 @@
       "relationship": "CLASSIFIES"
     },
     {
-      "source": "H173",
-      "target": "CVE-2026-34549",
-      "relationship": "DETECTS"
-    },
-    {
-      "source": "H173",
-      "target": "GHSA-v7qh-f995-p2fq",
-      "relationship": "DETECTS"
-    },
-    {
       "source": "H174",
       "target": "CWE-190",
       "relationship": "CLASSIFIES"
@@ -6050,191 +5904,6 @@
       "source": "H181",
       "target": "CWE-681",
       "relationship": "CLASSIFIES"
-    },
-    {
-      "source": "CFL-001",
-      "target": "H29",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-001",
-      "target": "H142",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-001",
-      "target": "H144",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-001",
-      "target": "H142",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-001",
-      "target": "H144",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-002",
-      "target": "H68",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-002",
-      "target": "H30",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-002",
-      "target": "H168",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-002",
-      "target": "H168",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-002",
-      "target": "H68",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-004",
-      "target": "H101",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-005",
-      "target": "H151",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-006",
-      "target": "H98",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-007",
-      "target": "H168",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-007",
-      "target": "H157",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-007",
-      "target": "H159",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-007",
-      "target": "H161",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-019",
-      "target": "H103",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-021",
-      "target": "H152",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-022",
-      "target": "H151",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-023",
-      "target": "H153",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-025",
-      "target": "H167",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-030",
-      "target": "H22",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-030",
-      "target": "H146",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-045",
-      "target": "H170",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-046",
-      "target": "H157",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-056",
-      "target": "H98",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-058",
-      "target": "H96",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-060",
-      "target": "H173",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-061",
-      "target": "H174",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-062",
-      "target": "H173",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-063",
-      "target": "H101",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-064",
-      "target": "H152",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-067",
-      "target": "H103",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-073",
-      "target": "H142",
-      "relationship": "COVERED_BY"
-    },
-    {
-      "source": "CFL-078",
-      "target": "CWE-416",
-      "relationship": "ADDRESSES"
-    },
-    {
-      "source": "CFL-078",
-      "target": "H159",
-      "relationship": "COVERED_BY"
     },
     {
       "source": "CVE-2026-27692",
@@ -6701,6 +6370,426 @@
       "source": "fuzzer:icc_cfg_fuzzer",
       "target": "comp:cfl/icc_cfg_fuzzer",
       "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_applynamedcmm_fuzzer",
+      "target": "comp:cfl/icc_applynamedcmm_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_applyprofiles_fuzzer",
+      "target": "comp:cfl/icc_applyprofiles_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_applyprofiles_row_fuzzer",
+      "target": "comp:cfl/icc_applyprofiles_row_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_applysearch_fuzzer",
+      "target": "comp:cfl/icc_applysearch_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_applysearch_weight_fuzzer",
+      "target": "comp:cfl/icc_applysearch_weight_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_cfg_fuzzer",
+      "target": "comp:cfl/icc_cfg_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_connect_fuzzer",
+      "target": "comp:cfl/icc_connect_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_dump_fuzzer",
+      "target": "comp:cfl/icc_dump_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_fromcube_fuzzer",
+      "target": "comp:cfl/icc_fromcube_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_fromjson_fuzzer",
+      "target": "comp:cfl/icc_fromjson_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_fromxml_fuzzer",
+      "target": "comp:cfl/icc_fromxml_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_heifdump_fuzzer",
+      "target": "comp:cfl/icc_heifdump_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_jpegdump_fuzzer",
+      "target": "comp:cfl/icc_jpegdump_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_link_fuzzer",
+      "target": "comp:cfl/icc_link_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_pawgreport_fuzzer",
+      "target": "comp:cfl/icc_pawgreport_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_pngdump_fuzzer",
+      "target": "comp:cfl/icc_pngdump_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_profilevisualize_fuzzer",
+      "target": "comp:cfl/icc_profilevisualize_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_proflib_fuzzer",
+      "target": "comp:cfl/icc_proflib_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_roundtrip_fuzzer",
+      "target": "comp:cfl/icc_roundtrip_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_specsep_fuzzer",
+      "target": "comp:cfl/icc_specsep_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_tiffdump_fuzzer",
+      "target": "comp:cfl/icc_tiffdump_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_tojson_fuzzer",
+      "target": "comp:cfl/icc_tojson_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_toxml_fuzzer",
+      "target": "comp:cfl/icc_toxml_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "fuzzer:icc_v5dspobs_fuzzer",
+      "target": "comp:cfl/icc_v5dspobs_fuzzer",
+      "relationship": "IMPLEMENTED_BY"
+    },
+    {
+      "source": "afl:benchapply",
+      "target": "comp:iccdev/tools/IccBenchApply",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applynamedcmm",
+      "target": "comp:iccdev/tools/IccApplyNamedCmm",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applynamedcmm-v5-brdf",
+      "target": "comp:iccdev/tools/IccApplyNamedCmm",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applynamedcmm-debugcalc",
+      "target": "comp:iccdev/tools/IccApplyNamedCmm",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applynamedcmm-cfg",
+      "target": "comp:iccdev/tools/IccApplyNamedCmm",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applynamedcmm-hybrid-chain",
+      "target": "comp:iccdev/tools/IccApplyNamedCmm",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applyprofiles",
+      "target": "comp:iccdev/tools/IccApplyProfiles",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applyprofiles-fast",
+      "target": "comp:iccdev/tools/IccApplyProfiles",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applyprofiles-deep",
+      "target": "comp:iccdev/tools/IccApplyProfiles",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applyprofiles-cfg",
+      "target": "comp:iccdev/tools/IccApplyProfiles",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applyprofiles-search",
+      "target": "comp:iccdev/tools/IccApplyProfiles",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applyprofiles-row",
+      "target": "comp:iccdev/tools/IccApplyProfiles",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applysearch",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applysearch-noinit",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applysearch-cfg",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applysearch-fast",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applysearch-weight-positive",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applysearch-weight-positive-fast",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applysearch-weight-zero",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applysearch-weight-negative",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applysearch-weight-nan",
+      "target": "comp:iccdev/tools/IccApplySearch",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applytolink",
+      "target": "comp:iccdev/tools/IccApplyToLink",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applytolink-v5",
+      "target": "comp:iccdev/tools/IccApplyToLink",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:applytolink-cube",
+      "target": "comp:iccdev/tools/IccApplyToLink",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:dump",
+      "target": "comp:iccdev/tools/IccDumpProfile",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:dump-diag",
+      "target": "comp:iccdev/tools/IccDumpProfile",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:dump-read",
+      "target": "comp:iccdev/tools/IccDumpProfile",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:fromcube",
+      "target": "comp:iccdev/tools/IccFromCube",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:fromjson",
+      "target": "comp:iccdev/tools/IccFromJson",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:fromjson-noid",
+      "target": "comp:iccdev/tools/IccFromJson",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:heifdump",
+      "target": "comp:iccdev/tools/IccHeifDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:heifdump-extract",
+      "target": "comp:iccdev/tools/IccHeifDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:jpegdump",
+      "target": "comp:iccdev/tools/IccJpegDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:jpegdump-inject",
+      "target": "comp:iccdev/tools/IccJpegDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:pawgreport",
+      "target": "comp:iccdev/tools/IccPawgReport",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:pawgreport-fast",
+      "target": "comp:iccdev/tools/IccPawgReport",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:pngdump",
+      "target": "comp:iccdev/tools/IccPngDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:pngdump-inject",
+      "target": "comp:iccdev/tools/IccPngDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:profileplot",
+      "target": "comp:iccdev/tools/IccProfilePlot",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:profileplot-graph",
+      "target": "comp:iccdev/tools/IccProfilePlot",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:profileplot-raster",
+      "target": "comp:iccdev/tools/IccProfilePlot",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:profilevisualize",
+      "target": "comp:iccdev/tools/IccProfileVisualize",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:profilevisualize-fast",
+      "target": "comp:iccdev/tools/IccProfileVisualize",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:roundtrip",
+      "target": "comp:iccdev/tools/IccRoundTrip",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:roundtrip-mpe",
+      "target": "comp:iccdev/tools/IccRoundTrip",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:specseptotiff",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:specseptotiff-compress",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:specseptotiff-desc",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:specseptotiff-harvest",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:specseptotiff-sep",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:specseptotiff-short",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:specseptotiff-tiles",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:specseptotiff-bigtiff",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:specseptotiff-tiff",
+      "target": "comp:iccdev/tools/IccSpecSepToTiff",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:tiffdump",
+      "target": "comp:iccdev/tools/IccTiffDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:tiffdump-extract",
+      "target": "comp:iccdev/tools/IccTiffDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:tiffdump-ifd",
+      "target": "comp:iccdev/tools/IccTiffDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:tiffdump-list",
+      "target": "comp:iccdev/tools/IccTiffDump",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:tojson",
+      "target": "comp:iccdev/tools/IccToJson",
+      "relationship": "TARGETS"
+    },
+    {
+      "source": "afl:v5dspobs",
+      "target": "comp:iccdev/tools/IccV5DspObsToV4Dsp",
+      "relationship": "TARGETS"
     }
   ]
 }
