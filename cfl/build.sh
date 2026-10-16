@@ -481,6 +481,10 @@ else
   echo "Patch application disabled"
 fi
 
+# A refreshed or newly cloned checkout can introduce the UBSAN ignorelist after
+# the initial sanitizer setup. Recompute the flags now that the source exists.
+configure_sanitizer
+
 banner "Step 2: Build IccProfLib2-static + IccXML2-static"
 mkdir -p "$BUILD_DIR"
 rm -rf "$BUILD_DIR/CMakeCache.txt" "$BUILD_DIR/CMakeFiles"
