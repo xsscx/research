@@ -265,6 +265,7 @@ configure_build_install() {
 }
 
 fetch_source libheif https://github.com/strukturag/libheif.git "$LIBHEIF_VERSION" "$LIBHEIF_COMMIT"
+apply_source_patch libheif "$ROOT/patches/libheif-empty-memory-read.patch"
 apply_source_patch libheif "$ROOT/patches/libheif-empty-vector-write.patch"
 if [[ "$ONLY_LIBHEIF" == "0" ]]; then
     fetch_source zlib https://github.com/madler/zlib.git "$ZLIB_VERSION" "$ZLIB_COMMIT"

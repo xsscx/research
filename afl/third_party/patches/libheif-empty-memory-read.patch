@@ -1,0 +1,10 @@
+diff --git a/libheif/bitstream.cc b/libheif/bitstream.cc
+index 4ac2805..aa02980 100644
+--- a/libheif/bitstream.cc
++++ b/libheif/bitstream.cc
+@@ -116,2 +116,4 @@ bool StreamReader_memory::read(void* data, size_t size)
+-  memcpy(data, &m_data[m_position], size);
++  if (size) {
++    memcpy(data, &m_data[m_position], size);
++  }
+   m_position += size;

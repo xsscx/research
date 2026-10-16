@@ -189,6 +189,12 @@ expect_value "BenchApply fuzzed profile argument" "${AFL_ARGS[5]}" "@@"
 expect_value "BenchApply BPC and luminance intent" "${AFL_ARGS[6]}" "140"
 expect_value "BenchApply exit-zero dry run" "$SEED_DRY_RUN_REQUIRE_ZERO_TARGET" "1"
 
+afl_configure_target applynamedcmm
+expect_arg applynamedcmm 1 "6"
+expect_arg applynamedcmm 2 "0"
+expect_arg applynamedcmm 3 "@@"
+expect_arg applynamedcmm 4 "0"
+
 afl_configure_target applynamedcmm-v5-brdf
 expect_arg applynamedcmm-v5-brdf 1 "6"
 expect_arg applynamedcmm-v5-brdf 2 "1"

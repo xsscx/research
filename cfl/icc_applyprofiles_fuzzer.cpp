@@ -53,7 +53,10 @@
 //   [profile_end+4]:   bit0=row Apply path, bit1=dst compression, bit2=dst planar,
 //                      bits3..5=transform type (color, named, preview, gamut,
 //                      BRDF parameters/direct/MCS parameters, or MCS)
-//   [profile_end+5..]: pixel seed data
+//   [profile_end+5]:   bit0=src tiled, bit1=src BigTIFF, bit2=dst tiled,
+//                      bit3=dst BigTIFF, bits4..5=tile width selector,
+//                      bits6..7=tile height selector (16, 32, 64, or 128)
+//   [profile_end+6..]: pixel seed data
 //
 
 #include <stdint.h>
@@ -171,6 +174,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 #endif
   bool dst_compress = (option_flags & 0x02) != 0;
   bool dst_planar = (option_flags & 0x04) != 0;
+  uint8_t layout_flags = (control_size > 5) ? control_data[5] : 0;
+  bool src_tiled = (layout_flags & 0x01) != 0;
+  bool src_big_tiff = (layout_flags & 0x02) != 0;
+  bool dst_tiled = (layout_flags & 0x04) != 0;
+  bool dst_big_tiff = (layout_flags & 0x08) != 0;
+  unsigned int tile_width = 16u << ((layout_flags >> 4) & 0x03);
+  unsigned int tile_height = 16u << ((layout_flags >> 6) & 0x03);
   static const icXformLutType lut_types[] = {
       icXformLutColor,
       icXformLutNamedColor,
@@ -217,7 +227,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   {
     CTiffImg srcCreate;
-    if (!srcCreate.Create(tmp_src_tiff, img_w, img_h, bps, sphoto, sn, 0, 72.0f, 72.0f, false, false)) {
+    if (!srcCreate.Create(tmp_src_tiff, img_w, img_h, bps, sphoto, sn, 0,
+                          72.0f, 72.0f, false, false, RESUNIT_INCH,
+                          src_tiled ? tile_width : 0,
+                          src_tiled ? tile_height : 0, src_big_tiff)) {
       unlink(tmp_profile);
       unlink(tmp_src_tiff);
       return 0;
@@ -231,7 +244,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     unsigned char *rowBuf = (unsigned char *)calloc(1, bytesPerLine);
     if (rowBuf) {
       for (unsigned int row = 0; row < img_h; row++) {
-        size_t seed_off = 4 + row * bytesPerLine;
+        size_t seed_off = 6 + row * bytesPerLine;
         size_t avail = (seed_off < control_size) ? std::min((size_t)bytesPerLine, control_size - seed_off) : 0;
         if (avail > 0)
           memcpy(rowBuf, control_data + seed_off, avail);
@@ -261,6 +274,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   (void)SrcImg.GetHeight();
   (void)SrcImg.GetXRes();
   (void)SrcImg.GetYRes();
+  (void)SrcImg.IsTiled();
+  (void)SrcImg.IsBigTiff();
+  (void)SrcImg.GetTileWidth();
+  (void)SrcImg.GetTileHeight();
 
   unsigned char *pSrcProfile = nullptr;
   unsigned int nSrcProfileLen = 0;
@@ -379,7 +396,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CTiffImg DstImg;
   if (!DstImg.Create(tmp_dst_tiff, SrcImg.GetWidth(), SrcImg.GetHeight(),
                      dbps, dphoto, nDestSamples, nExtraSamples,
-                     SrcImg.GetXRes(), SrcImg.GetYRes(), dst_compress, dst_planar)) {
+                     SrcImg.GetXRes(), SrcImg.GetYRes(), dst_compress, dst_planar,
+                     SrcImg.GetResolutionUnit(),
+                     dst_tiled ? tile_width : 0,
+                     dst_tiled ? tile_height : 0, dst_big_tiff)) {
     SrcImg.Close();
     unlink(tmp_profile);
     unlink(tmp_src_tiff);

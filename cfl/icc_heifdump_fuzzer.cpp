@@ -105,6 +105,17 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t *data, std::size_t size
     if (!data || size == 0)
         return 0;
 
+#ifdef CFL_HAVE_LIBHEIF
+    // Exercise libheif independently of the tool-owned property reader.  The
+    // latter intentionally rejects many malformed carriers that libheif can
+    // still parse deeply enough to expose useful format edges.
+    heif_context *context = heif_context_alloc();
+    if (context) {
+        (void)heif_context_read_from_memory_without_copy(context, data, size, nullptr);
+        heif_context_free(context);
+    }
+#endif
+
     char heifPath[PATH_MAX];
     if (!write_temp_file(data, size, heifPath, sizeof(heifPath)))
         return 0;
@@ -119,16 +130,6 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t *data, std::size_t size
     }
     catch (const std::bad_alloc &) {
     }
-
-#ifdef CFL_HAVE_LIBHEIF
-    if (collected) {
-        heif_context *context = heif_context_alloc();
-        if (context) {
-            (void)heif_context_read_from_file(context, heifPath, nullptr);
-            heif_context_free(context);
-        }
-    }
-#endif
 
     unlink(heifPath);
     return 0;

@@ -150,7 +150,9 @@ replay rather than mutation. The runners keep state in `cfl/runs/`,
 `icc_heifdump_fuzzer` statically links the same pinned, codec-disabled libheif
 release in address, memory, and thread builds. libheif receives the selected
 sanitizer instrumentation and LibFuzzer coverage in mutating builds, so parser
-edges participate directly in corpus retention. The runner also generates
+edges participate directly in corpus retention. Every non-empty carrier is
+validated through libheif's in-memory reader independently of whether the
+tool-owned ICC property reader accepts it. The runner also generates
 three deterministic property-limit carriers and accepts optional external
 HEIF, HEIC, HIF, and AVIF seeds through the same colon-separated variable as
 AFL. External seed discovery has no repository byte cap, and `max_len = 0`
@@ -281,7 +283,10 @@ same log and stops the run. The launcher allows one target timeout beyond the
 requested duration so a slow final input cannot leave a background replay
 running indefinitely. Use `applyprofiles` for the general image pipeline or
 `applyprofiles-row` to force the batched row-apply path corresponding to the
-tool's `-threads` mode.
+tool's `-threads` mode. Both harnesses mutate stripped or tiled source and
+destination TIFF layouts, including classic TIFF and BigTIFF. Their matching
+5 MiB input ceilings leave enough room for full ICC profiles and pixel data;
+the row harness must not inherit its mutation ceiling from the smallest seed.
 
 Both `start.sh` and `fuzz-local.sh` execute each harness from runtime state below
 `cfl/runs/`, with `FUZZ_TMPDIR` pointing at that fuzzer's work directory.

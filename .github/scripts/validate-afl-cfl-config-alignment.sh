@@ -10,6 +10,8 @@ fixture="$repo_root/docs/Testing/json-configs/connect-config-complete.json"
 dictionary="$cfl_dir/icc_cfg.dict"
 cfg_fuzzer="$cfl_dir/icc_cfg_fuzzer.cpp"
 connect_fuzzer="$cfl_dir/icc_connect_fuzzer.cpp"
+applyprofiles_fuzzer="$cfl_dir/icc_applyprofiles_fuzzer.cpp"
+heifdump_fuzzer="$cfl_dir/icc_heifdump_fuzzer.cpp"
 
 while IFS= read -r fuzzer; do
     source_file="$cfl_dir/$fuzzer.cpp"
@@ -72,6 +74,19 @@ if ! grep -Fxq 'icc_cfg_fuzzer' <<< "$cfl_qa_fuzzers"; then
 fi
 if ! grep -Fxq 'icc_fromjson_fuzzer' <<< "$cfl_continuous_fuzzers"; then
     echo "[FAIL] ICC JSON profile import must remain in the continuous schedule" >&2
+    exit 1
+fi
+
+applyprofiles_row_max_len="$(cfl_option_max_len "$cfl_dir" icc_applyprofiles_row_fuzzer)"
+if [[ "$applyprofiles_row_max_len" != "5242880" ]]; then
+    echo "[FAIL] ApplyProfiles row max_len must remain 5242880, got $applyprofiles_row_max_len" >&2
+    exit 1
+fi
+grep -Fq 'bool src_tiled = (layout_flags & 0x01) != 0' "$applyprofiles_fuzzer"
+grep -Fq 'bool dst_tiled = (layout_flags & 0x04) != 0' "$applyprofiles_fuzzer"
+grep -Fq 'heif_context_read_from_memory_without_copy(context, data, size, nullptr)' "$heifdump_fuzzer"
+if grep -Fq 'heif_context_read_from_file' "$heifdump_fuzzer"; then
+    echo "[FAIL] HEIF fuzzing must not add a second disk-backed libheif read" >&2
     exit 1
 fi
 

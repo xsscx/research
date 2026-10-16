@@ -20,7 +20,10 @@ feedback. Codec backends, plugin loading, and optional compression libraries
 are disabled because the HEIF lanes target carrier and ICC-property parsing,
 not pixel decoding. The local empty-vector patch guards a zero-length write
 that otherwise raises a deterministic `nonnull-attribute` UBSan finding on the
-upstream `empty-prof.heic` QA carrier before fuzzing can begin.
+upstream `empty-prof.heic` QA carrier before fuzzing can begin. A matching
+zero-length memory-reader guard prevents the same diagnostic when malformed
+carriers request an empty libheif read. Both guards leave non-empty reads and
+writes unchanged.
 
 Run a clean dependency rebuild directly with:
 
