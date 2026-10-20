@@ -214,6 +214,15 @@ afl/reports/generated/*
 !afl/reports/generated/.gitignore
 !afl/reports/generated/README.md
 afl/support/
+
+# Google FuzzTest - framework/source checkouts and runtime output
+fuzztest/upstream/
+fuzztest/iccDEV/
+fuzztest/build*/
+fuzztest/corpus*/
+fuzztest/findings/
+fuzztest/*.log
+
 lutdumper/
 beyondrgb/
 

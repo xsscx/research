@@ -1,0 +1,5 @@
+# Curated valid ICC profiles replayed before generated FuzzTest inputs.
+test-profiles/Lab_float-D50_2deg.icc
+test-profiles/Rec2020rgbColorimetric.icc
+test-profiles/sRGB_D65_colorimetric.icc
+test-profiles/sRGB_v4_ICC_preference.icc

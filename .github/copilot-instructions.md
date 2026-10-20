@@ -23,6 +23,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 | Component | Purpose |
 |-----------|---------|
 | **cfl/** | LibFuzzer harnesses on a separate unpatched upstream iccDEV clone. |
+| **fuzztest/** | Google FuzzTest property harnesses with typed domains and curated ICC seeds. |
 | **colorbleed_tools/** | Sandboxed unsafe ICC XML/JSON and TIFF extraction tools. |
 | **fuzz/** | Curated malicious input files (CVE PoCs, injection sigs, malformed media). |
 | **afl/** | AFL++ tool-level fuzzing of unpatched upstream iccDEV CLI tools. |
@@ -60,6 +61,7 @@ cd cfl && ./build.sh                    # LibFuzzer harnesses against unpatched 
 cd colorbleed_tools && make setup && make # unsafe tools (clang defaults to sanitizer build)
 ./afl/build-afl-runtime.sh              # pinned AFL++ stable runtime, LLVM 21, large-input support
 ./afl/build.sh                          # AFL-instrumented upstream tools
+./fuzztest/build.sh                     # FuzzTest + instrumented iccDEV profile harness
 .github/ci/quality-assurance/scripts/iccApplyProfiles_sanitizer_qa.sh --seconds 300
 ```
 
@@ -81,6 +83,8 @@ cd colorbleed_tools && make setup && make # unsafe tools (clang defaults to sani
 ASAN_OPTIONS=detect_leaks=0 cfl/bin/icc_dump_fuzzer \
   -max_total_time=60 -timeout=30 -rss_limit_mb=4096 \
   cfl/corpus-icc_dump_fuzzer/                                   # CFL smoke (60s)
+./fuzztest/test.sh --mode unit                                  # FuzzTest seed/property checks
+./fuzztest/test.sh --seconds 60                                 # FuzzTest guided smoke (60s)
 ```
 
 ## Repo Workflow Scripts
@@ -244,6 +248,7 @@ never shell heredocs. See `AGENTS.md` for TUI encoding defect details.
 | Build or run repo tools | `README.md`, `docs/iccDEV/shell-helpers/README.md`, `docs/iccDEV/Tools/README.md` |
 | Run AFL++ tool fuzzing | `docs/afl/index.md` |
 | Run CFL LibFuzzer harnesses | `cfl/README.md` |
+| Run Google FuzzTest property harnesses | `fuzztest/README.md` |
 | Investigate a bug or security issue | `docs/pocs/`, `docs/analysis/`, `docs/cve/iccDEV-CVE-Report.md` |
 | File an upstream issue | `.github/prompts/upstream-issue-filing.prompt.md` |
 | Reproduce or bisect an iccDEV bug | `.github/prompts/iccdev-bisect-reproduction.prompt.md` |

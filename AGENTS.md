@@ -3,8 +3,9 @@
 ## Project Structure
 Security-research monorepo for ICC color-profile tooling. Main components:
 `iccDEV/` (unpatched upstream reference tooling), `cfl/` (LibFuzzer harnesses),
-`afl/` (AFL++ tool-level fuzzing), and `colorbleed_tools/` (sandboxed unsafe
-ICC representation and TIFF extraction tools). Shared corpora live in
+`afl/` (AFL++ tool-level fuzzing), `fuzztest/` (Google FuzzTest property
+harnesses), and `colorbleed_tools/` (sandboxed unsafe ICC representation and
+TIFF extraction tools). Shared corpora live in
 `test-profiles/`, `extended-test-profiles/`, and `cfl/corpus-*`. Retired
 analyzer history was removed from tracking; use the Git backup in `~/retired/`
 if archaeology is required. Current analyzer and server work lives upstream as
@@ -31,6 +32,9 @@ Additional repo workflows in active use:
      `2400206be6fe0d93681c8a5c1535209366602eb1`
      with wrappers matching the system Clang major, `-j32`, and a configurable
      large-input testcase ceiling. Image seed discovery itself is uncapped.
+- `./fuzztest/build.sh && ./fuzztest/test.sh --seconds 60`
+  -- build the pinned Google FuzzTest integration with instrumented iccDEV and
+     run the bounded profile-property smoke test.
 - `.github/ci/quality-assurance/scripts/iccApplyProfiles_sanitizer_qa.sh --seconds 300`
   -- run bounded deterministic sanitizer QA from a native Linux scratch tree.
 - `.github/ci/quality-assurance/scripts/iccApplyProfiles_valgrind_qa.sh --tool memcheck --seconds 300 --binary /path/to/non-sanitized/iccApplyProfiles`
@@ -67,7 +71,8 @@ controls are optional bytes after the declared ICC payload; never truncate a
 raw profile to obtain them. Run
 `.github/scripts/validate-afl-cfl-config-alignment.sh` and
 `.github/scripts/validate-afl-target-configs.sh` after changing these paths.
-Every active CFL C/C++ harness source requires a complete license block.
+Every active CFL or FuzzTest C/C++ harness source requires a complete license
+block.
 
 ## Latest iccDEV Bisect Context
 JSON/config parser fixes live on upstream `InternationalColorConsortium/iccDEV`

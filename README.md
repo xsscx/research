@@ -20,10 +20,12 @@ Use `docs/ICCDEV_UPSTREAM_INTEROP.md` for current source, container, MCP, and
 maintainer validation. Dead analyzer commands and release gates have been
 removed from active documentation.
 
-### AFL & CFL
+### AFL, CFL & Google FuzzTest
 - Ongoing Campaigns
 - Patches appear on research
   - Patches then Upstreamed
+- `fuzztest/` adds typed property tests and bounded coverage-guided ICC profile
+  runs alongside the existing AFL++ and LibFuzzer lanes.
 
 ### Valgrind and Helgrind
 - `valgrind/` builds a separate non-sanitized Debug iccDEV tree.
