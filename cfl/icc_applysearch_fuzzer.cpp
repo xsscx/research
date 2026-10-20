@@ -68,10 +68,49 @@
 #include "IccConnect.h"
 #include "IccCmmConfig.h"
 #include "IccCmmSearch.h"
+#include "IccMpeCalc.h"
+#include "IccTagMPE.h"
 #include "IccUtil.h"
 #include "IccDefs.h"
 #include "IccProfile.h"
 #include "fuzz_utils.h"
+
+static bool has_large_calculator(const uint8_t *data, size_t size) {
+    constexpr icUInt64Number kMaxOptimizedCalculatorOps = 256;
+    std::unique_ptr<CIccProfile> profile(OpenIccProfile(
+        reinterpret_cast<const icUInt8Number *>(data),
+        static_cast<icUInt32Number>(size)));
+    if (!profile)
+        return false;
+
+    static const uint8_t kMpetSignature[] = {'m', 'p', 'e', 't'};
+    for (IccTagEntry &entry : profile->m_Tags) {
+        size_t offset = entry.TagInfo.offset;
+        if (offset > size || size - offset < sizeof(kMpetSignature) ||
+            std::memcmp(data + offset, kMpetSignature, sizeof(kMpetSignature))) {
+            continue;
+        }
+
+        CIccTagMultiProcessElement *mpe =
+            dynamic_cast<CIccTagMultiProcessElement *>(profile->FindTag(entry));
+        if (!mpe)
+            continue;
+
+        icUInt64Number tag_ops = 0;
+        for (icUInt32Number i = 0; i < mpe->NumElements(); ++i) {
+            CIccMpeCalculator *calculator =
+                dynamic_cast<CIccMpeCalculator *>(mpe->GetElement(static_cast<int>(i)));
+            if (!calculator)
+                continue;
+
+            icUInt64Number calculator_ops = calculator->GetTotalOps();
+            if (calculator_ops > kMaxOptimizedCalculatorOps - tag_ops)
+                return true;
+            tag_ops += calculator_ops;
+        }
+    }
+    return false;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size < 132 || size > 2 * 1024 * 1024) return 0;
@@ -216,13 +255,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         return 0;
     }
 
-    // Nelder-Mead can perform 10,000 cost evaluations, and an ND CLUT
-    // evaluation grows as 2^n. Keep the complete optimization for ordinary
-    // color spaces, while still exercising one real high-dimensional cost
-    // evaluation without turning a 14- or 15-channel profile into a minute-long
-    // fuzz iteration under sanitizers.
+    // Nelder-Mead can perform 10,000 cost evaluations. An ND CLUT evaluation
+    // grows as 2^n, while a calculator evaluation grows with its operation
+    // count. Keep the complete optimization for ordinary transforms, while
+    // still exercising one real expensive cost evaluation without turning a
+    // valid profile into a minute-long fuzz iteration under sanitizers.
     constexpr int kMaxOptimizedSearchSamples = 8;
-    if (nDst > kMaxOptimizedSearchSamples) {
+    if (nDst > kMaxOptimizedSearchSamples || has_large_calculator(data, size)) {
 #ifndef CFL_APPLYSEARCH_THREADED
         CIccApplyCmmSearch *apply_search =
             dynamic_cast<CIccApplyCmmSearch *>(cmm->GetApply());
