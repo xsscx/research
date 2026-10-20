@@ -51,7 +51,8 @@
 //   mode uses it as the destination profile with fixed sRGB source. The weight
 //   variant uses fixed source/destination profiles and the fuzzed file as PCC.
 //   Control values are sampled from input bytes without removing bytes from
-//   the argv file, so iccDEV sees the actual file length.
+//   the argv file, so iccDEV sees the actual file length. Search bounds stay
+//   enabled, matching iccApplySearch and CIccConnectCmm::CreateSearch().
 //
 
 #include <stdint.h>
@@ -80,9 +81,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     icRenderingIntent intent2 = static_cast<icRenderingIntent>((size > 1 ? ctrl[1] : 1) % 4);
     uint8_t flags = (size > 2) ? ctrl[2] : 0;
     icXformInterp interp = (flags & 0x01) ? icInterpLinear : icInterpTetrahedral;
-#ifndef CFL_APPLYSEARCH_THREADED
-    bool use_bounds = (flags & 0x02) != 0;
-#endif
 #ifdef ICC_APPLYSEARCH_FUZZ_WEIGHTS
     bool use_pcc = true;
 #else
@@ -171,7 +169,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         return 0;
     }
 #else
-    std::unique_ptr<CIccCmmSearch> scalar_cmm(new (std::nothrow) CIccCmmSearch(use_bounds));
+    std::unique_ptr<CIccCmmSearch> scalar_cmm(new (std::nothrow) CIccCmmSearch());
     if (!scalar_cmm) {
         unlink(tmp_profile);
         return 0;

@@ -613,7 +613,7 @@ unbundle_applysearch() {
     fi
     extract_range 0 "$FILE_SIZE" "$OUT_DIR/profile_fuzzed.icc"
 
-    local ctrl0=0 ctrl1=1 ctrl2=0 ctrl3=0 intent1 intent2 interp_arg interp_label use_bounds use_pcc pixel_seed
+    local ctrl0=0 ctrl1=1 ctrl2=0 ctrl3=0 intent1 intent2 interp_arg interp_label use_pcc pixel_seed
     local weight_case pcc_weight pcc_weight_label sig data_file tool fixed
     read -r ctrl0 ctrl1 ctrl2 ctrl3 < <(od -A n -t u1 -j 0 -N 4 "$CRASH_FILE")
     intent1=$((ctrl0 % 4))
@@ -624,7 +624,6 @@ unbundle_applysearch() {
       interp_arg=1
     fi
     interp_label=$(interp_name "$interp_arg")
-    use_bounds=$(( (ctrl2 & 2) ? 1 : 0 ))
     use_pcc=$(( (ctrl2 & 4) ? 1 : 0 ))
     [ "$weighted" -eq 1 ] && use_pcc=1
     pixel_seed=$ctrl3
@@ -647,7 +646,7 @@ unbundle_applysearch() {
     fi
 
     echo "Extracted fuzzed profile=$FILE_SIZE bytes"
-    echo "Control: intent1=$intent1 intent2=$intent2 interp=$interp_arg ($interp_label) use_bounds=$use_bounds use_pcc=$use_pcc pixel_seed=$pixel_seed pcc_weight=$pcc_weight_label"
+    echo "Control: intent1=$intent1 intent2=$intent2 interp=$interp_arg ($interp_label) use_bounds=1(tool-default) use_pcc=$use_pcc pixel_seed=$pixel_seed pcc_weight=$pcc_weight_label"
     check_icc_magic "$OUT_DIR/profile_fuzzed.icc" "Fuzzed profile"
     icc_header_summary "$OUT_DIR/profile_fuzzed.icc" "Fuzzed profile"
 
