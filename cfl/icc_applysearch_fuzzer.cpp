@@ -75,7 +75,36 @@
 #include "IccProfile.h"
 #include "fuzz_utils.h"
 
-static bool has_large_calculator(const uint8_t *data, size_t size) {
+static bool calculator_exceeds_search_budget(CIccMpeCalculator *calculator,
+                                             CIccTagMultiProcessElement *mpe,
+                                             const CIccProfile *profile) {
+    constexpr icUInt32Number kMaxOptimizedCalculatorSlots = 256;
+
+    bool saved_has_limits = calculator->m_bHasLimits;
+    icUInt32Number saved_max_stack = calculator->m_nMaxStackSize;
+    icUInt32Number saved_max_temp = calculator->m_nMaxTempChannels;
+    icUInt32Number saved_max_operations = calculator->m_nMaxOperations;
+
+    calculator->m_bHasLimits = true;
+    calculator->m_nMaxStackSize = kMaxOptimizedCalculatorSlots;
+    calculator->m_nMaxTempChannels = kMaxOptimizedCalculatorSlots;
+    calculator->m_nMaxOperations = 0;
+
+    std::string report;
+    (void)calculator->Validate("", report, mpe, profile);
+
+    calculator->m_bHasLimits = saved_has_limits;
+    calculator->m_nMaxStackSize = saved_max_stack;
+    calculator->m_nMaxTempChannels = saved_max_temp;
+    calculator->m_nMaxOperations = saved_max_operations;
+
+    return report.find("data stack larger than the calculatorLimits maximum") !=
+               std::string::npos ||
+           report.find("temporary channels; calculatorLimits allows") !=
+               std::string::npos;
+}
+
+static bool has_expensive_calculator(const uint8_t *data, size_t size) {
     constexpr icUInt64Number kMaxOptimizedCalculatorOps = 256;
     std::unique_ptr<CIccProfile> profile(OpenIccProfile(
         reinterpret_cast<const icUInt8Number *>(data),
@@ -107,6 +136,9 @@ static bool has_large_calculator(const uint8_t *data, size_t size) {
             if (calculator_ops > kMaxOptimizedCalculatorOps - tag_ops)
                 return true;
             tag_ops += calculator_ops;
+
+            if (calculator_exceeds_search_budget(calculator, mpe, profile.get()))
+                return true;
         }
     }
     return false;
@@ -257,11 +289,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     // Nelder-Mead can perform 10,000 cost evaluations. An ND CLUT evaluation
     // grows as 2^n, while a calculator evaluation grows with its operation
-    // count. Keep the complete optimization for ordinary transforms, while
-    // still exercising one real expensive cost evaluation without turning a
-    // valid profile into a minute-long fuzz iteration under sanitizers.
+    // count and the width of stack or temporary-channel operations. Keep the
+    // complete optimization for ordinary transforms, while still exercising
+    // one real expensive cost evaluation without turning a valid profile into
+    // a minute-long fuzz iteration under sanitizers.
     constexpr int kMaxOptimizedSearchSamples = 8;
-    if (nDst > kMaxOptimizedSearchSamples || has_large_calculator(data, size)) {
+    if (nDst > kMaxOptimizedSearchSamples || has_expensive_calculator(data, size)) {
 #ifndef CFL_APPLYSEARCH_THREADED
         CIccApplyCmmSearch *apply_search =
             dynamic_cast<CIccApplyCmmSearch *>(cmm->GetApply());
