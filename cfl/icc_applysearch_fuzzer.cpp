@@ -216,6 +216,29 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         return 0;
     }
 
+    // Nelder-Mead can perform 10,000 cost evaluations, and an ND CLUT
+    // evaluation grows as 2^n. Keep the complete optimization for ordinary
+    // color spaces, while still exercising one real high-dimensional cost
+    // evaluation without turning a 14- or 15-channel profile into a minute-long
+    // fuzz iteration under sanitizers.
+    constexpr int kMaxOptimizedSearchSamples = 8;
+    if (nDst > kMaxOptimizedSearchSamples) {
+#ifndef CFL_APPLYSEARCH_THREADED
+        CIccApplyCmmSearch *apply_search =
+            dynamic_cast<CIccApplyCmmSearch *>(cmm->GetApply());
+        if (apply_search) {
+            CIccSearchVec point(static_cast<unsigned int>(nDst));
+            for (int i = 0; i < nDst; ++i) {
+                point(static_cast<unsigned int>(i)) =
+                    static_cast<icFloatNumber>((pixel_seed + i * 37) & 0xFF) / 255.0f;
+            }
+            (void)apply_search->costFunc(point);
+        }
+#endif
+        unlink(tmp_profile);
+        return 0;
+    }
+
     // Synthesize test pixels and Apply
     // This triggers costFunc(), boundsCheck(), findMin() via Nelder-Mead
     const icUInt32Number nPixels =
