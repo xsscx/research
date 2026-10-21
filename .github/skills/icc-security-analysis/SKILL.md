@@ -51,6 +51,10 @@ first so the structured TIFF evidence, sandbox status, and byte-exact embedded
 ICC artifact are preserved even when iccDEV parsing or validation fails. Keep
 stderr separate and validate the evidence with `jq`; do not scrape the verbose
 directory dump.
+For JPEG containers, run `colorbleed_tools/iccJpegDump_unsafe --forensic`
+first. Strict ICC APP2 sequence metadata produces exit 0; malformed metadata
+that can be recovered byte-exactly in physical marker order produces exit 10.
+Retain the recovered artifact and report the malformed chunk metadata.
 Use `colorbleed_tools/qa-roundtrip-colorbleed.sh` for the full ICC -> XML/JSON
 -> ICC -> XML converter and TIFF extraction sweep. Do not use `-sort` with `iccToJson_unsafe`
 during ColorBleed QA until that wrapper path is sanitizer-clean.
@@ -79,6 +83,9 @@ iccDEV/Build/Tools/IccPawgReport/iccPawgReport --json <profile.icc>
 
 # Sandboxed TIFF inspection and byte-exact ICC extraction
 colorbleed_tools/iccTiffDump_unsafe --evidence-json <input.tif> /tmp/embedded.icc
+
+# Sandboxed JPEG APP2 inspection and byte-exact ICC extraction
+colorbleed_tools/iccJpegDump_unsafe --forensic <input.jpg> /tmp/embedded.icc
 
 # XML/JSON representation checks
 iccDEV/Build/Tools/IccToXml/IccToXml <profile.icc> /tmp/profile.xml

@@ -6,7 +6,7 @@ applyTo: "colorbleed_tools/**"
 
 ## What This Is
 
-Unsafe ICC representation and TIFF extraction tools for mutation testing,
+Unsafe ICC representation and TIFF/JPEG extraction tools for mutation testing,
 profile generation, and forensic container analysis.
 Release/debug builds keep the real-world unsafe conversion surface, while the
 default clang build is sanitizer-instrumented for QA and crash attribution.
@@ -19,15 +19,17 @@ cd colorbleed_tools && make setup && make
 
 - `make setup`: clones iccDEV and builds the C++ library
 - `make`: compiles `iccToXml_unsafe`, `iccFromXml_unsafe`,
-  `iccToJson_unsafe`, `iccFromJson_unsafe`, and `iccTiffDump_unsafe`
-- `make qa`: runs the XML/JSON/TIFF/blob round-trip QA script
+  `iccToJson_unsafe`, `iccFromJson_unsafe`, `iccTiffDump_unsafe`, and
+  `iccJpegDump_unsafe`
+- `make qa`: runs the XML/JSON/TIFF/blob round-trip QA and focused JPEG suites
 - The TIFF QA fixture is
   `colorbleed_tools/test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff`. Keep it
   with the owning component so fresh CI checkouts can run byte-exact extraction
   testing without depending on the ignored, nested `fuzz/` checkout.
 - Binaries: `colorbleed_tools/iccToXml_unsafe`,
   `colorbleed_tools/iccFromXml_unsafe`, `colorbleed_tools/iccToJson_unsafe`,
-  `colorbleed_tools/iccFromJson_unsafe`, `colorbleed_tools/iccTiffDump_unsafe`
+  `colorbleed_tools/iccFromJson_unsafe`, `colorbleed_tools/iccTiffDump_unsafe`,
+  `colorbleed_tools/iccJpegDump_unsafe`
 - These are intentionally unsafe wrappers around unpatched iccDEV parser code.
 
 ## Purpose
@@ -37,8 +39,9 @@ cd colorbleed_tools && make setup && make
 3. **ICC -> JSON**: Convert binary ICC profiles to IccJSON for structured mutation
 4. **JSON -> ICC**: Reconstruct ICC profiles from IccJSON
 5. **TIFF -> ICC**: Dump TIFF structure and preserve embedded ICC bytes for analysis
-6. **Round-trip testing**: ICC -> XML/JSON -> ICC to verify parse/serialize fidelity
-7. **Crash reproduction**: Run release/debug builds for real-world behavior
+6. **JPEG -> ICC**: Reassemble APP2 chunks and preserve embedded ICC bytes
+7. **Round-trip testing**: ICC -> XML/JSON -> ICC to verify parse/serialize fidelity
+8. **Crash reproduction**: Run release/debug builds for real-world behavior
    checks, then sanitizer builds for attribution and regression gates.
 
 ## Usage
@@ -60,6 +63,9 @@ cd colorbleed_tools && make setup && make
 ./iccTiffDump_unsafe input.tif output.icc
 ./iccTiffDump_unsafe --summary input.tif output.icc
 ./iccTiffDump_unsafe --evidence-json input.tif output.icc >evidence.json
+
+# Extract JPEG ICC chunks; recover malformed ordering for forensic analysis
+./iccJpegDump_unsafe --forensic input.jpg output.icc
 
 # Round-trip test
 ./qa-roundtrip-colorbleed.sh
@@ -105,14 +111,17 @@ colorbleed_tools/
 |-- Readme.md          # Usage documentation
 |-- qa-roundtrip-colorbleed.sh # XML/JSON/TIFF/blob QA sweep
 |-- test-icctiffdump-unsafe.sh # Focused multi-config TIFF regression suite
+|-- test-iccjpegdump-unsafe.sh # Focused multi-config JPEG regression suite
 |-- generate-tiff-regression-fixtures.py # Temporary negative-fixture generator
+|-- generate-jpeg-icc-regression-fixtures.py # Temporary JPEG fixture generator
 |-- sanitizer-ignorelist.txt # Compile-time sanitizer ignorelist
 |-- silence.txt        # Runtime UBSAN suppressions for ad hoc reproductions
 |-- iccToXml_unsafe    # Binary: ICC -> XML converter (built, not committed)
 |-- iccFromXml_unsafe  # Binary: XML -> ICC converter (built, not committed)
 |-- iccToJson_unsafe   # Binary: ICC -> JSON converter (built, not committed)
 |-- iccFromJson_unsafe # Binary: JSON -> ICC converter (built, not committed)
-`-- iccTiffDump_unsafe # Binary: TIFF dump and ICC extractor (built, not committed)
+|-- iccTiffDump_unsafe # Binary: TIFF dump and ICC extractor (built, not committed)
+`-- iccJpegDump_unsafe # Binary: JPEG ICC extractor (built, not committed)
 ```
 
 ## Logging Convention
@@ -147,3 +156,7 @@ Run `colorbleed_tools/test-icctiffdump-unsafe.sh` after TIFF source, sandbox,
 fixture generation, logging, evidence, or exit-contract changes. Generated
 negative fixtures and logs belong in its temporary evidence directory, not the
 repository.
+
+Run `colorbleed_tools/test-iccjpegdump-unsafe.sh` after JPEG source, fixture
+generation, chunk ordering, extraction, or exit-contract changes. Exit 10 is a
+successful forensic recovery with malformed ICC chunk metadata, not a crash.

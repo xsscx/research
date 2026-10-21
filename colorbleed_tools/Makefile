@@ -1,8 +1,8 @@
 ###############################################################################
 # Copyright (c) 2021-2026 David H Hoyt LLC
-# ColorBleed Tooling: Unsafe ICC Representation and TIFF Makefile
+# ColorBleed Tooling: Unsafe ICC Representation and TIFF/JPEG Makefile
 #
-# Last Updated: 17-AUG-2026 by David Hoyt | h02332@gmail.com
+# Last Updated: 21-OCT-2026 by David Hoyt | h02332@gmail.com
 # URL https://hoyt.net
 #
 # Thin delegator to build.sh which handles all compilation.
@@ -43,11 +43,11 @@ endif
 # Auto-detect config: sanitizer for clang (needs llvm runtime), release for gcc
 CONFIG ?= $(shell $(CXX) --version 2>&1 | grep -qi clang && echo sanitizer || echo release)
 
-TARGETS = iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccTiffDump_unsafe iccDumpAll iccDiagnosticLoad
+TARGETS = iccToXml_unsafe iccFromXml_unsafe iccToJson_unsafe iccFromJson_unsafe iccTiffDump_unsafe iccJpegDump_unsafe iccDumpAll iccDiagnosticLoad
 UBSAN_SUPP = $(CURDIR)/silence.txt
 SAN_RUN_ENV = LSAN_OPTIONS=verbosity=0:log_threads=0 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1:suppressions=$(UBSAN_SUPP)
 
-.PHONY: all clean distclean test qa tiff-qa setup help
+.PHONY: all clean distclean test qa tiff-qa jpeg-qa setup help
 
 # Default target: ensure binaries exist
 all: setup
@@ -82,6 +82,9 @@ test: all colorbleed-test
 	@echo "Test 5: iccTiffDump_unsafe (help)"
 	@$(SAN_RUN_ENV) ./iccTiffDump_unsafe --help 2>&1 | head -10
 	@echo ""
+	@echo "Test 5b: iccJpegDump_unsafe (help)"
+	@$(SAN_RUN_ENV) ./iccJpegDump_unsafe --help 2>&1 | head -10
+	@echo ""
 	@if [ -f "$(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc" ]; then \
 		echo "Test 6: XML roundtrip conversion"; \
 		$(SAN_RUN_ENV) ./iccToXml_unsafe $(REPO_ROOT)/Testing/sRGB_v4_ICC_preference.icc test.xml; \
@@ -111,12 +114,16 @@ test: all colorbleed-test
 qa: all
 	@COLORBLEED_TOOLS_DIR="$(CURDIR)" ./qa-roundtrip-colorbleed.sh
 	@COLORBLEED_CONFIGS="$(CONFIG)" ./test-icctiffdump-unsafe.sh
+	@COLORBLEED_CONFIGS="$(CONFIG)" ./test-iccjpegdump-unsafe.sh
 
 tiff-qa: all
 	@COLORBLEED_CONFIGS="$(CONFIG)" ./test-icctiffdump-unsafe.sh
 
+jpeg-qa: all
+	@COLORBLEED_CONFIGS="$(CONFIG)" ./test-iccjpegdump-unsafe.sh
+
 help:
-	@echo "ColorBleed Unsafe ICC Representation and TIFF Tools Makefile"
+	@echo "ColorBleed Unsafe ICC Representation and TIFF/JPEG Tools Makefile"
 	@echo ""
 	@echo "Targets:"
 	@echo "  setup     - Build via build.sh (default config: $(CONFIG))"
@@ -124,8 +131,9 @@ help:
 	@echo "  clean     - Remove test artifacts (keeps binaries)"
 	@echo "  distclean - Remove everything including iccDEV clone"
 	@echo "  test      - Build and run basic tests"
-	@echo "  qa        - Build and run XML/JSON/TIFF/blob QA"
+	@echo "  qa        - Build and run XML/JSON/TIFF/JPEG/blob QA"
 	@echo "  tiff-qa   - Run focused TIFF evidence and extraction regression tests"
+	@echo "  jpeg-qa   - Run focused JPEG ICC extraction regression tests"
 	@echo "  help      - Show this help message"
 	@echo ""
 	@echo "Config override:"

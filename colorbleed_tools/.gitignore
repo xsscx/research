@@ -6,6 +6,7 @@ iccFromXml_unsafe
 iccToJson_unsafe
 iccFromJson_unsafe
 iccTiffDump_unsafe
+iccJpegDump_unsafe
 iccDumpAll
 iccDiagnosticLoad
 test.xml

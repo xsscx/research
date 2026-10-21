@@ -3,7 +3,7 @@
 #
 # Intent: build and test colorbleed tools
 #
-# Last Updated: 17-AUG-2026 by David Hoyt
+# Last Updated: 21-OCT-2026 by David Hoyt
 ###############################################################
 
 name: ColorBleed Tools Build
@@ -246,7 +246,7 @@ jobs:
           cd colorbleed_tools
           sha256sum iccToXml_unsafe iccFromXml_unsafe \
             iccToJson_unsafe iccFromJson_unsafe iccTiffDump_unsafe \
-            iccDumpAll iccDiagnosticLoad > SHA256SUMS
+            iccJpegDump_unsafe iccDumpAll iccDiagnosticLoad > SHA256SUMS
           cat SHA256SUMS
 
       - name: Upload Artifacts
@@ -259,6 +259,7 @@ jobs:
             colorbleed_tools/iccToJson_unsafe
             colorbleed_tools/iccFromJson_unsafe
             colorbleed_tools/iccTiffDump_unsafe
+            colorbleed_tools/iccJpegDump_unsafe
             colorbleed_tools/iccDumpAll
             colorbleed_tools/iccDiagnosticLoad
             colorbleed_tools/SHA256SUMS
@@ -297,6 +298,7 @@ jobs:
               colorbleed_tools/iccToXml_unsafe \
               colorbleed_tools/iccFromXml_unsafe \
               colorbleed_tools/iccTiffDump_unsafe \
+              colorbleed_tools/iccJpegDump_unsafe \
               colorbleed_tools/iccDumpAll \
               colorbleed_tools/iccDiagnosticLoad; do
               if [ -e "$artifact" ]; then
@@ -350,7 +352,7 @@ jobs:
           unset GITHUB_TOKEN || true
           colorbleed_tools/build.sh all
 
-      - name: Run deterministic TIFF and cross-configuration QA
+      - name: Run deterministic container and cross-configuration QA
         env:
           BASH_ENV: /dev/null
           COLORBLEED_STRICT_SANITIZERS: "1"
@@ -360,7 +362,9 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           export COLORBLEED_TIFF_TEST_OUTDIR="$RUNNER_TEMP/colorbleed-tiff-regression"
+          export COLORBLEED_JPEG_TEST_OUTDIR="$RUNNER_TEMP/colorbleed-jpeg-regression"
           colorbleed_tools/test-icctiffdump-unsafe.sh
+          colorbleed_tools/test-iccjpegdump-unsafe.sh
           .github/scripts/colorbleed-crosscheck.sh \
             colorbleed_tools/iccDEV/Testing/sRGB_v4_ICC_preference.icc \
             colorbleed_tools/test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff \
@@ -376,7 +380,15 @@ jobs:
             ${{ runner.temp }}/colorbleed-tiff-regression/
             ${{ runner.temp }}/colorbleed-crosscheck/
 
-      - name: Summarize TIFF regression
+      - name: Upload JPEG evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
+        with:
+          name: colorbleed-jpeg-evidence
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/colorbleed-jpeg-regression/
+
+      - name: Summarize container regression
         if: always()
         env:
           BASH_ENV: /dev/null
@@ -388,7 +400,7 @@ jobs:
           unset GITHUB_TOKEN || true
           source .github/scripts/sanitize-sed.sh
           {
-            sanitize_print "### ColorBleed TIFF evidence regression"
+            sanitize_print "### ColorBleed container extraction regression"
             sanitize_print ""
             sanitize_print "Status: $JOB_STATUS"
             if [ -f "$RUNNER_TEMP/colorbleed-tiff-regression/results.tsv" ]; then
@@ -397,6 +409,14 @@ jobs:
               while IFS= read -r line; do
                 sanitize_print "$line"
               done < "$RUNNER_TEMP/colorbleed-tiff-regression/results.tsv"
+              sanitize_print '```'
+            fi
+            if [ -f "$RUNNER_TEMP/colorbleed-jpeg-regression/results.tsv" ]; then
+              sanitize_print ""
+              sanitize_print '```text'
+              while IFS= read -r line; do
+                sanitize_print "$line"
+              done < "$RUNNER_TEMP/colorbleed-jpeg-regression/results.tsv"
               sanitize_print '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY" # sanitize_print output only

@@ -1,6 +1,6 @@
 # Hoyt's ColorBleed Tooling
 
-Last Updated: 2026-09-28 UTC by David Hoyt
+Last Updated: 2026-10-21 UTC by David Hoyt
 
 ICC Color Profile research tools to load & store unsafe file representations.
 
@@ -13,6 +13,7 @@ ICC Color Profile research tools to load & store unsafe file representations.
 | `iccToJson_unsafe` | ICC Profile -> JSON (unsafe load; `-sort` is disabled in this wrapper pending sanitizer hardening) |
 | `iccFromJson_unsafe` | JSON -> ICC Profile blob (unsafe store) |
 | `iccTiffDump_unsafe` | Sandboxed TIFF dump and byte-exact embedded ICC extraction |
+| `iccJpegDump_unsafe` | Sandboxed JPEG APP2 inspection and byte-exact embedded ICC extraction |
 | `iccDumpAll` | Enhanced ICC profile dump with full v5/iccMAX MPE element detail |
 | `iccDiagnosticLoad` | Deep diagnostic ICC profile loader with IO tracing (build from source) |
 
@@ -106,6 +107,26 @@ Always interpret the JSON `sandbox` object before the generic numeric ranges.
 In particular, exit 86 is a sanitizer finding, while exits 4-6 are forensic
 soft failures with intentionally retained bytes.
 
+### iccJpegDump_unsafe
+
+Extracts the full ICC payload from JPEG `ICC_PROFILE` APP2 markers, writes it
+atomically, and exercises the vanilla iccDEV parser under the ColorBleed
+resource sandbox. Strict mode requires the ICC chunk sequence and count fields
+to be valid. The default forensic mode falls back to physical APP2 marker order
+when metadata is malformed, preserving recoverable bytes for investigation.
+Existing output files are refused.
+
+```
+Usage: iccJpegDump_unsafe [--forensic|--strict] input.jpg output.icc
+```
+
+Exit 0 means strict extraction and ICC inspection completed. Exit 10 means a
+complete artifact was recovered in forensic physical-marker order after strict
+chunk metadata validation failed. Exits 4-6 retain the complete extracted
+artifact but report ICC header, recursive tag-load, or validation failure.
+Exit 8 is strict chunk metadata rejection, exit 3 means no ICC APP2 marker was
+found, and exit 7 means the artifact could not be atomically published.
+
 ## Use Cases
 - Fuzzing
 - [Latest Binary](https://github.com/xsscx/research/actions/workflows/colorbleed-tools-build.yml)
@@ -146,6 +167,7 @@ make test        # build tools and run tests
 ./iccFromJson_unsafe /tmp/profile.json /tmp/profile-json.icc
 ./iccTiffDump_unsafe --evidence-json \
   test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff /tmp/embedded.icc
+./iccJpegDump_unsafe --forensic input.jpg /tmp/embedded-jpeg.icc
 ```
 
 TIFF extraction happens before ICC parsing and validation. With upstream
@@ -160,6 +182,7 @@ rejects it with exit code 64 until that path is sanitizer-clean.
 ```
 ./qa-roundtrip-colorbleed.sh
 ./test-icctiffdump-unsafe.sh
+./test-iccjpegdump-unsafe.sh
 COLORBLEED_STRICT_SANITIZERS=1 ./iccFromXml_unsafe input.xml /tmp/out.icc
 ../.github/scripts/colorbleed-crosscheck.sh
 ```
@@ -172,6 +195,10 @@ records XML/JSON return deltas, validates returned profiles, verifies TIFF
 extraction, and writes all generated artifacts and metrics under `/tmp`.
 The historical 2026-08-17 measured baseline is recorded in
 [`QA-REPORT-2026-08-17.md`](QA-REPORT-2026-08-17.md).
+
+The focused JPEG suite generates valid, malformed-sequence, and no-profile
+containers. It verifies byte-exact strict extraction, physical-order forensic
+recovery, strict rejection without an artifact, and sanitizer-clean execution.
 
 `qa-roundtrip-colorbleed.sh` runs ICC -> XML -> ICC -> XML, ICC -> JSON -> ICC
 -> XML, then `iccDumpAll` and `iccDiagnosticLoad` on the synthesized blob. It
@@ -201,7 +228,7 @@ UBSAN_OPTIONS=print_stacktrace=1:suppressions=$PWD/silence.txt \
 ### Individual Targets
 ```
 make setup       # clone iccDEV + build libraries (one-time)
-make             # build unsafe ICC representation and TIFF tools
+make             # build unsafe ICC representation, TIFF, and JPEG tools
 make test        # build + run basic tests
 make clean       # remove binaries and test files
 make distclean   # remove everything including iccDEV clone
