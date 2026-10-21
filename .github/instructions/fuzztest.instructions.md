@@ -27,6 +27,10 @@ upstream repositories as gitlinks, submodules, or vendored source.
 ./fuzztest/rebuild.sh
 ```
 
+The default guided run discovers every registered fuzz target and divides the
+requested total time across them. Use `--target SUITE.TEST` only to isolate one
+property; keep the default all-target run as the component smoke test.
+
 Use Clang for every FuzzTest fuzzing-mode build. Keep ASan, UBSan, and coverage
 instrumentation aligned across the harness and iccDEV library; do not link an
 instrumented harness to an uninstrumented iccDEV archive. Keep full integer

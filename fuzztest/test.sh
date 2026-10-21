@@ -2,7 +2,7 @@
 # Run the ICC FuzzTest unit checks or a bounded coverage-guided smoke test.
 #
 # Usage: ./test.sh [--mode fuzzing|unit|libfuzzer] [--seconds N]
-#                  [--target SUITE.TEST]
+#                  [--target SUITE.TEST|all]
 
 set -euo pipefail
 
@@ -10,7 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MODE="${ICC_FUZZTEST_MODE:-fuzzing}"
 SECONDS_TO_RUN="${ICC_FUZZTEST_SECONDS:-60}"
-TARGET="${ICC_FUZZTEST_TARGET:-IccProfileFuzzTest.ProfileOperationsDoNotCrash}"
+TARGET="${ICC_FUZZTEST_TARGET:-all}"
+LIBFUZZER_MAX_LEN=4194432
 
 usage() {
     sed -n '2,6p' "$0" | sed 's/^# \?//'
@@ -83,6 +84,33 @@ if [[ "$MODE" == "unit" ]]; then
     exit 0
 fi
 
+mapfile -t AVAILABLE_TARGETS < <(
+    "$BINARY" --list_fuzz_tests 2>&1 |
+        sed -n 's/^\[\*\] Fuzz test: //p'
+)
+if [[ ${#AVAILABLE_TARGETS[@]} -eq 0 ]]; then
+    echo "[FAIL] no registered fuzz targets found in $BINARY" >&2
+    exit 1
+fi
+
+if [[ "$TARGET" == "all" ]]; then
+    RUN_TARGETS=("${AVAILABLE_TARGETS[@]}")
+else
+    RUN_TARGETS=()
+    for available_target in "${AVAILABLE_TARGETS[@]}"; do
+        if [[ "$available_target" == "$TARGET" ]]; then
+            RUN_TARGETS+=("$TARGET")
+            break
+        fi
+    done
+    if [[ ${#RUN_TARGETS[@]} -eq 0 ]]; then
+        echo "[FAIL] unknown fuzz target: $TARGET" >&2
+        echo "Available targets:" >&2
+        printf '  %s\n' "${AVAILABLE_TARGETS[@]}" >&2
+        exit 1
+    fi
+fi
+
 if [[ "$MODE" == "libfuzzer" ]]; then
     CORPUS_DIR="${ICC_FUZZTEST_CORPUS_DIR:-$SCRIPT_DIR/corpus-libfuzzer}"
 else
@@ -90,31 +118,60 @@ else
 fi
 mkdir -p "$CORPUS_DIR"
 
-echo "[*] Fuzzing $TARGET for ${SECONDS_TO_RUN}s ($MODE)"
-if [[ "$MODE" == "libfuzzer" ]]; then
-    set +e
-    timeout --kill-after=10s "${SECONDS_TO_RUN}s" "$BINARY" \
-        "--fuzz=$TARGET" \
-        --rss_limit_mb=4096 \
-        --stack_limit_kb=1024 \
-        --time_limit_per_input=30s \
-        "$CORPUS_DIR"
-    status=$?
-    set -e
-    if [[ "$status" != "0" && "$status" != "124" ]]; then
-        echo "[FAIL] LibFuzzer compatibility run exited with status $status" >&2
-        exit "$status"
-    fi
-    echo "[OK] Bounded FuzzTest run passed"
-    exit 0
+target_count=${#RUN_TARGETS[@]}
+if (( SECONDS_TO_RUN < target_count )); then
+    base_seconds=1
+    extra_seconds=0
+else
+    base_seconds=$((SECONDS_TO_RUN / target_count))
+    extra_seconds=$((SECONDS_TO_RUN % target_count))
 fi
 
-timeout "$((SECONDS_TO_RUN + 60))s" "$BINARY" \
-    "--fuzz=$TARGET" \
-    "--fuzz_for=${SECONDS_TO_RUN}s" \
-    "--corpus_database=$CORPUS_DIR" \
-    --rss_limit_mb=4096 \
-    --stack_limit_kb=1024 \
-    --time_limit_per_input=30s
+echo "[*] Fuzzing $target_count target(s) for a ${SECONDS_TO_RUN}s total budget ($MODE)"
+for ((target_index = 0; target_index < target_count; ++target_index)); do
+    run_target="${RUN_TARGETS[target_index]}"
+    target_seconds=$base_seconds
+    if (( target_index < extra_seconds )); then
+        target_seconds=$((target_seconds + 1))
+    fi
+    echo "[*] Fuzzing $run_target for ${target_seconds}s"
 
-echo "[OK] Bounded FuzzTest run passed"
+    if [[ "$MODE" == "libfuzzer" ]]; then
+        target_corpus_name="${run_target//[^[:alnum:]_-]/_}"
+        target_corpus_dir="$CORPUS_DIR/$target_corpus_name"
+        mkdir -p "$target_corpus_dir"
+        set +e
+        timeout --kill-after=10s "${target_seconds}s" "$BINARY" \
+            "--fuzz=$run_target" \
+            --rss_limit_mb=4096 \
+            --stack_limit_kb=1024 \
+            --time_limit_per_input=30s \
+            -- \
+            "-max_len=$LIBFUZZER_MAX_LEN" \
+            "$target_corpus_dir"
+        status=$?
+        set -e
+        if [[ "$status" != "0" && "$status" != "124" ]]; then
+            echo "[FAIL] $run_target exited with status $status" >&2
+            exit "$status"
+        fi
+        continue
+    fi
+
+    set +e
+    timeout --kill-after=10s "$((target_seconds + 60))s" "$BINARY" \
+        "--fuzz=$run_target" \
+        "--fuzz_for=${target_seconds}s" \
+        "--corpus_database=$CORPUS_DIR" \
+        --rss_limit_mb=4096 \
+        --stack_limit_kb=1024 \
+        --time_limit_per_input=30s
+    status=$?
+    set -e
+    if [[ "$status" != "0" ]]; then
+        echo "[FAIL] $run_target exited with status $status" >&2
+        exit "$status"
+    fi
+done
+
+echo "[OK] Bounded FuzzTest run passed for $target_count target(s)"

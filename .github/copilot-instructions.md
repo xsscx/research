@@ -84,7 +84,7 @@ ASAN_OPTIONS=detect_leaks=0 cfl/bin/icc_dump_fuzzer \
   -max_total_time=60 -timeout=30 -rss_limit_mb=4096 \
   cfl/corpus-icc_dump_fuzzer/                                   # CFL smoke (60s)
 ./fuzztest/test.sh --mode unit                                  # FuzzTest seed/property checks
-./fuzztest/test.sh --seconds 60                                 # FuzzTest guided smoke (60s)
+./fuzztest/test.sh --seconds 60                                 # All FuzzTest targets, 60s total
 ```
 
 ## Repo Workflow Scripts

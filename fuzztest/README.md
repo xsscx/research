@@ -71,17 +71,39 @@ Run a bounded coverage-guided smoke test, or extend its duration:
 ./fuzztest/test.sh --seconds 3600
 ```
 
+The runner discovers every registered fuzz target and splits the requested
+total budget across them. Isolate one property when reproducing or extending a
+campaign:
+
+```bash
+./fuzztest/test.sh --seconds 60 \
+  --target IccProfileFuzzTest.ProfileSerializationDoesNotCrash
+```
+
 Use `--mode libfuzzer` to smoke-test the experimental compatibility build. Its
 wall-clock budget is enforced by the runner because compatibility mode does not
-honor FuzzTest's native `--fuzz_for` deadline.
+honor FuzzTest's native `--fuzz_for` deadline. Compatibility corpora are kept
+in target-specific directories because each property has a different typed
+input encoding. The runner passes engine flags after FuzzTest's argument
+separator so compatibility mode can reach the same 4 MiB profile domain.
 
-The default property is
-`IccProfileFuzzTest.ProfileOperationsDoNotCrash`. It keeps profile bytes intact
-and supplies the reader mode as a separate generated argument. Unit mode opens
-every curated seed with all four readers; guided mode rotates the seed modes
-and mutates both typed arguments. Successful parses exercise lazy, eager,
-validating, and sub-profile readers; profile and tag validation; descriptions;
-PCC accessors; copy construction; and serialization to a bounded null output.
+The registered properties are:
+
+| Target | Coverage |
+|------|------|
+| `IccProfileFuzzTest.ProfileOperationsDoNotCrash` | Lazy, eager, validating, and sub-profile readers; validation; tag descriptions; PCC accessors; copy construction; and bounded null-output writes |
+| `IccProfileFuzzTest.ProfileSerializationDoesNotCrash` | All profile-ID save methods, bounded memory serialization, reparse through a different reader, and operations on the reparsed profile |
+| `IccProfileFuzzTest.ProfileTagLookupDoesNotCrash` | Generated tag and type signatures across mutable/const lookup, typed lookup, tag I/O, description, and validation paths |
+
+Every property keeps the raw profile bytes intact and supplies parser modes,
+save methods, and signatures as separate typed arguments. Generated profiles
+are capped at 4 MiB, which includes every currently tracked ICC-profile size,
+and serializer output is capped at 16 MiB before allocation. RSS, stack,
+per-input, and wall-clock limits remain explicit so malformed size fields cannot
+turn a smoke run into an unbounded resource-consumption test.
+Unit mode opens every curated seed with all four readers, checks each save
+method by serializing and reparsing, and verifies that curated tag-lookup seeds
+reach a real tag.
 
 FuzzTest stores its serialized coverage inputs below the ignored
 `fuzztest/corpus/` database; LibFuzzer compatibility mode uses the separate

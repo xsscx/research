@@ -55,14 +55,37 @@
 
 namespace {
 
-constexpr size_t kMaxProfileSize = 1024 * 1024;
+constexpr size_t kMaxProfileSize = 4 * 1024 * 1024;
+constexpr size_t kMaxSerializedProfileSize = 16 * 1024 * 1024;
 using ProfileBytes = std::vector<uint8_t>;
 using ProfileSeed = std::tuple<ProfileBytes, uint8_t>;
+using ProfileRoundTripSeed = std::tuple<ProfileBytes, uint8_t, uint8_t>;
+using ProfileTagLookupSeed =
+    std::tuple<ProfileBytes, uint32_t, uint32_t, uint8_t>;
+
+std::unique_ptr<CIccProfile> OpenProfile(const ProfileBytes &bytes,
+                                         uint8_t mode,
+                                         std::string &report);
 
 std::string GetEnvironmentOrDefault(const char *name,
                                     const char *default_value) {
     const char *value = std::getenv(name);
     return value && *value ? value : default_value;
+}
+
+size_t CountConfiguredProfileSeeds() {
+    const std::string manifest_path = GetEnvironmentOrDefault(
+        "ICC_FUZZTEST_SEED_MANIFEST", ICC_FUZZTEST_DEFAULT_SEED_MANIFEST);
+    std::ifstream manifest(manifest_path);
+    size_t seed_count = 0;
+    std::string relative_path;
+
+    while (std::getline(manifest, relative_path)) {
+        if (!relative_path.empty() && relative_path[0] != '#')
+            ++seed_count;
+    }
+
+    return seed_count;
 }
 
 std::vector<ProfileSeed> LoadProfileSeeds() {
@@ -104,6 +127,49 @@ std::vector<ProfileSeed> LoadProfileSeeds() {
     return seeds;
 }
 
+std::vector<ProfileRoundTripSeed> LoadProfileRoundTripSeeds() {
+    std::vector<ProfileRoundTripSeed> round_trip_seeds;
+    std::vector<ProfileSeed> profile_seeds = LoadProfileSeeds();
+
+    for (size_t i = 0; i < profile_seeds.size(); ++i) {
+        round_trip_seeds.emplace_back(
+            std::move(std::get<0>(profile_seeds[i])),
+            std::get<1>(profile_seeds[i]),
+            static_cast<uint8_t>(i % 3));
+    }
+
+    return round_trip_seeds;
+}
+
+std::vector<ProfileTagLookupSeed> LoadProfileTagLookupSeeds() {
+    std::vector<ProfileTagLookupSeed> tag_lookup_seeds;
+    std::vector<ProfileSeed> profile_seeds = LoadProfileSeeds();
+
+    for (ProfileSeed &seed : profile_seeds) {
+        const ProfileBytes &bytes = std::get<0>(seed);
+        const uint8_t mode = std::get<1>(seed);
+        std::string report;
+        std::unique_ptr<CIccProfile> profile = OpenProfile(bytes, mode, report);
+        if (!profile || profile->m_Tags.empty())
+            continue;
+
+        IccTagEntry &entry = profile->m_Tags.front();
+        CIccTag *tag = profile->FindTag(entry);
+        if (!tag)
+            continue;
+
+        const uint32_t tag_signature =
+            static_cast<uint32_t>(entry.TagInfo.sig);
+        const uint32_t type_signature =
+            static_cast<uint32_t>(tag->GetType());
+        profile.reset();
+        tag_lookup_seeds.emplace_back(
+            std::move(std::get<0>(seed)), tag_signature, type_signature, mode);
+    }
+
+    return tag_lookup_seeds;
+}
+
 std::unique_ptr<CIccProfile> OpenProfile(const ProfileBytes &bytes,
                                          uint8_t mode,
                                          std::string &report) {
@@ -136,6 +202,34 @@ std::unique_ptr<CIccProfile> OpenProfile(const ProfileBytes &bytes,
                 ValidateIccProfile(io, report, status));
         }
     }
+}
+
+bool SerializeProfile(const CIccProfile &profile, uint8_t save_method,
+                      ProfileBytes &serialized) {
+    const icProfileIDSaveMethod method =
+        static_cast<icProfileIDSaveMethod>(save_method % 3);
+    std::unique_ptr<CIccProfile> measure_profile(profile.NewCopy());
+    CIccNullIO measure;
+    measure.Open();
+    if (!measure_profile || !measure_profile->Write(&measure, method))
+        return false;
+
+    const size_t serialized_size = measure.GetLength();
+    if (!serialized_size || serialized_size > kMaxSerializedProfileSize)
+        return false;
+
+    CIccMemIO output;
+    if (!output.Alloc(serialized_size, true))
+        return false;
+
+    std::unique_ptr<CIccProfile> output_profile(profile.NewCopy());
+    if (!output_profile || !output_profile->Write(&output, method) ||
+        output.GetLength() != serialized_size) {
+        return false;
+    }
+
+    serialized.assign(output.GetData(), output.GetData() + serialized_size);
+    return true;
 }
 
 void ExerciseProfile(CIccProfile &profile, uint8_t mode,
@@ -202,9 +296,64 @@ void ProfileOperationsDoNotCrash(ProfileBytes bytes, uint8_t mode) {
         ExerciseProfile(*profile, mode, report);
 }
 
+void ProfileSerializationDoesNotCrash(ProfileBytes bytes, uint8_t mode,
+                                      uint8_t save_method) {
+    if (bytes.size() > kMaxProfileSize)
+        return;
+
+    std::string report;
+    std::unique_ptr<CIccProfile> profile = OpenProfile(bytes, mode, report);
+    if (!profile)
+        return;
+
+    ProfileBytes serialized;
+    if (!SerializeProfile(*profile, save_method, serialized))
+        return;
+
+    report.clear();
+    std::unique_ptr<CIccProfile> reparsed =
+        OpenProfile(serialized, static_cast<uint8_t>((mode + 1) & 3), report);
+    if (reparsed)
+        ExerciseProfile(*reparsed, save_method, report);
+}
+
+void ProfileTagLookupDoesNotCrash(ProfileBytes bytes, uint32_t tag_signature,
+                                  uint32_t type_signature, uint8_t mode) {
+    if (bytes.size() > kMaxProfileSize)
+        return;
+
+    std::string report;
+    std::unique_ptr<CIccProfile> profile = OpenProfile(bytes, mode, report);
+    if (!profile)
+        return;
+
+    const icSignature tag_sig = static_cast<icSignature>(tag_signature);
+    const icTagTypeSignature type_sig =
+        static_cast<icTagTypeSignature>(type_signature);
+    CIccTag *tag = profile->FindTag(tag_sig);
+    (void)profile->FindTagOfType(tag_sig, type_sig);
+
+    const CIccProfile &const_profile = *profile;
+    (void)const_profile.FindTagConst(tag_sig);
+
+    std::unique_ptr<CIccMemIO> tag_io(profile->GetTagIO(tag_sig));
+    if (tag_io) {
+        icUInt8Number byte = 0;
+        (void)tag_io->Read8(&byte, 1);
+    }
+
+    if (tag) {
+        std::string description;
+        std::string tag_report;
+        tag->Describe(description, static_cast<int>(mode & 3) * 34);
+        tag->Validate(icGetSigPath(tag_sig), tag_report, profile.get());
+    }
+}
+
 TEST(IccProfileFuzzTest, CuratedSeedsOpen) {
     const std::vector<ProfileSeed> seeds = LoadProfileSeeds();
     ASSERT_FALSE(seeds.empty());
+    ASSERT_EQ(seeds.size(), CountConfiguredProfileSeeds());
 
     for (const ProfileSeed &seed : seeds) {
         for (uint8_t mode = 0; mode < 4; ++mode) {
@@ -216,10 +365,52 @@ TEST(IccProfileFuzzTest, CuratedSeedsOpen) {
     }
 }
 
+TEST(IccProfileFuzzTest, CuratedSeedsSerializeAndReopen) {
+    const std::vector<ProfileSeed> seeds = LoadProfileSeeds();
+    ASSERT_FALSE(seeds.empty());
+
+    for (const ProfileSeed &seed : seeds) {
+        std::string report;
+        std::unique_ptr<CIccProfile> profile =
+            OpenProfile(std::get<0>(seed), std::get<1>(seed), report);
+        ASSERT_NE(profile, nullptr);
+
+        for (uint8_t save_method = 0; save_method < 3; ++save_method) {
+            ProfileBytes serialized;
+            ASSERT_TRUE(SerializeProfile(*profile, save_method, serialized));
+            ASSERT_LE(serialized.size(), kMaxSerializedProfileSize);
+
+            report.clear();
+            std::unique_ptr<CIccProfile> reparsed =
+                OpenProfile(serialized, 0, report);
+            ASSERT_NE(reparsed, nullptr);
+        }
+    }
+}
+
+TEST(IccProfileFuzzTest, CuratedSeedsReachTagLookup) {
+    ASSERT_FALSE(LoadProfileTagLookupSeeds().empty());
+}
+
 FUZZ_TEST(IccProfileFuzzTest, ProfileOperationsDoNotCrash)
     .WithDomains(
         fuzztest::Arbitrary<ProfileBytes>().WithMaxSize(kMaxProfileSize),
         fuzztest::InRange<uint8_t>(0, 3))
     .WithSeeds(LoadProfileSeeds);
+
+FUZZ_TEST(IccProfileFuzzTest, ProfileSerializationDoesNotCrash)
+    .WithDomains(
+        fuzztest::Arbitrary<ProfileBytes>().WithMaxSize(kMaxProfileSize),
+        fuzztest::InRange<uint8_t>(0, 3),
+        fuzztest::InRange<uint8_t>(0, 2))
+    .WithSeeds(LoadProfileRoundTripSeeds);
+
+FUZZ_TEST(IccProfileFuzzTest, ProfileTagLookupDoesNotCrash)
+    .WithDomains(
+        fuzztest::Arbitrary<ProfileBytes>().WithMaxSize(kMaxProfileSize),
+        fuzztest::Arbitrary<uint32_t>(),
+        fuzztest::Arbitrary<uint32_t>(),
+        fuzztest::InRange<uint8_t>(0, 3))
+    .WithSeeds(LoadProfileTagLookupSeeds);
 
 }  // namespace

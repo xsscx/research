@@ -34,7 +34,7 @@ Additional repo workflows in active use:
      large-input testcase ceiling. Image seed discovery itself is uncapped.
 - `./fuzztest/build.sh && ./fuzztest/test.sh --seconds 60`
   -- build the pinned Google FuzzTest integration with instrumented iccDEV and
-     run the bounded profile-property smoke test.
+     run all registered profile properties within one bounded smoke budget.
 - `.github/ci/quality-assurance/scripts/iccApplyProfiles_sanitizer_qa.sh --seconds 300`
   -- run bounded deterministic sanitizer QA from a native Linux scratch tree.
 - `.github/ci/quality-assurance/scripts/iccApplyProfiles_valgrind_qa.sh --tool memcheck --seconds 300 --binary /path/to/non-sanitized/iccApplyProfiles`
