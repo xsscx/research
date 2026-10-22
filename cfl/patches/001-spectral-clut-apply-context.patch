@@ -1,0 +1,18 @@
+diff --git a/IccProfLib/IccMpeSpectral.cpp b/IccProfLib/IccMpeSpectral.cpp
+--- a/IccProfLib/IccMpeSpectral.cpp
++++ b/IccProfLib/IccMpeSpectral.cpp
+@@ -1302,5 +1302,8 @@
+ CIccApplyMpe* CIccMpeSpectralCLUT::GetNewApply(CIccApplyTagMpe* /* pApplyTag */)
+ {
+-  if (!m_pCLUT) {
++  // Begin() builds m_pApplyCLUT and initializes its interpolation state.  It
++  // is also the table Apply() uses.  The source m_pCLUT is not begun and a
++  // copied source table therefore has no valid m_nNodes value for scratch.
++  if (!m_pApplyCLUT) {
+     return NULL;
+   }
+@@ -1308,3 +1311,3 @@
+-  CIccApplyCLUT* pApply = m_pCLUT->GetNewApply();
++  CIccApplyCLUT* pApply = m_pApplyCLUT->GetNewApply();
+   if (!pApply)
+     return NULL;
