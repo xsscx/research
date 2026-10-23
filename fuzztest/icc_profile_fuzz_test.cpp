@@ -75,6 +75,18 @@ using ProfileRoundTripSeed = std::tuple<ProfileBytes, uint8_t, uint8_t>;
 using ProfileTagLookupSeed =
     std::tuple<ProfileBytes, uint32_t, uint32_t, uint8_t>;
 
+auto ProfileBytesDomain() {
+    // FuzzTest's eager memory-dictionary update can expand repeated byte
+    // matches across the comparison tables into several GiB of temporary
+    // entries for zero-heavy ICC profiles.  Filter preserves the inner
+    // domain's mutation and corpus serialization while intentionally stopping
+    // that eager update at the wrapper boundary.
+    return fuzztest::Filter(
+        [](const ProfileBytes &) { return true; },
+        fuzztest::Arbitrary<ProfileBytes>().WithSoftMaxSize(
+            kGeneratedProfileSoftMaxSize));
+}
+
 std::unique_ptr<CIccProfile> OpenProfile(const ProfileBytes &bytes,
                                          uint8_t mode,
                                          std::string &report);
@@ -492,23 +504,20 @@ TEST(IccProfileFuzzTest, CuratedSeedsReachTagLookup) {
 
 FUZZ_TEST(IccProfileFuzzTest, ProfileOperationsDoNotCrash)
     .WithDomains(
-        fuzztest::Arbitrary<ProfileBytes>().WithSoftMaxSize(
-            kGeneratedProfileSoftMaxSize),
+        ProfileBytesDomain(),
         fuzztest::InRange<uint8_t>(0, kMaxProfileControl))
     .WithSeeds(LoadProfileSeeds);
 
 FUZZ_TEST(IccProfileFuzzTest, ProfileSerializationDoesNotCrash)
     .WithDomains(
-        fuzztest::Arbitrary<ProfileBytes>().WithSoftMaxSize(
-            kGeneratedProfileSoftMaxSize),
+        ProfileBytesDomain(),
         fuzztest::InRange<uint8_t>(0, kMaxProfileControl),
         fuzztest::InRange<uint8_t>(0, 2))
     .WithSeeds(LoadProfileRoundTripSeeds);
 
 FUZZ_TEST(IccProfileFuzzTest, ProfileTagLookupDoesNotCrash)
     .WithDomains(
-        fuzztest::Arbitrary<ProfileBytes>().WithSoftMaxSize(
-            kGeneratedProfileSoftMaxSize),
+        ProfileBytesDomain(),
         fuzztest::Arbitrary<uint32_t>(),
         fuzztest::Arbitrary<uint32_t>(),
         fuzztest::InRange<uint8_t>(0, 3))
