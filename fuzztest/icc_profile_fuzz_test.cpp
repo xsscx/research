@@ -56,6 +56,7 @@
 namespace {
 
 constexpr size_t kMaxProfileSize = 4 * 1024 * 1024;
+constexpr size_t kGeneratedProfileSoftMaxSize = 64 * 1024;
 constexpr size_t kMaxSerializedProfileSize = 16 * 1024 * 1024;
 using ProfileBytes = std::vector<uint8_t>;
 using ProfileSeed = std::tuple<ProfileBytes, uint8_t>;
@@ -394,20 +395,23 @@ TEST(IccProfileFuzzTest, CuratedSeedsReachTagLookup) {
 
 FUZZ_TEST(IccProfileFuzzTest, ProfileOperationsDoNotCrash)
     .WithDomains(
-        fuzztest::Arbitrary<ProfileBytes>().WithMaxSize(kMaxProfileSize),
+        fuzztest::Arbitrary<ProfileBytes>().WithSoftMaxSize(
+            kGeneratedProfileSoftMaxSize),
         fuzztest::InRange<uint8_t>(0, 3))
     .WithSeeds(LoadProfileSeeds);
 
 FUZZ_TEST(IccProfileFuzzTest, ProfileSerializationDoesNotCrash)
     .WithDomains(
-        fuzztest::Arbitrary<ProfileBytes>().WithMaxSize(kMaxProfileSize),
+        fuzztest::Arbitrary<ProfileBytes>().WithSoftMaxSize(
+            kGeneratedProfileSoftMaxSize),
         fuzztest::InRange<uint8_t>(0, 3),
         fuzztest::InRange<uint8_t>(0, 2))
     .WithSeeds(LoadProfileRoundTripSeeds);
 
 FUZZ_TEST(IccProfileFuzzTest, ProfileTagLookupDoesNotCrash)
     .WithDomains(
-        fuzztest::Arbitrary<ProfileBytes>().WithMaxSize(kMaxProfileSize),
+        fuzztest::Arbitrary<ProfileBytes>().WithSoftMaxSize(
+            kGeneratedProfileSoftMaxSize),
         fuzztest::Arbitrary<uint32_t>(),
         fuzztest::Arbitrary<uint32_t>(),
         fuzztest::InRange<uint8_t>(0, 3))

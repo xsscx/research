@@ -71,6 +71,7 @@ if [[ ! -x "$BINARY" ]]; then
     echo "       Run ./fuzztest/build.sh --mode $MODE first." >&2
     exit 1
 fi
+BINARY_NAME="${BINARY##*/}"
 
 export ICC_FUZZTEST_REPO_ROOT="$REPO_ROOT"
 export ICC_FUZZTEST_SEED_MANIFEST="$SCRIPT_DIR/seeds.txt"
@@ -116,7 +117,8 @@ if [[ "$MODE" == "libfuzzer" ]]; then
 else
     CORPUS_DIR="${ICC_FUZZTEST_CORPUS_DIR:-$SCRIPT_DIR/corpus}"
 fi
-mkdir -p "$CORPUS_DIR"
+REPRODUCERS_DIR="${ICC_FUZZTEST_REPRODUCERS_DIR:-$SCRIPT_DIR/findings}"
+mkdir -p "$CORPUS_DIR" "$REPRODUCERS_DIR"
 
 target_count=${#RUN_TARGETS[@]}
 if (( SECONDS_TO_RUN < target_count )); then
@@ -135,9 +137,11 @@ for ((target_index = 0; target_index < target_count; ++target_index)); do
         target_seconds=$((target_seconds + 1))
     fi
     echo "[*] Fuzzing $run_target for ${target_seconds}s"
+    target_corpus_name="${run_target//[^[:alnum:]_-]/_}"
+    target_reproducers_dir="$REPRODUCERS_DIR/$target_corpus_name"
+    mkdir -p "$target_reproducers_dir"
 
     if [[ "$MODE" == "libfuzzer" ]]; then
-        target_corpus_name="${run_target//[^[:alnum:]_-]/_}"
         target_corpus_dir="$CORPUS_DIR/$target_corpus_name"
         mkdir -p "$target_corpus_dir"
         set +e
@@ -148,6 +152,7 @@ for ((target_index = 0; target_index < target_count; ++target_index)); do
             --time_limit_per_input=30s \
             -- \
             "-max_len=$LIBFUZZER_MAX_LEN" \
+            "-artifact_prefix=$target_reproducers_dir/" \
             "$target_corpus_dir"
         status=$?
         set -e
@@ -158,8 +163,12 @@ for ((target_index = 0; target_index < target_count; ++target_index)); do
         continue
     fi
 
+    target_corpus_dir="$CORPUS_DIR/$BINARY_NAME/$run_target/coverage"
+    mkdir -p "$target_corpus_dir"
     set +e
-    timeout --kill-after=10s "$((target_seconds + 60))s" "$BINARY" \
+    FUZZTEST_TESTSUITE_OUT_DIR="$target_corpus_dir" \
+    FUZZTEST_REPRODUCERS_OUT_DIR="$target_reproducers_dir" \
+        timeout --kill-after=10s "$((target_seconds + 60))s" "$BINARY" \
         "--fuzz=$run_target" \
         "--fuzz_for=${target_seconds}s" \
         "--corpus_database=$CORPUS_DIR" \
