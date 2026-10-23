@@ -221,6 +221,7 @@ fuzztest/iccDEV/
 fuzztest/build*/
 fuzztest/corpus*/
 fuzztest/findings/
+fuzztest/logs/
 fuzztest/*.log
 
 lutdumper/
