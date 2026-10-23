@@ -1,0 +1,47 @@
+diff --git a/IccProfLib/IccIO.h b/IccProfLib/IccIO.h
+--- a/IccProfLib/IccIO.h
++++ b/IccProfLib/IccIO.h
+@@ -170,2 +170,3 @@ public:
+   bool Attach(CIccIO *pIO, size_t nSize=0, bool bOwnIO=false);
++  CIccIO *Detach();
+   virtual void Close();
+diff --git a/IccProfLib/IccIO.cpp b/IccProfLib/IccIO.cpp
+--- a/IccProfLib/IccIO.cpp
++++ b/IccProfLib/IccIO.cpp
+@@ -768,3 +768,16 @@ bool CIccEmbedIO::Attach(CIccIO *pIO, size_t nSize/* =0 */, bool bOwnIO/* =false
++CIccIO *CIccEmbedIO::Detach()
++{
++  CIccIO *pIO = m_pIO;
++
++  m_pIO = NULL;
++  m_nStartPos = 0;
++  m_nSize = (size_t)(-1);
++  m_bOwnIO = false;
++
++  return pIO;
++}
++
++
+ void CIccEmbedIO::Close()
+ {
+   if (m_pIO && m_bOwnIO) {
+diff --git a/IccProfLib/IccProfile.cpp b/IccProfLib/IccProfile.cpp
+--- a/IccProfLib/IccProfile.cpp
++++ b/IccProfLib/IccProfile.cpp
+@@ -691,5 +691,5 @@ CIccIO* CIccProfile::ConnectSubProfile(CIccIO *pIO, bool bOwnIO) const
+-        // Attach failed; release the IO wrapper so it is not leaked. The
+-        // CIccEmbedIO destructor handles pIO per the ownership flag set in Attach.
++        // Attach failed, so ownership of pIO remains with the caller.
++        pEmbedIO->Detach();
+         delete pEmbedIO;
+       }
+     }
+@@ -736,6 +737,8 @@ bool CIccProfile::Attach(CIccIO *pIO, bool bUseSubProfile/*=false*/)
+       m_parentColorSpace = parentColorSpace;
+       if (!ReadBasic(pSubIO)) {
+         Cleanup();
++        static_cast<CIccEmbedIO *>(pSubIO)->Detach();
++        delete pSubIO;
+         return false;
+       }
+       pIO = pSubIO;
