@@ -1,6 +1,8 @@
-# CFL Patch Stack
+# CFL Optional Patch Stack
 
-Active patches can be applied to the isolated `cfl/iccDEV` checkout:
+The default CFL build uses unpatched upstream `master`. For explicit comparison
+runs, `--with-patches` applies every `.patch` file present in this directory to
+the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 
 | Patch | Purpose |
 | --- | --- |
@@ -15,4 +17,5 @@ Build the LibFuzzer harnesses against patched upstream `master`:
 ./cfl/build.sh --with-patches --refresh-iccdev
 ```
 
-The default remains an unpatched upstream comparison build.
+Record `--with-patches` and the applied patch names with findings produced by
+this mode. Omitting the option preserves the unpatched comparison baseline.

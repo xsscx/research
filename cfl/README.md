@@ -1,10 +1,11 @@
 # CFL - LibFuzzer Harnesses for iccDEV
 
-Last updated: 2026-08-07
+Last updated: 2026-10-23
 
 `cfl/` contains the LibFuzzer side of the iccDEV fuzzing workflow: active
-harnesses, sanitizer builds, dictionaries, and seed material. It builds
-upstream `master` without local source patches.
+harnesses, sanitizer builds, dictionaries, and seed material. The default build
+uses upstream `master` without local source patches; `--with-patches` enables
+the optional CFL patch stack for explicit comparison runs.
 
 Use `cfl/fuzzers.sh` as the source of truth for the current fuzzer list.
 
@@ -226,8 +227,10 @@ aliases select it in the CFL scripts.
 
 ## Upstream Baseline
 
-`cfl/patches/` has no active patches. `cfl/retired-patches/` preserves
-superseded patches for audit history. After refreshing the nested `iccDEV`
+The default build is the unpatched upstream `master` comparison baseline.
+`--with-patches` applies the optional local stack inventoried in
+`cfl/patches/README.md` to the isolated `cfl/iccDEV` checkout. Record the patch
+mode with any finding or comparison result. After refreshing the nested
 checkout, remove stale build output before judging build or sanitizer failures:
 
 ```bash
@@ -242,7 +245,7 @@ Track reusable inputs and source needed to reproduce runs on another VM:
 | Track | Examples |
 |-------|----------|
 | Harness and build source | `cfl/*.cpp`, `cfl/*.h`, `cfl/*.sh`, `CMakeLists.txt`, `Dockerfile` |
-| Retired patch history | `cfl/retired-patches/*.patch` |
+| Optional patch stack | `cfl/patches/*.patch`, `cfl/patches/README.md` |
 | Dictionaries | `cfl/*.dict`, curated AFL target dictionaries |
 | Minimal seed fixtures | `cfl/corpus/`, `cfl/seeds-*`, small named fixtures |
 | Promoted repro artifacts | Files moved to `test-profiles/`, `fuzz/`, or `docs/pocs/` with evidence |
@@ -352,7 +355,7 @@ needed.
 
 | Doc | Use |
 |-----|-----|
-| `cfl/patches/README.md` | Zero-patch inventory |
+| `cfl/patches/README.md` | Optional local patch inventory |
 | `docs/Testing/CFL_MANUAL_FUZZER_COMMANDS.md` | Per-fuzzer maintainer one-liners |
 | `docs/afl/index.md` | AFL++ tool-level fuzzing |
 | `docs/Testing/FUZZ_CFL_INVENTORY.md` | Fuzzing asset and tracking policy |
