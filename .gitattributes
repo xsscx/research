@@ -1,5 +1,7 @@
 * text=auto eol=lf
 
+*.patch whitespace=-blank-at-eol
+
 *.bat text eol=crlf
 *.cmd text eol=crlf
 

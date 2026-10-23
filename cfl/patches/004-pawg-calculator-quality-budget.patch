@@ -1,0 +1,95 @@
+diff --git a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h b/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h
+--- a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h
++++ b/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h
+@@ -40,6 +40,7 @@
+ 
+ #include "IccProfile.h"
+ #include "IccCmm.h"
++#include "IccMpeCalc.h"
+ #include "IccTag.h"
+ #include "IccTagBasic.h"
+ #include "IccTagLut.h"
+@@ -67,5 +68,6 @@ constexpr size_t kMaxQualitySamples = 2000000;
+ constexpr double kPi = 3.141592653589793238462643383279502884;
+ constexpr double kDegToRad = kPi / 180.0;
++constexpr size_t kMaxCalculatorQualityWork = 8u * 1024u * 1024u;
+ 
+ struct RoundTripMetrics {
+   bool measured = false;
+@@ -394,6 +396,38 @@ inline bool bounded_grid_sample_count(int channels, size_t &samples) {
+   return true;
+ }
+ 
++inline bool calculator_quality_work_within_budget(CIccProfile *pIcc,
++                                                  size_t evaluations) {
++  if (!pIcc || !evaluations) {
++    return false;
++  }
++
++  size_t remaining = kMaxCalculatorQualityWork / evaluations;
++  for (TagEntryList::iterator it = pIcc->m_Tags.begin();
++       it != pIcc->m_Tags.end(); ++it) {
++    CIccTagMultiProcessElement *mpe =
++        dynamic_cast<CIccTagMultiProcessElement *>(pIcc->FindTag(*it));
++    if (!mpe) {
++      continue;
++    }
++
++    const icUInt32Number count = mpe->NumElements();
++    for (icUInt32Number i = 0; i < count; ++i) {
++      CIccMpeCalculator *calc =
++          dynamic_cast<CIccMpeCalculator *>(mpe->GetElement((int)i));
++      if (!calc) {
++        continue;
++      }
++      const icUInt64Number cost = calc->GetEstimatedCost();
++      if (cost > remaining) {
++        return false;
++      }
++      remaining -= static_cast<size_t>(cost);
++    }
++  }
++  return true;
++}
++
+ template <typename Fn>
+ inline void visit_bounded_grid_points(int channels,
+                                       std::array<icFloatNumber, 16> &device,
+@@ -836,7 +870,10 @@ inline bool measure_cmm_round_trip(CIccProfile *pIcc,
+     reason = "CIccCmm round-trip sample grid exceeds quality metric budget";
+     return false;
+   }
+-  (void)sampleCount;
++  if (!calculator_quality_work_within_budget(pIcc, sampleCount * 5u)) {
++    reason = "CIccCmm round-trip calculator work exceeds quality metric budget";
++    return false;
++  }
+ 
+   CIccCmm forward(colorSpace, pcs, true);
+   CIccCmm reverse(pcs, colorSpace, false);
+@@ -924,6 +961,14 @@ inline bool measure_cmm_forward_smoothness(CIccProfile *pIcc,
+     return false;
+   }
+ 
++  const size_t paths = deviceChannels == 1 ? 1u :
++      static_cast<size_t>(deviceChannels + 1);
++  if (!calculator_quality_work_within_budget(
++          pIcc, paths * static_cast<size_t>(65))) {
++    reason = "CIccCmm smoothness calculator work exceeds quality metric budget";
++    return false;
++  }
++
+   CIccCmm forward(colorSpace, pcs, true);
+   if (!begin_profile_cmm(pIcc, forward, "forward", reason)) {
+     return false;
+diff --git a/Tools/CmdLine/IccPawgReport/PawgReport.cpp b/Tools/CmdLine/IccPawgReport/PawgReport.cpp
+--- a/Tools/CmdLine/IccPawgReport/PawgReport.cpp
++++ b/Tools/CmdLine/IccPawgReport/PawgReport.cpp
+@@ -1923,6 +1923,7 @@ bool QualityMetricNotApplicable(const std::string &reason)
+ {
+   return reason.find("requires bounded device channels and Lab/XYZ PCS") != std::string::npos ||
+          reason.find("sample grid exceeds quality metric budget") != std::string::npos ||
++         reason.find("calculator work exceeds quality metric budget") != std::string::npos ||
+          reason.find("requires Lab or XYZ PCS") != std::string::npos ||
+          reason.find("Invalid profile") != std::string::npos ||
+          reason.find("Invalid profile transform") != std::string::npos ||

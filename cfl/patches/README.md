@@ -10,6 +10,14 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 - `002-embedded-subprofile-attach-leak.patch`: preserves caller ownership of
   parent IO on embedded-profile attach failures and releases wrappers when
   nested header parsing fails.
+- `003-pawg-calculator-cost-estimate.patch`: adds a selector-width-aware,
+  saturating iccMAX calculator cost estimate and uses it for PAWG S10.
+- `004-pawg-calculator-quality-budget.patch`: rejects PAWG Q1 and Q3 sampling
+  before repeated calculator evaluation would exceed the quality-metric work
+  budget.
+- `005-pawg-report-detail-bounds.patch`: makes shared tag-region validation
+  linear and bounds repeated private/compression detail examples while retaining
+  exact counts.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
