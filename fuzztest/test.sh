@@ -166,12 +166,15 @@ for ((target_index = 0; target_index < target_count; ++target_index)); do
     target_corpus_dir="$CORPUS_DIR/$BINARY_NAME/$run_target/coverage"
     mkdir -p "$target_corpus_dir"
     set +e
+    # Native FuzzTest applies --fuzz_for only after replaying corpus_database.
+    # Keep bounded runs independent of an accumulated corpus while still
+    # retaining newly discovered coverage through FUZZTEST_TESTSUITE_OUT_DIR.
     FUZZTEST_TESTSUITE_OUT_DIR="$target_corpus_dir" \
     FUZZTEST_REPRODUCERS_OUT_DIR="$target_reproducers_dir" \
         timeout --kill-after=10s "$((target_seconds + 60))s" "$BINARY" \
         "--fuzz=$run_target" \
         "--fuzz_for=${target_seconds}s" \
-        "--corpus_database=$CORPUS_DIR" \
+        --corpus_database= \
         --rss_limit_mb=4096 \
         --stack_limit_kb=1024 \
         --time_limit_per_input=30s

@@ -114,7 +114,11 @@ ICC file. Each target uses its own subdirectory because the properties have
 different typed input encodings. Override the corpus root with
 `ICC_FUZZTEST_CORPUS_DIR` when a campaign uses scratch storage. Native runs
 write coverage entries to FuzzTest's canonical
-`<binary>/<suite.test>/coverage/` database layout so later runs replay them.
+`<binary>/<suite.test>/coverage/` database layout. Bounded native campaigns
+start from the curated seeds instead of automatically replaying that database:
+the pinned native FuzzTest runtime applies `--fuzz_for` only after corpus
+replay, so an accumulated corpus can otherwise exceed the runner's wall-clock
+envelope. Use FuzzTest's explicit corpus-replay mode when replay is desired.
 
 Crash reproducers are written below the ignored `fuzztest/findings/` directory.
 Override that root with `ICC_FUZZTEST_REPRODUCERS_DIR`. Native FuzzTest findings
