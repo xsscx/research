@@ -68,14 +68,11 @@ target_compile_options(icc_profile_fuzz_test PRIVATE
 if(FUZZTEST_FUZZING_MODE OR FUZZTEST_COMPATIBILITY_MODE STREQUAL "libfuzzer")
     # Keep full integer instrumentation in the separately built iccDEV archive.
     # FuzzTest and standard-library templates intentionally use unsigned wrap
-    # and narrowing while generating and reporting byte-domain inputs.
+    # and narrowing while generating and reporting byte-domain inputs. FuzzTest
+    # also deserializes an empty byte vector with a zero-length memcpy; libc
+    # annotates the otherwise unused null pointer as nonnull.
     target_compile_options(icc_profile_fuzz_test PRIVATE
-        -fno-sanitize=implicit-integer-conversion,unsigned-integer-overflow)
-endif()
-if(FUZZTEST_COMPATIBILITY_MODE STREQUAL "libfuzzer")
-    # FuzzTest deserializes an empty byte vector with a zero-length memcpy;
-    # libc annotates the otherwise unused null pointer as nonnull.
-    target_compile_options(icc_profile_fuzz_test PRIVATE
+        -fno-sanitize=implicit-integer-conversion,unsigned-integer-overflow
         -fno-sanitize=nonnull-attribute)
 endif()
 target_compile_definitions(icc_profile_fuzz_test PRIVATE

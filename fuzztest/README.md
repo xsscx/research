@@ -28,10 +28,10 @@ float-divide-by-zero, and float-cast-overflow instrumentation. The iccDEV
 archive keeps the full checker set. The harness translation unit excludes
 implicit-integer-conversion and unsigned-integer-overflow checks because
 FuzzTest and standard-library templates intentionally perform those operations
-while generating and reporting byte-domain values. LibFuzzer compatibility
-mode also excludes the nonnull-attribute checker from the harness translation
-unit because FuzzTest performs a zero-length copy while decoding an empty byte
-vector.
+while generating and reporting byte-domain values. Native fuzzing and
+LibFuzzer compatibility modes also exclude the nonnull-attribute checker from
+the harness translation unit because FuzzTest performs a zero-length copy while
+decoding an empty byte vector.
 
 ```bash
 ./fuzztest/build.sh
