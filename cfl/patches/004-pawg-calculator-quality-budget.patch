@@ -9,19 +9,25 @@ diff --git a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h b/Tools/CmdLine/Icc
  #include "IccTag.h"
  #include "IccTagBasic.h"
  #include "IccTagLut.h"
-@@ -63,9 +64,10 @@ namespace iccquality {
- /// Maximum channel count for fixed-size stack arrays in quality metrics.
- /// All std::array<icFloatNumber, 16> buffers depend on this bound.
- constexpr int kMaxQualityChannels = 16;
--constexpr size_t kMaxQualitySamples = 2000000;
-+constexpr size_t kMaxQualitySamples = 100000;
+@@ -67,5 +68,8 @@ constexpr size_t kMaxQualitySamples = 2000000;
  constexpr double kPi = 3.141592653589793238462643383279502884;
  constexpr double kDegToRad = kPi / 180.0;
++constexpr size_t kMaxBoundedGridSamples =
++    kMaxQualitySamples < 100000 ? kMaxQualitySamples : 100000;
 +constexpr size_t kMaxCalculatorQualityWork = 8u * 1024u * 1024u;
  
  struct RoundTripMetrics {
    bool measured = false;
-@@ -394,6 +396,38 @@ inline bool bounded_grid_sample_count(int channels, size_t &samples) {
+@@ -377,7 +381,7 @@ inline bool bounded_grid_sample_count(int channels, size_t &samples) {
+   const size_t grid = channels >= 4 ? 5u : 9u;
+   samples = 1;
+   for (int i = 0; i < channels; ++i) {
+-    if (samples > kMaxQualitySamples / grid) {
++    if (samples > kMaxBoundedGridSamples / grid) {
+       samples = 0;
+       return false;
+     }
+@@ -386,6 +390,38 @@ inline bool bounded_grid_sample_count(int channels, size_t &samples) {
    return true;
  }
  
@@ -60,7 +66,7 @@ diff --git a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h b/Tools/CmdLine/Icc
  template <typename Fn>
  inline void visit_bounded_grid_points(int channels,
                                        std::array<icFloatNumber, 16> &device,
-@@ -836,7 +870,10 @@ inline bool measure_cmm_round_trip(CIccProfile *pIcc,
+@@ -815,7 +851,10 @@ inline bool measure_cmm_round_trip(CIccProfile *pIcc,
      reason = "CIccCmm round-trip sample grid exceeds quality metric budget";
      return false;
    }
@@ -72,7 +78,7 @@ diff --git a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h b/Tools/CmdLine/Icc
  
    CIccCmm forward(colorSpace, pcs, true);
    CIccCmm reverse(pcs, colorSpace, false);
-@@ -924,6 +961,14 @@ inline bool measure_cmm_forward_smoothness(CIccProfile *pIcc,
+@@ -903,6 +942,14 @@ inline bool measure_cmm_forward_smoothness(CIccProfile *pIcc,
      return false;
    }
  
@@ -98,3 +104,18 @@ diff --git a/Tools/CmdLine/IccPawgReport/PawgReport.cpp b/Tools/CmdLine/IccPawgR
           reason.find("requires Lab or XYZ PCS") != std::string::npos ||
           reason.find("Invalid profile") != std::string::npos ||
           reason.find("Invalid profile transform") != std::string::npos ||
+diff --git a/.github/ci/regression/pawg-q1-quality-contract.cpp b/.github/ci/regression/pawg-q1-quality-contract.cpp
+--- a/.github/ci/regression/pawg-q1-quality-contract.cpp
++++ b/.github/ci/regression/pawg-q1-quality-contract.cpp
+@@ -163,8 +163,10 @@ static void test_sample_budget()
+         "RGB grid uses 729 samples");
+   check(bounded_grid_sample_count(4, samples) && samples == 625,
+         "CMYK grid uses 625 samples");
+-  check(bounded_grid_sample_count(9, samples) && samples == 1953125,
++  check(bounded_grid_sample_count(7, samples) && samples == 78125,
+         "largest accepted bounded grid stays below the sample budget");
++  check(!bounded_grid_sample_count(8, samples),
++        "8-channel grid is rejected before exponential evaluation");
+   check(!bounded_grid_sample_count(10, samples),
+         "10-channel grid is rejected before exponential evaluation");
+   check(!bounded_grid_sample_count(16, samples),

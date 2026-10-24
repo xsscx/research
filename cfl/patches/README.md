@@ -17,7 +17,8 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   would exceed the quality-metric work budget.
 - `005-pawg-report-detail-bounds.patch`: makes shared tag-region validation
   linear and bounds repeated private/compression detail examples while retaining
-  exact counts.
+  exact counts. The linear layout check also covers `icc_proflib_fuzzer` slow
+  unit `f9cdb738397ae9c4664ba62ed6969b7573ed772c`.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
