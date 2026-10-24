@@ -19,6 +19,9 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   linear and bounds repeated private/compression detail examples while retaining
   exact counts. The linear layout check also covers `icc_proflib_fuzzer` slow
   unit `f9cdb738397ae9c4664ba62ed6969b7573ed772c`.
+- `006-pawg-private-tag-scan-bounds.patch`: merges overlapping in-bounds private
+  tag regions before the PAWG S12 and S13 byte scans, so malformed tag tables
+  cannot multiply scan work by repeatedly naming the same profile bytes.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
