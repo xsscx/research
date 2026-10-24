@@ -22,6 +22,10 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 - `006-pawg-private-tag-scan-bounds.patch`: merges overlapping in-bounds private
   tag regions before the PAWG S12 and S13 byte scans, so malformed tag tables
   cannot multiply scan work by repeatedly naming the same profile bytes.
+- `007-pawg-q3-ndlut-budget.patch`: bounds PAWG Q3 n-D LUT interpolation work
+  before sampling the neutral path and every device axis, preventing 14- and
+  15-channel legacy LUT profiles from multiplying work through `2^N` corner
+  visits per sample.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.

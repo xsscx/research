@@ -1,0 +1,252 @@
+diff --git a/Build/Cmake/Testing/CMakeLists.txt b/Build/Cmake/Testing/CMakeLists.txt
+index d1cf818..22387f6 100644
+--- a/Build/Cmake/Testing/CMakeLists.txt
++++ b/Build/Cmake/Testing/CMakeLists.txt
+@@ -1343,4 +1343,46 @@ function(iccdev_add_pawg_q3_steep_test)
+ endfunction()
+ 
++# Guards iccPawgReport's Q3 work budget for high-dimensional n-D LUTs.
++# CIccCLUT::InterpND visits 2^N corners per sample, while Q3 samples the neutral
++# diagonal and every device axis.  The test pins the 13/14-channel budget edge
++# and drives a real 14-channel CMM through the refusal path.
++function(iccdev_add_pawg_q3_work_budget_test)
++  if(NOT TARGET "${TARGET_LIB_ICCPROFLIB}")
++    return()
++  endif()
++
++  iccdev_add_regression_executable(iccPawgQ3WorkBudgetTest
++    "${ICCDEV_REPO_ROOT}/.github/ci/regression/pawg-q3-work-budget.cpp"
++  )
++  target_include_directories(iccPawgQ3WorkBudgetTest PRIVATE
++    "${ICCDEV_REPO_ROOT}/Tools/CmdLine/IccPawgReport"
++  )
++  target_link_libraries(iccPawgQ3WorkBudgetTest PRIVATE ${TARGET_LIB_ICCPROFLIB})
++  add_dependencies(check iccPawgQ3WorkBudgetTest)
++
++  add_test(
++    NAME iccdev.pawg-q3-work-budget
++    COMMAND "$<TARGET_FILE:iccPawgQ3WorkBudgetTest>"
++  )
++  set_tests_properties(iccdev.pawg-q3-work-budget PROPERTIES
++    WORKING_DIRECTORY "${ICCDEV_REPO_ROOT}"
++    TIMEOUT 60
++    LABELS "iccdev;pawg;quality;smoothness;security;regression"
++  )
++  if(WIN32)
++    set(_pawg_q3_budget_windows_env_mods
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:iccPawgQ3WorkBudgetTest>"
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:${TARGET_LIB_ICCPROFLIB}>"
++    )
++    foreach(_runtime_path IN LISTS ICCDEV_WINDOWS_RUNTIME_PATHS)
++      list(APPEND _pawg_q3_budget_windows_env_mods
++        "PATH=path_list_prepend:${_runtime_path}")
++    endforeach()
++    set_tests_properties(iccdev.pawg-q3-work-budget PROPERTIES
++      ENVIRONMENT_MODIFICATION "${_pawg_q3_budget_windows_env_mods}"
++    )
++  endif()
++endfunction()
++
+ # Guards iccPawgReport's Q4 characterization round-trip
+ # (iccquality::evaluate_characterization): it must (1) compare predicted output
+@@ -12423,4 +12465,5 @@ if(WIN32)
+   iccdev_add_pawg_q2_tonecurves_test()
+   iccdev_add_pawg_q3_steep_test()
++  iccdev_add_pawg_q3_work_budget_test()
+   iccdev_add_pawg_q4_characterization_test()
+   iccdev_add_pawg_q4_xyz_pcs_decode_test()
+@@ -12956,4 +12999,5 @@ iccdev_add_tag_layout_shared_data_test()
+ iccdev_add_pawg_q2_tonecurves_test()
+ iccdev_add_pawg_q3_steep_test()
++iccdev_add_pawg_q3_work_budget_test()
+ iccdev_add_pawg_q4_characterization_test()
+ iccdev_add_pawg_q4_xyz_pcs_decode_test()
+diff --git a/.github/ci/regression/pawg-q3-work-budget.cpp b/.github/ci/regression/pawg-q3-work-budget.cpp
+new file mode 100644
+index 0000000..32ac03f
+--- /dev/null
++++ b/.github/ci/regression/pawg-q3-work-budget.cpp
+@@ -0,0 +1,112 @@
++/*
++ * Copyright (c) International Color Consortium.
++ * SPDX-License-Identifier: BSD-3-Clause
++ *
++ * Redistribution and use in source and binary forms, with or without modification,
++ * are permitted provided that the following conditions are met:
++ *
++ *     1. Redistributions of source code must retain the above copyright notice,
++ *        this list of conditions and the following disclaimer.
++ *
++ *     2. Redistributions in binary form must reproduce the above copyright
++ *        notice, this list of conditions and the following disclaimer in the
++ *        documentation and/or other materials provided with the distribution.
++ *
++ *     3. Neither the name of International Color Consortium (ICC) nor the names of
++ *        its contributors may be used to endorse or promote products derived from
++ *        this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
++ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
++ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
++ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
++ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
++ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
++ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++// Regression: PAWG Q3 sampled the neutral diagonal and every device axis of an
++// n-D LUT without accounting for CIccCLUT::InterpND's 2^N corner visits.  The
++// 14- and 15-channel CFL slow units therefore took seconds in iccPawgReport and
++// tens of seconds under sanitizer/coverage instrumentation.  Keep the 13-channel
++// side of the work limit and make a real 14-channel CMM stop before Apply().
++#include "IccProfile.h"
++#include "IccTagLut.h"
++
++#include "IccQualityMetrics.h"
++
++#include <algorithm>
++#include <cstdio>
++#include <string>
++
++using namespace iccquality;
++
++static int g_failures = 0;
++
++static void check(bool condition, const char *message)
++{
++  std::printf("%s: %s\n", condition ? "ok  " : "FAIL", message);
++  if (!condition) {
++    ++g_failures;
++  }
++}
++
++static bool make_nd_lut_profile(CIccProfile &profile, int channels,
++                                icColorSpaceSignature colorSpace)
++{
++  profile.InitHeader();
++  profile.m_Header.version = icVersionNumberV4_3;
++  profile.m_Header.deviceClass = icSigOutputClass;
++  profile.m_Header.colorSpace = colorSpace;
++  profile.m_Header.pcs = icSigLabData;
++
++  CIccTagLutAtoB *lut = new CIccTagLutAtoB();
++  if (!lut->Init(static_cast<icUInt8Number>(channels), 3)) {
++    delete lut;
++    return false;
++  }
++  lut->SetColorSpaces(colorSpace, icSigLabData);
++
++  CIccCLUT *clut = lut->NewCLUT(2, 2);
++  if (!clut) {
++    delete lut;
++    return false;
++  }
++  icFloatNumber *data = clut->GetData(0);
++  std::fill(data, data + static_cast<size_t>(clut->NumPoints()) *
++      clut->GetOutputChannels(), 0.0f);
++
++  profile.AttachTag(icSigAToB0Tag, lut);
++  return true;
++}
++
++int main()
++{
++  check(nd_lut_smoothness_within_work_budget(13),
++        "13-channel n-D LUT remains inside the Q3 work budget");
++  check(!nd_lut_smoothness_within_work_budget(14),
++        "14-channel n-D LUT exceeds the Q3 work budget");
++  check(!nd_lut_smoothness_within_work_budget(15),
++        "15-channel n-D LUT exceeds the Q3 work budget");
++
++  CIccProfile profile;
++  check(make_nd_lut_profile(profile, 14, icSig14colorData),
++        "construct 14-channel n-D LUT control profile");
++
++  SmoothnessMetrics metrics;
++  std::string reason;
++  const bool measured = measure_transform_smoothness(&profile, metrics, reason);
++  check(!measured, "Q3 dispatcher refuses the 14-channel n-D LUT before sampling");
++  check(!metrics.measured, "refused Q3 metric is not marked measured");
++  check(reason.find("sample grid exceeds quality metric budget") != std::string::npos,
++        "Q3 refusal is classified as not applicable");
++
++  if (g_failures) {
++    std::printf("\n%d case(s) FAILED\n", g_failures);
++    return 1;
++  }
++  std::printf("\nall cases passed\n");
++  return 0;
++}
+diff --git a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h b/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h
+index f108fe4..709a0ab 100644
+--- a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h
++++ b/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h
+@@ -66,4 +66,12 @@ namespace iccquality {
+ constexpr int kMaxQualityChannels = 16;
+ constexpr size_t kMaxQualitySamples = 2000000;
++constexpr int kSmoothnessSamples = 65;
++
++// CIccXformNDLut uses multilinear interpolation, whose work grows as 2^N for
++// N input channels.  Q3 evaluates the neutral diagonal plus every device axis,
++// so 14- and 15-channel profiles otherwise require roughly 16 and 34 million
++// CLUT-corner visits.  Keep 13-channel profiles (about 7.5 million visits) in
++// scope while refusing the next exponential step (CWE-400).
++constexpr size_t kMaxSmoothnessInterpolationCorners = 8u * 1024u * 1024u;
+ constexpr double kPi = 3.141592653589793238462643383279502884;
+ constexpr double kDegToRad = kPi / 180.0;
+@@ -620,4 +628,17 @@ inline bool is_lab_or_xyz_pcs(icColorSpaceSignature pcs) {
+ }
+ 
++inline bool nd_lut_smoothness_within_work_budget(int deviceChannels,
++                                                 int samples = kSmoothnessSamples) {
++  if (deviceChannels < 1 || deviceChannels > kMaxQualityChannels || samples < 1) {
++    return false;
++  }
++
++  const size_t paths = deviceChannels == 1 ? 1u :
++      static_cast<size_t>(deviceChannels + 1);
++  const size_t cornersPerSample = size_t{1} << deviceChannels;
++  return cornersPerSample <=
++      kMaxSmoothnessInterpolationCorners / paths / static_cast<size_t>(samples);
++}
++
+ inline bool status_ok(icStatusCMM status, const std::string &phase, std::string &reason) {
+   if (status == icCmmStatOk) {
+@@ -956,5 +977,12 @@ inline bool measure_cmm_forward_smoothness(CIccProfile *pIcc,
+   }
+ 
+-  constexpr int kSamples = 65;
++  const CIccXform *first = forward.GetFirstXform();
++  if (first && first->GetXformType() == icXformTypeNDLut &&
++      !nd_lut_smoothness_within_work_budget(deviceChannels)) {
++    reason = "CIccCmm smoothness sample grid exceeds quality metric budget "
++             "for n-D LUT interpolation";
++    return false;
++  }
++
+   std::array<icFloatNumber, 16> device{};
+   std::array<icFloatNumber, 16> pcsValue{};
+@@ -970,6 +998,6 @@ inline bool measure_cmm_forward_smoothness(CIccProfile *pIcc,
+     double prevStep = -1.0;
+ 
+-    for (int i = 0; i < kSamples; ++i) {
+-      const double v = i / static_cast<double>(kSamples - 1);
++    for (int i = 0; i < kSmoothnessSamples; ++i) {
++      const double v = i / static_cast<double>(kSmoothnessSamples - 1);
+       device.fill(0.0f);
+ 
+@@ -1640,5 +1668,11 @@ inline bool measure_transform_smoothness(CIccProfile *pIcc,
+   }
+ 
+-  if (reason.empty()) {
++  // A general AToB tag is first rejected by the classic-lut8/lut16 probe.  If
++  // its real CMM path then reaches the resource budget, preserve that terminal
++  // reason so the report classifies Q3 as not applicable instead of a gap.
++  if (cmmReason.find("sample grid exceeds quality metric budget") !=
++      std::string::npos) {
++    reason = cmmReason;
++  } else if (reason.empty()) {
+     reason = !cmmReason.empty() ? cmmReason : matrixReason;
+   }
