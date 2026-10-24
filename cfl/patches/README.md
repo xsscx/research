@@ -12,9 +12,9 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   nested header parsing fails.
 - `003-pawg-calculator-cost-estimate.patch`: adds a selector-width-aware,
   saturating iccMAX calculator cost estimate and uses it for PAWG S10.
-- `004-pawg-calculator-quality-budget.patch`: rejects PAWG Q1 and Q3 sampling
-  before repeated calculator evaluation would exceed the quality-metric work
-  budget.
+- `004-pawg-calculator-quality-budget.patch`: bounds PAWG Q1 Cartesian grids
+  to 100,000 samples and rejects Q1 or Q3 before repeated calculator evaluation
+  would exceed the quality-metric work budget.
 - `005-pawg-report-detail-bounds.patch`: makes shared tag-region validation
   linear and bounds repeated private/compression detail examples while retaining
   exact counts.

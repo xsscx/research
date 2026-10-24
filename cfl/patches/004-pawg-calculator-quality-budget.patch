@@ -9,7 +9,12 @@ diff --git a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h b/Tools/CmdLine/Icc
  #include "IccTag.h"
  #include "IccTagBasic.h"
  #include "IccTagLut.h"
-@@ -67,5 +68,6 @@ constexpr size_t kMaxQualitySamples = 2000000;
+@@ -63,9 +64,10 @@ namespace iccquality {
+ /// Maximum channel count for fixed-size stack arrays in quality metrics.
+ /// All std::array<icFloatNumber, 16> buffers depend on this bound.
+ constexpr int kMaxQualityChannels = 16;
+-constexpr size_t kMaxQualitySamples = 2000000;
++constexpr size_t kMaxQualitySamples = 100000;
  constexpr double kPi = 3.141592653589793238462643383279502884;
  constexpr double kDegToRad = kPi / 180.0;
 +constexpr size_t kMaxCalculatorQualityWork = 8u * 1024u * 1024u;
