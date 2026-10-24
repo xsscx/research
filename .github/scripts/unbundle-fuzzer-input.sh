@@ -1102,6 +1102,8 @@ unbundle_connect() {
 
   local declared_size profile_size control_size
   local ctrl0=2 ctrl1=0 ctrl2 ctrl3 use_embedded try_named try_threaded threads
+  local intent interpolation use_bpc adjust_luminance use_v5sub use_d2bx
+  local legacy_intent source_tiff tool
   declared_size=$(od -A n -t u4 --endian=big -N 4 "$CRASH_FILE" | tr -d ' ')
   if [ "$declared_size" -ge 132 ] && [ "$declared_size" -le "$FILE_SIZE" ]; then
     profile_size="$declared_size"
@@ -1119,6 +1121,12 @@ unbundle_connect() {
   use_embedded=$(( (ctrl0 & 1) ? 1 : 0 ))
   try_named=$(( (ctrl0 & 2) ? 1 : 0 ))
   try_threaded=$(( (ctrl0 & 4) ? 1 : 0 ))
+  intent=$((ctrl2 & 3))
+  interpolation=$(( (ctrl2 & 4) ? 0 : 1 ))
+  use_bpc=$(( (ctrl2 & 8) ? 1 : 0 ))
+  adjust_luminance=$(( (ctrl2 & 16) ? 1 : 0 ))
+  use_v5sub=$(( (ctrl2 & 32) ? 1 : 0 ))
+  use_d2bx=$(( (ctrl2 & 64) ? 1 : 0 ))
   if [ "$try_threaded" -ne 0 ] && [ "$profile_size" -le $((64 * 1024)) ]; then
     threads=$(( ((ctrl1 >> 1) & 1) + 1 ))
   else
@@ -1127,9 +1135,35 @@ unbundle_connect() {
 
   echo "Extracted profile=$profile_size bytes control=$((control_size >= 4 ? 4 : 0)) bytes"
   echo "Control: use_embedded=$use_embedded try_named=$try_named try_threaded=$try_threaded threads=$threads apply_seed=$ctrl3 profile_flags=$ctrl2"
+  echo "         intent=$intent interpolation=$interpolation use_bpc=$use_bpc adjust_pcs_luminance=$adjust_luminance use_v5_subprofile=$use_v5sub use_d2bx_b2dx=$use_d2bx"
   check_icc_magic "$OUT_DIR/profile.icc" "Profile"
   icc_header_summary "$OUT_DIR/profile.icc" "Profile"
-  echo "No exact iccDEV CLI equivalent; replay with cfl/bin/icc_connect_fuzzer for this library-level target."
+
+  source_tiff="$REPO_ROOT/test-profiles/tiff-codecs/seed-tiff-none-rgb-8x8.tif"
+  legacy_intent=$intent
+  [ "$adjust_luminance" -ne 0 ] && legacy_intent=$((legacy_intent + 1000))
+  [ "$use_v5sub" -ne 0 ] && legacy_intent=$((legacy_intent + 10000))
+  if [ "$use_bpc" -ne 0 ]; then
+    legacy_intent=$((legacy_intent + 40))
+    if [ "$use_d2bx" -eq 0 ]; then
+      echo "The legacy CLI cannot encode useBPC=true and useD2BxB2Dx=false together; use the fuzzer for an exact replay."
+      return 0
+    fi
+  elif [ "$use_d2bx" -eq 0 ]; then
+    legacy_intent=$((legacy_intent + 10))
+  fi
+
+  echo "Standard-path CLI reproduction candidate:"
+  echo "  iccApplyProfiles $source_tiff $OUT_DIR/output.tiff 3 0 0 0 $interpolation $OUT_DIR/profile.icc $legacy_intent"
+  echo "The optional named and threaded branches still require fuzzer replay."
+
+  tool="$(tool_bin IccApplyProfiles iccApplyProfiles)"
+  if [ -f "$source_tiff" ]; then
+    run_if_available "$tool" "$source_tiff" "$OUT_DIR/output.tiff" 3 0 0 0 \
+      "$interpolation" "$OUT_DIR/profile.icc" "$legacy_intent"
+  else
+    echo "Tool not run; source TIFF not found: $source_tiff"
+  fi
 }
 
 unbundle_cfg() {

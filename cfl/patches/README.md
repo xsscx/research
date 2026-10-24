@@ -29,6 +29,9 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 - `008-profile-tag-count-bound.patch`: rejects binary profiles with more than
   1,000 tag-directory entries before attacker-controlled counts can multiply
   profile parsing, validation, and shared-tag association work.
+- `009-bpc-pcs-space-guard.patch`: rejects black-point compensation for a
+  non-XYZ/Lab PCS before a profile transform can write more than three channels
+  through BPC's three-float black-point buffer.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.

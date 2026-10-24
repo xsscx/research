@@ -83,6 +83,9 @@ Read ASAN/UBSAN stack frames #2-#3. Classify by file path:
 - ALWAYS use unpatched `iccDEV/Build/Tools/` for reproduction
 - Trim ASAN: keep SCARINESS + frames #0-#4. Cut shadow byte legend.
 - For multi-profile fuzzers, unbundle first with unbundle-fuzzer-input.sh
+- For `icc_connect_fuzzer`, use the unbundler's decoded `iccApplyProfiles`
+  standard-path command. Do not pass its binary ICC artifact to `-cfg`, which
+  expects JSON.
 - For `profileplot*`, replay the exact `list`, `graph chroma:xy`, or
   `raster clut:A2B0 OUT.raw` argv shape from `afl/targets.sh`; do not substitute
   the older `iccProfileVisualize` executable.

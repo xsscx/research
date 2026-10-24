@@ -500,7 +500,7 @@ cfl_tool_command() {
       printf 'iccApplySearch docs/iccDEV/Tools/test-data/test-data-rgb-8bit.txt 0 0 test-profiles/sRGB_D65_MAT.icc 1 test-profiles/sRGB_D65_MAT.icc 1 -INIT 1 %s 1\n' "$artifact"
       ;;
     icc_connect_fuzzer)
-      printf 'iccApplyProfiles -cfg %s\n' "$artifact"
+      printf '.github/scripts/unbundle-fuzzer-input.sh connect %s\n' "$artifact"
       ;;
     icc_cfg_fuzzer)
       printf 'iccApplyProfiles -cfg %s\n' "$artifact"

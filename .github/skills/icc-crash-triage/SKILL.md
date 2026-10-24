@@ -107,6 +107,12 @@ For multi-profile fuzzers, unbundle first:
 .github/scripts/unbundle-fuzzer-input.sh <fuzzer_name> <crash-file>
 ```
 
+For `icc_connect_fuzzer`, the artifact is a declared-size ICC profile followed
+by an optional four-byte control trailer. Use the unbundler to decode the
+trailer and print the matching `iccApplyProfiles` standard-path command; passing
+the binary artifact to `iccApplyProfiles -cfg` is not a valid replay because
+`-cfg` expects JSON.
+
 For ProfilePlot findings, preserve the target mode and descriptor ID from
 `afl/targets.sh`. Replay `profileplot` with `list`, `profileplot-graph` with
 `graph chroma:xy`, and `profileplot-raster` with

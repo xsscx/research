@@ -1,0 +1,37 @@
+diff --git a/IccProfLib/IccApplyBPC.cpp b/IccProfLib/IccApplyBPC.cpp
+--- a/IccProfLib/IccApplyBPC.cpp
++++ b/IccProfLib/IccApplyBPC.cpp
+@@ -251,17 +251,21 @@ bool CIccApplyBPC::calcBlackPoint(const CIccProfile* pProfile, const CIccXform* pXform, icFloatNumber* XYZb) const
+ **************************************************************************
+ */
+-bool CIccApplyBPC::calcBlackPoint(const CIccProfile* pProfile, const CIccXform* pXform, icFloatNumber* XYZb) const
+-{
+-	if (pXform->IsInput()) { // profile used as input/source profile
+-		return calcSrcBlackPoint(pProfile, pXform, XYZb);
+-	}
+-	else { // profile used as output profile
+-		return calcDstBlackPoint(pProfile, pXform, XYZb);
+-	}
+-
+-	return true;
+-}
+-
++bool CIccApplyBPC::calcBlackPoint(const CIccProfile* pProfile, const CIccXform* pXform, icFloatNumber* XYZb) const
++{
++	// BPC's black-point buffer contains exactly three XYZ/Lab components.
++	if (!IsSpacePCS(pProfile->m_Header.pcs))
++		return false;
++
++	if (pXform->IsInput()) { // profile used as input/source profile
++		return calcSrcBlackPoint(pProfile, pXform, XYZb);
++	}
++	else { // profile used as output profile
++		return calcDstBlackPoint(pProfile, pXform, XYZb);
++	}
++
++	return true;
++}
++
+ /**
+ **************************************************************************
+ * Name: CIccApplyBPC::calcSrcBlackPoint

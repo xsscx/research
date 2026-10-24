@@ -75,6 +75,9 @@ If empty, generate:
 - Claiming the unix/ build convention works without testing on the target branch
 - Writing reproduction docs before running the commands
 - Multi-line commands that break when pasted
+- Replaying an `icc_connect_fuzzer` binary ICC artifact as an
+  `iccApplyProfiles -cfg` JSON document; decode its four-byte trailer with
+  `.github/scripts/unbundle-fuzzer-input.sh connect ARTIFACT` instead
 
 ## PATH Setup (for Testing/ scripts)
 
