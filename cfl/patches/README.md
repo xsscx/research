@@ -26,6 +26,9 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   before sampling the neutral path and every device axis, preventing 14- and
   15-channel legacy LUT profiles from multiplying work through `2^N` corner
   visits per sample.
+- `008-profile-tag-count-bound.patch`: rejects binary profiles with more than
+  1,000 tag-directory entries before attacker-controlled counts can multiply
+  profile parsing, validation, and shared-tag association work.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.

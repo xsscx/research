@@ -1,0 +1,190 @@
+diff --git a/IccProfLib/IccProfile.cpp b/IccProfLib/IccProfile.cpp
+index 5ab8769..bb182ec 100644
+--- a/IccProfLib/IccProfile.cpp
++++ b/IccProfLib/IccProfile.cpp
+@@ -1544,4 +1544,11 @@ bool CIccProfile::ReadBasic(CIccIO *pIO)
+     return false;
+ 
++  // Profile tag counts are attacker-controlled and feed allocation, parsing,
++  // validation, and shared-tag association loops. Bound that work before
++  // accepting the directory (CWE-400).
++  static const icUInt32Number kMaxProfileTags = 1000;
++  if (count > kMaxProfileTags)
++    return false;
++
+   // Bound `count` against the IO's actual length. Without this check a
+   // crafted count field can drive m_Tags into unbounded growth on a
+diff --git a/Build/Cmake/Testing/CMakeLists.txt b/Build/Cmake/Testing/CMakeLists.txt
+index 22387f6..d887f87 100644
+--- a/Build/Cmake/Testing/CMakeLists.txt
++++ b/Build/Cmake/Testing/CMakeLists.txt
+@@ -6048,4 +6048,45 @@ function(iccdev_add_json_sparsematrix_huaf_test)
+ endfunction()
+ 
++# Guards the profile-level tag-directory work bound. Untrusted tag counts feed
++# allocation, parsing, validation, and shared-tag association loops, so the
++# binary reader accepts exactly 1,000 entries and rejects the next value.
++function(iccdev_add_profile_tag_count_bound_test)
++  if(NOT TARGET "${TARGET_LIB_ICCPROFLIB}")
++    return()
++  endif()
++
++  iccdev_add_regression_executable(iccProfileTagCountBoundTest
++    "${ICCDEV_REPO_ROOT}/.github/ci/regression/profile-tag-count-bound.cpp"
++  )
++  target_compile_features(iccProfileTagCountBoundTest PRIVATE cxx_std_17)
++  target_include_directories(iccProfileTagCountBoundTest PRIVATE
++    "${ICCDEV_REPO_ROOT}/IccProfLib"
++  )
++  target_link_libraries(iccProfileTagCountBoundTest PRIVATE ${TARGET_LIB_ICCPROFLIB})
++  add_dependencies(check iccProfileTagCountBoundTest)
++
++  add_test(
++    NAME iccdev.profile-tag-count-bound
++    COMMAND "$<TARGET_FILE:iccProfileTagCountBoundTest>"
++  )
++  set_tests_properties(iccdev.profile-tag-count-bound PROPERTIES
++    TIMEOUT 60
++    LABELS "iccdev;profile;parser;security;regression"
++  )
++  if(WIN32)
++    set(_profile_tag_count_windows_env_mods
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:iccProfileTagCountBoundTest>"
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:${TARGET_LIB_ICCPROFLIB}>"
++    )
++    foreach(_runtime_path IN LISTS ICCDEV_WINDOWS_RUNTIME_PATHS)
++      list(APPEND _profile_tag_count_windows_env_mods
++        "PATH=path_list_prepend:${_runtime_path}")
++    endforeach()
++    set_tests_properties(iccdev.profile-tag-count-bound PROPERTIES
++      ENVIRONMENT_MODIFICATION "${_profile_tag_count_windows_env_mods}"
++    )
++  endif()
++endfunction()
++
+ # #2706: CIccTagUnknown's default constructor left m_nSize uninitialised, and
+ # CIccTagJsonUnknown::ParseJson() accepts a document without "unknownData"
+@@ -12378,4 +12419,5 @@ if(WIN32)
+   iccdev_add_pawg_compression_paths_test()
+   iccdev_add_json_sparsematrix_huaf_test()
++  iccdev_add_profile_tag_count_bound_test()
+   iccdev_add_unknown_tag_size_test()
+   iccdev_add_xml_writer_graceful_degrade_test()
+@@ -12927,4 +12969,5 @@ iccdev_add_compression_describe_labels_test()
+ iccdev_add_pawg_compression_paths_test()
+ iccdev_add_json_sparsematrix_huaf_test()
++iccdev_add_profile_tag_count_bound_test()
+ iccdev_add_unknown_tag_size_test()
+ iccdev_add_xml_writer_graceful_degrade_test()
+diff --git a/.github/ci/regression/profile-tag-count-bound.cpp b/.github/ci/regression/profile-tag-count-bound.cpp
+new file mode 100644
+index 0000000..19eb035
+--- /dev/null
++++ b/.github/ci/regression/profile-tag-count-bound.cpp
+@@ -0,0 +1,106 @@
++/*
++ * Copyright (c) International Color Consortium.
++ * SPDX-License-Identifier: BSD-3-Clause
++ *
++ * Redistribution and use in source and binary forms, with or without modification,
++ * are permitted provided that the following conditions are met:
++ *
++ *     1. Redistributions of source code must retain the above copyright notice,
++ *        this list of conditions and the following disclaimer.
++ *
++ *     2. Redistributions in binary form must reproduce the above copyright
++ *        notice, this list of conditions and the following disclaimer in the
++ *        documentation and/or other materials provided with the distribution.
++ *
++ *     3. Neither the name of International Color Consortium (ICC) nor the names of
++ *        its contributors may be used to endorse or promote products derived from
++ *        this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
++ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
++ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
++ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
++ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
++ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
++ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++// Regression: an untrusted profile could declare every physically representable
++// tag-directory entry. Callers that load or inspect each tag then multiplied
++// that count through parsing, validation, and shared-tag association loops.
++// Pin the library's documented 1,000-entry boundary at the binary read path.
++
++#include "IccProfile.h"
++
++#include <cstdio>
++#include <vector>
++
++#ifdef USEICCDEVNAMESPACE
++using namespace iccDEV;
++#endif
++
++namespace {
++
++int g_failures = 0;
++
++void check(bool condition, const char *label)
++{
++  std::printf("%s: %s\n", condition ? "ok  " : "FAIL", label);
++  if (!condition)
++    g_failures++;
++}
++
++void put32(std::vector<icUInt8Number> &bytes, size_t offset,
++           icUInt32Number value)
++{
++  bytes[offset] = static_cast<icUInt8Number>(value >> 24);
++  bytes[offset + 1] = static_cast<icUInt8Number>(value >> 16);
++  bytes[offset + 2] = static_cast<icUInt8Number>(value >> 8);
++  bytes[offset + 3] = static_cast<icUInt8Number>(value);
++}
++
++std::vector<icUInt8Number> makeProfile(icUInt32Number tagCount)
++{
++  const size_t size = 132u + static_cast<size_t>(tagCount) * 12u;
++  std::vector<icUInt8Number> bytes(size, 0);
++  put32(bytes, 0, static_cast<icUInt32Number>(size));
++  put32(bytes, 8, icVersionNumberV4_3);
++  put32(bytes, 12, icSigDisplayClass);
++  put32(bytes, 16, icSigRgbData);
++  put32(bytes, 20, icSigXYZData);
++  put32(bytes, 36, icMagicNumber);
++  put32(bytes, 128, tagCount);
++  return bytes;
++}
++
++CIccProfile *openProfile(const std::vector<icUInt8Number> &bytes)
++{
++  return OpenIccProfile(bytes.data(),
++      static_cast<icUInt32Number>(bytes.size()), false);
++}
++
++} // namespace
++
++int main()
++{
++  std::vector<icUInt8Number> atLimit = makeProfile(1000);
++  CIccProfile *accepted = openProfile(atLimit);
++  check(accepted != NULL, "a profile with exactly 1,000 tags is accepted");
++  check(accepted && accepted->m_Tags.size() == 1000,
++        "the accepted directory retains all 1,000 entries");
++  delete accepted;
++
++  std::vector<icUInt8Number> overLimit = makeProfile(1001);
++  CIccProfile *rejected = openProfile(overLimit);
++  check(rejected == NULL, "a profile with 1,001 tags is rejected");
++  delete rejected;
++
++  if (g_failures) {
++    std::printf("\n%d case(s) FAILED\n", g_failures);
++    return 1;
++  }
++  std::printf("\nall cases passed\n");
++  return 0;
++}
