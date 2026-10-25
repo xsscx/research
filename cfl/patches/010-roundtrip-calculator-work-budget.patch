@@ -1,0 +1,84 @@
+diff --git a/IccProfLib/IccEval.cpp b/IccProfLib/IccEval.cpp
+--- a/IccProfLib/IccEval.cpp
++++ b/IccProfLib/IccEval.cpp
+@@ -46,6 +46,7 @@ Version:    V1
+ 
+ #include <cmath>
+ #include "IccEval.h"
++#include "IccMpeCalc.h"
+ #include "IccTag.h"
+ 
+ #ifdef USEICCDEVNAMESPACE
+@@ -67,6 +68,7 @@ namespace iccDEV {
+ // legitimate.  A 4-channel CMYK round trip at gran 33 is 33^4 ~= 1.19M, safely
+ // under the cap; 5+ channels at the default granularity exceed it.
+ static const icUInt32Number icMaxRoundTripSamples = 2000000;
++static const icUInt64Number icMaxRoundTripCalculatorWork = 8ULL * 1024ULL * 1024ULL;
+ 
+ // Return true when nGran^ndim would exceed icMaxRoundTripSamples, evaluated
+ // without overflowing icUInt32Number: the running product is compared against
+@@ -74,20 +76,51 @@ static const icUInt32Number icMaxRoundTripSamples = 2000000;
+ // wraps.  nGran < 2 is also rejected -- it is a degenerate granularity that
+ // would make the stepsize 1/(nGran-1) below divide by zero, and never reflects
+ // a real sampling request.
+-static bool icRoundTripSamplesExceedCap(icUInt8Number nGran, int nDim)
++static bool icRoundTripSamplesExceedCap(icUInt8Number nGran, int nDim,
++                                        icUInt32Number &nSamples)
+ {
++  nSamples = 0;
+   if (nGran < 2 || nDim < 1)
+     return true;
+ 
+-  icUInt32Number nSamples = 1;
++  nSamples = 1;
+   for (int i = 0; i < nDim; i++) {
+     if (nSamples > icMaxRoundTripSamples / nGran)
+       return true;
+     nSamples *= nGran;
+   }
+   return false;
+ }
+ 
++static bool icRoundTripCalculatorWorkExceedsCap(CIccProfile *pProfile,
++                                                 icUInt32Number nSamples)
++{
++  if (!pProfile || !nSamples)
++    return true;
++
++  icUInt64Number remaining = icMaxRoundTripCalculatorWork / nSamples;
++  for (TagEntryList::iterator it = pProfile->m_Tags.begin();
++       it != pProfile->m_Tags.end(); ++it) {
++    CIccTagMultiProcessElement *pMpe =
++        dynamic_cast<CIccTagMultiProcessElement *>(pProfile->FindTag(*it));
++    if (!pMpe)
++      continue;
++
++    const icUInt32Number count = pMpe->NumElements();
++    for (icUInt32Number i = 0; i < count; i++) {
++      CIccMpeCalculator *pCalc =
++          dynamic_cast<CIccMpeCalculator *>(pMpe->GetElement((int)i));
++      if (!pCalc)
++        continue;
++      const icUInt64Number cost = pCalc->GetEstimatedCost();
++      if (cost > remaining)
++        return true;
++      remaining -= cost;
++    }
++  }
++  return false;
++}
++
+ icStatusCMM CIccEvalCompare::EvaluateProfile(CIccProfile *pProfile, icUInt8Number nGran/* =0 */,
+                                              icRenderingIntent nIntent/* =icUnknownIntent */, icXformInterp nInterp/* =icInterpLinear */,
+                                              bool buseMpeTags/* =true */)
+@@ -183,7 +214,9 @@ icStatusCMM CIccEvalCompare::EvaluateProfile(CIccProfile *pProfile, icUInt8Numbe
+   // Refuse the evaluation when the resulting nGran^ndim sample count would blow
+   // past the budget -- otherwise the sampling loop below runs effectively
+   // forever for wide device spaces.  See issue #1405 (CWE-400).
+-  if (icRoundTripSamplesExceedCap(nGran, ndim))
++  icUInt32Number nSamples = 0;
++  if (icRoundTripSamplesExceedCap(nGran, ndim, nSamples) ||
++      icRoundTripCalculatorWorkExceedsCap(pProfile, nSamples))
+     return icCmmStatTooManySamples;
+ 
+   // ccox - what the heck are we trying to do with steps? We don't really use the values.

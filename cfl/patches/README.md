@@ -32,6 +32,9 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 - `009-bpc-pcs-space-guard.patch`: rejects black-point compensation for a
   non-XYZ/Lab PCS before a profile transform can write more than three channels
   through BPC's three-float black-point buffer.
+- `010-roundtrip-calculator-work-budget.patch`: combines the round-trip sample
+  count with selector-width-aware calculator cost before evaluating the grid,
+  preventing wide stack operations from multiplying into billions of work units.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
