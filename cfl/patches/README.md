@@ -38,6 +38,36 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
+At upstream `b6ce0cf`, patches `001` and `007` are already present. They remain
+in the stack so older comparison refs receive the same fixes and current refs
+exercise the `Already applied` compatibility path.
+
+## Campaign and upstream scope
+
+The optional stack changes the isolated iccDEV source used by CFL; it is not a
+harness-only mode. Classify each result before proposing the same change to
+upstream maintainers:
+
+- A slowdown that is material only under `-O0`, sanitizers, and coverage is a
+  campaign-throughput finding. Keep its work bound local unless a clean Release
+  build also shows unacceptable cost.
+- PAWG sample and calculator budgets (`003`, `004`, `007`) change whether a
+  quality check runs. An upstream proposal therefore needs an agreed reporting
+  policy and accuracy threshold, not just a faster fuzz replay.
+- The tag-count bound (`008`) changes the core reader and can reject profiles
+  that the specification can encode. Audit real corpus tag counts and document
+  compatibility before proposing that limit upstream.
+- Memory-ownership, bounds-safety, or overflow fixes such as `001`, `002`, and
+  `009` are product correctness or security candidates when independently
+  reproduced outside the fuzzer. Treat their upstream status separately from
+  campaign throughput.
+
+Record the unpatched Release control, patched sanitizer replay, patch inventory,
+and any compatibility analysis in a dated report. Do not describe an
+instrumentation-only slow unit as a production denial of service.
+
+The 2026-10-31 multi-VM slow-unit A/B is recorded in
+[`docs/analysis/cfl-slow-unit-qa-20261031.md`](../../docs/analysis/cfl-slow-unit-qa-20261031.md).
 
 Build the LibFuzzer harnesses against patched upstream `master`:
 

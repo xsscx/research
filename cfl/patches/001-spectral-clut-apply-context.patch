@@ -1,13 +1,16 @@
 diff --git a/IccProfLib/IccMpeSpectral.cpp b/IccProfLib/IccMpeSpectral.cpp
 --- a/IccProfLib/IccMpeSpectral.cpp
 +++ b/IccProfLib/IccMpeSpectral.cpp
-@@ -1302,5 +1302,8 @@
+@@ -1302,5 +1302,11 @@
  CIccApplyMpe* CIccMpeSpectralCLUT::GetNewApply(CIccApplyTagMpe* /* pApplyTag */)
  {
 -  if (!m_pCLUT) {
-+  // Begin() builds m_pApplyCLUT and initializes its interpolation state.  It
-+  // is also the table Apply() uses.  The source m_pCLUT is not begun and a
-+  // copied source table therefore has no valid m_nNodes value for scratch.
++  // Apply() interpolates m_pApplyCLUT, the colorimetric CLUT Begin() builds,
++  // so the interpolation scratch must come from it too.  m_pCLUT is the
++  // spectral CLUT as read and is never begun, so its node table is empty: the
++  // scratch built from it was zero bytes, and InterpND() -- used from seven
++  // inputs up -- wrote past it (#2870).  Without m_pApplyCLUT there is nothing
++  // Apply() could use.
 +  if (!m_pApplyCLUT) {
      return NULL;
    }

@@ -1,6 +1,6 @@
 # CFL - LibFuzzer Harnesses for iccDEV
 
-Last updated: 2026-10-23
+Last updated: 2026-10-31
 
 `cfl/` contains the LibFuzzer side of the iccDEV fuzzing workflow: active
 harnesses, sanitizer builds, dictionaries, and seed material. The default build
@@ -295,6 +295,13 @@ Both `start.sh` and `fuzz-local.sh` execute each harness from runtime state belo
 `cfl/runs/`, with `FUZZ_TMPDIR` pointing at that fuzzer's work directory.
 Corpora remain under `cfl/corpus-*`, findings use the configured artifact
 directory, and generated tool files must not appear in the repository root.
+For manual multi-worker commands, keep `FUZZ_TMPDIR` on the native Linux
+filesystem, such as `/tmp/cfl-pawg`, even when corpora, coverage profiles, and
+`-artifact_prefix` use a shared `/mnt/*` collection path. File-backed harnesses
+perform seek-heavy work on their temporary inputs, and crossing the Windows
+filesystem boundary can turn filesystem latency into misleading slow units.
+Each worker uses unique temporary filenames; do not replace them with a shared
+fixed path.
 
 For maintainer one-liners covering every active fuzzer, including smoke,
 explore, rare-path, and sanitizer reproduction modes, use

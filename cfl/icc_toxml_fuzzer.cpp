@@ -85,13 +85,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   // Gate 0: minimum viable ICC profile (128-byte header + tag count)
   if (size < 132) return 0;
 
-  // Write to temp file - upstream uses CIccFileIO, NOT CIccMemIO
-  // Fuzzer temp file path is hardcoded, not user-controlled XML input
+  // Write to a per-input temp file - upstream uses CIccFileIO, NOT CIccMemIO.
+  // A unique path is required because LibFuzzer workers share FUZZ_TMPDIR.
   char fuzzTmp[512];
-  if (!fuzz_build_path(fuzzTmp, sizeof(fuzzTmp), fuzz_tmpdir(), "/fuzz_toxml.icc"))
+  if (!fuzz_build_path(fuzzTmp, sizeof(fuzzTmp), fuzz_tmpdir(),
+                       "/fuzz_toxml_XXXXXX"))
     return 0;
 
-  int fd = open(fuzzTmp, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  int fd = mkstemp(fuzzTmp);
   if (fd < 0) return 0;
   ssize_t written = write(fd, data, size);
   close(fd);
