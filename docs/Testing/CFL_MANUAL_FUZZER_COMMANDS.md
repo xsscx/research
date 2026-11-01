@@ -200,8 +200,8 @@ This harness is the in-memory `IccVizModel` lane for `iccProfilePlot`. The
 
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 profileplot
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_profilevisualize_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=65536 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_profilevisualize_fuzzer/
-ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_profilevisualize_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=65536 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_profilevisualize_fuzzer -max_total_time=600 -timeout=30 -rss_limit_mb=4096 -max_len=1048576 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_profilevisualize_fuzzer/
+ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_profilevisualize_fuzzer -runs=1 -timeout=30 -rss_limit_mb=4096 -max_len=1048576 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
 ```
 
 Tool-level cross-check:
@@ -217,6 +217,14 @@ ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_roundtrip_fuzze
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_roundtrip_fuzzer -max_total_time=600 -timeout=45 -rss_limit_mb=8192 -max_len=10485760 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_roundtrip_fuzzer/
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_roundtrip_fuzzer -max_total_time=900 -timeout=45 -rss_limit_mb=8192 -max_len=10485760 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_core.dict cfl/corpus-icc_roundtrip_fuzzer/
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_roundtrip_fuzzer -runs=1 -timeout=45 -rss_limit_mb=8192 -max_len=10485760 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+```
+
+Patched CFL uses a 17-point sampling grid for round-trip and PRMG path coverage.
+The unpatched comparison remains buildable and `iccRoundTrip` keeps its full
+production default. Cross-check the tool with:
+
+```bash
+iccRoundTrip <artifact> 1 0
 ```
 
 ### `icc_specsep_fuzzer`
@@ -235,6 +243,14 @@ cd cfl && ./fuzz-local.sh -t 30 -w 1 tiffdump
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tiffdump_fuzzer -max_total_time=600 -timeout=45 -rss_limit_mb=8192 -max_len=0 -use_value_profile=1 -print_final_stats=1 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_tiffdump_fuzzer.dict cfl/corpus-icc_tiffdump_fuzzer/
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tiffdump_fuzzer -max_total_time=900 -timeout=45 -rss_limit_mb=8192 -max_len=0 -use_value_profile=1 -entropic=1 -reduce_inputs=0 -artifact_prefix="$CFL_ARTIFACTS" -dict=cfl/icc_tiffdump_fuzzer.dict cfl/corpus-icc_tiffdump_fuzzer/
 ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_tiffdump_fuzzer -runs=1 -timeout=45 -rss_limit_mb=8192 -max_len=0 -artifact_prefix="$CFL_ARTIFACTS" <artifact>
+```
+
+`iccTiffDump` opens metadata-only and therefore does not reproduce pixel-buffer
+allocation defects reached by this harness. For a safe unpatched product-tool
+check, cap virtual memory and trace the allocation attempt:
+
+```bash
+(ulimit -v 524288; strace -f -e trace=brk,mmap,mmap2 iccApplyProfiles <artifact> /tmp/cfl-tiff-out.tif 0 0 0 0 0 Testing/sRGB_v4_ICC_preference.icc 0)
 ```
 
 ### `icc_tojson_fuzzer`

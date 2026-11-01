@@ -80,6 +80,45 @@ static size_t observe_raster(const iccviz::RasterResult &result)
     return observations;
 }
 
+// Prefer the descriptor overload when the optional iccDEV patch stack provides
+// it. The fallback keeps unpatched ASan/MSan/TSan builds valid comparison
+// controls while preserving the same full-descriptor coverage.
+template <typename DescriptorT>
+static auto render_graph(CIccProfile *profile, const DescriptorT &descriptor,
+                         int)
+    -> decltype(iccviz::RenderGraph(profile, descriptor,
+                                    iccviz::Verbosity::Silent))
+{
+    return iccviz::RenderGraph(profile, descriptor,
+                               iccviz::Verbosity::Silent);
+}
+
+template <typename DescriptorT>
+static iccviz::GraphResult render_graph(CIccProfile *profile,
+                                        const DescriptorT &descriptor, long)
+{
+    return iccviz::RenderGraph(profile, descriptor.id,
+                               iccviz::Verbosity::Silent);
+}
+
+template <typename DescriptorT>
+static auto render_raster(CIccProfile *profile, const DescriptorT &descriptor,
+                          int)
+    -> decltype(iccviz::RenderRaster(profile, descriptor,
+                                     iccviz::Verbosity::Silent))
+{
+    return iccviz::RenderRaster(profile, descriptor,
+                                iccviz::Verbosity::Silent);
+}
+
+template <typename DescriptorT>
+static iccviz::RasterResult render_raster(CIccProfile *profile,
+                                          const DescriptorT &descriptor, long)
+{
+    return iccviz::RenderRaster(profile, descriptor.id,
+                                iccviz::Verbosity::Silent);
+}
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     if (!data || size < kMinIccInputSize || size > kMaxIccInputSize)
@@ -100,13 +139,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     for (const auto &descriptor : descriptors) {
         if (descriptor.output == iccviz::Output::Graph) {
             observations += observe_graph(
-                iccviz::RenderGraph(profile.get(), descriptor.id,
-                                    iccviz::Verbosity::Silent));
+                render_graph(profile.get(), descriptor, 0));
         }
         else {
             observations += observe_raster(
-                iccviz::RenderRaster(profile.get(), descriptor.id,
-                                     iccviz::Verbosity::Silent));
+                render_raster(profile.get(), descriptor, 0));
         }
     }
 

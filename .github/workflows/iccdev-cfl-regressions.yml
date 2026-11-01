@@ -18,6 +18,7 @@ on:
       - '.github/instructions/cfl.instructions.md'
       - '.github/scripts/generate-cfl-specsep-seeds.py'
       - '.github/scripts/generate-heif-coverage-seeds.py'
+      - '.github/scripts/check-afl-cfl-patches.sh'
       - '.github/scripts/unbundle-fuzzer-input.sh'
       - '.github/scripts/validate-cfl-applynamedcmm.sh'
       - '.github/workflows/iccdev-cfl-regressions.yml'
@@ -29,6 +30,7 @@ on:
       - '.github/instructions/cfl.instructions.md'
       - '.github/scripts/generate-cfl-specsep-seeds.py'
       - '.github/scripts/generate-heif-coverage-seeds.py'
+      - '.github/scripts/check-afl-cfl-patches.sh'
       - '.github/scripts/unbundle-fuzzer-input.sh'
       - '.github/scripts/validate-cfl-applynamedcmm.sh'
       - '.github/workflows/iccdev-cfl-regressions.yml'
@@ -48,15 +50,20 @@ concurrency:
 
 jobs:
   build-and-smoke:
-    name: CFL build and focused smoke
+    name: CFL build and focused smoke (${{ matrix.patch_mode }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        patch_mode: [baseline, optional-stack]
     defaults:
       run:
         shell: bash --noprofile --norc {0}
     env:
       BASH_ENV: /dev/null
       ICCDEV_REF: ${{ inputs.iccdev_ref || 'master' }}
+      PATCH_MODE: ${{ matrix.patch_mode }}
 
     steps:
       - name: Checkout repository
@@ -95,12 +102,14 @@ jobs:
           unset GITHUB_TOKEN || true
           shellcheck afl/third_party/build.sh \
             cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
+            .github/scripts/check-afl-cfl-patches.sh \
             cfl/test-msan-dependencies.sh cfl/third_party/build-msan-libcxx.sh \
             cfl/third_party/build-msan-libxml2.sh \
             .github/scripts/unbundle-fuzzer-input.sh \
             .github/scripts/validate-cfl-applynamedcmm.sh
           bash -n afl/third_party/build.sh \
             cfl/build.sh cfl/fuzzers.sh cfl/fuzz-local.sh cfl/start.sh \
+            .github/scripts/check-afl-cfl-patches.sh \
             cfl/test-msan-dependencies.sh cfl/third_party/build-msan-libcxx.sh \
             cfl/third_party/build-msan-libxml2.sh \
             .github/scripts/unbundle-fuzzer-input.sh \
@@ -131,11 +140,13 @@ jobs:
           cmp test-profiles/sRGB_v4_ICC_preference.icc \
             /tmp/cfl-profileplot-seeds/sRGB_v4_ICC_preference.icc
           test "$(cfl_option_max_len "$PWD/cfl" \
-            icc_profilevisualize_fuzzer)" -ge 65536
+            icc_profilevisualize_fuzzer)" -ge 1048576
           test "$(file -b --mime-encoding \
             cfl/icc_profilevisualize_fuzzer.cpp)" = us-ascii
           test "$(file -b --mime-encoding \
             cfl/icc_applynamedcmm_fuzzer.cpp)" = us-ascii
+          test "$(cfl_tool_command icc_roundtrip_fuzzer sample.icc)" = \
+            'iccRoundTrip sample.icc 1 0'
           .github/scripts/validate-cfl-applynamedcmm.sh
 
       - name: Build all CFL fuzzers
@@ -147,9 +158,22 @@ jobs:
           set -euo pipefail
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          cfl/build.sh --branch "$ICCDEV_REF" --refresh-iccdev
+          case "$PATCH_MODE" in
+            baseline)
+              cfl/build.sh --branch "$ICCDEV_REF" --refresh-iccdev
+              ;;
+            optional-stack)
+              cfl/build.sh --branch "$ICCDEV_REF" --with-patches \
+                --refresh-iccdev
+              ;;
+            *)
+              echo "Unknown patch mode: $PATCH_MODE" >&2
+              exit 1
+              ;;
+          esac
+          .github/scripts/check-afl-cfl-patches.sh
 
-      - name: Smoke profile visualization harness
+      - name: Smoke profile visualization and roundtrip harnesses
         env:
           BASH_ENV: /dev/null
           ASAN_OPTIONS: detect_leaks=0,halt_on_error=1,abort_on_error=1
@@ -160,6 +184,8 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           timeout 120s cfl/bin/icc_profilevisualize_fuzzer \
+            -runs=1 test-profiles/sRGB_v4_ICC_preference.icc
+          timeout 120s cfl/bin/icc_roundtrip_fuzzer \
             -runs=1 test-profiles/sRGB_v4_ICC_preference.icc
 
       - name: Replay HEIF and SpecSep curated seeds

@@ -41,6 +41,16 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 - `012-profile-tag-io-extent-bounds.patch`: validates deferred raw-tag extents
   against the attached profile before `GetTagIO()` allocates or seeks, while
   retaining valid raw-tag access for API consumers.
+- `013-profilevisualize-descriptor-render.patch`: adds descriptor-based graph
+  and raster render overloads so callers that already enumerated a profile do
+  not repeat descriptor discovery and CLUT probes for every output; existing
+  string-ID calls remain compatible.
+- `014-tiff-strip-buffer-limit.patch`: applies the existing 256 MiB/caller
+  decode-buffer budget to strip-backed TIFF images before allocation, matching
+  the tile-band policy and retaining metadata-only inspection.
+- `015-prmg-fuzzer-granularity.patch`: preserves the production PRMG 101-point
+  grid while exposing a source-compatible bounded-grid overload so patched CFL
+  can cover the same paths without a million samples per valid input.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
@@ -64,9 +74,14 @@ upstream maintainers:
   that the specification can encode. Audit real corpus tag counts and document
   compatibility before proposing that limit upstream.
 - Memory-ownership, bounds-safety, or overflow fixes such as `001`, `002`,
-  `009`, `011`, and `012` are product correctness or security candidates when
+  `009`, `011`, `012`, and `014` are product correctness or security candidates when
   independently reproduced outside the fuzzer or through the affected public
   API. Treat their upstream status separately from campaign throughput.
+- The descriptor-render overload in `013` is an additive API and tooling
+  efficiency candidate. Compare the unpatched and patched Release tool as well
+  as the instrumented harness before assigning severity to a slow unit.
+- The PRMG overload in `015` is campaign-throughput support. Production callers
+  retain the historical 101-point default; only patched CFL selects 17 points.
 
 Record the unpatched Release control, patched sanitizer replay, patch inventory,
 and any compatibility analysis in a dated report. Do not describe an
@@ -77,6 +92,12 @@ The 2026-10-31 multi-VM slow-unit A/B is recorded in
 The October 31 OOM replay, allocation-bound fixes, and sanitizer build matrix
 are recorded in
 [`docs/analysis/cfl-oom-artifact-qa-20261031.md`](../../docs/analysis/cfl-oom-artifact-qa-20261031.md).
+The follow-up ProfileVisualize, TIFF strip-allocation, and round-trip findings
+are recorded in
+[`docs/analysis/cfl-profilevisualize-slow-unit-qa-20261031.md`](../../docs/analysis/cfl-profilevisualize-slow-unit-qa-20261031.md),
+[`docs/analysis/cfl-tiff-strip-oom-qa-20261031.md`](../../docs/analysis/cfl-tiff-strip-oom-qa-20261031.md),
+and
+[`docs/analysis/cfl-roundtrip-slow-unit-qa-20261031.md`](../../docs/analysis/cfl-roundtrip-slow-unit-qa-20261031.md).
 
 Build the LibFuzzer harnesses against patched upstream `master`:
 

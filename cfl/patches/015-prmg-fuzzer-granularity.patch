@@ -1,0 +1,85 @@
+diff --git a/IccProfLib/IccPrmg.cpp b/IccProfLib/IccPrmg.cpp
+index 7865179..2f215ae 100644
+--- a/IccProfLib/IccPrmg.cpp
++++ b/IccProfLib/IccPrmg.cpp
+@@ -197,9 +197,16 @@ bool CIccPRMG::InGamut(icFloatNumber *Lab)
+ icStatusCMM CIccPRMG::EvaluateProfile(CIccProfile *pProfile, icRenderingIntent nIntent/* =icUnknownIntent */,
+                                       icXformInterp nInterp/* =icInterpLinear */, bool buseMpeTags/* =true */)
+ {
+-  if (!pProfile)
++  return EvaluateProfile(pProfile, nIntent, nInterp, buseMpeTags, 101);
++}
++
++icStatusCMM CIccPRMG::EvaluateProfile(CIccProfile *pProfile, icRenderingIntent nIntent,
++                                      icXformInterp nInterp, bool buseMpeTags,
++                                      icUInt8Number nGran)
++{
++  if (!pProfile || nGran < 2 || nGran > 101)
+   {
+-    return icCmmStatCantOpenProfile;
++    return pProfile ? icCmmStatTooManySamples : icCmmStatCantOpenProfile;
+   }
+ 
+   // Same domain restriction as CIccEvalCompare::EvaluateProfile(): the gamut
+@@ -252,9 +259,10 @@ icStatusCMM CIccPRMG::EvaluateProfile(CIccProfile *pProfile, icRenderingIntent n
+ 
+   m_nTotal = m_nDE1 = m_nDE2 = m_nDE3 = m_nDE5 = m_nDE10 = 0;
+ 
+-  for (pcs[0]=0.0; pcs[0]<=1.0; pcs[0] += (icFloatNumber)0.01) {
+-    for (pcs[1]=0.0; pcs[1]<=1.0; pcs[1] += (icFloatNumber)0.01) {
+-      for (pcs[2]=0.0; pcs[2]<=1.0; pcs[2] += (icFloatNumber)0.01) {
++  const icFloatNumber step = (icFloatNumber)(1.0 / (nGran - 1));
++  for (pcs[0]=0.0; pcs[0]<=1.0; pcs[0] += step) {
++    for (pcs[1]=0.0; pcs[1]<=1.0; pcs[1] += step) {
++      for (pcs[2]=0.0; pcs[2]<=1.0; pcs[2] += step) {
+         memcpy(Lab1, pcs, 3*sizeof(icFloatNumber));
+         icLabFromPcs(Lab1);
+         if (InGamut(Lab1)) {
+@@ -299,13 +307,20 @@ icStatusCMM CIccPRMG::EvaluateProfile(CIccProfile *pProfile, icRenderingIntent n
+ 
+ icStatusCMM CIccPRMG::EvaluateProfile(const icChar *szProfilePath, icRenderingIntent nIntent/* =icUnknownIntent */, 
+                                              icXformInterp nInterp/* =icInterpLinear */, bool buseMpeTags/* =true */)
++{
++  return EvaluateProfile(szProfilePath, nIntent, nInterp, buseMpeTags, 101);
++}
++
++icStatusCMM CIccPRMG::EvaluateProfile(const icChar *szProfilePath, icRenderingIntent nIntent,
++                                      icXformInterp nInterp, bool buseMpeTags,
++                                      icUInt8Number nGran)
+ {
+   CIccProfile *pProfile = ReadIccProfile(szProfilePath);
+ 
+   if (!pProfile) 
+     return icCmmStatCantOpenProfile;
+ 
+-  icStatusCMM result = EvaluateProfile(pProfile, nIntent, nInterp, buseMpeTags);
++  icStatusCMM result = EvaluateProfile(pProfile, nIntent, nInterp, buseMpeTags, nGran);
+ 
+   delete pProfile;
+ 
+diff --git a/IccProfLib/IccPrmg.h b/IccProfLib/IccPrmg.h
+index 19dc443..7be7f90 100644
+--- a/IccProfLib/IccPrmg.h
++++ b/IccProfLib/IccPrmg.h
+@@ -66,8 +66,14 @@ public:
+ 
+   icStatusCMM EvaluateProfile(CIccProfile *pProfile, icRenderingIntent nIntent=icUnknownIntent, 
+                               icXformInterp nInterp=icInterpLinear, bool buseMpeTags=true);
++  icStatusCMM EvaluateProfile(CIccProfile *pProfile, icRenderingIntent nIntent,
++                              icXformInterp nInterp, bool buseMpeTags,
++                              icUInt8Number nGran);
+   icStatusCMM EvaluateProfile(const icChar *szProfilePath, icRenderingIntent nIntent=icUnknownIntent, 
+                               icXformInterp nInterp=icInterpLinear, bool buseMpeTags=true);
++  icStatusCMM EvaluateProfile(const icChar *szProfilePath, icRenderingIntent nIntent,
++                              icXformInterp nInterp, bool buseMpeTags,
++                              icUInt8Number nGran);
+ 
+   icUInt32Number m_nDE1, m_nDE2, m_nDE3, m_nDE5, m_nDE10, m_nTotal;
+ 
+@@ -78,4 +84,4 @@ public:
+ }
+ #endif
+ 
+-#endif
+\ No newline at end of file
++#endif

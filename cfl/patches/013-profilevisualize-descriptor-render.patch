@@ -1,0 +1,340 @@
+diff --git a/.github/ci/cfl/icc_profilevisualize_fuzzer.cpp b/.github/ci/cfl/icc_profilevisualize_fuzzer.cpp
+index 93882ca..0fd0d3e 100644
+--- a/.github/ci/cfl/icc_profilevisualize_fuzzer.cpp
++++ b/.github/ci/cfl/icc_profilevisualize_fuzzer.cpp
+@@ -94,11 +94,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+   for (const auto &descriptor : descriptors) {
+     if (descriptor.output == iccviz::Output::Graph) {
+       observations += observeGraph(
+-          iccviz::RenderGraph(profile.get(), descriptor.id,
++          iccviz::RenderGraph(profile.get(), descriptor,
+                               iccviz::Verbosity::Silent));
+     } else {
+       observations += observeRaster(
+-          iccviz::RenderRaster(profile.get(), descriptor.id,
++          iccviz::RenderRaster(profile.get(), descriptor,
+                                iccviz::Verbosity::Silent));
+     }
+   }
+diff --git a/.github/ci/cfl/icc_writerserialize_fuzzer.cpp b/.github/ci/cfl/icc_writerserialize_fuzzer.cpp
+index 15fcb9a..eecb807 100644
+--- a/.github/ci/cfl/icc_writerserialize_fuzzer.cpp
++++ b/.github/ci/cfl/icc_writerserialize_fuzzer.cpp
+@@ -332,11 +332,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+   for (const auto &descriptor : descriptors) {
+     if (descriptor.output == iccviz::Output::Graph) {
+       observations += serializeGraph(
+-          iccviz::RenderGraph(profile.get(), descriptor.id,
++          iccviz::RenderGraph(profile.get(), descriptor,
+                               iccviz::Verbosity::Silent));
+     } else {
+       iccviz::RasterResult raster =
+-          iccviz::RenderRaster(profile.get(), descriptor.id,
++          iccviz::RenderRaster(profile.get(), descriptor,
+                                iccviz::Verbosity::Silent);
+       observations += serializeRaster(raster);
+     }
+diff --git a/.github/ci/regression/iccviz-writer-serialization.cpp b/.github/ci/regression/iccviz-writer-serialization.cpp
+index d31d4bb..da1510f 100644
+--- a/.github/ci/regression/iccviz-writer-serialization.cpp
++++ b/.github/ci/regression/iccviz-writer-serialization.cpp
+@@ -544,7 +544,7 @@ int main(int argc, char **argv)
+   for (const auto &d : descriptors) {
+     if (d.output != iccviz::Output::Raster)
+       continue;
+-    iccviz::RasterResult res = iccviz::RenderRaster(profile.get(), d.id,
++    iccviz::RasterResult res = iccviz::RenderRaster(profile.get(), d,
+                                                     iccviz::Verbosity::Silent);
+     if (!res.ok)
+       continue;
+diff --git a/Tools/CmdLine/IccProfilePlot/IccVizModel.cpp b/Tools/CmdLine/IccProfilePlot/IccVizModel.cpp
+index d6ccb71..bf623b4 100644
+--- a/Tools/CmdLine/IccProfilePlot/IccVizModel.cpp
++++ b/Tools/CmdLine/IccProfilePlot/IccVizModel.cpp
+@@ -1469,88 +1469,102 @@ std::vector<Descriptor> Enumerate(CIccProfile* pIcc) {
+   return out;
+ }
+ 
+-// RenderGraph - see IccVizModel.hpp. Re-enumerates to resolve the descriptor id,
+-// then dispatches to the matching producer (chromaticity / curve / named a*b* / xy
+-// / neutral-axis). Re-enumerating rather than caching descriptors keeps the API
+-// stateless and cheap (callers cache the parsed CIccProfile); diagnostics are
+-// returned as data and also echoed to stderr per the Verbosity.
+-GraphResult RenderGraph(CIccProfile* pIcc, const std::string& id, Verbosity v) {
++// RenderGraph - see IccVizModel.hpp. The descriptor overload dispatches directly
++// to the matching producer (chromaticity / curve / named a*b* / xy / neutral-
++// axis), so callers that already enumerated the profile do not pay for the same
++// discovery and CLUT probes once per visualization. Diagnostics are returned as
++// data and also echoed to stderr per the Verbosity.
++GraphResult RenderGraph(CIccProfile* pIcc, const Descriptor& d, Verbosity v) {
+   GraphResult res;
+   if (!pIcc) { res.error = "null profile"; return res; }
+-  for (const Descriptor& d : Enumerate(pIcc)) {
+-    if (d.id != id) continue;
+-    if (d.output != Output::Graph) { res.error = "descriptor is not a graph"; return res; }
+-    if (d.kind == Kind::ChromaticityXY) {
+-      res.graph = buildChromaticityGraph(pIcc); res.ok = true; return res;
+-    }
+-    if (d.kind == Kind::Curve1D) {
+-      CIccTag* t = pIcc->FindTag(d.tag);
+-      CIccCurve* c = nullptr;
+-      if (d.grp) { auto* lut = dynamic_cast<CIccMBB*>(t); if (lut) c = lutCurveFor(lut, d.grp, d.idx); }
+-      else c = dynamic_cast<CIccCurve*>(t);
+-      if (!c) { res.error = "curve not found"; return res; }
+-      // A malformed curve (e.g. gamma 0) is no longer dropped at enumerate; we
+-      // render its (degenerate) shape but carry the validation reason as a
+-      // diagnostic so the UI can show it instead of a blank/absent graph.
+-      std::string report;
+-      if (curveValidate(c, d.title, report) > icValidateWarning)
+-        res.diagnostics.push_back({Severity::Warning, "WARNING - curve failed validation:\n" + report});
+-      res.graph = buildCurveGraph(c, d.title); res.ok = true;
+-      emitDiagnostics(res.diagnostics, v);
+-      return res;
+-    }
+-    if (d.kind == Kind::NamedColorsAB || d.kind == Kind::NamedColorsXY) {
+-      CIccTag* t = pIcc->FindTag(d.tag);
+-      std::vector<NamedLab> colors; std::string title;
+-      if (t && collectNamedColors(pIcc, t, sigStr(d.tag), colors, title, &res.diagnostics)) {
+-        res.graph = (d.kind == Kind::NamedColorsAB) ? buildNamedAB(colors, title)
+-                                                    : buildNamedXY(pIcc, colors, title);
+-        res.ok = true;
+-      } else {
+-        // Surface the specific reason (validation report, bad pcs, ...) rather
+-        // than a generic string - restoring outputNamedColors' diagnostics.
+-        res.error = res.diagnostics.empty() ? "no colours" : res.diagnostics.back().message;
+-      }
+-      emitDiagnostics(res.diagnostics, v);
+-      return res;
++  if (d.output != Output::Graph) { res.error = "descriptor is not a graph"; return res; }
++  if (d.kind == Kind::ChromaticityXY) {
++    res.graph = buildChromaticityGraph(pIcc); res.ok = true; return res;
++  }
++  if (d.kind == Kind::Curve1D) {
++    CIccTag* t = pIcc->FindTag(d.tag);
++    CIccCurve* c = nullptr;
++    if (d.grp) { auto* lut = dynamic_cast<CIccMBB*>(t); if (lut) c = lutCurveFor(lut, d.grp, d.idx); }
++    else c = dynamic_cast<CIccCurve*>(t);
++    if (!c) { res.error = "curve not found"; return res; }
++    // A malformed curve (e.g. gamma 0) is no longer dropped at enumerate; we
++    // render its (degenerate) shape but carry the validation reason as a
++    // diagnostic so the UI can show it instead of a blank/absent graph.
++    std::string report;
++    if (curveValidate(c, d.title, report) > icValidateWarning)
++      res.diagnostics.push_back({Severity::Warning, "WARNING - curve failed validation:\n" + report});
++    res.graph = buildCurveGraph(c, d.title); res.ok = true;
++    emitDiagnostics(res.diagnostics, v);
++    return res;
++  }
++  if (d.kind == Kind::NamedColorsAB || d.kind == Kind::NamedColorsXY) {
++    CIccTag* t = pIcc->FindTag(d.tag);
++    std::vector<NamedLab> colors; std::string title;
++    if (t && collectNamedColors(pIcc, t, sigStr(d.tag), colors, title, &res.diagnostics)) {
++      res.graph = (d.kind == Kind::NamedColorsAB) ? buildNamedAB(colors, title)
++                                                  : buildNamedXY(pIcc, colors, title);
++      res.ok = true;
++    } else {
++      // Surface the specific reason (validation report, bad pcs, ...) rather
++      // than a generic string - restoring outputNamedColors' diagnostics.
++      res.error = res.diagnostics.empty() ? "no colours" : res.diagnostics.back().message;
+     }
+-    if (d.kind == Kind::NeutralAxisInking) {
+-      if (buildNeutralAxisGraph(pIcc, d.tag, res.graph, &res.diagnostics))
+-        res.ok = true;
+-      else
+-        res.error = res.diagnostics.empty() ? "no neutral data"
+-                                            : res.diagnostics.back().message;
+-      emitDiagnostics(res.diagnostics, v);
+-      return res;
++    emitDiagnostics(res.diagnostics, v);
++    return res;
++  }
++  if (d.kind == Kind::NeutralAxisInking) {
++    if (buildNeutralAxisGraph(pIcc, d.tag, res.graph, &res.diagnostics))
++      res.ok = true;
++    else
++      res.error = res.diagnostics.empty() ? "no neutral data"
++                                          : res.diagnostics.back().message;
++    emitDiagnostics(res.diagnostics, v);
++    return res;
++  }
++  res.error = "unsupported graph kind"; return res;
++}
++
++GraphResult RenderGraph(CIccProfile* pIcc, const std::string& id, Verbosity v) {
++  if (pIcc) {
++    for (const Descriptor& d : Enumerate(pIcc)) {
++      if (d.id == id)
++        return RenderGraph(pIcc, d, v);
+     }
+-    res.error = "unsupported graph kind"; return res;
+   }
+-  res.error = "unknown visualization id: " + id;
++  GraphResult res;
++  res.error = pIcc ? "unknown visualization id: " + id : "null profile";
+   return res;
+ }
+ 
+-// RenderRaster - see IccVizModel.hpp. Resolves the raster descriptor id and builds
+-// the CLUT lattice image via buildClutRaster, surfacing the specific skip/failure
+-// reason as both an error string and a diagnostic. Only ClutImage descriptors carry
+-// a raster; every other kind is a graph and goes through RenderGraph instead.
+-RasterResult RenderRaster(CIccProfile* pIcc, const std::string& id, Verbosity v) {
++// RenderRaster - see IccVizModel.hpp. The descriptor overload builds the CLUT
++// lattice image without repeating enumeration, surfacing the specific
++// skip/failure reason as both an error string and a diagnostic. Only ClutImage
++// descriptors carry a raster; every other kind is a graph.
++RasterResult RenderRaster(CIccProfile* pIcc, const Descriptor& d, Verbosity v) {
+   RasterResult res;
+   if (!pIcc) { res.error = "null profile"; return res; }
+-  for (const Descriptor& d : Enumerate(pIcc)) {
+-    if (d.id != id) continue;
+-    if (d.output != Output::Raster) { res.error = "descriptor is not a raster"; return res; }
+-    CIccTag* t = pIcc->FindTag(d.tag);
+-    if (t && buildClutRaster(t, sigStr(d.tag), res.raster, &res.diagnostics)) {
+-      res.ok = true;
+-    } else {
+-      // Specific reason (invalid CLUT width/height/grid, empty buffer, ...).
+-      res.error = res.diagnostics.empty() ? "could not build raster"
+-                                          : res.diagnostics.back().message;
++  if (d.output != Output::Raster) { res.error = "descriptor is not a raster"; return res; }
++  CIccTag* t = pIcc->FindTag(d.tag);
++  if (t && buildClutRaster(t, sigStr(d.tag), res.raster, &res.diagnostics)) {
++    res.ok = true;
++  } else {
++    // Specific reason (invalid CLUT width/height/grid, empty buffer, ...).
++    res.error = res.diagnostics.empty() ? "could not build raster"
++                                        : res.diagnostics.back().message;
++  }
++  emitDiagnostics(res.diagnostics, v);
++  return res;
++}
++
++RasterResult RenderRaster(CIccProfile* pIcc, const std::string& id, Verbosity v) {
++  if (pIcc) {
++    for (const Descriptor& d : Enumerate(pIcc)) {
++      if (d.id == id)
++        return RenderRaster(pIcc, d, v);
+     }
+-    emitDiagnostics(res.diagnostics, v);
+-    return res;
+   }
+-  res.error = "unknown visualization id: " + id;
++  RasterResult res;
++  res.error = pIcc ? "unknown visualization id: " + id : "null profile";
+   return res;
+ }
+ 
+diff --git a/Tools/CmdLine/IccProfilePlot/IccVizModel.hpp b/Tools/CmdLine/IccProfilePlot/IccVizModel.hpp
+index faf7510..722d101 100644
+--- a/Tools/CmdLine/IccProfilePlot/IccVizModel.hpp
++++ b/Tools/CmdLine/IccProfilePlot/IccVizModel.hpp
+@@ -186,12 +186,16 @@ void SetDiagnosticContext(const std::string& name);
+ // graph for each PCS->device BToA table, then named/colorant tables as a*b* then xy.
+ std::vector<Descriptor> Enumerate(CIccProfile* pIcc);
+ 
+-// RenderGraph / RenderRaster - render one graph or raster by descriptor id.
+-// Re-enumerates to find the descriptor (cheap; callers should cache the parsed
+-// profile). Diagnostics are echoed to stderr per the Verbosity (default -> the
+-// global SetSilent() switch).
+-GraphResult  RenderGraph (CIccProfile* pIcc, const std::string& id, Verbosity v = Verbosity::Default);  // graph kinds
+-RasterResult RenderRaster(CIccProfile* pIcc, const std::string& id, Verbosity v = Verbosity::Default);  // ClutImage raster
++// RenderGraph / RenderRaster - render one graph or raster. The descriptor
++// overloads avoid re-enumerating a profile when a caller already has the result
++// of Enumerate(); the descriptor must come from that same profile. The id
++// overloads preserve the convenient lookup API and re-enumerate to resolve the
++// requested id. Diagnostics are echoed to stderr per the Verbosity (default ->
++// the global SetSilent() switch).
++GraphResult  RenderGraph (CIccProfile* pIcc, const Descriptor& descriptor, Verbosity v = Verbosity::Default);  // graph kinds
++RasterResult RenderRaster(CIccProfile* pIcc, const Descriptor& descriptor, Verbosity v = Verbosity::Default);  // ClutImage raster
++GraphResult  RenderGraph (CIccProfile* pIcc, const std::string& id, Verbosity v = Verbosity::Default);          // graph kinds
++RasterResult RenderRaster(CIccProfile* pIcc, const std::string& id, Verbosity v = Verbosity::Default);         // ClutImage raster
+ 
+ // -- Gamut volume -------------------------------------------------------------
+ // Volume (dE*ab^3) enclosed by a profile's gamut, measured by boundary
+diff --git a/Tools/CmdLine/IccProfilePlot/Readme.md b/Tools/CmdLine/IccProfilePlot/Readme.md
+index 73608db..71467fe 100644
+--- a/Tools/CmdLine/IccProfilePlot/Readme.md
++++ b/Tools/CmdLine/IccProfilePlot/Readme.md
+@@ -36,10 +36,10 @@ CIccProfile* p = OpenIccProfile("photo.icc");          // your own parse
+ 
+ for (const iccviz::Descriptor& d : iccviz::Enumerate(p)) {
+   if (d.output == iccviz::Output::Graph) {
+-    iccviz::GraphResult g = iccviz::RenderGraph(p, d.id);
++    iccviz::GraphResult g = iccviz::RenderGraph(p, d);
+     // g.ok, g.graph.series -> draw / restyle however you like
+   } else {                                             // Output::Raster
+-    iccviz::RasterResult r = iccviz::RenderRaster(p, d.id);
++    iccviz::RasterResult r = iccviz::RenderRaster(p, d);
+     // r.ok, r.raster.samples + geometry -> your own display path
+   }
+ }
+@@ -50,13 +50,17 @@ delete p;
+ 
+ ```cpp
+ std::vector<Descriptor> Enumerate    (CIccProfile* pIcc);
++GraphResult             RenderGraph  (CIccProfile* pIcc, const Descriptor& d);
++RasterResult            RenderRaster (CIccProfile* pIcc, const Descriptor& d);
+ GraphResult             RenderGraph  (CIccProfile* pIcc, const std::string& id);
+ RasterResult            RenderRaster (CIccProfile* pIcc, const std::string& id);
+ ```
+ 
+-`RenderGraph` / `RenderRaster` re-enumerate internally to resolve the `id`, so
+-callers that render many graphs should keep the parsed `CIccProfile` alive (the
+-parse is the expensive part, not enumeration).
++Pass the `Descriptor` returned by `Enumerate()` when rendering several outputs;
++this avoids repeating discovery and CLUT probes for every item. The convenient
++`id` overloads remain available for one-off lookup and re-enumerate internally
++to resolve the requested identifier. Keep the parsed `CIccProfile` alive for
++either form.
+ 
+ #### The data model
+ 
+diff --git a/Tools/CmdLine/IccProfilePlot/iccProfileVisualize.cpp b/Tools/CmdLine/IccProfilePlot/iccProfileVisualize.cpp
+index f2e48aa..b54b276 100644
+--- a/Tools/CmdLine/IccProfilePlot/iccProfileVisualize.cpp
++++ b/Tools/CmdLine/IccProfilePlot/iccProfileVisualize.cpp
+@@ -1353,7 +1353,7 @@ int processLuts(CIccProfile *pIcc, const char *profilePath )
+ 
+     // nD CLUT lattice -> TIFF (replaces output3DLUT's raster path)
+     if (d.output == iccviz::Output::Raster) {
+-      iccviz::RasterResult res = iccviz::RenderRaster( pIcc, d.id );
++      iccviz::RasterResult res = iccviz::RenderRaster( pIcc, d );
+       if (!res.ok)
+         continue;
+       std::string sigDesc = d.id.substr( std::string("clut:").size() );
+@@ -1379,7 +1379,7 @@ int processLuts(CIccProfile *pIcc, const char *profilePath )
+       // RGB chromaticities + white point (was graphChromaticityPDF)
+       case iccviz::Kind::ChromaticityXY:
+         {
+-        iccviz::GraphResult res = iccviz::RenderGraph( pIcc, d.id );
++        iccviz::GraphResult res = iccviz::RenderGraph( pIcc, d );
+         if (res.ok)
+           outputItems += renderChromaticityGraph( res.graph, pdffile );
+         }
+@@ -1388,7 +1388,7 @@ int processLuts(CIccProfile *pIcc, const char *profilePath )
+       // 1D TRC / LUT A,B,M curves (was output1DLUT)
+       case iccviz::Kind::Curve1D:
+         {
+-        iccviz::GraphResult res = iccviz::RenderGraph( pIcc, d.id );
++        iccviz::GraphResult res = iccviz::RenderGraph( pIcc, d );
+         if (res.ok)
+           outputItems += renderCurveGraph( res.graph, pdffile );
+         }
+@@ -1400,7 +1400,7 @@ int processLuts(CIccProfile *pIcc, const char *profilePath )
+       // NamedColorsXY descriptor is therefore handled here and skipped below.
+       case iccviz::Kind::NamedColorsAB:
+         {
+-        iccviz::GraphResult res = iccviz::RenderGraph( pIcc, d.id );
++        iccviz::GraphResult res = iccviz::RenderGraph( pIcc, d );
+         if (res.ok) {
+           const iccviz::Series *colors = findSeries( res.graph, "colors" );
+           if (colors) {
+@@ -1428,7 +1428,7 @@ int processLuts(CIccProfile *pIcc, const char *profilePath )
+       // neutral-axis ink-build curve (one B2A / PCS->device table per page)
+       case iccviz::Kind::NeutralAxisInking:
+         {
+-        iccviz::GraphResult res = iccviz::RenderGraph( pIcc, d.id );
++        iccviz::GraphResult res = iccviz::RenderGraph( pIcc, d );
+         if (res.ok)
+           outputItems += renderNeutralAxisGraph( res.graph, pdffile );
+         }

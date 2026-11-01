@@ -539,7 +539,7 @@ cfl_tool_command() {
       printf 'ASAN_OPTIONS=detect_leaks=0,halt_on_error=1,abort_on_error=1 cfl/bin/icc_proflib_fuzzer -runs=1 %s\n' "$artifact"
       ;;
     icc_roundtrip_fuzzer)
-      printf 'iccRoundTrip %s /tmp/cfl-roundtrip-out.icc\n' "$artifact"
+      printf 'iccRoundTrip %s 1 0\n' "$artifact"
       ;;
     icc_specsep_fuzzer)
       printf '.github/scripts/unbundle-fuzzer-input.sh specsep %s\n' "$artifact"

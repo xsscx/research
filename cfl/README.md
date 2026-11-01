@@ -226,9 +226,25 @@ This is the CFL half of the ProfilePlot A/B split: it renders every descriptor
 returned by `Enumerate()` in memory. The AFL `profileplot`,
 `profileplot-graph`, and `profileplot-raster` lanes own real CLI JSON and raw
 file output. `./fuzz-local.sh -t 60 -w 1 profileplot` selects this harness.
+With optional patch `013`, the harness passes those cached descriptors directly
+to the render API instead of repeating enumeration for each item. Its
+compile-time fallback retains the string-ID path for unpatched comparison
+builds, so both modes keep the same full-descriptor coverage.
 The runner installs `test-profiles/sRGB_v4_ICC_preference.icc` into the mutable
-runtime corpus and keeps a 64 KiB input limit so that fixture's graph and CLUT
-descriptors are both reachable.
+runtime corpus and keeps a 1 MiB input limit so that multichannel production
+profiles as well as the fixture's graph and CLUT descriptors remain reachable.
+
+`icc_roundtrip_fuzzer` uses a 17-point device grid for both round-trip phases in
+patched mode. Optional patch `015` provides the bounded PRMG overload; its
+compile-time fallback keeps the harness buildable against unpatched iccDEV.
+This is a campaign-throughput setting: `iccRoundTrip` and existing library
+callers retain the historical 101-point PRMG grid.
+
+`icc_tiffdump_fuzzer` also exercises pixel-backed `CTiffImg::Open()`, unlike the
+metadata-only `iccTiffDump` CLI. Optional patch `014` applies the existing
+256 MiB/caller decode-buffer limit to strip-backed input before allocation.
+Use `iccApplyProfiles` for a product-tool replay of a strip-allocation finding;
+`iccTiffDump` alone cannot reach that allocation.
 
 `icc_proflib_fuzzer` is the direct library lane. It passes the complete input
 buffer to IccProfLib without a minimum profile size or command-line semantic

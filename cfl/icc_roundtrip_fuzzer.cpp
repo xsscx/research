@@ -48,6 +48,29 @@
 #include <climits>
 #include "fuzz_utils.h"
 
+static const icUInt8Number kFuzzRoundTripGranularity = 17;
+
+// Patched builds expose a bounded PRMG grid while the unpatched comparison
+// remains source-compatible. Production tools keep their historical 101^3
+// default; the fuzzer needs path coverage, not a million samples per input.
+template <typename Prmg>
+static auto EvaluatePrmgForFuzzing(Prmg &prmg, const char *path,
+                                   icRenderingIntent intent,
+                                   icXformInterp interp, bool useMpe, int)
+    -> decltype(prmg.EvaluateProfile(path, intent, interp, useMpe,
+                                    kFuzzRoundTripGranularity)) {
+  return prmg.EvaluateProfile(path, intent, interp, useMpe,
+                              kFuzzRoundTripGranularity);
+}
+
+template <typename Prmg>
+static icStatusCMM EvaluatePrmgForFuzzing(Prmg &prmg, const char *path,
+                                          icRenderingIntent intent,
+                                          icXformInterp interp, bool useMpe,
+                                          long) {
+  return prmg.EvaluateProfile(path, intent, interp, useMpe);
+}
+
 // CIccInfo - exercises GetRenderingIntentName() path missing from prior version
 // (matches iccRoundTrip.cpp line 186: CIccInfo info usage)
 
@@ -139,7 +162,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   CIccMinMaxEval eval;
 
   // Evaluate profile round-trip accuracy
-  icStatusCMM stat = eval.EvaluateProfile(tmp_file, 0, nIntent, icInterpLinear, nUseMPE);
+  icStatusCMM stat = eval.EvaluateProfile(tmp_file, kFuzzRoundTripGranularity,
+                                         nIntent, icInterpLinear, nUseMPE);
 
   // TOOL FIDELITY: Exit on first error (tool lines 172-174)
   if (stat != icCmmStatOk) {
@@ -149,7 +173,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   // TOOL FIDELITY: Run PRMG analysis (tool lines 177-184)
   CIccPRMG prmg;
-  stat = prmg.EvaluateProfile(tmp_file, nIntent, icInterpLinear, nUseMPE);
+  stat = EvaluatePrmgForFuzzing(prmg, tmp_file, nIntent, icInterpLinear,
+                                nUseMPE, 0);
 
   // TOOL FIDELITY: Check PRMG status (tool exits on PRMG failure)
   if (stat != icCmmStatOk) {
