@@ -1,0 +1,213 @@
+diff --git a/.github/ci/regression/profile-tag-io-extent-bounds.cpp b/.github/ci/regression/profile-tag-io-extent-bounds.cpp
+new file mode 100644
+--- /dev/null
++++ b/.github/ci/regression/profile-tag-io-extent-bounds.cpp
+@@ -0,0 +1,144 @@
++/*
++ * Copyright (c) International Color Consortium.
++ * SPDX-License-Identifier: BSD-3-Clause
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. Neither the name of the ICC nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without prior
++ *    written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
++ */
++// Regression: GetTagIO() must validate a tag-directory extent against the
++// attached input before allocating a buffer or moving the shared IO cursor.
++
++#include "IccIO.h"
++#include "IccProfile.h"
++
++#include <cstdio>
++#include <memory>
++
++#ifdef USEICCDEVNAMESPACE
++using namespace iccDEV;
++#endif
++
++namespace {
++
++const icTagSignature kTestTag =
++    static_cast<icTagSignature>(0x74657374u);
++int g_failures = 0;
++
++void check(bool condition, const char *label)
++{
++  std::printf("%s: %s\n", condition ? "ok  " : "FAIL", label);
++  if (!condition)
++    g_failures++;
++}
++
++bool buildProfile(CIccMemIO &io, icUInt32Number offset,
++                  icUInt32Number size)
++{
++  static const icUInt32Number kProfileSize = 148;
++  if (!io.Alloc(kProfileSize, true) || io.Seek(36, icSeekSet) != 36)
++    return false;
++
++  icUInt32Number value = icMagicNumber;
++  if (!io.Write32(&value) || io.Seek(128, icSeekSet) != 128)
++    return false;
++
++  value = 1;
++  if (!io.Write32(&value))
++    return false;
++  value = kTestTag;
++  if (!io.Write32(&value))
++    return false;
++  value = offset;
++  if (!io.Write32(&value))
++    return false;
++  value = size;
++  if (!io.Write32(&value) || io.Seek(144, icSeekSet) != 144)
++    return false;
++
++  value = 0x12345678u;
++  return io.Write32(&value) && io.Seek(0, icSeekSet) == 0;
++}
++
++std::unique_ptr<CIccProfile> attachProfile(CIccMemIO &storage,
++                                           CIccMemIO *&attached)
++{
++  attached = new CIccMemIO;
++  if (!attached->Attach(storage.GetData(), storage.GetLength(), false)) {
++    delete attached;
++    attached = nullptr;
++    return nullptr;
++  }
++
++  std::unique_ptr<CIccProfile> profile(new CIccProfile);
++  if (!profile->Attach(attached, false)) {
++    profile.reset();
++    delete attached;
++    attached = nullptr;
++  }
++  return profile;
++}
++
++} // namespace
++
++int main()
++{
++  {
++    CIccMemIO storage;
++    check(buildProfile(storage, 144, 4096),
++          "oversized tag-extent fixture is built");
++    CIccMemIO *attached = nullptr;
++    std::unique_ptr<CIccProfile> profile = attachProfile(storage, attached);
++    check(profile.get() != nullptr, "oversized tag-extent profile is attached");
++    if (profile && attached) {
++      const icInt64Number before = attached->Tell();
++      std::unique_ptr<CIccMemIO> tagIo(profile->GetTagIO(kTestTag));
++      check(!tagIo, "tag extent larger than attached input is rejected");
++      check(attached->Tell() == before,
++            "oversized tag extent is rejected before allocation or seek");
++    }
++  }
++
++  {
++    CIccMemIO storage;
++    check(buildProfile(storage, 36, 4),
++          "header-overlap tag-extent fixture is built");
++    CIccMemIO *attached = nullptr;
++    std::unique_ptr<CIccProfile> profile = attachProfile(storage, attached);
++    check(profile.get() != nullptr, "header-overlap profile is attached");
++    if (profile) {
++      std::unique_ptr<CIccMemIO> tagIo(profile->GetTagIO(kTestTag));
++      check(!tagIo, "tag extent overlapping the profile header is rejected");
++    }
++  }
++
++  {
++    CIccMemIO storage;
++    check(buildProfile(storage, 144, 4), "valid tag-extent fixture is built");
++    CIccMemIO *attached = nullptr;
++    std::unique_ptr<CIccProfile> profile = attachProfile(storage, attached);
++    check(profile.get() != nullptr, "valid tag-extent profile is attached");
++    if (profile) {
++      std::unique_ptr<CIccMemIO> tagIo(profile->GetTagIO(kTestTag));
++      check(tagIo && tagIo->GetLength() == 4,
++            "valid tag extent remains readable");
++    }
++  }
++
++  if (g_failures) {
++    std::printf("\n%d case(s) FAILED\n", g_failures);
++    return 1;
++  }
++  std::printf("\nall cases passed\n");
++  return 0;
++}
+diff --git a/IccProfLib/IccProfile.cpp b/IccProfLib/IccProfile.cpp
+--- a/IccProfLib/IccProfile.cpp
++++ b/IccProfLib/IccProfile.cpp
+@@ -508,6 +508,14 @@ CIccMemIO* CIccProfile::GetTagIO(icSignature sig)
+   IccTagEntry *pEntry = GetTag(sig);
+ 
+   if (pEntry && m_pAttachIO) {
++    const size_t ioLength = m_pAttachIO->GetLength();
++    if (pEntry->TagInfo.offset < sizeof(m_Header) ||
++        !pEntry->TagInfo.size ||
++        pEntry->TagInfo.size > ioLength ||
++        pEntry->TagInfo.offset > ioLength - pEntry->TagInfo.size) {
++      return NULL;
++    }
++
+     CIccMemIO *pIO = new (std::nothrow) CIccMemIO;
+ 
+     if (!pIO)
+diff --git a/Build/Cmake/Testing/CMakeLists.txt b/Build/Cmake/Testing/CMakeLists.txt
+--- a/Build/Cmake/Testing/CMakeLists.txt
++++ b/Build/Cmake/Testing/CMakeLists.txt
+@@ -16044,6 +16044,42 @@ if(BASH_EXECUTABLE)
+     TIMEOUT 30
+     LABELS "iccdev;clusterfuzzlite;libfuzzer;targets;corpus;ci-infrastructure"
+   )
+ endif()
+ 
++# GetTagIO() exposes raw serialized tag bytes to API consumers. Keep malformed
++# directory extents from becoming allocation sizes before that copy begins.
++if(TARGET "${TARGET_LIB_ICCPROFLIB}")
++  iccdev_add_regression_executable(iccProfileTagIoExtentBoundsTest
++    "${ICCDEV_REPO_ROOT}/.github/ci/regression/profile-tag-io-extent-bounds.cpp"
++  )
++  target_compile_features(iccProfileTagIoExtentBoundsTest PRIVATE cxx_std_17)
++  target_include_directories(iccProfileTagIoExtentBoundsTest PRIVATE
++    "${ICCDEV_REPO_ROOT}/IccProfLib"
++  )
++  target_link_libraries(iccProfileTagIoExtentBoundsTest PRIVATE ${TARGET_LIB_ICCPROFLIB})
++  add_dependencies(check iccProfileTagIoExtentBoundsTest)
++
++  add_test(
++    NAME iccdev.profile-tag-io-extent-bounds
++    COMMAND "$<TARGET_FILE:iccProfileTagIoExtentBoundsTest>"
++  )
++  set_tests_properties(iccdev.profile-tag-io-extent-bounds PROPERTIES
++    TIMEOUT 60
++    LABELS "iccdev;profile;api;security;regression"
++  )
++  if(WIN32)
++    set(_profile_tag_io_bounds_windows_env_mods
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:iccProfileTagIoExtentBoundsTest>"
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:${TARGET_LIB_ICCPROFLIB}>"
++    )
++    foreach(_runtime_path IN LISTS ICCDEV_WINDOWS_RUNTIME_PATHS)
++      list(APPEND _profile_tag_io_bounds_windows_env_mods
++        "PATH=path_list_prepend:${_runtime_path}")
++    endforeach()
++    set_tests_properties(iccdev.profile-tag-io-extent-bounds PROPERTIES
++      ENVIRONMENT_MODIFICATION "${_profile_tag_io_bounds_windows_env_mods}"
++    )
++  endif()
++endif()
++
+ # UnixMultiConfigRuntime.cmake bails out on WIN32 without defining the

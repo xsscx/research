@@ -35,6 +35,12 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 - `010-roundtrip-calculator-work-budget.patch`: combines the round-trip sample
   count with selector-width-aware calculator cost before evaluating the grid,
   preventing wide stack operations from multiplying into billions of work units.
+- `011-binary-element-allocation-bounds.patch`: rejects curve-set child ranges
+  outside their enclosing binary element and refuses a header-only CLUT before
+  zero payload bytes can select the unbounded programmatic-allocation path.
+- `012-profile-tag-io-extent-bounds.patch`: validates deferred raw-tag extents
+  against the attached profile before `GetTagIO()` allocates or seeks, while
+  retaining valid raw-tag access for API consumers.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
@@ -57,10 +63,10 @@ upstream maintainers:
 - The tag-count bound (`008`) changes the core reader and can reject profiles
   that the specification can encode. Audit real corpus tag counts and document
   compatibility before proposing that limit upstream.
-- Memory-ownership, bounds-safety, or overflow fixes such as `001`, `002`, and
-  `009` are product correctness or security candidates when independently
-  reproduced outside the fuzzer. Treat their upstream status separately from
-  campaign throughput.
+- Memory-ownership, bounds-safety, or overflow fixes such as `001`, `002`,
+  `009`, `011`, and `012` are product correctness or security candidates when
+  independently reproduced outside the fuzzer or through the affected public
+  API. Treat their upstream status separately from campaign throughput.
 
 Record the unpatched Release control, patched sanitizer replay, patch inventory,
 and any compatibility analysis in a dated report. Do not describe an
@@ -68,6 +74,9 @@ instrumentation-only slow unit as a production denial of service.
 
 The 2026-10-31 multi-VM slow-unit A/B is recorded in
 [`docs/analysis/cfl-slow-unit-qa-20261031.md`](../../docs/analysis/cfl-slow-unit-qa-20261031.md).
+The October 31 OOM replay, allocation-bound fixes, and sanitizer build matrix
+are recorded in
+[`docs/analysis/cfl-oom-artifact-qa-20261031.md`](../../docs/analysis/cfl-oom-artifact-qa-20261031.md).
 
 Build the LibFuzzer harnesses against patched upstream `master`:
 

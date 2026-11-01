@@ -1,0 +1,250 @@
+diff --git a/.github/ci/regression/binary-element-allocation-bounds.cpp b/.github/ci/regression/binary-element-allocation-bounds.cpp
+new file mode 100644
+index 0000000..7078eea
+--- /dev/null
++++ b/.github/ci/regression/binary-element-allocation-bounds.cpp
+@@ -0,0 +1,153 @@
++/*
++ * Copyright (c) International Color Consortium.
++ * SPDX-License-Identifier: BSD-3-Clause
++ *
++ * Redistribution and use in source and binary forms, with or without modification,
++ * are permitted provided that the following conditions are met:
++ *
++ *     1. Redistributions of source code must retain the above copyright notice,
++ *        this list of conditions and the following disclaimer.
++ *
++ *     2. Redistributions in binary form must reproduce the above copyright
++ *        notice, this list of conditions and the following disclaimer in the
++ *        documentation and/or other materials provided with the distribution.
++ *
++ *     3. Neither the name of International Color Consortium (ICC) nor the names of
++ *        its contributors may be used to endorse or promote products derived from
++ *        this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
++ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
++ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
++ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
++ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
++ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
++ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++// Regression: binary element readers must reject child extents that exceed the
++// enclosing element before their allocation-bearing readers are entered. An
++// exact-size CLUT header must likewise be rejected before zero remaining bytes
++// can be interpreted as Init()'s unbounded programmatic-allocation sentinel.
++
++#include "IccIO.h"
++#include "IccMpeBasic.h"
++#include "IccTagLut.h"
++
++#include <cstdio>
++
++#ifdef USEICCDEVNAMESPACE
++using namespace iccDEV;
++#endif
++
++namespace {
++
++int g_failures = 0;
++
++void check(bool condition, const char *label)
++{
++  std::printf("%s: %s\n", condition ? "ok  " : "FAIL", label);
++  if (!condition)
++    g_failures++;
++}
++
++bool buildCurveSet(CIccMemIO &io)
++{
++  static const icUInt32Number kElementSize = 32;
++  if (!io.Alloc(kElementSize, true))
++    return false;
++
++  icUInt32Number value32 = icSigCurveSetElemType;
++  icUInt16Number value16 = 1;
++  if (!io.Write32(&value32))
++    return false;
++  value32 = 0;
++  if (!io.Write32(&value32) ||
++      !io.Write16(&value16) || !io.Write16(&value16))
++    return false;
++
++  value32 = 20;
++  if (!io.Write32(&value32))
++    return false;
++  value32 = 64;
++  if (!io.Write32(&value32))
++    return false;
++
++  value32 = icSigSegmentedCurve;
++  if (!io.Write32(&value32))
++    return false;
++  value32 = 0;
++  value16 = 0;
++  if (!io.Write32(&value32) ||
++      !io.Write16(&value16) || !io.Write16(&value16))
++    return false;
++
++  return io.Seek(0, icSeekSet) == 0;
++}
++
++bool buildClut(CIccMemIO &io, bool withData)
++{
++  static const icUInt32Number kHeaderSize = 20;
++  static const icUInt32Number kDataSize = 2u * 2u * 2u * 2u * 2u * 3u;
++  const icUInt32Number size = kHeaderSize + (withData ? kDataSize : 0u);
++  if (!io.Alloc(size, true))
++    return false;
++
++  icUInt8Number grids[16] = {2, 2, 2, 2, 2};
++  icUInt8Number precision = 1;
++  icUInt8Number reserved[3] = {};
++  if (io.Write8(grids, sizeof(grids)) != sizeof(grids) ||
++      !io.Write8(&precision) ||
++      io.Write8(reserved, sizeof(reserved)) != sizeof(reserved)) {
++    return false;
++  }
++
++  if (withData) {
++    icUInt8Number samples[kDataSize] = {};
++    if (io.Write8(samples, sizeof(samples)) != sizeof(samples))
++      return false;
++  }
++  return io.Seek(0, icSeekSet) == 0;
++}
++
++} // namespace
++
++int main()
++{
++  {
++    CIccMemIO io;
++    check(buildCurveSet(io), "curve-set fixture is built");
++    CIccMpeCurveSet curves;
++    check(!curves.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "curve-set child larger than its parent is rejected");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildClut(io, false), "header-only CLUT fixture is built");
++    CIccCLUT clut(5, 3);
++    check(!clut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "header-only CLUT is rejected");
++    check(clut.NumPoints() == 0,
++          "rejected header-only CLUT commits no point count");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildClut(io, true), "complete CLUT fixture is built");
++    CIccCLUT clut(5, 3);
++    check(clut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "complete minimal CLUT is accepted");
++    check(clut.NumPoints() == 32,
++          "complete minimal CLUT retains all grid points");
++  }
++
++  if (g_failures) {
++    std::printf("\n%d case(s) FAILED\n", g_failures);
++    return 1;
++  }
++  std::printf("\nall cases passed\n");
++  return 0;
++}
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index ddcf69b..a6d3b3b 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -3874,6 +3874,15 @@ bool CIccMpeCurveSet::Read(icUInt32Number size, CIccIO *pIO)
+     icCurveOffsetMap map;
+     icCurveElemSignature curveSig;
+     for (i=0; i<m_nInputChannels; i++) {
++      icUInt32Number dataStart = (icUInt32Number)headerSize +
++                                 (icUInt32Number)m_nInputChannels *
++                                     2u * sizeof(icUInt32Number);
++      if (m_position[i].offset < dataStart ||
++          m_position[i].size > size ||
++          m_position[i].offset > size - m_position[i].size) {
++        return false;
++      }
++
+       if (!map[m_position[i].offset]) {
+         int64_t pos;
+         if (!m_position[i].offset || !m_position[i].size) {
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index 74b247d..79833e6 100644
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -2273,7 +2273,13 @@ bool CIccCLUT::WriteData(CIccIO *pIO, icUInt8Number nPrecision)
+  */
+ bool CIccCLUT::Read(icUInt32Number size, CIccIO *pIO)
+ {
+-  if (size < 20)
++  // A serialized CLUT always has at least one data byte because every input
++  // dimension has two or more grid points and there is at least one output.
++  // Init() deliberately treats nMaxSize == 0 as an unbounded programmatic
++  // allocation, so passing an exact 20-byte header through size - 20 lets
++  // hostile grid dimensions request a large allocation before ReadData()
++  // notices that no serialized samples exist.
++  if (size <= 20)
+     return false;
+ 
+   if (pIO->Read8(m_GridPoints, 16)!=16 ||
+diff --git a/Build/Cmake/Testing/CMakeLists.txt b/Build/Cmake/Testing/CMakeLists.txt
+index f128cde..7c5a592 100644
+--- a/Build/Cmake/Testing/CMakeLists.txt
++++ b/Build/Cmake/Testing/CMakeLists.txt
+@@ -16018,10 +16061,47 @@ if(TARGET iccDescribeSinkTest)
+     TIMEOUT 60
+     LABELS  "iccdev;describe;api;sink;options"
+   )
+ endif()
+ 
++# Bounds attacker-controlled binary child elements before allocation-bearing
++# readers consume them. The fixture also keeps a complete minimal CLUT as a
++# positive control for the exact-header rejection.
++if(TARGET "${TARGET_LIB_ICCPROFLIB}")
++  iccdev_add_regression_executable(iccBinaryElementAllocationBoundsTest
++    "${ICCDEV_REPO_ROOT}/.github/ci/regression/binary-element-allocation-bounds.cpp"
++  )
++  target_compile_features(iccBinaryElementAllocationBoundsTest PRIVATE cxx_std_17)
++  target_include_directories(iccBinaryElementAllocationBoundsTest PRIVATE
++    "${ICCDEV_REPO_ROOT}/IccProfLib"
++  )
++  target_link_libraries(iccBinaryElementAllocationBoundsTest PRIVATE ${TARGET_LIB_ICCPROFLIB})
++  add_dependencies(check iccBinaryElementAllocationBoundsTest)
++
++  add_test(
++    NAME iccdev.binary-element-allocation-bounds
++    COMMAND "$<TARGET_FILE:iccBinaryElementAllocationBoundsTest>"
++  )
++  set_tests_properties(iccdev.binary-element-allocation-bounds PROPERTIES
++    TIMEOUT 60
++    LABELS "iccdev;profile;parser;security;regression"
++  )
++  if(WIN32)
++    set(_binary_element_bounds_windows_env_mods
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:iccBinaryElementAllocationBoundsTest>"
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:${TARGET_LIB_ICCPROFLIB}>"
++    )
++    foreach(_runtime_path IN LISTS ICCDEV_WINDOWS_RUNTIME_PATHS)
++      list(APPEND _binary_element_bounds_windows_env_mods
++        "PATH=path_list_prepend:${_runtime_path}")
++    endforeach()
++    set_tests_properties(iccdev.binary-element-allocation-bounds PROPERTIES
++      ENVIRONMENT_MODIFICATION "${_binary_element_bounds_windows_env_mods}"
++    )
++  endif()
++endif()
++
+ if(BASH_EXECUTABLE)
+   add_test(
+     NAME iccdev.clusterfuzzlite-configuration
+     COMMAND
+       "${BASH_EXECUTABLE}"

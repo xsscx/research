@@ -32,6 +32,13 @@ cd cfl && ./start.sh --sanitizer memory icc_proflib_fuzzer
 cd cfl && ./build.sh --sanitizer thread
 cd cfl && ./fuzz-local.sh -s thread -t 60 -w 1
 
+# Exercise each build mode against both source baselines.
+cd cfl
+for sanitizer in address memory thread; do
+  ./build.sh --sanitizer "$sanitizer"
+  ./build.sh --sanitizer "$sanitizer" --with-patches
+done
+
 # Run longer fuzzing on mounted storage.
 cd cfl && ./fuzz-local.sh -t 14400 -w 4 -r /mnt/g/fuzz-ssd
 ```
@@ -176,6 +183,11 @@ build rejects every fuzzer that dynamically loads one of these dependencies,
 then replays the preserved FromXml boundary artifact plus both apply-profiles
 `TIFFClose()` artifacts from issue #2701 and the U2 run. Run the same gate
 directly with `cfl/test-msan-dependencies.sh`.
+The instrumented libc++ runtime is a static non-PIC archive, so the MSan CMake
+configuration intentionally disables iccDEV shared libraries and links CMake
+regression executables to the instrumented static targets. This avoids invalid
+local-exec TLS relocations without mixing an uninstrumented C++ runtime into
+the process.
 The MSan lane uses LibFuzzer sanitizer-coverage counters but not Clang
 source-profile instrumentation, whose runtime is not MSan-instrumented.
 
@@ -302,6 +314,13 @@ perform seek-heavy work on their temporary inputs, and crossing the Windows
 filesystem boundary can turn filesystem latency into misleading slow units.
 Each worker uses unique temporary filenames; do not replace them with a shared
 fixed path.
+
+Preserve the originating target when collecting LibFuzzer artifacts. Prefer a
+target-specific directory or prefix, for example
+`-artifact_prefix=/mnt/f/artifacts/roundtrip-`, which produces a name such as
+`roundtrip-oom-<sha1>`. A later `cp oom* /mnt/f/artifacts/` retains only the
+content hash, so target attribution then depends on the source log or a narrow,
+recorded copy-time window. Do not infer a target from the bytes alone.
 
 For maintainer one-liners covering every active fuzzer, including smoke,
 explore, rare-path, and sanitizer reproduction modes, use

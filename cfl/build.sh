@@ -40,7 +40,9 @@ COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
 SANITIZER_FLAGS=""
 FUZZER_FLAGS=""
 FUZZER_LINK_FLAGS=""
+CMAKE_LINK_FLAGS=""
 ENABLE_FUZZING_VALUE="ON"
+ENABLE_SHARED_LIBS_VALUE="ON"
 MSAN_LIBCXX_PREFIX="$SCRIPT_DIR/third_party/install-msan-libcxx"
 MSAN_DEPS_PREFIX="$SCRIPT_DIR/third_party/install-msan-deps"
 MSAN_DEPS_SOURCE_DIR="$SCRIPT_DIR/third_party/sources-msan-deps"
@@ -55,7 +57,9 @@ XML_LIBS=""
 configure_sanitizer() {
   COVERAGE_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
   FUZZER_LINK_FLAGS=""
+  CMAKE_LINK_FLAGS=""
   ENABLE_FUZZING_VALUE="ON"
+  ENABLE_SHARED_LIBS_VALUE="ON"
   case "$SANITIZER_MODE" in
     address)
       OUTPUT_DIR="$SCRIPT_DIR/bin"
@@ -80,6 +84,11 @@ configure_sanitizer() {
       FUZZER_FLAGS="-fsanitize=fuzzer-no-link,memory -fsanitize-memory-track-origins=2 -fPIE"
       MSAN_CXX_FLAGS="-nostdinc++ -isystem $MSAN_LIBCXX_PREFIX/include/c++/v1"
       FUZZER_LINK_FLAGS="$MSAN_LIBCXX_PREFIX/lib/libclang_rt.fuzzer.a -pie -stdlib=libc++ -L$MSAN_LIBCXX_PREFIX/lib"
+      CMAKE_LINK_FLAGS="-stdlib=libc++ -L$MSAN_LIBCXX_PREFIX/lib"
+      # The instrumented libc++ runtime is a static non-PIC archive. Linking it
+      # into iccDEV shared libraries fails with local-exec TLS relocations; MSan
+      # consumers are therefore built against the instrumented static targets.
+      ENABLE_SHARED_LIBS_VALUE="OFF"
       ;;
     *)
       echo "[FAIL] ERROR: unsupported sanitizer '$SANITIZER_MODE' (use address, memory, or thread)" >&2
@@ -467,6 +476,19 @@ if [ "$WITH_PATCHES" = "1" ]; then
   shopt -u nullglob
   for patch_path in "${cfl_patches[@]}"; do
     patch_name="$(basename "$patch_path")"
+    if [ "$KEEP_ICCDEV" != "1" ]; then
+      while read -r patch_action patch_word patch_mode patch_created_path; do
+        if [[ "$patch_action" == "create" &&
+              "$patch_word" == "mode" &&
+              -e "$ICCDEV_DIR/$patch_created_path" ]] &&
+           ! git -C "$ICCDEV_DIR" cat-file -e \
+               "HEAD:$patch_created_path" >/dev/null 2>&1; then
+          git -C "$ICCDEV_DIR" reset -q -- "$patch_created_path" 2>/dev/null || true
+          rm -f -- "$ICCDEV_DIR/$patch_created_path"
+          echo "[OK] Removed stale patch-created path: $patch_created_path"
+        fi
+      done < <(git -C "$ICCDEV_DIR" apply --summary "$patch_path")
+    fi
     if git -C "$ICCDEV_DIR" apply --check "$patch_path"; then
       git -C "$ICCDEV_DIR" apply "$patch_path"
       echo "[OK] Applied: $patch_name"
@@ -497,9 +519,11 @@ cmake -S "$ICCDEV_DIR/Build/Cmake" -B "$BUILD_DIR" \
   -DCMAKE_CXX_COMPILER="$CXX" \
   -DCMAKE_C_FLAGS="$CFLAGS_LIB" \
   -DCMAKE_CXX_FLAGS="$CFLAGS_LIB $MSAN_CXX_FLAGS -std=c++17 -frtti" \
+  -DCMAKE_EXE_LINKER_FLAGS="$CMAKE_LINK_FLAGS" \
+  -DCMAKE_SHARED_LINKER_FLAGS="$CMAKE_LINK_FLAGS" \
   -DCMAKE_BUILD_TYPE=Debug \
   -DENABLE_STATIC_LIBS=ON \
-  -DENABLE_SHARED_LIBS=ON \
+  -DENABLE_SHARED_LIBS="$ENABLE_SHARED_LIBS_VALUE" \
   -DENABLE_ICCJSON=ON \
   -DENABLE_TOOLS=OFF \
   -DENABLE_FUZZING="$ENABLE_FUZZING_VALUE" \
