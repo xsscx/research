@@ -11,25 +11,30 @@ finding.
 
 ## Reference environment
 
-The initial classifications below were reproduced on 2026-09-18 with:
+The active classification below was revalidated on 2026-11-01 with:
 
 - Valgrind 3.26.0
 - Linux 6.18.33.2-microsoft-standard-WSL2 x86_64
-- Clang 18 with libstdc++.so.6.0.35
+- Clang 22.1.2 with libstdc++.so.6.0.35
+- iccDEV `471b42c3`
 - The separate non-sanitized Debug build produced by `valgrind/build.sh`
 
-Reproduction command:
+Reproduction commands:
 
 ```bash
-./valgrind/run.sh --tool drd --allow-findings all
+./valgrind/run.sh --tool memcheck --allow-findings all
+./valgrind/run.sh --tool helgrind --allow-findings connect-thread applyprofiles-row applysearch-row benchapply
+./valgrind/run.sh --tool drd --allow-findings connect-thread applyprofiles-row applysearch-row benchapply
 ```
 
-The reference run completed all 13 registered targets. Nine were clean. The
-four targets listed below produced only the two cataloged DRD signatures.
+Memcheck completed all 13 registered targets with zero errors. Helgrind
+completed the four threaded targets with zero errors. DRD was clean for
+`connect-thread`; the other three threaded targets produced only DRD-CV-002.
 
-## DRD-CV-001: notification without the associated mutex held
+## Retired: DRD-CV-001 notification without the associated mutex held
 
-Status: known DRD limitation for the reviewed stacks.
+Status: no longer reproducible after upstream `7860726c` (#2595) moved the
+thread-pool condition-variable notifications under the associated mutex.
 
 Signature:
 
@@ -37,13 +42,13 @@ Signature:
 Probably a race condition: condition variable ... has been signaled but the associated mutex ... is not locked by the signalling thread.
 ```
 
-Observed target and count:
+Historical target and count:
 
 | Target | Errors | Contexts |
 |---|---:|---:|
 | `connect-thread` | 76 | 4 |
 
-Reviewed stacks point to notifications in:
+Historical stacks pointed to notifications in:
 
 - `CIccApplyThreadedCmmPool::Apply()` at `IccCmmThread.cpp:168`
 - `CIccApplyThreadedCmmPool::~CIccApplyThreadedCmmPool()` at
@@ -51,15 +56,9 @@ Reviewed stacks point to notifications in:
 - The `iccConnectThreadTest` synchronization barrier at
   `iccconnect-threaded-cmm.cpp:277` and `iccconnect-threaded-cmm.cpp:293`
 
-In each reviewed path, the predicate is changed while its mutex is held and
-the condition variable is notified after unlocking. C++ permits notification
-without holding the associated mutex. The predicate-based waits prevent a
-lost notification. The same `connect-thread` target completed with zero
-Helgrind errors in the reference runs.
-
-Classification boundary: only the exact notification stacks above are known.
-A conflicting load/store report, a different condition variable, an unlocked
-predicate update, a hang, or a changed stack is not covered by this entry.
+Do not classify new diagnostics under this retired entry. The current
+`connect-thread` target completes with zero DRD and Helgrind errors. Any future
+notification diagnostic requires a fresh investigation.
 
 ## DRD-CV-002: destruction of an unobserved condition variable
 
@@ -86,9 +85,9 @@ libstdc++ can construct `std::condition_variable` from the static pthread
 initializer without calling an initialization function that DRD intercepts.
 When a condition variable remains unused, its later intercepted destruction
 can therefore appear to DRD as destruction of an unknown object. The reviewed
-stack is emitted during implicit member destruction after the pool destructor
-body has set the stop predicate, notified waiting workers, and joined every
-joinable worker thread.
+stack is emitted during implicit member destruction at `IccCmmThread.cpp:99`
+after the pool destructor has set the stop predicate and notified waiting
+workers while holding the mutex, then joined every joinable worker thread.
 
 Classification boundary: only the pool-destructor signature above is known.
 An `EBUSY` result, a waiter surviving destruction, a different owner type, a

@@ -123,7 +123,7 @@ for target in "${VG_SELECTED[@]}"; do
 
     echo "[*] $VG_TOOL $target: $VG_NOTE"
     if [[ "$VG_RECOMMENDED_TOOL" != "$VG_TOOL" ]]; then
-        echo "[WARN] $target is usually most useful with $VG_RECOMMENDED_TOOL"
+        echo "[INFO] $target is usually most useful with $VG_RECOMMENDED_TOOL"
     fi
     set +e
     DEBUGINFOD_URLS='' LD_LIBRARY_PATH="$runtime_library_path" \
