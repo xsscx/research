@@ -31,9 +31,27 @@ endif()
 
 set(FUZZTEST_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(FUZZTEST_BUILD_FLATBUFFERS OFF CACHE BOOL "" FORCE)
+
+# Keep warnings from the pinned FuzzTest dependency graph out of ICC build
+# logs without weakening diagnostics for the iccDEV archive or this harness.
+# Newer Abseil releases intentionally deprecate APIs still used by the pinned
+# RE2, GoogleTest, and FuzzTest revisions, and Clang 22 diagnoses their public
+# headers more aggressively than earlier compilers.
+set(_icc_saved_cmake_cxx_flags "${CMAKE_CXX_FLAGS}")
+string(APPEND CMAKE_CXX_FLAGS
+    " -Wno-deprecated-declarations"
+    " -Wno-nullability-completeness"
+    " -Wno-nullability-extension"
+    " -Wno-sign-conversion")
 add_subdirectory("${GOOGLE_FUZZTEST_SOURCE_DIR}"
                  "${CMAKE_CURRENT_BINARY_DIR}/google-fuzztest"
                  EXCLUDE_FROM_ALL)
+set(CMAKE_CXX_FLAGS "${_icc_saved_cmake_cxx_flags}")
+if(TARGET gtest)
+    # GoogleTest enables -Wconversion on its own target after inheriting the
+    # integration flags above, so append this narrower suppression last.
+    target_compile_options(gtest PRIVATE -Wno-sign-conversion)
+endif()
 
 # Instrument the harness; build.sh instruments the imported iccDEV archive.
 fuzztest_setup_fuzzing_flags()
@@ -58,6 +76,10 @@ enable_testing()
 include(GoogleTest)
 
 add_executable(icc_profile_fuzz_test icc_profile_fuzz_test.cpp)
+target_include_directories(icc_profile_fuzz_test SYSTEM PRIVATE
+    "${GOOGLE_FUZZTEST_SOURCE_DIR}"
+    "${abseil-cpp_SOURCE_DIR}"
+    "${re2_SOURCE_DIR}")
 target_compile_options(icc_profile_fuzz_test PRIVATE
     -Wall
     -Wextra
