@@ -45,18 +45,17 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   and raster render overloads so callers that already enumerated a profile do
   not repeat descriptor discovery and CLUT probes for every output; existing
   string-ID calls remain compatible.
-- `014-tiff-strip-buffer-limit.patch`: applies the existing 256 MiB/caller
-  decode-buffer budget to strip-backed TIFF images before allocation, matching
-  the tile-band policy and retaining metadata-only inspection.
 - `015-prmg-fuzzer-granularity.patch`: preserves the production PRMG 101-point
   grid while exposing a source-compatible bounded-grid overload so patched CFL
   can cover the same paths without a million samples per valid input.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
-At upstream `b6ce0cf`, patches `001` and `007` are already present. They remain
+At upstream `471b42c`, patches `001` and `007` are already present. They remain
 in the stack so older comparison refs receive the same fixes and current refs
-exercise the `Already applied` compatibility path.
+exercise the `Already applied` compatibility path. Patch `014` was retired
+after its TIFF strip decode-buffer guard and regression coverage merged
+upstream in `305d2d5f` (#2952).
 
 ## Campaign and upstream scope
 
@@ -74,7 +73,7 @@ upstream maintainers:
   that the specification can encode. Audit real corpus tag counts and document
   compatibility before proposing that limit upstream.
 - Memory-ownership, bounds-safety, or overflow fixes such as `001`, `002`,
-  `009`, `011`, `012`, and `014` are product correctness or security candidates when
+  `009`, `011`, and `012` are product correctness or security candidates when
   independently reproduced outside the fuzzer or through the affected public
   API. Treat their upstream status separately from campaign throughput.
 - The descriptor-render overload in `013` is an additive API and tooling

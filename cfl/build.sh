@@ -489,13 +489,14 @@ if [ "$WITH_PATCHES" = "1" ]; then
         fi
       done < <(git -C "$ICCDEV_DIR" apply --summary "$patch_path")
     fi
-    if git -C "$ICCDEV_DIR" apply --check "$patch_path"; then
+    if git -C "$ICCDEV_DIR" apply --check "$patch_path" >/dev/null 2>&1; then
       git -C "$ICCDEV_DIR" apply "$patch_path"
       echo "[OK] Applied: $patch_name"
     elif git -C "$ICCDEV_DIR" apply --reverse --check "$patch_path" >/dev/null 2>&1; then
       echo "[OK] Already applied: $patch_name"
     else
       echo "[FAIL] Patch does not apply: $patch_name"
+      git -C "$ICCDEV_DIR" apply --check "$patch_path" || true
       exit 1
     fi
   done
