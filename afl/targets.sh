@@ -459,7 +459,7 @@ afl_configure_target() {
                 SEED_FILES_SKIP_DRY_RUN_TARGET=1
                 SEED_DRY_RUN_TARGET=1
                 SEED_DRY_RUN_REQUIRE_ZERO_TARGET=1
-                TARGET_NOTE="ApplyNamedCmm ICC lane: 16-bit data output, tetrahedral interpolation, and absolute colorimetric intent exercise a complete apply path; incompatible profiles are removed by exit-zero seed screening."
+                TARGET_NOTE="ApplyNamedCmm ICC lane: 16-bit-v2 data output, linear interpolation, and perceptual intent exercise a complete apply path; incompatible profiles are removed by exit-zero seed screening."
             fi
             ;;
         applynamedcmm-hybrid-chain|namedcmm-hybrid-chain)

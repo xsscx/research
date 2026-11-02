@@ -85,10 +85,10 @@ done
 afl_configure_target applynamedcmm
 expect_arg_count applynamedcmm 5
 expect_arg applynamedcmm 0 "$REPO_ROOT/docs/iccDEV/Tools/test-data/test-data-rgb-16bit.txt"
-expect_arg applynamedcmm 1 "5"
-expect_arg applynamedcmm 2 "1"
+expect_arg applynamedcmm 1 "6"
+expect_arg applynamedcmm 2 "0"
 expect_arg applynamedcmm 3 "@@"
-expect_arg applynamedcmm 4 "3"
+expect_arg applynamedcmm 4 "0"
 expect_value "applynamedcmm bootstrap seed count" "${#SEED_FILES[@]}" "1"
 expect_value "applynamedcmm bootstrap seed" "${SEED_FILES[0]}" "$REPO_ROOT/test-profiles/sRGB_v4_ICC_preference.icc"
 expect_value "applynamedcmm bootstrap dry-run bypass" "$SEED_FILES_SKIP_DRY_RUN_TARGET" "1"

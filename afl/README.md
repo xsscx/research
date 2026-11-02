@@ -69,6 +69,11 @@ explicitly with `./afl/build.sh --refresh-iccdev`. The build now fails if any
 registered target binary is omitted instead of reporting a partial deployment
 as successful.
 
+The pinned static libtiff build retains its JPEG codec for compressed TIFF
+coverage, so AFL resolves `JPEG::JPEG` before importing libtiff. This transitive
+dependency is separate from `iccJpegDump`: that tool parses JPEG markers
+directly and no longer finds or links libjpeg.
+
 `build.sh` links iccDEV libraries statically by default. This keeps AFL
 instrumentation and post-campaign LLVM coverage/profiling in the same binary
 image, avoiding split executable/shared-library coverage maps. Use

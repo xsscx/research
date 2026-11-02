@@ -282,7 +282,7 @@ select_afl_wrappers() {
         [[ -x "$wrapperxx" ]] || continue
         if ! afl_wrapper_has_required_version "$wrapper" ||
             ! afl_wrapper_has_required_version "$wrapperxx"; then
-            echo "[WARN] Skipping AFL++ wrapper that is not ${AFL_REQUIRED_VERSION}: $wrapper" >&2
+            echo "[INFO] Ignoring AFL++ wrapper that is not ${AFL_REQUIRED_VERSION}: $wrapper" >&2
             continue
         fi
         if afl_wrappers_compile "$wrapper" "$wrapperxx" "$cc_backend" "$cxx_backend"; then
@@ -523,6 +523,7 @@ env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_CC="$AFL_CC_BACKEND" AFL_CXX="$AFL_CXX_B
     -DCMAKE_CXX_COMPILER_AR="$AFL_LLVM_AR" \
     -DCMAKE_CXX_COMPILER_RANLIB="$AFL_LLVM_RANLIB" \
     -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_PROJECT_INCLUDE="$SCRIPT_DIR/cmake/StaticTiffDependencies.cmake" \
     -DCMAKE_PREFIX_PATH="$THIRD_PARTY_PREFIX" \
     -DCMAKE_C_FLAGS="$AFL_CMAKE_C_FLAGS" \
     -DCMAKE_CXX_FLAGS="$AFL_CMAKE_CXX_FLAGS" \

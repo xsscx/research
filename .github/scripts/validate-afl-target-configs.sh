@@ -111,11 +111,13 @@ for target in "${AFL_TARGETS[@]}"; do
         configured_dirs[$AFL_DIR]="$target"
     fi
     if [[ "$LOCAL_AUDIT" -eq 1 ]]; then
+        support_log="$scratch_root/support-${target//[^[:alnum:]_-]/_}.log"
         existing_seed_dirs=0
         if [[ ! -x "$BINARY" ]]; then
             fail "$target binary is missing or not executable: $BINARY"
         fi
-        if ! afl_prepare_target_support_files "$target"; then
+        if ! afl_prepare_target_support_files "$target" >"$support_log" 2>&1; then
+            sed 's/^/  /' "$support_log" >&2
             fail "$target support preparation failed"
             continue
         fi
