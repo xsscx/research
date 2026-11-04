@@ -125,23 +125,32 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             source .github/scripts/configure-macos-clang-22.sh
           fi
-          CG_LIMITED_API=0 IMAGECODECS_ONLY=imcd python -m pip install \
-            --no-binary=pillow,imagecodecs \
+          python -m pip install --no-cache-dir \
             "numpy>=2.0.0,<2.4" \
             "tifffile>=2024.8.30,<2025" \
             "pillow==13.0.0" \
-            "imagecodecs==2026.10.10" \
             --quiet
+          if [[ "$RUNNER_OS" == macOS && "$(uname -m)" == x86_64 ]]; then
+            CFLAGS="$CFLAGS -fgnu89-inline" \
+              CG_LIMITED_API=0 \
+              IMAGECODECS_ONLY=imcd \
+              python -m pip install --no-cache-dir \
+                --no-binary=imagecodecs \
+                "imagecodecs==2026.10.10" \
+                --quiet
+          else
+            python -m pip install --no-cache-dir \
+              "imagecodecs==2026.10.10" \
+              --quiet
+          fi
           python -m pip check
           python - <<'PY'
-          import importlib.util
           import imagecodecs
           from imagecodecs import _imcd
 
           assert _imcd.IMCD.available
           data = b"iccdev-lzw-check"
           assert imagecodecs.lzw_decode(imagecodecs.lzw_encode(data)) == data
-          assert importlib.util.find_spec("imagecodecs._brotli") is None
           PY
       - name: Build and test
         env:
@@ -227,21 +236,42 @@ jobs:
           path: iccDEV
           persist-credentials: false
           fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Install CTest Python dependencies
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          python -m pip install --no-cache-dir \
+            "numpy>=2.0.0,<2.4" \
+            "tifffile>=2024.8.30,<2025" \
+            "pillow==13.0.0" \
+            "imagecodecs==2026.10.10" \
+            --quiet
+          python -m pip check
+          python - <<'PY'
+          import imagecodecs
+
+          data = b"iccdev-lzw-check"
+          assert imagecodecs.lzw_decode(imagecodecs.lzw_encode(data)) == data
+          PY
       - name: Build sanitizer tools and run CTest
         env:
           BASH_ENV: /dev/null
           ASAN_OPTIONS: detect_leaks=0
           UBSAN_OPTIONS: halt_on_error=1,print_stacktrace=1
-          CFLAGS: -fsanitize=address,undefined
-          CXXFLAGS: -fsanitize=address,undefined
-          LDFLAGS: -fsanitize=address,undefined
         run: |
           set -euo pipefail
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           bash .github/scripts/configure-llvm-22.sh
           sudo apt-get install -y --no-install-recommends clang-22 cmake libclang-rt-22-dev libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev python3
-          cmake -S iccDEV/Build/Cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 -DCMAKE_C_FLAGS='-fsanitize=address,undefined' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined' -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
+          cmake -S iccDEV/Build/Cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 -DENABLE_ASAN=ON -DENABLE_UBSAN=ON -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
           cmake --build build --parallel "$(nproc)" --target all build-test-binaries
           ctest --test-dir build --output-on-failure --no-tests=error
 
