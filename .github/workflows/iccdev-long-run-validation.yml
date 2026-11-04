@@ -181,7 +181,7 @@ jobs:
       - name: Build strict LTO configuration
         env:
           BASH_ENV: /dev/null
-          TEST_IMAGE: ghcr.io/internationalcolorconsortium/iccdev-ci-regression:latest
+          TEST_IMAGE: ghcr.io/internationalcolorconsortium/iccdev:latest
         run: |
           set -euo pipefail
           git config --global credential.helper ""
@@ -258,13 +258,27 @@ jobs:
           fetch-depth: 1
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57
+      - name: Install prebuilt dependencies
+        shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = 'iccDEV/deps.zip'
+          Invoke-WebRequest -Uri 'https://github.com/InternationalColorConsortium/iccDEV/releases/download/vcpkg-win-23241-libheif-deps/iccdev-windows-vcpkg-classic-libheif-3087493.zip' -OutFile $archive
+          $actualSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expectedSha256 = '9b051a50f152f616986e735d618a2f5ade2cf5443c680216894f2897dbbf5eca'
+          if ($actualSha256 -ne $expectedSha256) {
+            throw "Dependency archive SHA-256 mismatch: $actualSha256"
+          }
+          tar -xf $archive -C iccDEV
+          Remove-Item -LiteralPath $archive
       - name: Configure, build, and test
         shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
         run: |
           $ErrorActionPreference = 'Stop'
           git config --global credential.helper ""
           if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
-          cmake -S iccDEV/Build/Cmake -B build -G 'Visual Studio 17 2022' -A x64 -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
+          $toolchain = (Resolve-Path -LiteralPath 'iccDEV/scripts/buildsystems/vcpkg.cmake').Path
+          cmake -S iccDEV/Build/Cmake -B build -G 'Visual Studio 17 2022' -A x64 "-DCMAKE_TOOLCHAIN_FILE=$toolchain" -DVCPKG_MANIFEST_MODE=OFF -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
           cmake --build build --config Debug --parallel --target ALL_BUILD build-test-binaries
           ctest --test-dir build -C Debug --output-on-failure --no-tests=error
 
@@ -316,7 +330,7 @@ jobs:
       - name: Build and test in the maintainer regression image
         env:
           BASH_ENV: /dev/null
-          TEST_IMAGE: ghcr.io/internationalcolorconsortium/iccdev-ci-regression:latest
+          TEST_IMAGE: ghcr.io/internationalcolorconsortium/iccdev:latest
         run: |
           set -euo pipefail
           git config --global credential.helper ""
@@ -366,7 +380,7 @@ jobs:
           source emsdk/emsdk_env.sh
           emcc --version
           emcc -dM -E -x c /dev/null | grep -Fx '#define __clang_major__ 22'
-          emcmake cmake -S iccDEV/Build/Cmake -B build-wasm -DCMAKE_BUILD_TYPE=Release -Dnlohmann_json_DIR=/usr/share/cmake/nlohmann_json -DENABLE_TOOLS=ON -DENABLE_ICCXML=OFF -DENABLE_WXWIDGETS=OFF
+          emcmake cmake -S iccDEV/Build/Cmake -B build-wasm -DCMAKE_BUILD_TYPE=Release -Dnlohmann_json_DIR=/usr/share/cmake/nlohmann_json -DENABLE_TOOLS=ON -DENABLE_ICCXML=OFF -DENABLE_IMAGE_TOOLS=OFF -DICC_USE_ZLIB=OFF -DENABLE_WXWIDGETS=OFF
           cmake --build build-wasm --parallel "$(nproc)"
           test -n "$(find build-wasm -type f -name '*.wasm' -print -quit)"
 
