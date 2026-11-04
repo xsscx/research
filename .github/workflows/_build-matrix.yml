@@ -77,30 +77,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Cache Dependencies (Linux)
-        if: runner.os == 'Linux'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v5.0.0 (node24)
-        with:
-          path: |
-            /var/cache/apt/archives
-            ~/.cache/ccache
-          key: ${{ runner.os }}-deps-${{ matrix.compiler }}-${{ hashFiles('.github/workflows/_build-matrix.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-deps-${{ matrix.compiler }}-
-            ${{ runner.os }}-deps-
-
-      - name: Cache Dependencies (macOS)
-        if: runner.os == 'macOS'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v5.0.0 (node24)
-        with:
-          path: |
-            ~/Library/Caches/Homebrew
-            ~/.cache/ccache
-          key: ${{ runner.os }}-deps-${{ matrix.compiler }}-${{ hashFiles('.github/workflows/_build-matrix.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-deps-${{ matrix.compiler }}-
-            ${{ runner.os }}-deps-
-
       - name: Configure Git Environment
         env:
           BASH_ENV: /dev/null
@@ -123,10 +99,9 @@ jobs:
           unset GITHUB_TOKEN || true
           bash .github/scripts/configure-llvm-22.sh
           sudo apt-get install -y \
-            build-essential cmake gcc g++ clang-22 ccache \
+            build-essential cmake gcc g++ clang-22 \
             libpng-dev libxml2-dev libtiff-dev \
             nlohmann-json3-dev
-          ccache --zero-stats || true
 
       - name: Install Dependencies (macOS)
         if: runner.os == 'macOS'
@@ -138,8 +113,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          brew install cmake libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo llvm@22
-          ccache --zero-stats || true
+          brew install cmake libpng libtiff libxml2 nlohmann-json jpeg-turbo llvm@22
 
       - name: Clone iccDEV
         env:
@@ -181,7 +155,6 @@ jobs:
       - name: Set Compiler
         env:
           BASH_ENV: /dev/null
-          MATRIX_COMPILER: ${{ matrix.compiler }}
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
@@ -224,18 +197,6 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
 
-          # Enable ccache if available
-          if command -v ccache >/dev/null 2>&1; then
-            export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:/opt/homebrew/opt/ccache/libexec:$PATH"
-            if [ "$MATRIX_COMPILER" = "gcc" ]; then
-              export CC="ccache gcc"
-              export CXX="ccache g++"
-            else
-              export CC="ccache $CC"
-              export CXX="ccache $CXX"
-            fi
-          fi
-
           cd cfl/iccDEV/Build/build
           echo "::group::Build Output"
           BUILD_START=$(date +%s)
@@ -249,13 +210,6 @@ jobs:
           if grep -iE '(error|failed|undefined reference|cannot find)' build.log; then
             echo "::error title=Build Failed::Build errors detected in log"
             exit 1
-          fi
-
-          # Show ccache stats if available
-          if command -v ccache >/dev/null 2>&1; then
-            echo "::group::ccache Statistics"
-            ccache --show-stats || true
-            echo "::endgroup::"
           fi
 
       - name: Upload Build Artifacts (on failure)
@@ -337,17 +291,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Cache Dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v5.0.0 (node24)
-        with:
-          path: |
-            /var/cache/apt/archives
-            ~/.cache/ccache
-          key: sanitizer-deps-${{ matrix.sanitizer }}-${{ hashFiles('.github/workflows/_build-matrix.yml') }}
-          restore-keys: |
-            sanitizer-deps-${{ matrix.sanitizer }}-
-            sanitizer-deps-
 
       - name: Configure Git Environment
         env:

@@ -90,39 +90,14 @@ jobs:
         with:
           preset: 'coverage'
 
-      - name: Cache iccDEV repository
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v5.0.0 (node24)
-        id: cache-iccdev
-        with:
-          path: /tmp/iccdev
-          key: >-
-            ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'master' }}-
-            ${{ hashFiles('.github/workflows/iccdev-single-profile-coverage.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-iccdev-coverage-single-${{ github.event.inputs.ref || 'master' }}-
-
       - name: "Clone iccDEV (${{ github.event.inputs.ref || 'master' }})"
-        if: steps.cache-iccdev.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
           REF="$ICCDEV_REF"
-          if [ ! -d "/tmp/iccdev" ]; then
-            git clone --depth 1 --branch "$REF" https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
-          fi
-
-      - name: Cache iccDEV coverage build
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v5.0.0 (node24)
-        id: cache-build
-        with:
-          path: /tmp/iccdev/build-coverage
-          key: >-
-            ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'master' }}-
-            ${{ hashFiles('.github/workflows/iccdev-single-profile-coverage.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-iccdev-build-coverage-single-${{ github.event.inputs.ref || 'master' }}-
+          rm -rf /tmp/iccdev
+          git clone --depth 1 --branch "$REF" https://github.com/InternationalColorConsortium/iccDEV.git /tmp/iccdev
 
       - name: Build iccDEV with coverage instrumentation
-        if: steps.cache-build.outputs.cache-hit != 'true'
         env:
           CC: clang-22
           CXX: clang++-22
