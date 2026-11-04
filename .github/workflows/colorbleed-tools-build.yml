@@ -61,7 +61,7 @@ jobs:
         uses: ./.github/actions/setup-build-env  # zizmor: ignore[self-repository]
         with:
           preset: 'colorbleed'
-          extra-packages: 'ripgrep libwxgtk3.2-dev wx-common jq'
+          extra-packages: 'ripgrep libxml2-utils libwxgtk3.2-dev wx-common jq'
 
       - name: Set Compiler
         env:
@@ -370,15 +370,29 @@ jobs:
             colorbleed_tools/test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff \
             "$RUNNER_TEMP/colorbleed-crosscheck"
 
+      - name: Package TIFF evidence
+        if: always()
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          evidence_paths=()
+          for directory in colorbleed-tiff-regression colorbleed-crosscheck; do
+            if [[ -d "$RUNNER_TEMP/$directory" ]]; then
+              evidence_paths+=("$directory")
+            fi
+          done
+          if (( ${#evidence_paths[@]} > 0 )); then
+            tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/colorbleed-tiff-evidence.tar.gz" "${evidence_paths[@]}"
+          fi
+
       - name: Upload TIFF evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0 (node24)
         with:
           name: colorbleed-tiff-evidence
           if-no-files-found: warn
-          path: |
-            ${{ runner.temp }}/colorbleed-tiff-regression/
-            ${{ runner.temp }}/colorbleed-crosscheck/
+          path: ${{ runner.temp }}/colorbleed-tiff-evidence.tar.gz
 
       - name: Upload JPEG evidence
         if: always()
