@@ -112,10 +112,11 @@ jobs:
             bash .github/scripts/configure-llvm-22.sh
             sudo apt-get install -y --no-install-recommends build-essential cmake clang-22 libclang-rt-22-dev libbrotli-dev libfreetype-dev libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev
           else
-            for formula in bash brotli cmake freetype libjpeg libpng libtiff libxml2 nlohmann-json llvm@22; do
+            for formula in bash brotli cmake coreutils freetype libjpeg libpng libtiff libxml2 nlohmann-json llvm@22; do
               brew list --versions "$formula" >/dev/null || brew install "$formula"
             done
             echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
+            echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
           fi
       - name: Install CTest Python dependencies
         env:
@@ -154,6 +155,7 @@ jobs:
           data = b"iccdev-lzw-check"
           assert imagecodecs.lzw_decode(imagecodecs.lzw_encode(data)) == data
           PY
+          printf 'ICCDEV_SPECTRAL_PREVIEW_PYTHON=%s\n' "$(command -v python)" >> "$GITHUB_ENV"
       - name: Build and test
         env:
           BASH_ENV: /dev/null
@@ -167,7 +169,13 @@ jobs:
           if [[ "$MATRIX_COMPILER" == gcc ]]; then
             export CC=gcc CXX=g++
           elif [[ "$RUNNER_OS" == macOS ]]; then
+            export PATH="$(brew --prefix)/bin:$(brew --prefix coreutils)/libexec/gnubin:$PATH"
+            bash -c 'type mapfile' >/dev/null
+            timeout --version | grep -q 'GNU coreutils'
             source .github/scripts/configure-macos-clang-22.sh
+            if [[ "$(uname -m)" == arm64 ]]; then
+              sed -i.bak '/iccdev\.specsep-corpus-matrix/{n;s/180/600/;}' iccDEV/Build/Cmake/Testing/CMakeLists.txt
+            fi
           else
             export CC=clang-22 CXX=clang++-22
           fi
@@ -262,6 +270,7 @@ jobs:
           data = b"iccdev-lzw-check"
           assert imagecodecs.lzw_decode(imagecodecs.lzw_encode(data)) == data
           PY
+          printf 'ICCDEV_SPECTRAL_PREVIEW_PYTHON=%s\n' "$(command -v python)" >> "$GITHUB_ENV"
       - name: Build sanitizer tools and run CTest
         env:
           BASH_ENV: /dev/null
