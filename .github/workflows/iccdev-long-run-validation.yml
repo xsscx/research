@@ -234,7 +234,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           git config --global credential.helper ""
           if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
-          cmake -S iccDEV/Build/Cmake -B build -G 'Visual Studio 18 2026' -A x64 -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
+          cmake -S iccDEV/Build/Cmake -B build -G 'Visual Studio 17 2022' -A x64 -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
           cmake --build build --config Debug --parallel --target ALL_BUILD build-test-binaries
           ctest --test-dir build -C Debug --output-on-failure --no-tests=error
 
@@ -326,13 +326,17 @@ jobs:
           set -euo pipefail
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nlohmann-json3-dev
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git emsdk
           git -C emsdk fetch --depth 1 origin "$EMSDK_REF"
           git -C emsdk checkout --detach "$EMSDK_REF"
           emsdk/emsdk install "$EMSDK_VERSION"
           emsdk/emsdk activate "$EMSDK_VERSION"
           source emsdk/emsdk_env.sh
-          emcmake cmake -S iccDEV/Build/Cmake -B build-wasm -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=ON -DENABLE_ICCXML=OFF -DENABLE_WXWIDGETS=OFF
+          emcc --version
+          emcc -dM -E -x c /dev/null | grep -Fx '#define __clang_major__ 22'
+          emcmake cmake -S iccDEV/Build/Cmake -B build-wasm -DCMAKE_BUILD_TYPE=Release -Dnlohmann_json_DIR=/usr/share/cmake/nlohmann_json -DENABLE_TOOLS=ON -DENABLE_ICCXML=OFF -DENABLE_WXWIDGETS=OFF
           cmake --build build-wasm --parallel "$(nproc)"
           test -n "$(find build-wasm -type f -name '*.wasm' -print -quit)"
 
