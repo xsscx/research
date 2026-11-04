@@ -124,8 +124,7 @@ jobs:
           if [[ "$MATRIX_COMPILER" == gcc ]]; then
             export CC=gcc CXX=g++
           elif [[ "$RUNNER_OS" == macOS ]]; then
-            llvm_bin="$(brew --prefix llvm@22)/bin"
-            export CC="$llvm_bin/clang" CXX="$llvm_bin/clang++"
+            source .github/scripts/configure-macos-clang-22.sh
           else
             export CC=clang-22 CXX=clang++-22
           fi

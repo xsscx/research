@@ -189,9 +189,7 @@ jobs:
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
           elif [ "$(uname -s)" = "Darwin" ]; then
-            llvm_bin="$(brew --prefix llvm@22)/bin"
-            echo "CC=$llvm_bin/clang" >> "$GITHUB_ENV"
-            echo "CXX=$llvm_bin/clang++" >> "$GITHUB_ENV"
+            source .github/scripts/configure-macos-clang-22.sh
           else
             echo "CC=clang-22" >> "$GITHUB_ENV"
             echo "CXX=clang++-22" >> "$GITHUB_ENV"
