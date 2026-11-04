@@ -58,9 +58,11 @@ jobs:
           if [[ -n "$UPSTREAM_PR" ]]; then
             [[ "$UPSTREAM_PR" =~ ^[1-9][0-9]*$ ]] || exit 1
             sha="$(gh api "repos/InternationalColorConsortium/iccDEV/pulls/$UPSTREAM_PR" --jq .head.sha)"
-          else
+          elif [[ -n "$TARGET_SHA" ]]; then
             [[ "$TARGET_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || exit 1
             sha="$(gh api "repos/InternationalColorConsortium/iccDEV/commits/$TARGET_SHA" --jq .sha)"
+          else
+            sha="$(gh api "repos/InternationalColorConsortium/iccDEV/commits/master" --jq .sha)"
           fi
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
           printf 'sha=%s\n' "$(sanitize_line "$sha")" >> "$GITHUB_OUTPUT"
