@@ -106,7 +106,7 @@ Write-Host "Cloning iccDEV..."
 git clone https://github.com/InternationalColorConsortium/iccDEV.git
 cd iccDEV
 Write-Host "Fetching deps from releases..."
-Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -Destination "deps.zip"
+Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/vcpkg-win-23241-libheif-deps/iccdev-windows-vcpkg-classic-libheif-3087493.zip" -Destination "deps.zip"
 Write-Host "Extracting dependencies..."
 tar -xf deps.zip
 cd Build/Cmake
@@ -235,7 +235,7 @@ cmake --preset vs2022-x64 -B . -S Build/Cmake `
 ```powershell
 git clone https://github.com/InternationalColorConsortium/iccDEV.git
 cd iccDEV
-Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -Destination "deps.zip"
+Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/vcpkg-win-23241-libheif-deps/iccdev-windows-vcpkg-classic-libheif-3087493.zip" -Destination "deps.zip"
 tar -xf deps.zip
 cd Build/Cmake
 cmake -Wno-dev -T ClangCL -S . -B build -G "Visual Studio 17 2022" -A x64 `

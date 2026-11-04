@@ -596,7 +596,12 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
           Write-Host "Fetching dependencies..."
-          Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/v2.3.1/vcpkg-exported-deps.zip" -Destination "deps.zip"
+          Start-BitsTransfer -Source "https://github.com/InternationalColorConsortium/iccDEV/releases/download/vcpkg-win-23241-libheif-deps/iccdev-windows-vcpkg-classic-libheif-3087493.zip" -Destination "deps.zip"
+          $actualSha256 = (Get-FileHash -Algorithm SHA256 "deps.zip").Hash.ToLowerInvariant()
+          $expectedSha256 = "9b051a50f152f616986e735d618a2f5ade2cf5443c680216894f2897dbbf5eca"
+          if ($actualSha256 -ne $expectedSha256) {
+            throw "Dependency archive SHA-256 mismatch: $actualSha256"
+          }
           tar -xf deps.zip
 
       - name: Configure
