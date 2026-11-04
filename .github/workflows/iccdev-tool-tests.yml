@@ -134,7 +134,7 @@ jobs:
         uses: ./.github/actions/setup-build-env
         with:
           preset: 'coverage'
-          extra-packages: 'clang++-18 liblzma-dev libwxgtk3.2-dev wx-common libssl-dev libclang-rt-18-dev'
+          extra-packages: 'liblzma-dev libwxgtk3.2-dev wx-common libssl-dev'
 
       - name: Clone iccDEV
         env:
@@ -175,8 +175,8 @@ jobs:
       - name: Build iccDEV (Debug + ASAN + UBSAN + Tools)
         env:
           BASH_ENV: /dev/null
-          CC: clang-18
-          CXX: clang++-18
+          CC: clang-22
+          CXX: clang++-22
         run: |
           set -euo pipefail
           source .github/scripts/sanitize-sed.sh 2>/dev/null || true
@@ -191,8 +191,8 @@ jobs:
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' Cmake/CMakeLists.txt
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER=clang-18 \
-            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_COMPILER=clang-22 \
+            -DCMAKE_CXX_COMPILER=clang++-22 \
             -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -O0 -g3 -fstack-protector-strong" \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls -O0 -g3 -fstack-protector-strong -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
@@ -230,7 +230,7 @@ jobs:
             echo ""
             echo "| Setting | Value |"
             echo "|---------|-------|"
-            echo "| Compiler | clang-18 ($(clang-18 --version | sed -n '1,1p')) |"
+            echo "| Compiler | clang-22 ($(clang-22 --version | sed -n '1,1p')) |"
             echo "| Build type | Debug |"
             echo "| Sanitizers | ASAN + UBSAN |"
             echo "| Tools built | $TOOL_COUNT |"
@@ -650,7 +650,7 @@ jobs:
             echo "| Component | Version |"
             echo "|-----------|---------|"
             echo "| Runner | ubuntu-24.04 |"
-            echo "| Compiler | $(clang-18 --version 2>/dev/null | sed -n '1,1p' || echo 'N/A') |"
+            echo "| Compiler | $(clang-22 --version 2>/dev/null | sed -n '1,1p' || echo 'N/A') |"
             echo "| CMake | $(cmake --version 2>/dev/null | sed -n '1,1p' || echo 'N/A') |"
             echo "| iccDEV | $ICCDEV_REF — $(cd iccDEV 2>/dev/null && git log --oneline -1 || echo 'N/A') |"
             echo "| Sanitizers | ASAN + UBSAN |"
@@ -667,7 +667,7 @@ jobs:
             echo "git clone -b master https://github.com/InternationalColorConsortium/iccDEV.git"
             echo "cd iccDEV && mkdir -p build && cd build"
             echo 'cmake ../Build/Cmake \'
-            echo '  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \'
+            echo '  -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 \'
             echo '  -DCMAKE_BUILD_TYPE=Debug \'
             echo '  -DCMAKE_C_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer" \'
             echo '  -DCMAKE_CXX_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer" \'

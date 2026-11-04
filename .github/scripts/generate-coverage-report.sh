@@ -33,13 +33,8 @@ BINARIES=("$@")
 [ -f "$PROFDATA" ] || die "Profdata file not found: $PROFDATA"
 
 # --- Locate llvm-cov ---
-if [ -z "${LLVM_COV:-}" ]; then
-  for candidate in llvm-cov llvm-cov-{18,17,16,15,14}; do
-    if command -v "$candidate" &>/dev/null; then
-      LLVM_COV="$candidate"
-      break
-    fi
-  done
+if [ -z "${LLVM_COV:-}" ] && command -v llvm-cov-22 &>/dev/null; then
+  LLVM_COV="llvm-cov-22"
 fi
 [ -n "${LLVM_COV:-}" ] || die "llvm-cov not found. Install LLVM or set LLVM_COV env var."
 

@@ -43,7 +43,7 @@ usage() {
     echo "  --jobs N           build/replay jobs; default ${JOBS}"
     echo "  --reuse-build      keep existing coverage/reachability build dirs"
     echo "  AFL_COVERAGE_TIMEOUT=N  cov-analysis per-input timeout; default ${COVERAGE_TIMEOUT}s"
-    echo "  AFL_COVERAGE_CC/CXX     override the clang/clang++ coverage compiler"
+    echo "  AFL_COVERAGE_CC/CXX     override the clang-22/clang++-22 coverage compiler"
     echo "  --help, -h         show help"
     echo ""
     afl_print_targets
@@ -159,7 +159,7 @@ demangle_symbol_file() {
     local line sym demangled
 
     [[ -s "$in_file" ]] || return 0
-    demangler="$(first_tool llvm-cxxfilt-22 llvm-cxxfilt-21 llvm-cxxfilt c++filt || true)"
+    demangler="$(first_tool llvm-cxxfilt-22 c++filt || true)"
     [[ -n "$demangler" ]] || return 0
 
     : > "$out_file"
@@ -324,10 +324,10 @@ echo "[*] Report root: $REPORT_ROOT"
 echo "[*] Link mode:   static"
 echo "[*] Timeout:     ${COVERAGE_TIMEOUT}s"
 
-COV_CC="${AFL_COVERAGE_CC:-$(first_tool clang)}"
-COV_CXX="${AFL_COVERAGE_CXX:-$(first_tool clang++)}"
+COV_CC="${AFL_COVERAGE_CC:-$(first_tool clang-22)}"
+COV_CXX="${AFL_COVERAGE_CXX:-$(first_tool clang++-22)}"
 if [[ -z "$COV_CC" || -z "$COV_CXX" ]]; then
-    echo "ERROR: clang/clang++ coverage compiler not found" >&2
+    echo "ERROR: clang-22/clang++-22 coverage compiler not found" >&2
     exit 1
 fi
 echo "[*] Compiler:    $COV_CC / $COV_CXX"

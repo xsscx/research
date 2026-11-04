@@ -56,10 +56,10 @@ vary by build, so do not hardcode a healthy-tool total.
 
 ```bash
 # Prerequisites: clang/clang++ 18+, cmake 3.15+, libxml2-dev, libtiff-dev,
-#   libpng-dev, libjpeg-dev, libssl-dev, libclang-rt-18-dev
+#   libpng-dev, libjpeg-dev, libssl-dev, libclang-rt-22-dev
 cd cfl && ./build.sh                    # LibFuzzer harnesses against unpatched upstream
 cd colorbleed_tools && make setup && make # unsafe tools (clang defaults to sanitizer build)
-./afl/build-afl-runtime.sh              # pinned AFL++ stable runtime, LLVM 21, large-input support
+./afl/build-afl-runtime.sh              # pinned AFL++ stable runtime, LLVM 22, large-input support
 ./afl/build.sh                          # AFL-instrumented upstream tools
 ./fuzztest/build.sh                     # FuzzTest + instrumented iccDEV profile harness
 .github/ci/quality-assurance/scripts/iccApplyProfiles_sanitizer_qa.sh --seconds 300

@@ -121,9 +121,9 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
+          bash .github/scripts/configure-llvm-22.sh
           sudo apt-get install -y \
-            build-essential cmake gcc g++ clang-18 ccache \
+            build-essential cmake gcc g++ clang-22 ccache \
             libpng-dev libxml2-dev libtiff-dev \
             nlohmann-json3-dev
           ccache --zero-stats || true
@@ -138,7 +138,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          brew install cmake libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo
+          brew install cmake libpng libtiff libxml2 nlohmann-json ccache jpeg-turbo llvm@22
           ccache --zero-stats || true
 
       - name: Clone iccDEV
@@ -189,12 +189,12 @@ jobs:
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
           elif [ "$(uname -s)" = "Darwin" ]; then
-            # macOS: use Apple clang (avoids Homebrew libc++ header conflicts)
-            echo "CC=clang" >> "$GITHUB_ENV"
-            echo "CXX=clang++" >> "$GITHUB_ENV"
+            llvm_bin="$(brew --prefix llvm@22)/bin"
+            echo "CC=$llvm_bin/clang" >> "$GITHUB_ENV"
+            echo "CXX=$llvm_bin/clang++" >> "$GITHUB_ENV"
           else
-            echo "CC=clang-18" >> "$GITHUB_ENV"
-            echo "CXX=clang++-18" >> "$GITHUB_ENV"
+            echo "CC=clang-22" >> "$GITHUB_ENV"
+            echo "CXX=clang++-22" >> "$GITHUB_ENV"
           fi
 
       - name: Configure CMake
@@ -370,9 +370,9 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
+          bash .github/scripts/configure-llvm-22.sh
           sudo apt-get install -y \
-            build-essential cmake clang-18 llvm-18 \
+            build-essential cmake clang-22 llvm-22 \
             libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
 
       - name: Clone iccDEV
@@ -430,7 +430,7 @@ jobs:
               ;;
           esac
 
-          CC=clang-18 CXX=clang++-18 cmake ../Cmake \
+          CC=clang-22 CXX=clang++-22 cmake ../Cmake \
                 -DCMAKE_BUILD_TYPE="$MATRIX_BUILD_TYPE" \
                 $OPTS
 
@@ -531,9 +531,9 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
+          bash .github/scripts/configure-llvm-22.sh
           sudo apt-get install -y \
-            build-essential cmake clang-18 \
+            build-essential cmake clang-22 \
             libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
 
       - name: Clone iccDEV

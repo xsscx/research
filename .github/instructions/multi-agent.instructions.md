@@ -16,8 +16,8 @@ Defines how multiple Copilot agents (WSL-2/Linux, macOS, Cloud CI) coordinate.
 
 ### WSL-2 / Linux
 
-Prerequisites: Ubuntu 24.04, clang-18/clang++-18, cmake 3.15+,
-libxml2-dev, libtiff-dev, libclang-rt-18-dev, libssl-dev, Python 3.10+.
+Prerequisites: Ubuntu 24.04, clang-22/clang++-22, cmake 3.15+,
+libxml2-dev, libtiff-dev, libclang-rt-22-dev, libssl-dev, Python 3.10+.
 
 ```bash
 cd cfl && ./build.sh                 # 13 LibFuzzer harnesses

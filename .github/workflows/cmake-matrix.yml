@@ -77,6 +77,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Checkout Clang 22 setup
+        if: runner.os == 'Linux'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          path: .ci-config
+          sparse-checkout: .github/scripts/configure-llvm-22.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Cache Dependencies (Linux)
         if: runner.os == 'Linux'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v5.0.0 (node24)
@@ -121,9 +130,9 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
+          bash .ci-config/.github/scripts/configure-llvm-22.sh
           sudo apt-get install -y \
-            build-essential cmake gcc g++ clang-18 ccache \
+            build-essential cmake gcc g++ clang-22 ccache \
             libpng-dev libxml2-dev libtiff-dev \
             nlohmann-json3-dev
           ccache --zero-stats || true
@@ -138,7 +147,7 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          brew install cmake libpng libtiff libxml2 nlohmann-json ccache
+          brew install cmake libpng libtiff libxml2 nlohmann-json ccache llvm@22
           ccache --zero-stats || true
 
       - name: Disable wxWidgets for CFL
@@ -165,12 +174,12 @@ jobs:
             echo "CC=gcc" >> $GITHUB_ENV
             echo "CXX=g++" >> $GITHUB_ENV
           elif [ "$(uname -s)" = "Darwin" ]; then
-            # macOS: use Apple clang (avoids Homebrew libc++ header conflicts)
-            echo "CC=clang" >> $GITHUB_ENV
-            echo "CXX=clang++" >> $GITHUB_ENV
+            llvm_bin="$(brew --prefix llvm@22)/bin"
+            echo "CC=$llvm_bin/clang" >> "$GITHUB_ENV"
+            echo "CXX=$llvm_bin/clang++" >> "$GITHUB_ENV"
           else
-            echo "CC=clang-18" >> $GITHUB_ENV
-            echo "CXX=clang++-18" >> $GITHUB_ENV
+            echo "CC=clang-22" >> $GITHUB_ENV
+            echo "CXX=clang++-22" >> $GITHUB_ENV
           fi
 
       - name: Configure CMake
@@ -307,6 +316,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Checkout Clang 22 setup
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          path: .ci-config
+          sparse-checkout: .github/scripts/configure-llvm-22.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Cache Dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v5.0.0 (node24)
         with:
@@ -337,9 +354,9 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
+          bash .ci-config/.github/scripts/configure-llvm-22.sh
           sudo apt-get install -y \
-            build-essential cmake clang-18 llvm-18 \
+            build-essential cmake clang-22 llvm-22 \
             libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
 
       - name: Disable wxWidgets for CFL
@@ -375,7 +392,7 @@ jobs:
               OPTS="-DENABLE_ASAN=ON -DENABLE_UBSAN=ON"
               ;;
           esac
-          CC=clang-18 CXX=clang++-18 cmake ../Build/Cmake \
+          CC=clang-22 CXX=clang++-22 cmake ../Build/Cmake \
                 -DCMAKE_BUILD_TYPE=${MATRIX_BUILD_TYPE} \
                 $OPTS
 
@@ -461,6 +478,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Checkout Clang 22 setup
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          path: .ci-config
+          sparse-checkout: .github/scripts/configure-llvm-22.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Configure Git Environment
         shell: bash --noprofile --norc {0}
         env:
@@ -480,9 +505,9 @@ jobs:
           git config --add safe.directory "$PWD"
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
+          bash .ci-config/.github/scripts/configure-llvm-22.sh
           sudo apt-get install -y \
-            build-essential cmake clang-18 \
+            build-essential cmake clang-22 \
             libpng-dev libxml2-dev libtiff-dev nlohmann-json3-dev
 
       - name: Disable wxWidgets for CFL

@@ -41,8 +41,8 @@ on:
         default: 'master'
 
 env:
-  CC: clang-18
-  CXX: clang++-18
+  CC: clang-22
+  CXX: clang++-22
   BASH_ENV: /dev/null
   ICCDEV_REF: ${{ github.event.inputs.ref || 'master' }}
 
@@ -62,7 +62,7 @@ jobs:
         uses: ./.github/actions/setup-build-env  # zizmor: ignore[self-repository]
         with:
           preset: 'coverage'
-          extra-packages: 'libssl-dev libclang-rt-18-dev libwxgtk3.2-dev'
+          extra-packages: 'libssl-dev libwxgtk3.2-dev'
 
       - name: "Checkout iccDEV"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -96,8 +96,8 @@ jobs:
           mkdir -p Build && cd Build
           cmake Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER=clang-18 \
-            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_COMPILER=clang-22 \
+            -DCMAKE_CXX_COMPILER=clang++-22 \
             -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0 -g3" \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O0 -g3 -std=c++17" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \

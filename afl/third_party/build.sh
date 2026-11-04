@@ -27,11 +27,11 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-CC_BIN="${CC:-clang}"
-CXX_BIN="${CXX:-clang++}"
-AR_BIN="${AR:-llvm-ar}"
-RANLIB_BIN="${RANLIB:-llvm-ranlib}"
-NM_BIN="${NM:-llvm-nm}"
+CC_BIN="${CC:-clang-22}"
+CXX_BIN="${CXX:-clang++-22}"
+AR_BIN="${AR:-llvm-ar-22}"
+RANLIB_BIN="${RANLIB:-llvm-ranlib-22}"
+NM_BIN="${NM:-llvm-nm-22}"
 SANITIZER_MODE="${AFL_THIRD_PARTY_SANITIZER:-address}"
 SKIP_MSAN_LIBCXX="${AFL_THIRD_PARTY_SKIP_LIBCXX:-0}"
 EXTRA_C_FLAGS="${AFL_THIRD_PARTY_EXTRA_C_FLAGS:-}"
@@ -155,8 +155,8 @@ build_msan_libcxx() {
     local ar_bin
     local ranlib_bin
 
-    backend_cc="$(command -v "${AFL_CC:-clang}")"
-    backend_cxx="$(command -v "${AFL_CXX:-clang++}")"
+    backend_cc="$(command -v "${AFL_CC:-clang-22}")"
+    backend_cxx="$(command -v "${AFL_CXX:-clang++-22}")"
     ar_bin="$(command -v "$AR_BIN")"
     ranlib_bin="$(command -v "$RANLIB_BIN")"
 

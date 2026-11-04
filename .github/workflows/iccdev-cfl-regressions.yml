@@ -79,11 +79,11 @@ jobs:
           set -euo pipefail
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
+          bash .github/scripts/configure-llvm-22.sh
           sudo apt-get install -y -qq \
-            clang \
+            clang-22 \
             cmake \
-            libclang-rt-dev \
+            libclang-rt-22-dev \
             libjpeg-dev \
             libpng-dev \
             libssl-dev \
@@ -91,7 +91,8 @@ jobs:
             libxml2-dev \
             nlohmann-json3-dev \
             pkg-config \
-            llvm \
+            llvm-22 \
+            llvm-22-tools \
             shellcheck
 
       - name: Validate CFL metadata and scripts
@@ -153,8 +154,8 @@ jobs:
       - name: Build all CFL fuzzers
         env:
           BASH_ENV: /dev/null
-          CC: clang
-          CXX: clang++
+          CC: clang-22
+          CXX: clang++-22
         run: |
           set -euo pipefail
           git config --global credential.helper ""

@@ -44,8 +44,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 CALL_GRAPH_DIR = REPO_ROOT / "call-graph"
-CLANG = os.environ.get("CLANG", "clang")
-CLANGXX = os.environ.get("CXX", "clang++")
+CLANG = os.environ.get("CLANG", "clang-22")
+CLANGXX = os.environ.get("CXX", "clang++-22")
 
 
 def find_matching_opt(compiler: str) -> str:

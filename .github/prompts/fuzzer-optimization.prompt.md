@@ -21,7 +21,7 @@ push if requested.
 - Active fuzzers: `source cfl/fuzzers.sh; printf '%s\n' "${#CFL_FUZZERS[@]}"`
 - Built fuzzers: `find cfl/bin -maxdepth 1 -type f -name 'icc_*_fuzzer' | wc -l`
 - Coverage HTML: `coverage-report/html/` (paths reflect build directory structure)
-- LLVM tools: `llvm-profdata-18`, `llvm-cov-18`
+- LLVM tools: `llvm-profdata-22`, `llvm-cov-22`
 - Source: `cfl/icc_*_fuzzer.cpp`, dicts in `cfl/icc_*_fuzzer.dict`
 
 ## General Optimization Methodology
@@ -198,10 +198,10 @@ git add -f cfl/corpus-icc_io_fuzzer/Rec2020rgbSpectral.icc
 ### Coverage Report Quick Reference
 ```bash
 # Per-fuzzer line counts
-llvm-cov-18 report -object bin/<fuzzer> -instr-profile=merged.profdata
+llvm-cov-22 report -object bin/<fuzzer> -instr-profile=merged.profdata
 
 # Uncovered lines for one source file
-llvm-cov-18 show -object bin/<fuzzer> -instr-profile=merged.profdata \
+llvm-cov-22 show -object bin/<fuzzer> -instr-profile=merged.profdata \
   --format=text cfl/<fuzzer>.cpp 2>/dev/null | grep "|      0|"
 ```
 

@@ -9,7 +9,7 @@ policy. Edit `afl/iccapply-args.conf` to change `iccApply*` target argv.
 ## Fast Path
 
 ```bash
-# Install the pinned AFL++ runtime and LLVM 21 compiler wrappers.
+# Install the pinned AFL++ runtime and LLVM 22 compiler wrappers.
 ./afl/build-afl-runtime.sh
 
 # Build AFL-instrumented upstream iccDEV tools without local AFL patches.
@@ -115,7 +115,7 @@ not combine these sanitizer modes in one binary.
 `--run-time SEC`; both pass AFL++ `-V SEC`. For `iccApplyProfiles`, the
 `applyprofiles-row` target selects the explicit `-threads` row-apply lane.
 
-The memory build also fetches pinned LLVM 21.1.8 runtime sources and builds a
+The memory build also fetches pinned LLVM 22.1.8 runtime sources and builds a
 MemorySanitizer-instrumented static libc++. MSan requires instrumented C++
 dependencies; using the system's uninstrumented libstdc++ can taint ordinary
 standard-library state and make every seed look like a crash. `build.sh`

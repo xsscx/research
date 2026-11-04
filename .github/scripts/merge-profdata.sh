@@ -24,13 +24,8 @@ PROFRAW_DIR="${1:?Usage: merge-profdata.sh <profraw-dir> [output.profdata]}"
 OUTPUT="${2:-$(dirname "$PROFRAW_DIR")/merged.profdata}"
 
 # --- Locate llvm-profdata ---
-if [ -z "${LLVM_PROFDATA:-}" ]; then
-  for candidate in llvm-profdata llvm-profdata-{18,17,16,15,14}; do
-    if command -v "$candidate" &>/dev/null; then
-      LLVM_PROFDATA="$candidate"
-      break
-    fi
-  done
+if [ -z "${LLVM_PROFDATA:-}" ] && command -v llvm-profdata-22 &>/dev/null; then
+  LLVM_PROFDATA="llvm-profdata-22"
 fi
 [ -n "${LLVM_PROFDATA:-}" ] || die "llvm-profdata not found. Install LLVM or set LLVM_PROFDATA env var."
 
@@ -67,7 +62,7 @@ done
 echo ""
 "$LLVM_PROFDATA" merge -sparse "${PROFRAW_FILES[@]}" -o "$OUTPUT" 2>&1
 
-SIZE=$(ls -lh "$OUTPUT" | awk '{print $5}')
+SIZE=$(du -h -- "$OUTPUT" | awk '{print $1}')
 echo "[OK] Merged profdata: $OUTPUT ($SIZE)"
 echo ""
 echo "Next: generate-coverage-report.sh $OUTPUT <output-dir> [binary...]"

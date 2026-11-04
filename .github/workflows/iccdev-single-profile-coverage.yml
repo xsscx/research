@@ -124,8 +124,8 @@ jobs:
       - name: Build iccDEV with coverage instrumentation
         if: steps.cache-build.outputs.cache-hit != 'true'
         env:
-          CC: clang-18
-          CXX: clang++-18
+          CC: clang-22
+          CXX: clang++-22
         run: |
           set -euo pipefail
           cd /tmp/iccdev
@@ -134,8 +134,8 @@ jobs:
           mkdir -p build-coverage && cd build-coverage
           cmake ../Build/Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER=clang-18 \
-            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_COMPILER=clang-22 \
+            -DCMAKE_CXX_COMPILER=clang++-22 \
             -DENABLE_TOOLS=ON \
             -DENABLE_STATIC_LIBS=ON \
             -DENABLE_TESTS=OFF \
@@ -300,7 +300,7 @@ jobs:
             exit 0
           fi
 
-          llvm-profdata-18 merge \
+          llvm-profdata-22 merge \
             -sparse \
             "${PROFRAW_FILES[@]}" \
             -o coverage-report/merged.profdata
@@ -315,7 +315,7 @@ jobs:
           done < <(find "$BUILD_DIR" -path "*/Tools/*" -type f -executable -print)
 
           # Text summary (filter benign mismatch warning from multi-binary merge)
-          llvm-cov-18 report \
+          llvm-cov-22 report \
             "$MAIN_BIN" "${OBJECT_ARGS[@]}" \
             -instr-profile=coverage-report/merged.profdata \
             -ignore-filename-regex='(third_party|/usr/|test)' \
@@ -323,7 +323,7 @@ jobs:
             | tee coverage-report/coverage-summary.txt
 
           # HTML report
-          llvm-cov-18 show \
+          llvm-cov-22 show \
             "$MAIN_BIN" "${OBJECT_ARGS[@]}" \
             -instr-profile=coverage-report/merged.profdata \
             -format=html \
@@ -334,7 +334,7 @@ jobs:
             2>&1 | grep -v "functions have mismatched data" | tail -5
 
           # LCOV export
-          llvm-cov-18 export \
+          llvm-cov-22 export \
             "$MAIN_BIN" "${OBJECT_ARGS[@]}" \
             -instr-profile=coverage-report/merged.profdata \
             -format=lcov \

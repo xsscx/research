@@ -42,9 +42,9 @@ Reference commands for building, testing, and debugging
 
 | Dependency | Ubuntu (apt) | macOS (brew) |
 |---|---|---|
-| Compiler | `clang-18`, `clang++-18` (preferred) or `gcc`/`g++` | `clang` (Xcode) |
+| Compiler | `clang-22`, `clang++-22` (preferred) or `gcc`/`g++` | `clang` (Xcode) |
 | Build | `cmake` (3.15+), `make` | `cmake` |
-| ASAN/UBSAN runtime | `libclang-rt-18-dev` | Built into Xcode |
+| ASAN/UBSAN runtime | `libclang-rt-22-dev` | Built into Xcode |
 | Image libraries | `libpng-dev`, `libjpeg-dev`, `libtiff-dev` | `libpng`, `jpeg`, `libtiff` |
 | XML / JSON | `libxml2-dev`, `nlohmann-json3-dev` | `libxml2`, `nlohmann-json` |
 | GUI (optional) | `libwxgtk3.2-dev` + media/webview | `wxwidgets` |
@@ -52,7 +52,7 @@ Reference commands for building, testing, and debugging
 ### Ubuntu Full Install
 
 ```bash
-sudo apt install -y clang-18 clang++-18 libclang-rt-18-dev \
+sudo apt install -y clang-22 clang++-22 libclang-rt-22-dev \
   cmake make build-essential \
   libpng-dev libjpeg-dev libtiff-dev \
   libxml2-dev nlohmann-json3-dev \
@@ -77,7 +77,7 @@ coverage (NOT gcov).
 git clone https://github.com/InternationalColorConsortium/iccDEV.git
 cd iccDEV/Build
 cmake -S Cmake -B . \
-  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
   -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
   -DCMAKE_BUILD_TYPE=Debug \
@@ -94,7 +94,7 @@ make -j$(nproc)
 
 **UBSAN only:**
 ```bash
-CC=clang-18 CXX=clang++-18 cmake -S Cmake -B . -DCMAKE_BUILD_TYPE=Debug -Wno-dev \
+CC=clang-22 CXX=clang++-22 cmake -S Cmake -B . -DCMAKE_BUILD_TYPE=Debug -Wno-dev \
   -DCMAKE_CXX_FLAGS="-g3 -O0 -Wall -Wextra -fno-omit-frame-pointer \
   -fno-optimize-sibling-calls -fsanitize=undefined,integer,enum \
   -fno-sanitize-recover=undefined"
@@ -102,7 +102,7 @@ CC=clang-18 CXX=clang++-18 cmake -S Cmake -B . -DCMAKE_BUILD_TYPE=Debug -Wno-dev
 
 **ASAN only:**
 ```bash
-CC=clang-18 CXX=clang++-18 cmake -S Cmake -B . -DCMAKE_BUILD_TYPE=Debug -Wno-dev \
+CC=clang-22 CXX=clang++-22 cmake -S Cmake -B . -DCMAKE_BUILD_TYPE=Debug -Wno-dev \
   -DCMAKE_CXX_FLAGS="-g3 -O0 -Wall -Wextra -fno-omit-frame-pointer \
   -fno-optimize-sibling-calls -fsanitize=address -fno-sanitize-recover=address"
 ```
@@ -198,7 +198,7 @@ With X11 Libs, ASAN + Debug Logging:
 
 ```bash
 cmake -S Cmake/ -B . \
-  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 \
   -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
   -DCMAKE_BUILD_TYPE=Debug \
   -DENABLE_TOOLS=ON -DENABLE_SHARED_LIBS=ON -DENABLE_STATIC_LIBS=ON \
@@ -266,7 +266,7 @@ Uses clang source-based coverage (`-fprofile-instr-generate -fcoverage-mapping`)
 > produce `.gcda`/`.gcno` files incompatible with `llvm-profdata`/`llvm-cov`.
 
 ```bash
-export CC=clang-18 CXX=clang++-18
+export CC=clang-22 CXX=clang++-22
 cmake -S Cmake/ -B build/ \
   -DCMAKE_INSTALL_PREFIX="$HOME/.local" -DCMAKE_BUILD_TYPE=Debug \
   -DENABLE_TOOLS=ON -DENABLE_SHARED_LIBS=ON -DENABLE_STATIC_LIBS=ON \
@@ -288,7 +288,7 @@ cd build && make -j$(nproc) && cd ..
 
 ```bash
 cmake -S Cmake/ -B . \
-  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 \
   -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
   -DCMAKE_BUILD_TYPE=Debug \
   -DENABLE_TOOLS=ON -DENABLE_SHARED_LIBS=ON -DENABLE_STATIC_LIBS=ON \
@@ -610,16 +610,16 @@ done
 ### Merge Profiles and Generate Reports
 
 ```bash
-llvm-profdata-18 merge -sparse profraw/*.profraw -o merged.profdata
+llvm-profdata-22 merge -sparse profraw/*.profraw -o merged.profdata
 
 # Summary report
-llvm-cov-18 report ./iccToXml -instr-profile=merged.profdata
+llvm-cov-22 report ./iccToXml -instr-profile=merged.profdata
 
 # Per-line annotated source
-llvm-cov-18 show ./iccToXml -instr-profile=merged.profdata > coverage.txt
+llvm-cov-22 show ./iccToXml -instr-profile=merged.profdata > coverage.txt
 
 # LCOV export for HTML
-llvm-cov-18 export ./iccToXml -instr-profile=merged.profdata -format=lcov > coverage.lcov
+llvm-cov-22 export ./iccToXml -instr-profile=merged.profdata -format=lcov > coverage.lcov
 genhtml -o htmlcov coverage.lcov
 ```
 

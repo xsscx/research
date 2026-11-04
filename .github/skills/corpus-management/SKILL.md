@@ -78,9 +78,9 @@ profile controls belong only after the profile's declared ICC payload.
 find . /mnt/fuzz-ssd -name '*.profraw' -type f -delete
 
 # Merge and report
-llvm-profdata-18 merge -sparse /path/profraw/*.profraw -o merged.profdata
+llvm-profdata-22 merge -sparse /path/profraw/*.profraw -o merged.profdata
 OBJS=$(printf ' -object %s' cfl/bin/icc_*_fuzzer)
-llvm-cov-18 report $OBJS -instr-profile=merged.profdata
+llvm-cov-22 report $OBJS -instr-profile=merged.profdata
 ```
 
 ### 4. Preserve Artifacts

@@ -11,7 +11,7 @@ dictionary entries to increase code coverage for the CFL LibFuzzer harnesses.
 ## Prerequisites
 - Fuzzers built: `cfl/fuzzers.sh | wc -l` should match `ls cfl/bin/icc_*_fuzzer | wc -l`
 - Coverage data exists: profraw files in `/mnt/g/fuzz-ssd/profraw/` or another scratch `profraw/` directory
-- LLVM tools: `llvm-profdata-18`, `llvm-cov-18`
+- LLVM tools: `llvm-profdata-22`, `llvm-cov-22`
 - ASAN-instrumented upstream tools: `iccDEV/Build-ASAN/Tools/` (see below)
 
 ## Workflow
@@ -34,27 +34,27 @@ fixture and raw writer with
 ### 1. Generate Coverage Report
 ```bash
 # Merge all profraw files
-llvm-profdata-18 merge -sparse /mnt/g/fuzz-ssd/profraw/*.profraw -o /mnt/g/fuzz-ssd/merged.profdata
+llvm-profdata-22 merge -sparse /mnt/g/fuzz-ssd/profraw/*.profraw -o /mnt/g/fuzz-ssd/merged.profdata
 
 # Summary report
 OBJS=$(printf ' -object %s' cfl/bin/icc_*_fuzzer)
-llvm-cov-18 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata
+llvm-cov-22 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata
 
 # HTML report
-llvm-cov-18 show $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata \
+llvm-cov-22 show $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata \
   --format=html --output-dir=/mnt/g/fuzz-ssd/coverage-report/html
 ```
 
 ### 2. Identify Coverage Gaps
 Rank source files by uncovered lines:
 ```bash
-llvm-cov-18 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata 2>/dev/null | \
+llvm-cov-22 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata 2>/dev/null | \
   awk 'NR>2 && $0 !~ /TOTAL|---/' | sort -t'%' -k1 -n | head -20
 ```
 
 For a specific file, find uncovered functions:
 ```bash
-llvm-cov-18 show $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata --format=text 2>/dev/null | \
+llvm-cov-22 show $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata --format=text 2>/dev/null | \
   awk '/TargetFile\.cpp:$/{found=1;next} found && /^[^ ].*\.cpp:$/{found=0} found && /\|      0\|/' | head -30
 ```
 
@@ -107,8 +107,8 @@ wait
 ### 6. Measure and Commit
 ```bash
 # Re-merge and compare
-llvm-profdata-18 merge -sparse /mnt/g/fuzz-ssd/profraw/*.profraw -o /mnt/g/fuzz-ssd/merged.profdata
-llvm-cov-18 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata
+llvm-profdata-22 merge -sparse /mnt/g/fuzz-ssd/profraw/*.profraw -o /mnt/g/fuzz-ssd/merged.profdata
+llvm-cov-22 report $OBJS -instr-profile=/mnt/g/fuzz-ssd/merged.profdata
 
 # Commit seeds and dicts (need -f for gitignored dirs)
 git add -f cfl/icc_*_seed_corpus/*.icc
@@ -164,7 +164,7 @@ profiles are the most LUT-dense class and exercise critical parser paths:
 Build upstream tools with ASAN+Coverage for comparison:
 ```bash
 cd iccDEV && mkdir -p Build-ASAN && cd Build-ASAN
-cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+cmake ../Build/Cmake -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 \
   -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON
 make -j32
 ```
@@ -183,9 +183,9 @@ LLVM_PROFILE_FILE=/tmp/tool-cov/fuzz_%m.profraw ASAN_OPTIONS=detect_leaks=0 \
   cfl/bin/icc_dump_fuzzer -runs=0 cfl/corpus-icc_dump_fuzzer/
 
 # Compare function-level fidelity
-llvm-cov-18 export <tool_binary> -instr-profile=<tool.profdata> -format=lcov | \
+llvm-cov-22 export <tool_binary> -instr-profile=<tool.profdata> -format=lcov | \
   grep 'FNDA:[1-9]' | sed 's/FNDA:[0-9]*,//' | sort > tool-funcs.txt
-llvm-cov-18 export <fuzzer_binary> -instr-profile=<fuzzer.profdata> -format=lcov | \
+llvm-cov-22 export <fuzzer_binary> -instr-profile=<fuzzer.profdata> -format=lcov | \
   grep 'FNDA:[1-9]' | sed 's/FNDA:[0-9]*,//' | sort > fuzzer-funcs.txt
 comm -23 tool-funcs.txt fuzzer-funcs.txt  # Functions in tool but not fuzzer
 ```

@@ -59,8 +59,8 @@ jobs:
 
       - name: "Clone and build iccDEV (${{ github.event.inputs.ref || 'master' }}) with coverage instrumentation"
         env:
-          CC: clang-18
-          CXX: clang++-18
+          CC: clang-22
+          CXX: clang++-22
         run: |
           set -euo pipefail
           REF="$ICCDEV_REF"
@@ -80,8 +80,8 @@ jobs:
           sed -i 's/set(CMAKE_DEBUG_POSTFIX "d")/set(CMAKE_DEBUG_POSTFIX "")/' ../Build/Cmake/CMakeLists.txt
           cmake ../Build/Cmake \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER=clang-18 \
-            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_C_COMPILER=clang-22 \
+            -DCMAKE_CXX_COMPILER=clang++-22 \
             -DENABLE_COVERAGE=ON \
             -DENABLE_TOOLS=ON \
             -DENABLE_STATIC_LIBS=OFF \
@@ -601,7 +601,7 @@ jobs:
             exit 1
           fi
 
-          llvm-profdata-18 merge \
+          llvm-profdata-22 merge \
             -sparse \
             "${{ github.workspace }}"/profraw/*.profraw \
             -o coverage-report/merged.profdata
@@ -629,7 +629,7 @@ jobs:
           echo "Coverage binaries: 1 main + $OBJECT_COUNT additional objects"
 
           # Generate text report
-          llvm-cov-18 report \
+          llvm-cov-22 report \
             "$MAIN_BIN" $OBJECT_ARGS \
             -instr-profile=coverage-report/merged.profdata \
             -show-branch-summary \
@@ -637,7 +637,7 @@ jobs:
             2>&1 | tee coverage-report/coverage-summary.txt
 
           # Generate HTML report
-          llvm-cov-18 show \
+          llvm-cov-22 show \
             "$MAIN_BIN" $OBJECT_ARGS \
             -instr-profile=coverage-report/merged.profdata \
             -format=html \
@@ -649,7 +649,7 @@ jobs:
             2>&1 | tail -5
 
           # Generate lcov-compatible export
-          llvm-cov-18 export \
+          llvm-cov-22 export \
             "$MAIN_BIN" $OBJECT_ARGS \
             -instr-profile=coverage-report/merged.profdata \
             -format=lcov \

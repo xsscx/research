@@ -91,7 +91,7 @@ else
     fi
 
     # clang-format in check mode; capture output
-    if ! clang-format --dry-run --Werror "${f}" 2>&1 | tee -a lint_reports/clang_format.txt; then
+    if ! clang-format-22 --dry-run --Werror "${f}" 2>&1 | tee -a lint_reports/clang_format.txt; then
       echo "$(sanitize_print "${f}")" >> lint_reports/clang_format.txt
       fail=1
     fi

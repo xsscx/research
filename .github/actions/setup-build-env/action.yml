@@ -26,7 +26,7 @@ runs:
         unset GITHUB_TOKEN || true
 
         COMMON="build-essential cmake libxml2-dev libtiff-dev libpng-dev zlib1g-dev nlohmann-json3-dev"
-        CLANG_TOOLCHAIN="clang-18 clang-tools-18 clang-tidy-18 clang-format-18 llvm-18 llvm-18-tools"
+        CLANG_TOOLCHAIN="clang-22 clang-tools-22 clang-tidy-22 clang-format-22 llvm-22 llvm-22-tools libclang-rt-22-dev"
 
         case "${PRESET}" in
           analyzer)
@@ -45,7 +45,7 @@ runs:
             PACKAGES="${COMMON} ${CLANG_TOOLCHAIN} libjpeg-dev lcov"
             ;;
           minimal)
-            PACKAGES="${COMMON} clang-18 clang-tools-18 clang-tidy-18 clang-format-18 llvm-18-tools"
+            PACKAGES="${COMMON} ${CLANG_TOOLCHAIN}"
             ;;
           *)
             echo "[FAIL] Unknown preset: ${PRESET}"
@@ -57,6 +57,7 @@ runs:
           PACKAGES="${PACKAGES} ${EXTRA_PACKAGES}"
         fi
 
-        sudo apt-get update -qq
+        bash "$GITHUB_WORKSPACE/.github/scripts/configure-llvm-22.sh"
         sudo apt-get install -y --no-install-recommends ${PACKAGES}
+        clang-22 --version | sed -n '1p'
         echo "[OK] Installed packages for preset: ${PRESET}"

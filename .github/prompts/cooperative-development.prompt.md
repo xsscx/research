@@ -11,7 +11,7 @@ Coordination protocol for agents sharing this repo across platforms.
 
 | Agent | Platform | Primary Tools | Responsibilities |
 |-------|----------|--------------|------------------|
-| **WSL-2** | Ubuntu 24.04 on WSL 2 | AFL/CFL fuzzers, colorbleed_tools, iccDEV CLIs, clang-18 | Fuzzing campaigns, profile analysis, coverage collection, call-graph generation |
+| **WSL-2** | Ubuntu 24.04 on WSL 2 | AFL/CFL fuzzers, colorbleed_tools, iccDEV CLIs, clang-22 | Fuzzing campaigns, profile analysis, coverage collection, call-graph generation |
 | **macOS** | Darwin (Apple Silicon) | Xcode, iOS Simulator, xnuimagefuzzer, native builds | iOS image generation, iOS fuzzing, ICC profile extraction, TIFF/image corpus creation |
 | **Cloud** | GitHub Actions (Linux) | CI workflows, CodeQL | Automated builds, security scanning, artifact hosting |
 
@@ -20,7 +20,7 @@ Coordination protocol for agents sharing this repo across platforms.
 | Capability | WSL-2 | macOS | Cloud CI |
 |-----------|-------|-------|----------|
 | Build retired analyzer | No | No | No |
-| Run CFL fuzzers | Yes | No (clang-18 + fuzzer) | Yes (limited time) |
+| Run CFL fuzzers | Yes | No (clang-22 + fuzzer) | Yes (limited time) |
 | Build xnuimagefuzzer (native) | No | Yes | No |
 | Run iOS Simulator | No | Yes | Yes (macOS runners) |
 | Generate call graphs | Yes | No | Yes |

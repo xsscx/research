@@ -7,15 +7,12 @@ AFL_COMMIT="2400206be6fe0d93681c8a5c1535209366602eb1"
 AFL_MAX_FILE_BYTES="${AFL_MAX_FILE_BYTES:-67108864}"
 AFL_REPOSITORY="https://github.com/AFLplusplus/AFLplusplus.git"
 AFL_SOURCE_DIR="${AFL_RUNTIME_SOURCE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/aflplusplus-stable}"
+CLANG_BIN="${CC:-clang-22}"
+CLANGXX_BIN="${CXX:-clang++-22}"
 if [[ -n "${LLVM_CONFIG:-}" ]]; then
     LLVM_CONFIG_BIN="$LLVM_CONFIG"
 else
-    CLANG_MAJOR="$(clang -dumpversion 2>/dev/null | cut -d. -f1 || true)"
-    if [[ "$CLANG_MAJOR" =~ ^[0-9]+$ ]] && command -v "llvm-config-$CLANG_MAJOR" >/dev/null 2>&1; then
-        LLVM_CONFIG_BIN="llvm-config-$CLANG_MAJOR"
-    else
-        LLVM_CONFIG_BIN="llvm-config"
-    fi
+    LLVM_CONFIG_BIN="llvm-config-22"
 fi
 INSTALL_PREFIX="${PREFIX:-/usr/local}"
 JOBS="${JOBS:-32}"
@@ -26,11 +23,11 @@ if [[ ! "$AFL_MAX_FILE_BYTES" =~ ^[0-9]+$ || "$AFL_MAX_FILE_BYTES" -lt 4194304 ]
     exit 1
 fi
 
-for tool in git make perl "$LLVM_CONFIG_BIN" clang clang++ gcc-15; do
+for tool in git make perl "$LLVM_CONFIG_BIN" "$CLANG_BIN" "$CLANGXX_BIN" gcc-15; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "ERROR: Required build tool not found: $tool" >&2
-        echo "Install build-essential clang llvm-dev llvm-tools lld" >&2
-        echo "libclang-rt-dev gcc-15-plugin-dev libpython3-dev zlib1g-dev." >&2
+        echo "Install build-essential clang-22 llvm-22-dev llvm-22-tools lld-22" >&2
+        echo "libclang-rt-22-dev gcc-15-plugin-dev libpython3-dev zlib1g-dev." >&2
         exit 1
     fi
 done
@@ -83,11 +80,11 @@ fi
 
 make -C "$AFL_SOURCE_DIR" clean
 make -C "$AFL_SOURCE_DIR" -j"$JOBS" source-only \
-    LLVM_CONFIG="$LLVM_CONFIG_BIN" NO_NYX=1
+    LLVM_CONFIG="$LLVM_CONFIG_BIN" CC="$CLANG_BIN" CXX="$CLANGXX_BIN" NO_NYX=1
 
 install_cmd=(
     make -C "$AFL_SOURCE_DIR" install PREFIX="$INSTALL_PREFIX"
-    LLVM_CONFIG="$LLVM_CONFIG_BIN" NO_NYX=1
+    LLVM_CONFIG="$LLVM_CONFIG_BIN" CC="$CLANG_BIN" CXX="$CLANGXX_BIN" NO_NYX=1
 )
 if [[ -w "$INSTALL_PREFIX" ]]; then
     "${install_cmd[@]}"

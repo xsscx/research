@@ -103,10 +103,10 @@ jobs:
           unset GITHUB_TOKEN || true
           source .github/scripts/sanitize-sed.sh
           if [[ "$RUNNER_OS" == Linux ]]; then
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends build-essential cmake clang libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev
+            bash .github/scripts/configure-llvm-22.sh
+            sudo apt-get install -y --no-install-recommends build-essential cmake clang-22 libclang-rt-22-dev libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev
           else
-            brew install bash cmake libjpeg libpng libtiff libxml2 nlohmann-json
+            brew install bash cmake libjpeg libpng libtiff libxml2 nlohmann-json llvm@22
             echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
           fi
       - name: Build and test
@@ -119,7 +119,14 @@ jobs:
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
           source .github/scripts/sanitize-sed.sh
-          if [[ "$MATRIX_COMPILER" == gcc ]]; then export CC=gcc CXX=g++; else export CC=clang CXX=clang++; fi
+          if [[ "$MATRIX_COMPILER" == gcc ]]; then
+            export CC=gcc CXX=g++
+          elif [[ "$RUNNER_OS" == macOS ]]; then
+            llvm_bin="$(brew --prefix llvm@22)/bin"
+            export CC="$llvm_bin/clang" CXX="$llvm_bin/clang++"
+          else
+            export CC=clang-22 CXX=clang++-22
+          fi
           cmake -S iccDEV/Build/Cmake -B build -DCMAKE_BUILD_TYPE="$MATRIX_BUILD_TYPE" -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
           cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)" --target all build-test-binaries
           ctest --test-dir build --output-on-failure --no-tests=error
@@ -178,6 +185,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
           repository: InternationalColorConsortium/iccDEV
           ref: ${{ needs.resolve-target.outputs.sha }}
           path: iccDEV
@@ -195,9 +206,9 @@ jobs:
           set -euo pipefail
           git config --global credential.helper ""
           unset GITHUB_TOKEN || true
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends clang cmake libclang-rt-dev libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev python3
-          cmake -S iccDEV/Build/Cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_FLAGS='-fsanitize=address,undefined' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined' -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
+          bash .github/scripts/configure-llvm-22.sh
+          sudo apt-get install -y --no-install-recommends clang-22 cmake libclang-rt-22-dev libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev python3
+          cmake -S iccDEV/Build/Cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 -DCMAKE_C_FLAGS='-fsanitize=address,undefined' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined' -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
           cmake --build build --parallel "$(nproc)" --target all build-test-binaries
           ctest --test-dir build --output-on-failure --no-tests=error
 

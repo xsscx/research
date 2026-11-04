@@ -104,7 +104,7 @@ case "$MODE" in
         ;;
 esac
 
-for tool in git cmake ninja clang clang++; do
+for tool in git cmake ninja clang-22 clang++-22; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "[FAIL] required tool not found: $tool" >&2
         exit 1
@@ -179,7 +179,7 @@ ICCDEV_BUILD_DIR="$BUILD_DIR/iccdev"
 ICCDEV_LIBRARY="$ICCDEV_BUILD_DIR/IccProfLib/libIccProfLib2-static.a"
 
 echo "[*] Configuring instrumented iccDEV core library ($MODE)"
-CC="${CC:-clang}" CXX="${CXX:-clang++}" cmake \
+CC="${CC:-clang-22}" CXX="${CXX:-clang++-22}" cmake \
     -S "$ICCDEV_DIR/Build/Cmake" \
     -B "$ICCDEV_BUILD_DIR" \
     -G Ninja \
@@ -201,7 +201,7 @@ echo "[*] Building instrumented iccDEV core library with $JOBS jobs"
 cmake --build "$ICCDEV_BUILD_DIR" --target IccProfLib2-static --parallel "$JOBS"
 
 echo "[*] Configuring ICC FuzzTest ($MODE)"
-CC="${CC:-clang}" CXX="${CXX:-clang++}" cmake \
+CC="${CC:-clang-22}" CXX="${CXX:-clang++-22}" cmake \
     -S "$SCRIPT_DIR" \
     -B "$BUILD_DIR" \
     -G Ninja \

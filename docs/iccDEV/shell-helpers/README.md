@@ -17,7 +17,7 @@ across platforms.
 git clone https://github.com/InternationalColorConsortium/iccDEV.git
 cd iccDEV/Build
 cmake -S Cmake -B . \
-  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_C_FLAGS="-g3 -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \
   -DCMAKE_CXX_FLAGS="-g3 -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fprofile-instr-generate -fcoverage-mapping" \

@@ -682,7 +682,7 @@ printf "'RGB '\nicEncodeFloat\n0.5\t0.5\t0.5\n" | \
 ```bash
 cd iccDEV/Build
 cmake Cmake \
-  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_C_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer" \
   -DCMAKE_CXX_FLAGS="-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer"

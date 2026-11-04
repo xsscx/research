@@ -48,11 +48,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-CC_BIN="${CC:-clang}"
-CXX_BIN="${CXX:-clang++}"
-AR_BIN="${AR:-llvm-ar}"
-RANLIB_BIN="${RANLIB:-llvm-ranlib}"
-NM_BIN="${NM:-llvm-nm}"
+CC_BIN="${CC:-clang-22}"
+CXX_BIN="${CXX:-clang++-22}"
+AR_BIN="${AR:-llvm-ar-22}"
+RANLIB_BIN="${RANLIB:-llvm-ranlib-22}"
+NM_BIN="${NM:-llvm-nm-22}"
 
 for tool in "$CC_BIN" "$CXX_BIN" "$AR_BIN" "$RANLIB_BIN" "$NM_BIN" cmake git; do
     if ! command -v "$tool" >/dev/null 2>&1; then
