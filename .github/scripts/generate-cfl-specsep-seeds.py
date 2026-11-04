@@ -67,6 +67,36 @@ def grayscale_tiff(
     )
 
 
+def tiled_grayscale_tiff() -> bytes:
+    width = 16
+    height = 16
+    pixels = bytes(range(width * height))
+    entry_count = 12
+    ifd_offset = 8
+    ifd_size = 2 + entry_count * 12 + 4
+    pixels_offset = ifd_offset + ifd_size
+    entries = [
+        tiff_entry(256, 4, 1, width),
+        tiff_entry(257, 4, 1, height),
+        tiff_entry(258, 3, 1, 8),
+        tiff_entry(259, 3, 1, 1),
+        tiff_entry(262, 3, 1, 1),
+        tiff_entry(277, 3, 1, 1),
+        tiff_entry(284, 3, 1, 1),
+        tiff_entry(322, 4, 1, width),
+        tiff_entry(323, 4, 1, height),
+        tiff_entry(324, 4, 1, pixels_offset),
+        tiff_entry(325, 4, 1, len(pixels)),
+        tiff_entry(339, 3, 1, 1),
+    ]
+    return (
+        struct.pack("<2sHIH", b"II", 42, ifd_offset, entry_count)
+        + b"".join(entries)
+        + struct.pack("<I", 0)
+        + pixels
+    )
+
+
 def bundle(flags: int, tiffs: list[bytes], profile: bytes = b"") -> bytes:
     if not 1 <= len(tiffs) <= MAX_SEPARATIONS:
         raise ValueError("SSP3 needs 1 to 16 TIFF inputs")
@@ -109,10 +139,7 @@ def main() -> int:
         for index in range(1, 9)
     ]
     rgb_profile = read_required(profile_path)
-    tiled_gray = read_required(
-        repo_root / "fuzz" / "graphics" / "spectral" / "valid"
-        / "gray8_tiled_icc_le.tiff"
-    )
+    tiled_gray = tiled_grayscale_tiff()
     miniswhite_u8 = grayscale_tiff(8, 0, 1)
     miniswhite_u16 = grayscale_tiff(16, 0, 1)
     float_black = grayscale_tiff(32, 1, 3)
