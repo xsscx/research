@@ -78,7 +78,7 @@ jobs:
           persist-credentials: false
 
       - name: Checkout Clang 22 setup
-        if: matrix.compiler == 'clang'
+        if: runner.os == 'Linux' || matrix.compiler == 'clang'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           path: .ci-config
