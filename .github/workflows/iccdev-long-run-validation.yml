@@ -125,7 +125,7 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             source .github/scripts/configure-macos-clang-22.sh
           fi
-          IMAGECODECS_ONLY=imcd python -m pip install \
+          CG_LIMITED_API=0 IMAGECODECS_ONLY=imcd python -m pip install \
             --no-binary=pillow,imagecodecs \
             "numpy>=2.0.0,<2.4" \
             "tifffile>=2024.8.30,<2025" \
@@ -136,7 +136,9 @@ jobs:
           python - <<'PY'
           import importlib.util
           import imagecodecs
+          from imagecodecs import _imcd
 
+          assert _imcd.IMCD.available
           data = b"iccdev-lzw-check"
           assert imagecodecs.lzw_decode(imagecodecs.lzw_encode(data)) == data
           assert importlib.util.find_spec("imagecodecs._brotli") is None
