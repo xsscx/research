@@ -106,7 +106,8 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends build-essential cmake clang libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev
           else
-            brew install cmake libjpeg libpng libtiff libxml2 nlohmann-json
+            brew install bash cmake libjpeg libpng libtiff libxml2 nlohmann-json
+            echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
           fi
       - name: Build and test
         env:
@@ -120,7 +121,7 @@ jobs:
           source .github/scripts/sanitize-sed.sh
           if [[ "$MATRIX_COMPILER" == gcc ]]; then export CC=gcc CXX=g++; else export CC=clang CXX=clang++; fi
           cmake -S iccDEV/Build/Cmake -B build -DCMAKE_BUILD_TYPE="$MATRIX_BUILD_TYPE" -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
-          cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+          cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)" --target all build-test-binaries
           ctest --test-dir build --output-on-failure --no-tests=error
 
   gcc15-lto:
@@ -162,7 +163,7 @@ jobs:
               -DENABLE_TOOLS=ON \
               -DENABLE_TESTS=ON \
               -DENABLE_WXWIDGETS=OFF
-            cmake --build "$work/build" --parallel "$(nproc)"
+            cmake --build "$work/build" --parallel "$(nproc)" --target all build-test-binaries
             ctest --test-dir "$work/build" --output-on-failure --no-tests=error
           '
 
@@ -187,6 +188,9 @@ jobs:
           BASH_ENV: /dev/null
           ASAN_OPTIONS: detect_leaks=0
           UBSAN_OPTIONS: halt_on_error=1,print_stacktrace=1
+          CFLAGS: -fsanitize=address,undefined
+          CXXFLAGS: -fsanitize=address,undefined
+          LDFLAGS: -fsanitize=address,undefined
         run: |
           set -euo pipefail
           git config --global credential.helper ""
@@ -210,14 +214,16 @@ jobs:
           path: iccDEV
           persist-credentials: false
           fetch-depth: 1
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57
       - name: Configure, build, and test
         shell: pwsh -NoProfile -NoLogo -NonInteractive -Command {0}
         run: |
           $ErrorActionPreference = 'Stop'
           git config --global credential.helper ""
           if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
-          cmake -S iccDEV/Build/Cmake -B build -G 'Visual Studio 17 2022' -A x64 -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
-          cmake --build build --config Debug --parallel
+          cmake -S iccDEV/Build/Cmake -B build -G 'Visual Studio 18 2026' -A x64 -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
+          cmake --build build --config Debug --parallel --target ALL_BUILD build-test-binaries
           ctest --test-dir build -C Debug --output-on-failure --no-tests=error
 
   python-json:
@@ -247,7 +253,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends cmake g++ libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev python3 python3-pip
           cmake -S iccDEV/Build/Cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
           cmake --build build --parallel "$(nproc)" --target all build-test-binaries
-          ctest --test-dir build --output-on-failure --no-tests=error -L JSON
+          ctest --test-dir build --output-on-failure --no-tests=error -L json
 
   docker:
     name: Docker regression verification
@@ -314,7 +320,7 @@ jobs:
           emsdk/emsdk install "$EMSDK_VERSION"
           emsdk/emsdk activate "$EMSDK_VERSION"
           source emsdk/emsdk_env.sh
-          emcmake cmake -S iccDEV/Build/Cmake -B build-wasm -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=ON -DENABLE_WXWIDGETS=OFF
+          emcmake cmake -S iccDEV/Build/Cmake -B build-wasm -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=ON -DENABLE_ICCXML=OFF -DENABLE_WXWIDGETS=OFF
           cmake --build build-wasm --parallel "$(nproc)"
           test -n "$(find build-wasm -type f -name '*.wasm' -print -quit)"
 

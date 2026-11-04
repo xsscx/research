@@ -59,7 +59,7 @@ jobs:
           persist-credentials: false
 
       - name: Install build dependencies
-        uses: ./.github/actions/setup-build-env
+        uses: ./.github/actions/setup-build-env  # zizmor: ignore[self-repository]
         with:
           preset: 'coverage'
           extra-packages: 'libssl-dev libclang-rt-18-dev libwxgtk3.2-dev'
@@ -237,8 +237,8 @@ jobs:
           ROUNDTRIP="$TOOLS/IccRoundTrip/iccRoundTrip"
           run_test "rt-01" "RoundTrip sRGB D65" "-" \
             "$ROUNDTRIP" "$T/Display/sRGB_D65_MAT.icc"
-          run_test "rt-02" "RoundTrip sRGB D65 500lx" "-" \
-            "$ROUNDTRIP" "$T/Display/sRGB_D65_MAT-500lx.icc"
+          run_test "rt-02" "RoundTrip sRGB D65 500cdm2" "-" \
+            "$ROUNDTRIP" "$T/Display/sRGB_D65_MAT-500cdm2.icc"
           echo ""
 
           #---------------------------------------------------------
@@ -406,11 +406,11 @@ jobs:
           #   option: 0=v4-16bit 1=v5 (when link_type=0)
           #   first_transform: 0=use first profile's transform
           #   interp: 0=linear 1=tetrahedral
-          run_test "link-01" "Link sRGB -> sRGB 500lx" "$OUT/link_srgb.icc" \
+          run_test "link-01" "Link sRGB -> sRGB 500cdm2" "$OUT/link_srgb.icc" \
             "$LINK" "$OUT/link_srgb.icc" 0 33 0 \
             "sRGB_link" 0.0 1.0 0 1 \
             "$T/Display/sRGB_D65_MAT.icc" 1 \
-            "$T/Display/sRGB_D65_MAT-500lx.icc" 1
+            "$T/Display/sRGB_D65_MAT-500cdm2.icc" 1
           echo ""
 
           #---------------------------------------------------------
@@ -471,9 +471,11 @@ jobs:
             echo "| Field | Value |"
             echo "|-------|-------|"
             echo "| **Ref** | \`$REF\` |"
-            echo "| **Runner** | \`ubuntu-24.04\` |"
+            echo "| **Runner** | \`$RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)\` |"
             echo "| **Sanitizers** | ASAN + UBSAN |"
-            echo "| **Origin** | [PR #657 post-merge audit](https://github.com/InternationalColorConsortium/iccDEV/pull/657#issuecomment-4039395589) |"
+            echo "| **Origin** | [PR #657 post-merge audit]"\
+              "(https://github.com/InternationalColorConsortium/iccDEV/"\
+              "pull/657#issuecomment-4039395589) |"
             echo ""
             echo "### Key Regression Targets"
             echo ""
@@ -491,4 +493,7 @@ jobs:
             echo "copy-paste error broke the tool on valid inputs. A positive functional"
             echo "test (exit 0 + output exists) catches this class of regression"
             echo "mechanically, independent of review depth."
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | while IFS= read -r line; do
+            sanitize_line "$line"
+            echo ""
+          done >> "$GITHUB_STEP_SUMMARY"  # elements-sanitized

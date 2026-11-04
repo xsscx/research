@@ -61,7 +61,7 @@ jobs:
         uses: ./.github/actions/setup-build-env  # zizmor: ignore[self-repository]
         with:
           preset: 'colorbleed'
-          extra-packages: 'libxml2 libwxgtk3.2-dev wx-common jq'
+          extra-packages: 'libwxgtk3.2-dev wx-common jq'
 
       - name: Set Compiler
         env:
@@ -338,7 +338,7 @@ jobs:
         uses: ./.github/actions/setup-build-env  # zizmor: ignore[self-repository]
         with:
           preset: 'colorbleed'
-          extra-packages: 'libxml2 libwxgtk3.2-dev wx-common jq'
+          extra-packages: 'libwxgtk3.2-dev wx-common jq'
 
       - name: Build all ColorBleed configurations
         env:
