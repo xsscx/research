@@ -96,6 +96,10 @@ jobs:
           path: iccDEV
           persist-credentials: false
           fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: '3.13'
       - name: Install dependencies
         env:
           BASH_ENV: /dev/null
@@ -106,11 +110,37 @@ jobs:
           source .github/scripts/sanitize-sed.sh
           if [[ "$RUNNER_OS" == Linux ]]; then
             bash .github/scripts/configure-llvm-22.sh
-            sudo apt-get install -y --no-install-recommends build-essential cmake clang-22 libclang-rt-22-dev libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev
+            sudo apt-get install -y --no-install-recommends build-essential cmake clang-22 libclang-rt-22-dev libbrotli-dev libfreetype-dev libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev
           else
-            brew install bash cmake libjpeg libpng libtiff libxml2 nlohmann-json llvm@22
+            brew install bash brotli cmake freetype libjpeg libpng libtiff libxml2 nlohmann-json llvm@22
             echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
           fi
+      - name: Install CTest Python dependencies
+        env:
+          BASH_ENV: /dev/null
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            source .github/scripts/configure-macos-clang-22.sh
+          fi
+          IMAGECODECS_ONLY=imcd python -m pip install \
+            --no-binary=pillow,imagecodecs \
+            "numpy>=2.0.0,<2.4" \
+            "tifffile>=2024.8.30,<2025" \
+            "pillow==13.0.0" \
+            "imagecodecs==2026.10.10" \
+            --quiet
+          python -m pip check
+          python - <<'PY'
+          import importlib.util
+          import imagecodecs
+
+          data = b"iccdev-lzw-check"
+          assert imagecodecs.lzw_decode(imagecodecs.lzw_encode(data)) == data
+          assert importlib.util.find_spec("imagecodecs._brotli") is None
+          PY
       - name: Build and test
         env:
           BASH_ENV: /dev/null
