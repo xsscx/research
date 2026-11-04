@@ -310,7 +310,14 @@ jobs:
           git config --global credential.helper ""
           if (Test-Path env:GITHUB_TOKEN) { Remove-Item env:GITHUB_TOKEN }
           $toolchain = (Resolve-Path -LiteralPath 'iccDEV/scripts/buildsystems/vcpkg.cmake').Path
-          cmake -S iccDEV/Build/Cmake -B build -G 'Visual Studio 17 2022' -A x64 "-DCMAKE_TOOLCHAIN_FILE=$toolchain" -DVCPKG_MANIFEST_MODE=OFF -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
+          $vswhere = (Get-Command vswhere.exe -ErrorAction Stop).Source
+          $installationVersion = (& $vswhere -products '*' -requires Microsoft.Component.MSBuild -property installationVersion -latest).Trim()
+          $generator = switch ([int]($installationVersion.Split('.')[0])) {
+            17 { 'Visual Studio 17 2022' }
+            18 { 'Visual Studio 18 2026' }
+            default { throw "Unsupported Visual Studio version: $installationVersion" }
+          }
+          cmake -S iccDEV/Build/Cmake -B build -G $generator -A x64 "-DCMAKE_TOOLCHAIN_FILE=$toolchain" -DVCPKG_MANIFEST_MODE=OFF -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
           cmake --build build --config Debug --parallel --target ALL_BUILD build-test-binaries
           ctest --test-dir build -C Debug --output-on-failure --no-tests=error
 
