@@ -75,11 +75,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-latest]
+        os: [ubuntu-24.04, macos-15-intel]
         compiler: [gcc, clang]
         build_type: [Release, Debug]
         exclude:
-          - os: macos-latest
+          - os: macos-15-intel
             compiler: gcc
     defaults:
       run:
@@ -112,7 +112,9 @@ jobs:
             bash .github/scripts/configure-llvm-22.sh
             sudo apt-get install -y --no-install-recommends build-essential cmake clang-22 libclang-rt-22-dev libbrotli-dev libfreetype-dev libjpeg-dev libpng-dev libtiff-dev libxml2-dev libssl-dev nlohmann-json3-dev
           else
-            brew install bash brotli cmake freetype libjpeg libpng libtiff libxml2 nlohmann-json llvm@22
+            for formula in bash brotli cmake freetype libjpeg libpng libtiff libxml2 nlohmann-json llvm@22; do
+              brew list --versions "$formula" >/dev/null || brew install "$formula"
+            done
             echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
           fi
       - name: Install CTest Python dependencies
@@ -131,7 +133,7 @@ jobs:
             "pillow==13.0.0" \
             --quiet
           if [[ "$RUNNER_OS" == macOS && "$(uname -m)" == x86_64 ]]; then
-            CFLAGS="$CFLAGS -fgnu89-inline" \
+            CFLAGS="${CFLAGS:-} -fgnu89-inline" \
               CG_LIMITED_API=0 \
               IMAGECODECS_ONLY=imcd \
               python -m pip install --no-cache-dir \
@@ -417,7 +419,7 @@ jobs:
           source emsdk/emsdk_env.sh
           emcc --version
           emcc -dM -E -x c /dev/null | grep -Fx '#define __clang_major__ 22'
-          emcmake cmake -S iccDEV/Build/Cmake -B build-wasm -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=ON -DENABLE_ICCXML=OFF -DENABLE_ICCJSON=OFF -DENABLE_IMAGE_TOOLS=OFF -DICC_USE_ZLIB=OFF -DENABLE_WXWIDGETS=OFF
+          emcmake cmake -S iccDEV/Build/Cmake -B build-wasm -DCMAKE_BUILD_TYPE=Release -DENABLE_TOOLS=ON -DENABLE_ICCXML=OFF -DENABLE_ICCJSON=OFF -DENABLE_IMAGE_TOOLS=OFF -DENABLE_SHARED_LIBS=OFF -DENABLE_STATIC_LIBS=ON -DICC_USE_ZLIB=OFF -DENABLE_WXWIDGETS=OFF
           cmake --build build-wasm --parallel "$(nproc)"
           test -n "$(find build-wasm -type f -name '*.wasm' -print -quit)"
 
