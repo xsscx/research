@@ -169,13 +169,17 @@ jobs:
           if [[ "$MATRIX_COMPILER" == gcc ]]; then
             export CC=gcc CXX=g++
           elif [[ "$RUNNER_OS" == macOS ]]; then
-            export PATH="$(brew --prefix)/bin:$(brew --prefix coreutils)/libexec/gnubin:$PATH"
+            homebrew_prefix="$(brew --prefix)"
+            coreutils_prefix="$(brew --prefix coreutils)"
+            export PATH="$homebrew_prefix/bin:$coreutils_prefix/libexec/gnubin:$PATH"
             bash -c 'type mapfile' >/dev/null
             timeout --version | grep -q 'GNU coreutils'
             source .github/scripts/configure-macos-clang-22.sh
-            if [[ "$(uname -m)" == arm64 ]]; then
-              sed -i.bak '/iccdev\.specsep-corpus-matrix/{n;s/180/600/;}' iccDEV/Build/Cmake/Testing/CMakeLists.txt
-            fi
+            specsep_timeout="$(sed -n '/iccdev\.specsep-corpus-matrix/{n;p;}' iccDEV/Build/Cmake/Testing/CMakeLists.txt)"
+            [[ "$specsep_timeout" == "    180" ]]
+            sed -i.bak '/iccdev\.specsep-corpus-matrix/{n;s/180/600/;}' iccDEV/Build/Cmake/Testing/CMakeLists.txt
+            specsep_timeout="$(sed -n '/iccdev\.specsep-corpus-matrix/{n;p;}' iccDEV/Build/Cmake/Testing/CMakeLists.txt)"
+            [[ "$specsep_timeout" == "    600" ]]
           else
             export CC=clang-22 CXX=clang++-22
           fi
