@@ -474,15 +474,15 @@ jobs:
           job_rows="$(gh api "repos/$REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" --jq '
             .jobs[]
             | select(.name != "Long-Run Summary")
-            | (.steps[0].started_at // .started_at) as $runner_started
+            | (.created_at // .started_at) as $queued_at
             | [
                 .name,
                 .conclusion,
                 (.runner_name // "unreported"),
                 (.labels | join(",")),
-                (($runner_started | fromdateiso8601) - (.started_at | fromdateiso8601)),
-                ((.completed_at | fromdateiso8601) - ($runner_started | fromdateiso8601)),
-                ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601))
+                ((.started_at | fromdateiso8601) - ($queued_at | fromdateiso8601)),
+                ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601)),
+                ((.completed_at | fromdateiso8601) - ($queued_at | fromdateiso8601))
               ]
             | @tsv')"
 
