@@ -4,6 +4,7 @@ name: iccDEV Long-Run Validation
 # yamllint disable rule:line-length
 
 permissions:
+  actions: read
   contents: read
   packages: read
 
@@ -185,7 +186,11 @@ jobs:
           fi
           cmake -S iccDEV/Build/Cmake -B build -DCMAKE_BUILD_TYPE="$MATRIX_BUILD_TYPE" -DENABLE_TOOLS=ON -DENABLE_TESTS=ON -DENABLE_WXWIDGETS=OFF
           cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)" --target all build-test-binaries
-          ctest --test-dir build --output-on-failure --no-tests=error
+          ctest_args=(--test-dir build --output-on-failure --no-tests=error)
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            ctest_args+=(--label-exclude 'afl|clusterfuzzlite|libfuzzer')
+          fi
+          ctest "${ctest_args[@]}"
 
   gcc15-lto:
     name: GCC 15 Release LTO
@@ -445,6 +450,53 @@ jobs:
       run:
         shell: bash --noprofile --norc {0}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Report runner timing
+        env:
+          BASH_ENV: /dev/null
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RESOLVED_SHA: ${{ needs.resolve-target.outputs.sha }}
+          RUN_ID: ${{ github.run_id }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config --global credential.helper ""
+          unset GITHUB_TOKEN || true
+          source .github/scripts/sanitize-sed.sh
+
+          # jq variables must remain literal in the single-quoted filter.
+          # shellcheck disable=SC2016
+          job_rows="$(gh api "repos/$REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" --jq '
+            .jobs[]
+            | select(.name != "Long-Run Summary")
+            | (.steps[0].started_at // .started_at) as $runner_started
+            | [
+                .name,
+                .conclusion,
+                (.runner_name // "unreported"),
+                (.labels | join(",")),
+                (($runner_started | fromdateiso8601) - (.started_at | fromdateiso8601)),
+                ((.completed_at | fromdateiso8601) - ($runner_started | fromdateiso8601)),
+                ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601))
+              ]
+            | @tsv')"
+
+          {
+            sanitize_print "### Long-run runner timing"
+            sanitize_print ""
+            sanitize_print "- Workflow SHA: $WORKFLOW_SHA"
+            sanitize_print "- Upstream iccDEV SHA: $RESOLVED_SHA"
+            sanitize_print ""
+            sanitize_print "| Job | Conclusion | Runner | Labels | Queue (s) | Execution (s) | Total (s) |"
+            sanitize_print "|---|---|---|---|---:|---:|---:|"
+            while IFS=$'\t' read -r job conclusion runner labels queue_seconds execution_seconds total_seconds; do
+              sanitize_print "| $job | $conclusion | $runner | $labels | $queue_seconds | $execution_seconds | $total_seconds |"
+            done <<< "$job_rows"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Require every selected lane
         env:
           BASH_ENV: /dev/null
