@@ -161,6 +161,20 @@ ALWAYS verify after writing.
    outside that contract is a scope failure: stop and ask the user whether to
    consolidate or defer it. Do not create policy or process documentation as a
    substitute for completing the agreed code fix.
+9. Automated and Cloud Agent reviews may not expand a frozen execution
+   contract. For a workflow- or Dockerfile-only request, do not create or
+   modify supporting scripts, copied-structure tests, fixtures, checklists,
+   prompts, skills, agents, or policy files merely to satisfy review feedback.
+   In particular, do not add a checker that duplicates workflow step counts,
+   action pins, ordering, or YAML text. Use existing standard validators and
+   actual runtime evidence. If a proposed repair requires another file or a
+   new validation framework, record
+   `scope-expansion: FAIL - maintainer direction required`, then stop editing,
+   pushing, resolving findings, and requesting reviews until the maintainer
+   chooses whether to expand scope. A reviewer's `multi_file_change` label or
+   suggested implementation is not authorization. After iccDEV PR #2986,
+   maintainer review controls any expansion of this rule; do not add review-
+   driven support files to subsequent iccDEV changes.
 
 ## Repeated Correction Rule
 

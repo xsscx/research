@@ -130,6 +130,38 @@ for completing the agreed code fix.
 5. Read-only reviewers must not create files, build outputs, logs, or other
    workspace artifacts. Remove any such artifact before handoff.
 
+## Review-Driven File-Proliferation Stop
+
+Review feedback does not authorize a larger implementation. A workflow- or
+Dockerfile-only change remains limited to those files and their already-named
+direct consumers. Do not create or modify a support script, copied-structure
+test, fixture, checklist, prompt, skill, agent, incident report, or policy file
+merely to satisfy an automated or Cloud Agent review.
+
+The following are prohibited unless the maintainer explicitly adds them to the
+execution contract:
+
+- checkers that copy workflow step counts, action pins, ordering, or YAML text;
+- new validation frameworks for behavior that standard validators or the
+  hosted runtime already prove;
+- bootstrap, evidence, or process files created to justify the current repair;
+- a second support layer whose only consumer is the first support layer.
+
+Use a direct edit to an existing in-scope file, existing project validation,
+standard validators, and actual hosted runtime evidence. If a finding requires
+another file or a new validation framework, record
+`scope-expansion: FAIL - maintainer direction required`. Stop editing, pushing,
+resolving findings, and requesting another review. Present the smallest direct
+fix and the proposed expansion separately, then wait for the maintainer's
+choice. A `multi_file_change` classification or reviewer-suggested design is
+not authorization to proceed.
+
+For iccDEV changes following PR #2986, maintainer review is the acceptance path
+for any scope expansion. Automated review must not generate additional support
+files or validation machinery. Existing support files may be changed only when
+they were named in the execution contract or the maintainer explicitly expands
+the scope.
+
 ## Review Cycle Stop Rule
 
 Automated review is a final verification gate, not the implementation loop.
@@ -150,11 +182,13 @@ requesting another review, or claiming readiness.
   changed-file list, contract-matrix entries, validation commands run after the
   latest edit, and `review-stop` status. If any field is missing, the push is
   blocked and readiness is `FAIL`.
-- A review finding is evidence that the local scope model was incomplete. Return
-  to branch-only grooming, re-check the PR requirement against every equivalent
-  platform path and producer-consumer edge, and validate that map locally before
-  pushing a repair. Do not use a Cloud Agent review to discover omitted
-  counterparts or acceptance criteria.
+- An in-contract review finding is evidence that the local scope model was
+  incomplete. Return to branch-only grooming, re-check the PR requirement
+  against every equivalent platform path and producer-consumer edge, and
+  validate that map locally before pushing a repair. An out-of-contract finding
+  triggers the file-proliferation stop above; it is not the next repair. Do not
+  use a Cloud Agent review to discover omitted counterparts or acceptance
+  criteria.
 - A reviewer suggestion is a hypothesis, not evidence. Verify proposed
   compiler flags, runtime suppression names, and tool configuration semantics
   against the implementation and the actual runtime.
@@ -190,6 +224,7 @@ review-repair gate: PASS or FAIL - base SHA, head SHA, review IDs, active
   threads, suppressed review-body findings, changed files, contract entries,
   validation after latest edit, and stop status recorded
 review-stop: PASS or FAIL - maintainer direction required
+scope-expansion: PASS or FAIL - maintainer direction required
 review-to-push diff: reviewed commit, proposed push commit, diff status, and
   validation rerun after the most recent changed file
 active findings: checked
