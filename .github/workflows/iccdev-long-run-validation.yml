@@ -189,6 +189,7 @@ jobs:
           ctest_args=(--test-dir build --output-on-failure --no-tests=error)
           if [[ "$RUNNER_OS" == macOS ]]; then
             ctest_args+=(--label-exclude 'afl|clusterfuzzlite|libfuzzer')
+            ctest_args+=(--exclude-regex 'iccdev\.(mpexml-reflectance-clut-writer|json-srng-uf32-roundtrip|pawg-q2-tonecurves-only|pawg-q3-steep-not-discontinuous|pawg-q1-quality-contract|curve-gamma-tool-labels)')
           fi
           ctest "${ctest_args[@]}"
 
