@@ -134,9 +134,13 @@ separate planes, tiled output, and BigTIFF output.
 **tiffdump**: 4215-entry dict combining TIFF 6.0 tags + ICC sigs + corpus tokens.
 
 **cfg_fuzzer**: Consumes ordinary JSON without a selector prefix and exercises
-top-level plus nested `fromJson()`/`toJson()` round trips. Seed it with
-`docs/Testing/json-configs/connect-config-complete.json` and use
-`cfl/icc_cfg.dict`.
+top-level plus nested `fromJson()`/`toJson()` round trips, reset/non-reset
+parsing, and bounded direct traversal of nested arrays. Seed it with
+`docs/Testing/json-configs/connect-config-complete.json` and `cfl/seeds-cfg/`,
+and use only `cfl/icc_cfg.dict`. Compare current `CIccCfg*` fields against the
+dictionary and seeds before extending a plateaued run. Treat direct deterministic
+fuzzer failures as library evidence; a CLI reproduction is not mandatory for a
+public config-library defect.
 
 For AFL tool-level `-cfg` lanes, keep the process working directory in the
 isolated `afl/work/<target>/root` tree. Fuzzed destination fields are target

@@ -49,86 +49,108 @@
 #include "IccCmmConfig.h"
 #include "IccJsonUtil.h"
 
-static const json &SectionOrRoot(const json &root, const char *name) {
-  if (root.is_object()) {
-    const auto section = root.find(name);
-    if (section != root.end())
-      return *section;
-  }
+static constexpr size_t kMaxDirectArrayElements = 16;
 
-  return root;
+static const json &SectionOrRoot(const json &root, const char *name) {
+    if (root.is_object()) {
+        const auto section = root.find(name);
+        if (section != root.end())
+            return *section;
+    }
+
+    return root;
 }
 
 template <typename T>
 static size_t ExerciseRoundTrip(const json &value) {
-  T parsed;
-  if (!parsed.fromJson(value, true))
-    return 0;
+    T parsed;
+    parsed.reset();
+    if (!parsed.fromJson(value, false))
+        return 0;
 
-  json serialized;
-  parsed.toJson(serialized);
+    json serialized;
+    parsed.toJson(serialized);
 
-  T replayed;
-  const bool replayed_ok = replayed.fromJson(serialized, true);
-  return serialized.dump().size() + static_cast<size_t>(replayed_ok);
+    T replayed;
+    const bool replayed_ok = replayed.fromJson(serialized, true);
+    json replayed_serialized;
+    if (replayed_ok)
+        replayed.toJson(replayed_serialized);
+
+    const bool updated_ok = replayed_ok && replayed.fromJson(value, false);
+    json updated_serialized;
+    if (updated_ok)
+        replayed.toJson(updated_serialized);
+
+    return serialized.dump().size() + replayed_serialized.dump().size() +
+           updated_serialized.dump().size() +
+           static_cast<size_t>(replayed_ok) +
+           static_cast<size_t>(updated_ok) +
+           static_cast<size_t>(serialized == replayed_serialized);
+}
+
+template <typename T>
+static size_t ExerciseArrayElements(const json &values) {
+    if (!values.is_array())
+        return 0;
+
+    size_t observations = 0;
+    size_t count = 0;
+    for (const auto &value : values) {
+        observations += ExerciseRoundTrip<T>(value);
+        if (++count == kMaxDirectArrayElements)
+            break;
+    }
+    return observations;
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (!data || !size)
+    if (!data || !size)
+        return 0;
+
+    json root;
+    try {
+        root = json::parse(data, data + size, nullptr, false);
+    } catch (...) {
+        return 0;
+    }
+
+    if (root.is_discarded())
+        return 0;
+
+    size_t observations = 0;
+    observations += ExerciseRoundTrip<CIccCfgDataApply>(
+        SectionOrRoot(root, "dataFiles"));
+    observations += ExerciseRoundTrip<CIccCfgImageApply>(
+        SectionOrRoot(root, "imageFiles"));
+    observations += ExerciseRoundTrip<CIccCfgConnectOptions>(
+        SectionOrRoot(root, "connect"));
+    observations += ExerciseRoundTrip<CIccCfgCreateLink>(
+        SectionOrRoot(root, "createLink"));
+    observations += ExerciseRoundTrip<CIccCfgColorData>(
+        SectionOrRoot(root, "colorData"));
+
+    const json &search_apply = SectionOrRoot(root, "searchApply");
+    observations += ExerciseRoundTrip<CIccCfgSearchApply>(search_apply);
+
+    const json &profiles = SectionOrRoot(root, "profileSequence");
+    observations += ExerciseRoundTrip<CIccCfgProfileSequence>(profiles);
+    observations += ExerciseArrayElements<CIccCfgProfile>(profiles);
+
+    const json &search_profiles =
+        SectionOrRoot(search_apply, "profileSequence");
+    observations += ExerciseRoundTrip<CIccCfgProfileSequence>(search_profiles);
+    if (&search_profiles != &profiles)
+        observations += ExerciseArrayElements<CIccCfgProfile>(search_profiles);
+
+    const json &pcc_weights = SectionOrRoot(search_apply, "pccWeights");
+    observations += ExerciseArrayElements<CIccCfgPccWeight>(pcc_weights);
+
+    const json &color_data = SectionOrRoot(root, "colorData");
+    const json &data_entries = SectionOrRoot(color_data, "data");
+    observations += ExerciseArrayElements<CIccCfgDataEntry>(data_entries);
+
+    volatile size_t result_sink = observations;
+    (void)result_sink;
     return 0;
-
-  json root;
-  try {
-    root = json::parse(data, data + size, nullptr, false);
-  } catch (...) {
-    return 0;
-  }
-
-  if (root.is_discarded())
-    return 0;
-
-  size_t observations = 0;
-  observations += ExerciseRoundTrip<CIccCfgDataApply>(
-      SectionOrRoot(root, "dataFiles"));
-  observations += ExerciseRoundTrip<CIccCfgImageApply>(
-      SectionOrRoot(root, "imageFiles"));
-  observations += ExerciseRoundTrip<CIccCfgConnectOptions>(
-      SectionOrRoot(root, "connect"));
-  observations += ExerciseRoundTrip<CIccCfgCreateLink>(
-      SectionOrRoot(root, "createLink"));
-  observations += ExerciseRoundTrip<CIccCfgColorData>(
-      SectionOrRoot(root, "colorData"));
-
-  const json &search_apply = SectionOrRoot(root, "searchApply");
-  observations += ExerciseRoundTrip<CIccCfgSearchApply>(search_apply);
-
-  const json &profiles = SectionOrRoot(root, "profileSequence");
-  observations += ExerciseRoundTrip<CIccCfgProfileSequence>(profiles);
-  if (profiles.is_array() && !profiles.empty())
-    observations += ExerciseRoundTrip<CIccCfgProfile>(profiles.front());
-
-  const json &search_profiles =
-      SectionOrRoot(search_apply, "profileSequence");
-  observations += ExerciseRoundTrip<CIccCfgProfileSequence>(search_profiles);
-  if (search_profiles.is_array() && !search_profiles.empty()) {
-    observations += ExerciseRoundTrip<CIccCfgProfile>(
-        search_profiles.front());
-  }
-
-  const json &pcc_weights = SectionOrRoot(search_apply, "pccWeights");
-  if (pcc_weights.is_array() && !pcc_weights.empty()) {
-    observations += ExerciseRoundTrip<CIccCfgPccWeight>(
-        pcc_weights.front());
-  }
-
-  const json &color_data = SectionOrRoot(root, "colorData");
-  const json &data_entries = SectionOrRoot(color_data, "data");
-  if (data_entries.is_array() && !data_entries.empty()) {
-    observations += ExerciseRoundTrip<CIccCfgDataEntry>(
-        data_entries.front());
-  }
-
-  volatile size_t result_sink = observations;
-  (void)result_sink;
-  return 0;
 }

@@ -109,9 +109,14 @@ cd cfl && ./build.sh --refresh-iccdev
   optional four-byte control trailer after that payload. A raw ICC seed must
   remain intact.
 - `icc_cfg_fuzzer` consumes ordinary JSON without a selector prefix. Keep the
-  complete config seed, shared `icc_cfg.dict`, and all top-level and nested
-  `CIccCfg*` round trips aligned with the AFL `-cfg` lanes. Run
+  complete config seed, `cfl/seeds-cfg/`, shared `icc_cfg.dict`, and all
+  top-level and nested `CIccCfg*` round trips aligned with the AFL `-cfg` lanes.
+  Exercise reset and non-reset parsing and bounded later array elements without
+  opening paths named by the input. Run
   `.github/scripts/validate-afl-cfl-config-alignment.sh` after changes.
+- A deterministic `icc_cfg_fuzzer -runs=1` sanitizer, undefined-behavior,
+  assertion, or semantic failure is direct library-defect evidence. A matching
+  command-line reproduction is optional corroboration, not a prerequisite.
 - Every active C/C++ harness source must carry a complete redistribution and
   warranty-disclaimer license block.
 - `fuzz-local.sh` installs `cfl/seeds-applynamedcmm/` into the NamedCmm runtime

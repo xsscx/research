@@ -70,6 +70,9 @@ config corpus as ordinary JSON; do not prepend a selector byte. The three AFL
 `-cfg` lanes share that fixture and `cfl/icc_cfg.dict`, but continue to
 screen it through their real tools from isolated work directories. Connect
 profile controls belong only after the profile's declared ICC payload.
+`cfl/fuzz-local.sh` also installs the small tracked `cfl/seeds-cfg/` library
+coverage inputs. Never replace `icc_cfg.dict` with a profile-oriented
+dictionary when importing a config corpus.
 
 ### 3. Collect Coverage
 

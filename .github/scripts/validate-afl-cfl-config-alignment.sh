@@ -29,18 +29,33 @@ done < <(
 
 python3 -m json.tool "$fixture" >/dev/null
 for key in dataFiles imageFiles connect createLink profileSequence searchApply \
-    initial pccWeights colorData data; do
+    initial pccWeights colorData data srcIfd dstTileWidth dstTileHeight \
+    dstBigTiff; do
     grep -Fq "\"$key\"" "$fixture"
     grep -Fq "\\\"$key\\\"" "$dictionary"
+done
+grep -Fq 'enc_sameAsSource="\"sameAsSource\""' "$dictionary"
+
+for seed in "$cfl_dir"/seeds-cfg/*.json; do
+    python3 -m json.tool "$seed" >/dev/null
 done
 
 for config_type in CIccCfgDataApply CIccCfgImageApply CIccCfgConnectOptions \
     CIccCfgCreateLink CIccCfgProfile CIccCfgProfileSequence CIccCfgPccWeight \
     CIccCfgSearchApply CIccCfgDataEntry CIccCfgColorData; do
-    grep -Fq "ExerciseRoundTrip<$config_type>" "$cfg_fuzzer"
+    if ! grep -Fq "ExerciseRoundTrip<$config_type>" "$cfg_fuzzer" &&
+       ! grep -Fq "ExerciseArrayElements<$config_type>" "$cfg_fuzzer"; then
+        echo "[FAIL] CFL config harness omits $config_type" >&2
+        exit 1
+    fi
 done
 grep -Fq 'SectionOrRoot(root, "imageFiles")' "$cfg_fuzzer"
 grep -Fq 'json::parse(data, data + size' "$cfg_fuzzer"
+grep -Fq 'parsed.fromJson(value, false)' "$cfg_fuzzer"
+grep -Fq 'replayed.fromJson(value, false)' "$cfg_fuzzer"
+grep -Fq 'ExerciseArrayElements<CIccCfgProfile>' "$cfg_fuzzer"
+grep -Fq 'ExerciseArrayElements<CIccCfgPccWeight>' "$cfg_fuzzer"
+grep -Fq 'ExerciseArrayElements<CIccCfgDataEntry>' "$cfg_fuzzer"
 if grep -Fq 'uint8_t selector = data[0]' "$cfg_fuzzer"; then
     echo "[FAIL] CFL config inputs must remain ordinary JSON documents" >&2
     exit 1
@@ -62,6 +77,11 @@ fi
 
 # shellcheck source=cfl/fuzzers.sh
 source "$cfl_dir/fuzzers.sh"
+if [[ "$(cfl_curated_seed_dir "$cfl_dir" icc_cfg_fuzzer)" != \
+      "$cfl_dir/seeds-cfg" ]]; then
+    echo "[FAIL] CFL config curated seeds are not registered" >&2
+    exit 1
+fi
 cfl_continuous_fuzzers="$(cfl_list_continuous_fuzzers)"
 cfl_qa_fuzzers="$(cfl_list_qa_fuzzers)"
 if grep -Fxq 'icc_cfg_fuzzer' <<< "$cfl_continuous_fuzzers"; then

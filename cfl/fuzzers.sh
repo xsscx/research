@@ -183,6 +183,9 @@ cfl_curated_seed_dir() {
     icc_applynamedcmm_fuzzer)
       printf '%s\n' "$script_dir/seeds-applynamedcmm"
       ;;
+    icc_cfg_fuzzer)
+      printf '%s\n' "$script_dir/seeds-cfg"
+      ;;
     *)
       return 1
       ;;

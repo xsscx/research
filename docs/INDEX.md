@@ -11,6 +11,7 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 | Run AFL++ tool fuzzing | `afl/index.md` |
 | Run bounded iccApplyProfiles sanitizer or Valgrind QA | `afl/iccapplyprofiles-qa.md`, `../.github/skills/icc-tool-qa/SKILL.md` |
 | Run CFL LibFuzzer harnesses | `../cfl/README.md`, `Testing/CFL_MANUAL_FUZZER_COMMANDS.md` |
+| Review a plateaued CFL config fuzzer | `../.github/skills/cfl-config-fuzzing/SKILL.md`, `../.github/prompts/cfl-config-fuzzing.prompt.md` |
 | Run Google FuzzTest property harnesses | `../fuzztest/README.md` |
 | Run local Memcheck, Helgrind, DRD, Massif, or Callgrind analysis | `../valgrind/README.md` |
 | Review fuzzing assets and A/B tracking policy | `Testing/FUZZ_CFL_INVENTORY.md` |

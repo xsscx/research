@@ -121,8 +121,12 @@ by `icc_cfg_fuzzer` and tool QA respectively.
 encoded profile size and treats four bytes after that payload as optional
 controls; it never removes the final four bytes from a raw seed. The config
 fuzzer accepts ordinary JSON with no selector prefix and round-trips all public
-top-level and nested `CIccCfg*` objects. Both AFL and CFL use
-`cfl/icc_cfg.dict`, and
+top-level and nested `CIccCfg*` objects. It explicitly covers reset and
+non-reset parsing and independently exercises up to 16 nested array elements,
+so a malformed early item does not hide later profile, PCC-weight, or color-data
+shapes. `cfl/seeds-cfg/` contains the small durable library-coverage inputs that
+`fuzz-local.sh` copies into the ignored runtime corpus. Both AFL and CFL use
+`cfl/icc_cfg.dict`; do not substitute a profile or dump dictionary. The
 `docs/Testing/json-configs/connect-config-complete.json` is the shared
 schema-shaped seed. Validate these contracts with
 `.github/scripts/validate-afl-cfl-config-alignment.sh`.
@@ -134,6 +138,22 @@ coverage is the goal. This harness parses, serializes, and reparses `CIccCfg*`
 objects; it does not execute the configured file transforms. In contrast,
 `icc_fromjson_fuzzer` remains continuous because its JSON describes an ICC
 profile and exercises profile import, validation, and save paths.
+
+For a plateau, record the fuzzer binary hash and counter count, merge the
+runtime corpus before comparing runs, and use source coverage for
+`IccCmmConfig.cpp` and `IccJsonUtil.cpp`. The aggregate `cov:` number also
+contains nlohmann/json template code and changes when the compiler or upstream
+checkout changes. Multi-worker coverage files require both module and process
+placeholders, for example
+`LLVM_PROFILE_FILE="$CFL_PROFRAW/icc_cfg_fuzzer_%m_%p.profraw"`; `%m` alone lets
+workers overwrite the same file.
+
+A sanitizer, undefined-behavior, assertion, or stable semantic failure reached
+by `icc_cfg_fuzzer -runs=1 ARTIFACT` is direct evidence for a library-owned
+defect. A command-line reproduction is useful corroboration when a tool calls
+the same API, but it is not required to establish a defect in a public
+`CIccCfg*` library path. Promote only the minimized JSON input and its exact
+fuzzer replay command; keep bulk corpora and profile data local.
 
 The local inventory already has separately attributable multi-profile,
 XML/JSON serializer, V5 display-observer, and image/carrier targets. Strengthen

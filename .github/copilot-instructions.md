@@ -9,6 +9,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 
 | Skill | Use When |
 |-------|----------|
+| `cfl-config-fuzzing` | Review config-fuzzer plateaus, current `CIccCfg*` API coverage, JSON seeds/dictionaries, and library findings |
 | `corpus-management` | Manage fuzzing corpus lifecycle, SSD/scratch setup, merges, dedup, and artifact preservation |
 | `icc-crash-triage` | Triage ASAN/UBSAN fuzzer crashes, classify exit codes, attribute stack traces, and map CWE ownership |
 | `icc-security-analysis` | Run full ICC/TIFF/PNG/JPEG security analysis with structural, registry, round-trip, and report steps |
@@ -35,7 +36,7 @@ skill by name when a task matches, then follow `.github/skills/<name>/SKILL.md`.
 | Path | Purpose | Patched? |
 |------|---------|----------|
 | `iccDEV/` | Upstream reference (UNPATCHED, Debug+ASAN+UBSAN+Coverage) | No |
-| `cfl/iccDEV/` | CFL fuzzer build (security patches applied) | Yes |
+| `cfl/iccDEV/` | CFL fuzzer build (upstream `master` by default; patches only with `--with-patches`) | No by default |
 
 For crash fidelity, ALWAYS use `iccDEV/Build/Tools/` (unpatched).
 Do NOT create standalone `.cpp` PoCs or custom test programs for reproductions.
@@ -235,8 +236,8 @@ never shell heredocs. See `AGENTS.md` for TUI encoding defect details.
 - `.github/instructions/*.instructions.md` -- path-specific custom instructions;
   each file must include `applyTo` frontmatter
 - `.github/skills/*/SKILL.md` -- on-demand task workflows
-- `.github/prompts/` -- prompt templates (20 prompts)
-- `.github/agents/` -- custom agents (5 agents)
+- `.github/prompts/` -- prompt templates
+- `.github/agents/` -- custom agents
 - `.github/hooks/` -- session hooks (2 hook configs)
 - `AGENTS.md` -- agent instructions; nearest file in the directory tree takes
   precedence for AI agents
@@ -248,6 +249,7 @@ never shell heredocs. See `AGENTS.md` for TUI encoding defect details.
 | Build or run repo tools | `README.md`, `docs/iccDEV/shell-helpers/README.md`, `docs/iccDEV/Tools/README.md` |
 | Run AFL++ tool fuzzing | `docs/afl/index.md` |
 | Run CFL LibFuzzer harnesses | `cfl/README.md` |
+| Review CFL JSON config coverage | `.github/skills/cfl-config-fuzzing/SKILL.md`, `.github/prompts/cfl-config-fuzzing.prompt.md` |
 | Run Google FuzzTest property harnesses | `fuzztest/README.md` |
 | Investigate a bug or security issue | `docs/pocs/`, `docs/analysis/`, `docs/cve/iccDEV-CVE-Report.md` |
 | File an upstream issue | `.github/prompts/upstream-issue-filing.prompt.md` |

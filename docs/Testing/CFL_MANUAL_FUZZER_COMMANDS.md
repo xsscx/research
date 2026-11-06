@@ -1,6 +1,6 @@
 # CFL Manual Fuzzer Command Runbook
 
-Last updated: 2026-08-19
+Last updated: 2026-11-06
 
 This runbook gives maintainers copy-paste one-liners for manually exercising
 each CFL LibFuzzer harness from the repository root. Use it after rebuilding
@@ -110,6 +110,26 @@ ASAN_OPTIONS="$CFL_ASAN" LLVM_PROFILE_FILE=/dev/null cfl/bin/icc_connect_fuzzer 
 ```
 
 ### `icc_cfg_fuzzer`
+
+Use only `cfl/icc_cfg.dict`; `icc_dump_fuzzer.dict` contains thousands of
+binary-profile tokens that waste config mutations. `fuzz-local.sh` installs the
+shared complete config plus `cfl/seeds-cfg/` automatically. Before comparing a
+large imported corpus with the local baseline, merge both through the checked-in
+helper on the native Linux filesystem:
+
+```bash
+cfg_merge_root=$(mktemp -d /tmp/cfg-corpus-merge-XXXXXX)
+mkdir -p "$cfg_merge_root/corpus-icc_cfg_fuzzer"
+rsync -a --ignore-existing cfl/corpus-icc_cfg_fuzzer/ "$cfg_merge_root/corpus-icc_cfg_fuzzer/"
+rsync -a --ignore-existing /mnt/f/transit/corpus-icc_cfg_fuzzer/ "$cfg_merge_root/corpus-icc_cfg_fuzzer/"
+.github/scripts/corpus-merge.sh --scratch "$cfg_merge_root" icc_cfg_fuzzer
+```
+
+For multi-worker coverage, use
+`LLVM_PROFILE_FILE="$CFL_PROFRAW/icc_cfg_fuzzer_%m_%p.profraw"`. The process
+placeholder is required; `%m` alone makes workers collide. Compare
+`IccCmmConfig.cpp` and `IccJsonUtil.cpp` source coverage from the same binary,
+not only LibFuzzer's aggregate `cov:` counter.
 
 ```bash
 cd cfl && ./fuzz-local.sh -t 30 -w 1 cfg

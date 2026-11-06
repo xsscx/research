@@ -38,9 +38,13 @@ key_debugCalc="\"debugCalc\""
 # --- CIccCfgImageApply fields ---
 key_srcImageFile="\"srcImageFile\""
 key_dstImageFile="\"dstImageFile\""
+key_srcIfd="\"srcIfd\""
 key_dstCompression="\"dstCompression\""
 key_dstPlanar="\"dstPlanar\""
 key_dstEmbedIcc="\"dstEmbedIcc\""
+key_dstTileWidth="\"dstTileWidth\""
+key_dstTileHeight="\"dstTileHeight\""
+key_dstBigTiff="\"dstBigTiff\""
 
 # --- CIccCfgConnectOptions fields ---
 key_threads="\"threads\""
@@ -105,6 +109,18 @@ enc_percent="\"percent\""
 enc_8Bit="\"8Bit\""
 enc_16Bit="\"16Bit\""
 enc_16BitV2="\"16BitV2\""
+enc_sameAsSource="\"sameAsSource\""
+
+# --- Create-link string values ---
+link_cubeFile="\"cubeFile\""
+link_iccDeviceLinkV4="\"iccDeviceLinkV4\""
+link_iccDeviceLinkV5="\"iccDeviceLinkV5\""
+
+# --- Rendering intent string values ---
+intent_perceptual="\"perceptual\""
+intent_relative="\"relative\""
+intent_saturation="\"saturation\""
+intent_absolute="\"absolute\""
 
 # --- Transform string values (from icTranNames[]) ---
 tran_default="\"default\""
