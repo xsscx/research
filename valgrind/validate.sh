@@ -39,4 +39,49 @@ for target in "${VG_TARGETS[@]}"; do
 done
 
 [[ "$errors" -eq 0 ]] || exit 1
+
+validation_tmp="$(mktemp -d)"
+trap 'rm -rf -- "$validation_tmp"' EXIT
+mkdir -p "$validation_tmp/bin" "$validation_tmp/build/Tools/IccDumpProfile"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$validation_tmp/bin/valgrind"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$validation_tmp/build/Tools/IccDumpProfile/iccDumpProfile"
+chmod +x "$validation_tmp/bin/valgrind" "$validation_tmp/build/Tools/IccDumpProfile/iccDumpProfile"
+
+set +e
+PATH="$validation_tmp/bin:$PATH" \
+    VALGRIND_BUILD_DIR="$validation_tmp/build" \
+    VALGRIND_OUTPUT_DIR="$validation_tmp/output" \
+    "$REPO_ROOT/valgrind/run.sh" --tool memcheck --timeout 1 dump \
+    >"$validation_tmp/stdout.log" 2>"$validation_tmp/stderr.log"
+run_rc=$?
+set -e
+summary="$(find "$validation_tmp/output" -type f -name summary.tsv -print -quit)"
+if [[ "$run_rc" -eq 0 ]]; then
+    echo "ERROR: runner accepted an incomplete Memcheck log" >&2
+    exit 1
+fi
+if [[ -z "$summary" ]] || ! grep -Fq $'dump\tmemcheck\t0\tNA\tincomplete-log\t' "$summary"; then
+    echo "ERROR: runner did not classify an incomplete Memcheck log" >&2
+    exit 1
+fi
+
+printf '#!/usr/bin/env bash\nexit 86\n' > "$validation_tmp/bin/valgrind"
+set +e
+PATH="$validation_tmp/bin:$PATH" \
+    VALGRIND_BUILD_DIR="$validation_tmp/build" \
+    "$REPO_ROOT/valgrind/run.sh" --tool memcheck --allow-findings \
+    --output-dir "$validation_tmp/allowed-output" --timeout 1 dump \
+    >"$validation_tmp/allowed-stdout.log" 2>"$validation_tmp/allowed-stderr.log"
+allowed_rc=$?
+set -e
+if [[ "$allowed_rc" -eq 0 ]]; then
+    echo "ERROR: --allow-findings accepted an incomplete Memcheck log" >&2
+    exit 1
+fi
+if ! grep -Fq $'dump\tmemcheck\t86\tNA\tincomplete-log\t' \
+    "$validation_tmp/allowed-output/summary.tsv"; then
+    echo "ERROR: nonzero run did not preserve incomplete-log classification" >&2
+    exit 1
+fi
+
 echo "[OK] Valgrind target registry passed: ${#VG_TARGETS[@]} targets"

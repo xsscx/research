@@ -132,11 +132,30 @@ for target in "${VG_SELECTED[@]}"; do
     rc=$?
     set -e
 
-    errors="$(sed -n 's/.*ERROR SUMMARY: \([0-9][0-9]*\) errors.*/\1/p' "$vg_log" 2>/dev/null | tail -1)"
-    errors="${errors:-0}"
+    log_complete=1
+    case "$VG_TOOL" in
+        memcheck|helgrind|drd)
+            errors="$(sed -n 's/.*ERROR SUMMARY: \([0-9][0-9]*\) errors.*/\1/p' "$vg_log" 2>/dev/null | tail -1 || true)"
+            if [[ -z "$errors" ]]; then
+                errors="NA"
+                log_complete=0
+            fi
+            ;;
+        massif)
+            errors=0
+            [[ -s "$target_dir/massif.out" ]] || log_complete=0
+            ;;
+        callgrind)
+            errors=0
+            [[ -s "$target_dir/callgrind.out" ]] || log_complete=0
+            ;;
+    esac
     result="clean"
     if [[ "$rc" -eq 124 || "$rc" -eq 137 ]]; then
         result="timeout"
+        failures=$((failures + 1))
+    elif [[ "$log_complete" -ne 1 ]]; then
+        result="incomplete-log"
         failures=$((failures + 1))
     elif [[ "$rc" -ne 0 || "$errors" -ne 0 ]]; then
         result="finding"

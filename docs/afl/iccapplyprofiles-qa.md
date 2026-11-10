@@ -45,7 +45,6 @@ requested parallel run to one worker so its ordered failure summary remains
 safe to classify. This compatibility path is correct but has lower coverage
 than a manifest-capable parallel driver. The non-strict runner accepts an
 upstream driver exit of 1 only when every recorded
-non-strict runner accepts an upstream driver exit of 1 only when every recorded
 case is in a known clean category; it still fails on signals, harness errors,
 missing completion records or logs, and unclassified rejections. The Valgrind
 runner uses

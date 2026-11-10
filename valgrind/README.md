@@ -19,6 +19,8 @@ complete registry. Each run creates an ignored evidence directory under
 `valgrind/output/` containing stdout, stderr, the Valgrind log, generated
 artifacts, and `summary.tsv`. A finding or timeout makes the runner fail unless
 `--allow-findings` is supplied for evidence-collection work.
+Missing completion summaries or profiler output are classified as
+`incomplete-log` and always fail the run.
 
 ## One-line analysis commands
 
