@@ -33,8 +33,9 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   non-XYZ/Lab PCS before a profile transform can write more than three channels
   through BPC's three-float black-point buffer.
 - `010-roundtrip-calculator-work-budget.patch`: combines the round-trip sample
-  count with selector-width-aware calculator cost before evaluating the grid,
-  preventing wide stack operations from multiplying into billions of work units.
+  count with selector-width-aware calculator cost before evaluating the grid.
+  The temporary 250,000,000-unit ceiling is for the next AFL/CFL comparison
+  cycle and is not final upstream policy.
 - `011-binary-element-allocation-bounds.patch`: rejects curve-set child ranges
   outside their enclosing binary element and refuses a header-only CLUT before
   zero payload bytes can select the unbounded programmatic-allocation path.
@@ -51,6 +52,8 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
+Patches 003 and 010 are byte-identical to their `afl/patches/` counterparts
+and must remain synchronized for comparison cycles.
 At upstream `471b42c`, patches `001` and `007` are already present. They remain
 in the stack so older comparison refs receive the same fixes and current refs
 exercise the `Already applied` compatibility path. Patch `014` was retired

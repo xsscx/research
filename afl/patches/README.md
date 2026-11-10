@@ -1,16 +1,26 @@
 # AFL Patch Stack
 
-Active patches can be applied to the isolated `afl/iccDEV` checkout:
+Temporary comparison patches can be applied to the isolated `afl/iccDEV`
+checkout:
 
-`none`
+- `003-pawg-calculator-cost-estimate.patch`: adds the selector-width-aware,
+  saturating calculator work estimate used by PAWG S10 and patch 010.
+- `010-roundtrip-calculator-work-budget.patch`: rejects a round-trip before its
+  sample grid when estimated calculator work exceeds the temporary
+  250,000,000-unit comparison ceiling.
+
+These patches are for the next AFL/CFL comparison cycle. The ceiling is based
+on current slow-unit and compatibility controls; it is not final upstream
+policy. Patches 003 and 010 are byte-identical to their `cfl/patches/`
+counterparts and must remain synchronized.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
 
-Build the AFL-instrumented tools against the patched QA branch:
+Build the AFL-instrumented tools against patched upstream `master`:
 
 ```bash
-./afl/build.sh --with-patches --branch ci-qa-pr-docker-testing --refresh-iccdev
+./afl/build.sh --with-patches --branch master --refresh-iccdev
 ```
 
 The default remains an unpatched upstream comparison build.
