@@ -19,13 +19,6 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   linear and bounds repeated private/compression detail examples while retaining
   exact counts. The linear layout check also covers `icc_proflib_fuzzer` slow
   unit `f9cdb738397ae9c4664ba62ed6969b7573ed772c`.
-- `006-pawg-private-tag-scan-bounds.patch`: merges overlapping in-bounds private
-  tag regions before the PAWG S12 and S13 byte scans, so malformed tag tables
-  cannot multiply scan work by repeatedly naming the same profile bytes.
-- `007-pawg-q3-ndlut-budget.patch`: bounds PAWG Q3 n-D LUT interpolation work
-  before sampling the neutral path and every device axis, preventing 14- and
-  15-channel legacy LUT profiles from multiplying work through `2^N` corner
-  visits per sample.
 - `008-profile-tag-count-bound.patch`: rejects binary profiles with more than
   1,000 tag-directory entries before attacker-controlled counts can multiply
   profile parsing, validation, and shared-tag association work.
@@ -49,15 +42,20 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
 - `015-prmg-fuzzer-granularity.patch`: preserves the production PRMG 101-point
   grid while exposing a source-compatible bounded-grid overload so patched CFL
   can cover the same paths without a million samples per valid input.
+- `016-serialized-clut-allocation-bounds.patch`: keeps serialized spectral,
+  float32 MPE, Lut8, and Lut16 CLUT allocations within their encoded payloads,
+  prevents zero remaining bytes from selecting `CIccCLUT::Init()`'s unbounded
+  programmatic mode, and enforces the payload bound for one-dimensional CLUTs.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
 Patches 003 and 010 are byte-identical to their `afl/patches/` counterparts
 and must remain synchronized for comparison cycles.
-At upstream `471b42c`, patches `001` and `007` are already present. They remain
-in the stack so older comparison refs receive the same fixes and current refs
-exercise the `Already applied` compatibility path. Patch `014` was retired
-after its TIFF strip decode-buffer guard and regression coverage merged
+Patch `001` is already present on current upstream `master`. It remains in the
+stack so older comparison refs receive the same fix and current refs exercise
+the `Already applied` compatibility path. Patches `006` and `007` were removed
+from the active stack after upstream incorporated their fixes. Patch `014` was
+retired after its TIFF strip decode-buffer guard and regression coverage merged
 upstream in `305d2d5f` (#2952).
 
 ## Campaign and upstream scope
@@ -69,16 +67,16 @@ upstream maintainers:
 - A slowdown that is material only under `-O0`, sanitizers, and coverage is a
   campaign-throughput finding. Keep its work bound local unless a clean Release
   build also shows unacceptable cost.
-- PAWG sample and calculator budgets (`003`, `004`, `007`) change whether a
+- PAWG sample and calculator budgets (`003`, `004`) change whether a
   quality check runs. An upstream proposal therefore needs an agreed reporting
   policy and accuracy threshold, not just a faster fuzz replay.
 - The tag-count bound (`008`) changes the core reader and can reject profiles
   that the specification can encode. Audit real corpus tag counts and document
   compatibility before proposing that limit upstream.
 - Memory-ownership, bounds-safety, or overflow fixes such as `001`, `002`,
-  `009`, `011`, and `012` are product correctness or security candidates when
-  independently reproduced outside the fuzzer or through the affected public
-  API. Treat their upstream status separately from campaign throughput.
+  `009`, `011`, `012`, and `016` are product correctness or security candidates
+  when independently reproduced outside the fuzzer or through the affected
+  public API. Treat their upstream status separately from campaign throughput.
 - The descriptor-render overload in `013` is an additive API and tooling
   efficiency candidate. Compare the unpatched and patched Release tool as well
   as the instrumented harness before assigning severity to a slow unit.
@@ -100,6 +98,9 @@ are recorded in
 [`docs/analysis/cfl-tiff-strip-oom-qa-20261031.md`](../../docs/analysis/cfl-tiff-strip-oom-qa-20261031.md),
 and
 [`docs/analysis/cfl-roundtrip-slow-unit-qa-20261031.md`](../../docs/analysis/cfl-roundtrip-slow-unit-qa-20261031.md).
+The November 11 ToXML spectral-CLUT allocation finding and patch 016 validation
+are recorded in
+[`docs/analysis/cfl-toxml-spectral-clut-oom-qa-20261111.md`](../../docs/analysis/cfl-toxml-spectral-clut-oom-qa-20261111.md).
 
 Build the LibFuzzer harnesses against patched upstream `master`:
 

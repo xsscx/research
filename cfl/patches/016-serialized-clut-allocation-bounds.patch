@@ -1,0 +1,464 @@
+diff --git a/.github/ci/regression/serialized-clut-allocation-bounds.cpp b/.github/ci/regression/serialized-clut-allocation-bounds.cpp
+new file mode 100644
+index 0000000..02410b1
+--- /dev/null
++++ b/.github/ci/regression/serialized-clut-allocation-bounds.cpp
+@@ -0,0 +1,339 @@
++/*
++ * Copyright (c) International Color Consortium.
++ * SPDX-License-Identifier: BSD-3-Clause
++ *
++ * Redistribution and use in source and binary forms, with or without modification,
++ * are permitted provided that the following conditions are met:
++ *
++ *     1. Redistributions of source code must retain the above copyright notice,
++ *        this list of conditions and the following disclaimer.
++ *
++ *     2. Redistributions in binary form must reproduce the above copyright
++ *        notice, this list of conditions and the following disclaimer in the
++ *        documentation and/or other materials provided with the distribution.
++ *
++ *     3. Neither the name of International Color Consortium (ICC) nor the names of
++ *        its contributors may be used to endorse or promote products derived from
++ *        this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
++ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
++ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
++ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
++ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
++ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
++ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++// Regression: serialized CLUT readers must bind grid allocation to the encoded
++// payload. A zero byte limit is reserved for programmatic construction.
++
++#include "IccIO.h"
++#include "IccMpeBasic.h"
++#include "IccMpeSpectral.h"
++#include "IccTagLut.h"
++
++#include <cstdio>
++
++#ifdef USEICCDEVNAMESPACE
++using namespace iccDEV;
++#endif
++
++namespace {
++
++int g_failures = 0;
++
++void check(bool condition, const char *label)
++{
++  std::printf("%s: %s\n", condition ? "ok  " : "FAIL", label);
++  if (!condition)
++    g_failures++;
++}
++
++bool buildMpeClut(CIccMemIO &io, bool complete)
++{
++  static const icUInt32Number kHeaderSize = 28;
++  static const icUInt32Number kDataSize = 2u * sizeof(icFloat32Number);
++  if (!io.Alloc(kHeaderSize + kDataSize, true))
++    return false;
++
++  icUInt32Number value32 = icSigCLutElemType;
++  icUInt16Number value16 = complete ? 1 : 2;
++  if (!io.Write32(&value32))
++    return false;
++  value32 = 0;
++  if (!io.Write32(&value32) || !io.Write16(&value16))
++    return false;
++  value16 = 1;
++  if (!io.Write16(&value16))
++    return false;
++
++  icUInt8Number grids[16] = {};
++  grids[0] = complete ? 2 : 255;
++  grids[1] = complete ? 0 : 255;
++  if (io.Write8(grids, sizeof(grids)) != sizeof(grids))
++    return false;
++
++  icFloatNumber samples[2] = {};
++  if (io.WriteFloat32Float(samples, 2) != 2)
++    return false;
++
++  return io.Seek(0, icSeekSet) == 0;
++}
++
++bool buildSpectralClut(CIccMemIO &io, icElemTypeSignature signature,
++                       bool complete)
++{
++  static const icUInt32Number kHeaderSize = 40;
++  static const icUInt32Number kDataSize = 9;
++  const icUInt32Number size = kHeaderSize + (complete ? kDataSize : 0u);
++  if (!io.Alloc(size, true))
++    return false;
++
++  icUInt32Number value32 = signature;
++  icUInt16Number value16 = 1;
++  if (!io.Write32(&value32))
++    return false;
++  value32 = 0;
++  if (!io.Write32(&value32) || !io.Write16(&value16))
++    return false;
++  value16 = 3;
++  if (!io.Write16(&value16) || !io.Write32(&value32))
++    return false;
++
++  value16 = 0;
++  if (!io.Write16(&value16))
++    return false;
++  value16 = 1;
++  if (!io.Write16(&value16))
++    return false;
++  value16 = 3;
++  if (!io.Write16(&value16))
++    return false;
++  value16 = icValueTypeUInt8;
++  if (!io.Write16(&value16))
++    return false;
++
++  icUInt8Number grids[16] = {2};
++  if (io.Write8(grids, sizeof(grids)) != sizeof(grids))
++    return false;
++
++  if (complete) {
++    icUInt8Number samples[kDataSize] = {};
++    if (io.Write8(samples, sizeof(samples)) != sizeof(samples))
++      return false;
++  }
++
++  return io.Seek(0, icSeekSet) == 0;
++}
++
++bool buildLut8(CIccMemIO &io, bool complete)
++{
++  static const icUInt32Number kHeaderSize = 52;
++  static const icUInt32Number kInputCurveSize = 256;
++  static const icUInt32Number kClutSize = 2;
++  static const icUInt32Number kOutputCurveSize = 256;
++  const icUInt32Number size = kHeaderSize + kInputCurveSize +
++      (complete ? kClutSize + kOutputCurveSize : 0u);
++  if (!io.Alloc(size, true))
++    return false;
++
++  icUInt32Number value32 = icSigLut8Type;
++  if (!io.Write32(&value32))
++    return false;
++  value32 = 0;
++  if (!io.Write32(&value32))
++    return false;
++
++  icUInt8Number one = 1;
++  icUInt8Number grid = complete ? 2 : 255;
++  icUInt8Number zero = 0;
++  if (!io.Write8(&one) || !io.Write8(&one) ||
++      !io.Write8(&grid) || !io.Write8(&zero)) {
++    return false;
++  }
++
++  icUInt32Number matrix[9] = {};
++  if (io.Write32(matrix, 9) != 9)
++    return false;
++
++  icUInt8Number inputCurve[kInputCurveSize] = {};
++  if (io.Write8(inputCurve, sizeof(inputCurve)) != sizeof(inputCurve))
++    return false;
++
++  if (complete) {
++    icUInt8Number clut[kClutSize] = {};
++    icUInt8Number outputCurve[kOutputCurveSize] = {};
++    if (io.Write8(clut, sizeof(clut)) != sizeof(clut) ||
++        io.Write8(outputCurve, sizeof(outputCurve)) != sizeof(outputCurve)) {
++      return false;
++    }
++  }
++
++  return io.Seek(0, icSeekSet) == 0;
++}
++
++bool buildLut16(CIccMemIO &io, bool complete)
++{
++  static const icUInt32Number kHeaderSize = 56;
++  static const icUInt32Number kCurveEntries = 2;
++  static const icUInt32Number kClutEntries = 2;
++  const icUInt32Number dataEntries = kCurveEntries +
++      (complete ? kClutEntries + kCurveEntries : 0u);
++  if (!io.Alloc(kHeaderSize + dataEntries * sizeof(icUInt16Number), true))
++    return false;
++
++  icUInt32Number value32 = icSigLut16Type;
++  if (!io.Write32(&value32))
++    return false;
++  value32 = 0;
++  if (!io.Write32(&value32))
++    return false;
++
++  icUInt8Number one = 1;
++  icUInt8Number grid = complete ? 2 : 255;
++  icUInt8Number zero = 0;
++  if (!io.Write8(&one) || !io.Write8(&one) ||
++      !io.Write8(&grid) || !io.Write8(&zero)) {
++    return false;
++  }
++
++  icUInt32Number matrix[9] = {};
++  if (io.Write32(matrix, 9) != 9)
++    return false;
++
++  icUInt16Number entries = kCurveEntries;
++  if (!io.Write16(&entries) || !io.Write16(&entries))
++    return false;
++
++  icUInt16Number data[kCurveEntries + kClutEntries + kCurveEntries] = {};
++  if (io.Write16(data, dataEntries) != dataEntries)
++    return false;
++
++  return io.Seek(0, icSeekSet) == 0;
++}
++
++} // namespace
++
++int main()
++{
++  {
++    icUInt8Number grids[16] = {2};
++    CIccCLUT clut(1, 1);
++    check(clut.Init(grids),
++          "programmatic CLUT keeps the public zero-limit mode");
++    check(clut.NumPoints() == 2,
++          "programmatic CLUT retains all grid points");
++  }
++
++  {
++    icUInt8Number grids[16] = {255};
++    CIccCLUT clut(1, 65535);
++    check(!clut.Init(grids, 1, 1),
++          "one-dimensional CLUT larger than its payload is rejected");
++    check(clut.NumPoints() == 0,
++          "rejected one-dimensional CLUT commits no point count");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildMpeClut(io, false), "short MPE CLUT fixture is built");
++    CIccMpeCLUT clut;
++    check(!clut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "MPE CLUT larger than its payload is rejected");
++    check(clut.GetCLUT() && clut.GetCLUT()->NumPoints() == 0,
++          "rejected MPE CLUT commits no point count");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildMpeClut(io, true), "complete MPE CLUT fixture is built");
++    CIccMpeCLUT clut;
++    check(clut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "complete MPE CLUT is accepted");
++    check(clut.GetCLUT() && clut.GetCLUT()->NumPoints() == 2,
++          "complete MPE CLUT retains all grid points");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildSpectralClut(io, icSigEmissionCLUTElemType, false),
++          "header-only emission CLUT fixture is built");
++    CIccMpeEmissionCLUT clut;
++    check(!clut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "header-only emission CLUT is rejected");
++    check(!clut.GetCLUT(),
++          "rejected emission CLUT performs no grid allocation");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildSpectralClut(io, icSigReflectanceCLUTElemType, false),
++          "header-only reflectance CLUT fixture is built");
++    CIccMpeReflectanceCLUT clut;
++    check(!clut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "header-only reflectance CLUT is rejected");
++    check(!clut.GetCLUT(),
++          "rejected reflectance CLUT performs no grid allocation");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildSpectralClut(io, icSigEmissionCLUTElemType, true),
++          "complete emission CLUT fixture is built");
++    CIccMpeEmissionCLUT clut;
++    check(clut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "complete emission CLUT is accepted");
++    check(clut.GetCLUT() && clut.GetCLUT()->NumPoints() == 2,
++          "complete emission CLUT retains all grid points");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildLut8(io, false), "zero-CLUT Lut8 fixture is built");
++    CIccTagLut8 lut;
++    check(!lut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "Lut8 with no CLUT payload is rejected");
++    check(lut.GetCLUT() && lut.GetCLUT()->NumPoints() == 0,
++          "rejected Lut8 commits no point count");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildLut8(io, true), "complete Lut8 fixture is built");
++    CIccTagLut8 lut;
++    check(lut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "complete Lut8 is accepted");
++    check(lut.GetCLUT() && lut.GetCLUT()->NumPoints() == 2,
++          "complete Lut8 retains all grid points");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildLut16(io, false), "zero-CLUT Lut16 fixture is built");
++    CIccTagLut16 lut;
++    check(!lut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "Lut16 with no CLUT payload is rejected");
++    check(lut.GetCLUT() && lut.GetCLUT()->NumPoints() == 0,
++          "rejected Lut16 commits no point count");
++  }
++
++  {
++    CIccMemIO io;
++    check(buildLut16(io, true), "complete Lut16 fixture is built");
++    CIccTagLut16 lut;
++    check(lut.Read(static_cast<icUInt32Number>(io.GetLength()), &io),
++          "complete Lut16 is accepted");
++    check(lut.GetCLUT() && lut.GetCLUT()->NumPoints() == 2,
++          "complete Lut16 retains all grid points");
++  }
++
++  if (g_failures) {
++    std::printf("\n%d case(s) FAILED\n", g_failures);
++    return 1;
++  }
++  std::printf("\nall cases passed\n");
++  return 0;
++}
+diff --git a/Build/Cmake/Testing/CMakeLists.txt b/Build/Cmake/Testing/CMakeLists.txt
+index 813a734..54d7c56 100644
+--- a/Build/Cmake/Testing/CMakeLists.txt
++++ b/Build/Cmake/Testing/CMakeLists.txt
+@@ -16540,6 +16540,42 @@ iccdev_add_script_test(
+   "${ICCDEV_REPO_ROOT}/.github/scripts/iccdev-issue-2011-hdr-cicp-transfer-regression.sh"
+ )
+ 
++# Bounds serialized CLUT allocations to their encoded payloads while keeping
++# the public zero-limit programmatic construction mode unchanged.
++if(TARGET "${TARGET_LIB_ICCPROFLIB}")
++  iccdev_add_regression_executable(iccSerializedClutAllocationBoundsTest
++    "${ICCDEV_REPO_ROOT}/.github/ci/regression/serialized-clut-allocation-bounds.cpp"
++  )
++  target_compile_features(iccSerializedClutAllocationBoundsTest PRIVATE cxx_std_17)
++  target_include_directories(iccSerializedClutAllocationBoundsTest PRIVATE
++    "${ICCDEV_REPO_ROOT}/IccProfLib"
++  )
++  target_link_libraries(iccSerializedClutAllocationBoundsTest PRIVATE ${TARGET_LIB_ICCPROFLIB})
++  add_dependencies(check iccSerializedClutAllocationBoundsTest)
++
++  add_test(
++    NAME iccdev.serialized-clut-allocation-bounds
++    COMMAND "$<TARGET_FILE:iccSerializedClutAllocationBoundsTest>"
++  )
++  set_tests_properties(iccdev.serialized-clut-allocation-bounds PROPERTIES
++    TIMEOUT 60
++    LABELS "iccdev;profile;parser;security;regression"
++  )
++  if(WIN32)
++    set(_serialized_clut_bounds_windows_env_mods
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:iccSerializedClutAllocationBoundsTest>"
++      "PATH=path_list_prepend:$<TARGET_FILE_DIR:${TARGET_LIB_ICCPROFLIB}>"
++    )
++    foreach(_runtime_path IN LISTS ICCDEV_WINDOWS_RUNTIME_PATHS)
++      list(APPEND _serialized_clut_bounds_windows_env_mods
++        "PATH=path_list_prepend:${_runtime_path}")
++    endforeach()
++    set_tests_properties(iccdev.serialized-clut-allocation-bounds PROPERTIES
++      ENVIRONMENT_MODIFICATION "${_serialized_clut_bounds_windows_env_mods}"
++    )
++  endif()
++endif()
++
+ # Describe sink + options API smoke test. Verifies byte-equivalence
+ # between the legacy std::string Describe() and the new
+ # Describe(IDescribeSink&, const DescribeOptions&) virtual, plus
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+index 13115fb..fc479a9 100644
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -6279,7 +6279,11 @@ bool CIccMpeCLUT::Read(icUInt32Number size, CIccIO *pIO)
+   // because Init() leaves m_pData NULL and GetData(0) is &m_pData[0]. State the
+   // rejection where it happens instead of relying on that; CIccMpeExtCLUT::Read
+   // further down this file already does.
+-  if (!m_pCLUT->Init(gridPoints))
++  // This is a serialized float32 CLUT, so bind the grid allocation to the
++  // bytes that remain in the element.  The no-limit overload is reserved for
++  // programmatic CLUT construction and can allocate from hostile grid counts
++  // before the short payload is rejected below.
++  if (!m_pCLUT->Init(gridPoints, dataSize, sizeof(icFloat32Number)))
+     return false;
+ 
+   icFloatNumber *pData = m_pCLUT->GetData(0);
+diff --git a/IccProfLib/IccMpeSpectral.cpp b/IccProfLib/IccMpeSpectral.cpp
+index ce5d774..fce4984 100644
+--- a/IccProfLib/IccMpeSpectral.cpp
++++ b/IccProfLib/IccMpeSpectral.cpp
+@@ -1023,7 +1023,11 @@ bool CIccMpeSpectralCLUT::Read(icUInt32Number size, CIccIO *pIO)
+     sizeof(icUInt16Number) +
+     16 * sizeof(icUInt8Number);
+ 
+-  if (headerSize > size)
++  // A serialized spectral CLUT requires CLUT samples and a white vector after
++  // its header.  CIccCLUT::Init() reserves nMaxSize == 0 for unbounded
++  // programmatic construction, so an exact-size header must not pass zero as
++  // an encoded payload bound.
++  if (headerSize >= size)
+     return false;
+ 
+   if (!pIO) {
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+index ad796f7..f46f6e4 100644
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -2164,6 +2164,15 @@ bool CIccCLUT::Init(const icUInt8Number *pGridPoints, icUInt32Number nMaxSize, i
+       return false;
+   }
+ 
++  // The loop is skipped for a one-dimensional CLUT. Apply the serialized
++  // payload bound once more after dimension accumulation so 1-D readers cannot
++  // allocate from grid and output counts that exceed their encoded data.
++  if (nMaxSize &&
++      (nNumPoints > nMaxSize || nNumPoints * m_nOutput > nMaxSize ||
++       nNumPoints * m_nOutput * nBytesPerPoint > nMaxSize)) {
++    return false;
++  }
++
+   if (nNumPoints > 0xFFFFFFFFu)
+     return false;
+   m_nNumPoints = (icUInt32Number)nNumPoints;
+@@ -5473,7 +5482,7 @@ bool CIccTagLut8::Read(icUInt32Number size, CIccIO *pIO)
+   if (m_CLUT == NULL)
+     return false;
+ 
+-  if ((size_t)pIO->Tell() > nEnd)
++  if ((size_t)pIO->Tell() >= nEnd)
+     return false;
+   if (!m_CLUT->Init(nGrid, (icUInt32Number)(nEnd - pIO->Tell()), 1))
+     return false;
+@@ -5950,7 +5959,7 @@ bool CIccTagLut16::Read(icUInt32Number size, CIccIO *pIO)
+   if (!m_CLUT)
+     return false;
+ 
+-  if ((size_t)pIO->Tell() > nEnd)
++  if ((size_t)pIO->Tell() >= nEnd)
+     return false;
+   if (!m_CLUT->Init(nGrid, (icUInt32Number)(nEnd - pIO->Tell()), 2))
+     return false;
