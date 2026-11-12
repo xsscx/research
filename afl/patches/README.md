@@ -7,12 +7,16 @@ checkout:
   saturating calculator work estimate used by PAWG S10 and patch 010.
 - `010-roundtrip-calculator-work-budget.patch`: rejects a round-trip before its
   sample grid when estimated calculator work exceeds the temporary
-  250,000,000-unit comparison ceiling.
+  100,000,000-unit comparison ceiling.
 
 These patches are for the next AFL/CFL comparison cycle. The ceiling is based
 on current slow-unit and compatibility controls; it is not final upstream
 policy. Patches 003 and 010 are byte-identical to their `cfl/patches/`
 counterparts and must remain synchronized.
+
+The November 12 selector-width slow-unit follow-up and budget validation are
+recorded in
+[`docs/analysis/cfl-roundtrip-calculator-budget-qa-20261112.md`](../../docs/analysis/cfl-roundtrip-calculator-budget-qa-20261112.md).
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.

@@ -27,8 +27,9 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   through BPC's three-float black-point buffer.
 - `010-roundtrip-calculator-work-budget.patch`: combines the round-trip sample
   count with selector-width-aware calculator cost before evaluating the grid.
-  The temporary 250,000,000-unit ceiling is for the next AFL/CFL comparison
-  cycle and is not final upstream policy.
+  The temporary 100,000,000-unit ceiling rejects serialized vector widths that
+  made the 17-point sanitizer grid take tens of seconds while retaining the
+  checked calculator-profile controls. It is not final upstream policy.
 - `011-binary-element-allocation-bounds.patch`: rejects curve-set child ranges
   outside their enclosing binary element and refuses a header-only CLUT before
   zero payload bytes can select the unbounded programmatic-allocation path.
@@ -104,6 +105,9 @@ are recorded in
 [`docs/analysis/cfl-tiff-strip-oom-qa-20261031.md`](../../docs/analysis/cfl-tiff-strip-oom-qa-20261031.md),
 and
 [`docs/analysis/cfl-roundtrip-slow-unit-qa-20261031.md`](../../docs/analysis/cfl-roundtrip-slow-unit-qa-20261031.md).
+The November 12 selector-width follow-up and patch 010 budget correction are
+recorded in
+[`docs/analysis/cfl-roundtrip-calculator-budget-qa-20261112.md`](../../docs/analysis/cfl-roundtrip-calculator-budget-qa-20261112.md).
 The November 11 ToXML spectral-CLUT allocation finding and patch 016 validation
 are recorded in
 [`docs/analysis/cfl-toxml-spectral-clut-oom-qa-20261111.md`](../../docs/analysis/cfl-toxml-spectral-clut-oom-qa-20261111.md).
