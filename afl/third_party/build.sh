@@ -127,6 +127,8 @@ apply_source_patch() {
 
 fetch_llvm_runtimes() {
     local source="$SOURCE_DIR/llvm-project"
+    local actual
+    local source_status
 
     if [[ ! -d "$source/.git" ]]; then
         echo "[*] Fetching llvm-project $LLVM_PROJECT_VERSION runtime sources"
@@ -138,27 +140,59 @@ fetch_llvm_runtimes() {
             llvm/utils/llvm-lit runtimes
     fi
 
-    local actual
     actual="$(git -C "$source" rev-parse HEAD)"
     if [[ "$actual" != "$LLVM_PROJECT_COMMIT" ]]; then
-        echo "[FAIL] llvm-project source is $actual; expected $LLVM_PROJECT_COMMIT ($LLVM_PROJECT_VERSION)" >&2
-        echo "       Remove $source and rerun to fetch the pinned release." >&2
-        exit 1
+        source_status="$(git -C "$source" status --porcelain)"
+        if [[ -n "$source_status" ]]; then
+            echo "[FAIL] llvm-project source is $actual with local changes; expected $LLVM_PROJECT_COMMIT ($LLVM_PROJECT_VERSION)" >&2
+            echo "       Preserve or remove the local changes before updating the pinned runtime sources." >&2
+            exit 1
+        fi
+        echo "[*] Updating llvm-project runtime sources to $LLVM_PROJECT_VERSION"
+        git -C "$source" fetch --depth 1 origin \
+            "refs/tags/$LLVM_PROJECT_VERSION"
+        git -C "$source" checkout --detach "$LLVM_PROJECT_COMMIT"
+        git -C "$source" sparse-checkout set \
+            cmake libc libcxx libcxxabi libunwind llvm/cmake \
+            llvm/utils/llvm-lit runtimes
+        actual="$(git -C "$source" rev-parse HEAD)"
+        if [[ "$actual" != "$LLVM_PROJECT_COMMIT" ]]; then
+            echo "[FAIL] llvm-project source is $actual; expected $LLVM_PROJECT_COMMIT ($LLVM_PROJECT_VERSION)" >&2
+            exit 1
+        fi
     fi
 }
 
 build_msan_libcxx() {
     local source="$SOURCE_DIR/llvm-project"
     local build="$BUILD_DIR/llvm-runtimes"
+    local cache="$build/CMakeCache.txt"
+    local config_stamp="$build/.iccdev-msan-libcxx-config"
     local backend_cc
     local backend_cxx
     local ar_bin
     local ranlib_bin
+    local source_commit
+    local config_fingerprint
+    local cached_fingerprint=""
 
     backend_cc="$(command -v "${AFL_CC:-clang-22}")"
     backend_cxx="$(command -v "${AFL_CXX:-clang++-22}")"
     ar_bin="$(command -v "$AR_BIN")"
     ranlib_bin="$(command -v "$RANLIB_BIN")"
+    source_commit="$(git -C "$source" rev-parse HEAD)"
+    config_fingerprint="v1|$source_commit|$backend_cc|$backend_cxx|$ar_bin|$ranlib_bin|$PREFIX"
+
+    if [[ -f "$config_stamp" ]]; then
+        IFS= read -r cached_fingerprint < "$config_stamp" || true
+    fi
+    if [[ -d "$build" ]] &&
+       { [[ "$cached_fingerprint" != "$config_fingerprint" ]] ||
+         [[ ! -f "$cache" ]] ||
+         ! grep -Fqx 'LLVM_ENABLE_RUNTIMES:STRING=libcxx;libcxxabi' "$cache"; }; then
+        echo "[*] Resetting stale LLVM runtimes CMake cache"
+        rm -rf "$build"
+    fi
 
     echo "[*] Configuring MemorySanitizer-instrumented libc++"
     cmake -G Ninja -S "$source/runtimes" -B "$build" \
@@ -179,6 +213,11 @@ build_msan_libcxx() {
         -DLIBCXXABI_INCLUDE_TESTS=OFF \
         -DLIBCXXABI_USE_LLVM_UNWINDER=OFF \
         -DLIBCXX_STATICALLY_LINK_ABI_IN_STATIC_LIBRARY=ON
+    if ! grep -Fqx 'LLVM_ENABLE_RUNTIMES:STRING=libcxx;libcxxabi' "$cache"; then
+        echo "[FAIL] LLVM runtime configuration omitted libc++ and libc++abi: $cache" >&2
+        exit 1
+    fi
+    printf '%s\n' "$config_fingerprint" > "$config_stamp"
     cmake --build "$build" --parallel "$JOBS" --target cxx cxxabi cxx_experimental
     cmake --install "$build" --component cxx
     cmake --install "$build" --component cxxabi
