@@ -46,6 +46,11 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   float32 MPE, Lut8, and Lut16 CLUT allocations within their encoded payloads,
   prevents zero remaining bytes from selecting `CIccCLUT::Init()`'s unbounded
   programmatic mode, and enforces the payload bound for one-dimensional CLUTs.
+- `017-composite-tag-directory-bounds.patch`: rejects nonempty tag-array and
+  tag-struct children that overlap their enclosing serialized directory before
+  nested parsing can multiply validation, description, or serialization work.
+  It also aligns the tag-array reader's fixed-header size with the 16 bytes
+  emitted by the writer.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
@@ -74,9 +79,10 @@ upstream maintainers:
   that the specification can encode. Audit real corpus tag counts and document
   compatibility before proposing that limit upstream.
 - Memory-ownership, bounds-safety, or overflow fixes such as `001`, `002`,
-  `009`, `011`, `012`, and `016` are product correctness or security candidates
-  when independently reproduced outside the fuzzer or through the affected
-  public API. Treat their upstream status separately from campaign throughput.
+  `009`, `011`, `012`, `016`, and `017` are product correctness or security
+  candidates when independently reproduced outside the fuzzer or through the
+  affected public API. Treat their upstream status separately from campaign
+  throughput.
 - The descriptor-render overload in `013` is an additive API and tooling
   efficiency candidate. Compare the unpatched and patched Release tool as well
   as the instrumented harness before assigning severity to a slow unit.
@@ -101,6 +107,9 @@ and
 The November 11 ToXML spectral-CLUT allocation finding and patch 016 validation
 are recorded in
 [`docs/analysis/cfl-toxml-spectral-clut-oom-qa-20261111.md`](../../docs/analysis/cfl-toxml-spectral-clut-oom-qa-20261111.md).
+The November 12 composite-tag directory-overlap expansion finding and patch 017
+validation are recorded in
+[`docs/analysis/cfl-toxml-composite-directory-qa-20261112.md`](../../docs/analysis/cfl-toxml-composite-directory-qa-20261112.md).
 
 Build the LibFuzzer harnesses against patched upstream `master`:
 

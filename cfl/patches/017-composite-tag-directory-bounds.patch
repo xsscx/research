@@ -1,0 +1,84 @@
+diff --git a/IccProfLib/IccTagComposite.cpp b/IccProfLib/IccTagComposite.cpp
+index 7ebcae0..381dd11 100644
+--- a/IccProfLib/IccTagComposite.cpp
++++ b/IccProfLib/IccTagComposite.cpp
+@@ -421,7 +421,9 @@ bool CIccTagStruct::Read(icUInt32Number size, CIccIO *pIO)
+   if (!pIO->Read32(&count))
+     return false;
+ 
+-  if (headerSize + (icUInt64Number)count*sizeof(icUInt32Number)*3 > size)
++  icUInt64Number directoryEnd = static_cast<icUInt64Number>(headerSize) +
++    static_cast<icUInt64Number>(count) * sizeof(icUInt32Number) * 3;
++  if (directoryEnd > size)
+     return false;
+ 
+   //Read TagDir
+@@ -431,6 +433,14 @@ bool CIccTagStruct::Read(icUInt32Number size, CIccIO *pIO)
+         !pIO->Read32(&TagEntry.TagInfo.size)) {
+       return false;
+     }
++    // A serialized member cannot overlap the fixed header or member directory.
++    // Validate all entries before LoadElem() creates any child so a later bad
++    // range cannot trigger expensive work through earlier nested composites.
++    if (TagEntry.TagInfo.offset < directoryEnd || !TagEntry.TagInfo.size ||
++        TagEntry.TagInfo.size > size ||
++        TagEntry.TagInfo.offset > size - TagEntry.TagInfo.size) {
++      return false;
++    }
+     m_ElemEntries->push_back(TagEntry);
+   }
+ 
+@@ -1287,8 +1297,7 @@ bool CIccTagArray::Read(icUInt32Number size, CIccIO *pIO)
+ 
+   icUInt32Number headerSize = sizeof(icTagTypeSignature) +
+     sizeof(icUInt32Number) +
+-    sizeof(icTagTypeSignature) +
+-    sizeof(icStructSignature) +
++    sizeof(icArraySignature) +
+     sizeof(icUInt32Number);
+ 
+   if (headerSize > size)
+@@ -1327,7 +1336,9 @@ bool CIccTagArray::Read(icUInt32Number size, CIccIO *pIO)
+     return false;
+   icUInt64Number tableBytes =
+       static_cast<icUInt64Number>(count) * sizeof(icPositionNumber);
+-  if (static_cast<icUInt64Number>(headerSize) + tableBytes > size)
++  icUInt64Number directoryEnd =
++      static_cast<icUInt64Number>(headerSize) + tableBytes;
++  if (directoryEnd > size)
+     return false;
+ 
+   if (count) {
+@@ -1348,6 +1359,21 @@ bool CIccTagArray::Read(icUInt32Number size, CIccIO *pIO)
+       }
+     }
+ 
++    // Serialized children begin after the complete position table. Validate
++    // every nonempty entry before loading any child so a directory entry cannot
++    // reinterpret later directory bytes as a nested tag and multiply parse or
++    // serialization work. Preserve the existing zero-slot behavior when either
++    // half of an entry is zero.
++    for (i=0; i<count; i++) {
++      if (!tagPos[i].offset || !tagPos[i].size)
++        continue;
++      if (tagPos[i].offset < directoryEnd || tagPos[i].size > size ||
++          tagPos[i].offset > size - tagPos[i].size) {
++        delete [] tagPos;
++        return false;
++      }
++    }
++
+     for (i=0; i<count; i++) {
+       if (!tagPos[i].offset || !tagPos[i].size) {
+         m_TagVals[i].ptr = NULL;
+@@ -1363,10 +1389,6 @@ bool CIccTagArray::Read(icUInt32Number size, CIccIO *pIO)
+         m_TagVals[i].ptr = m_TagVals[j].ptr;
+       }
+       else {
+-        if (tagPos[i].size > size || tagPos[i].offset > size - tagPos[i].size) {
+-          delete [] tagPos;
+-          return false;
+-        }
+         pIO->Seek(nTagStart + tagPos[i].offset, icSeekSet);
+ 
+         icTagTypeSignature tagSig;
