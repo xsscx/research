@@ -105,12 +105,14 @@ done
 
 ICCDEV_MSAN_LIBCXX_DIR="$PREFIX" cmake \
     -S "$ICCDEV_DIR/Build/Cmake" -B "$BUILD_DIR" \
+    -U CMAKE_DISABLE_FIND_PACKAGE_Tiff \
     -DCMAKE_C_COMPILER="$CC_BIN" \
     -DCMAKE_CXX_COMPILER="$CXX_BIN" \
     -DCMAKE_AR="$AR_BIN" \
     -DCMAKE_RANLIB="$RANLIB_BIN" \
     -DCMAKE_NM="$NM_BIN" \
     -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_PROJECT_INCLUDE="$REPO_ROOT/afl/cmake/StaticTiffDependencies.cmake" \
     -DCMAKE_PREFIX_PATH="$PREFIX" \
     -DCMAKE_C_FLAGS="-g -O0 -fPIE -fsanitize-memory-track-origins=2" \
     -DCMAKE_CXX_FLAGS="-g -O0 -fPIE -fsanitize-memory-track-origins=2 -stdlib=libc++ -nostdinc++ -isystem $PREFIX/include/c++/v1" \

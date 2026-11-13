@@ -52,11 +52,15 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   nested parsing can multiply validation, description, or serialization work.
   It also aligns the tag-array reader's fixed-header size with the 16 bytes
   emitted by the writer.
+- `018-pcc-illuminant-fallback-initialization.patch`: initializes normalized
+  and luminance illuminant outputs from the profile header when a malformed
+  spectral viewing condition has no readable illuminant, preventing callers
+  from consuming uninitialized connection-condition values.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
-Patches 003 and 010 are byte-identical to their `afl/patches/` counterparts
-and must remain synchronized for comparison cycles.
+Patches 003, 010, and 018 are byte-identical to their `afl/patches/`
+counterparts and must remain synchronized for comparison cycles.
 Patch `001` is already present on current upstream `master`. It remains in the
 stack so older comparison refs receive the same fix and current refs exercise
 the `Already applied` compatibility path. Patches `006` and `007` were removed
@@ -79,11 +83,11 @@ upstream maintainers:
 - The tag-count bound (`008`) changes the core reader and can reject profiles
   that the specification can encode. Audit real corpus tag counts and document
   compatibility before proposing that limit upstream.
-- Memory-ownership, bounds-safety, or overflow fixes such as `001`, `002`,
-  `009`, `011`, `012`, `016`, and `017` are product correctness or security
-  candidates when independently reproduced outside the fuzzer or through the
-  affected public API. Treat their upstream status separately from campaign
-  throughput.
+- Memory-ownership, initialization, bounds-safety, or overflow fixes such as
+  `001`, `002`, `009`, `011`, `012`, `016`, `017`, and `018` are
+  product correctness or security candidates when independently reproduced
+  outside the fuzzer or through the affected public API. Treat their upstream
+  status separately from campaign throughput.
 - The descriptor-render overload in `013` is an additive API and tooling
   efficiency candidate. Compare the unpatched and patched Release tool as well
   as the instrumented harness before assigning severity to a slow unit.
@@ -114,6 +118,9 @@ are recorded in
 The November 12 composite-tag directory-overlap expansion finding and patch 017
 validation are recorded in
 [`docs/analysis/cfl-toxml-composite-directory-qa-20261112.md`](../../docs/analysis/cfl-toxml-composite-directory-qa-20261112.md).
+The November 12 NamedCMM hybrid-chain MSan reproduction and patch 018
+validation are recorded in
+[`docs/analysis/afl-namedcmm-hybrid-chain-msan-qa-20261112.md`](../../docs/analysis/afl-namedcmm-hybrid-chain-msan-qa-20261112.md).
 
 Build the LibFuzzer harnesses against patched upstream `master`:
 

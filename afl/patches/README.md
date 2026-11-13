@@ -8,15 +8,22 @@ checkout:
 - `010-roundtrip-calculator-work-budget.patch`: rejects a round-trip before its
   sample grid when estimated calculator work exceeds the temporary
   100,000,000-unit comparison ceiling.
+- `018-pcc-illuminant-fallback-initialization.patch`: initializes normalized
+  and luminance illuminant outputs from the profile header when a malformed
+  spectral viewing condition has no readable illuminant, preventing the named
+  hybrid chain from consuming uninitialized connection-condition values.
 
 These patches are for the next AFL/CFL comparison cycle. The ceiling is based
 on current slow-unit and compatibility controls; it is not final upstream
-policy. Patches 003 and 010 are byte-identical to their `cfl/patches/`
+policy. Patches 003, 010, and 018 are byte-identical to their `cfl/patches/`
 counterparts and must remain synchronized.
 
 The November 12 selector-width slow-unit follow-up and budget validation are
 recorded in
 [`docs/analysis/cfl-roundtrip-calculator-budget-qa-20261112.md`](../../docs/analysis/cfl-roundtrip-calculator-budget-qa-20261112.md).
+The November 12 NamedCMM hybrid-chain MSan reproduction and patch 018
+validation are recorded in
+[`docs/analysis/afl-namedcmm-hybrid-chain-msan-qa-20261112.md`](../../docs/analysis/afl-namedcmm-hybrid-chain-msan-qa-20261112.md).
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
