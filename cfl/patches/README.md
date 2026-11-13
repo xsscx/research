@@ -121,6 +121,9 @@ validation are recorded in
 The November 12 NamedCMM hybrid-chain MSan reproduction and patch 018
 validation are recorded in
 [`docs/analysis/afl-namedcmm-hybrid-chain-msan-qa-20261112.md`](../../docs/analysis/afl-namedcmm-hybrid-chain-msan-qa-20261112.md).
+The November 12 PAWG 13-channel Q3 slow-unit review and no-patch disposition
+are recorded in
+[`docs/analysis/cfl-pawgreport-13-channel-slow-unit-qa-20261112.md`](../../docs/analysis/cfl-pawgreport-13-channel-slow-unit-qa-20261112.md).
 
 Build the LibFuzzer harnesses against patched upstream `master`:
 
