@@ -36,7 +36,8 @@ cd colorbleed_tools && make setup && make
 
 1. **ICC -> XML**: Convert binary ICC profiles to human-readable XML for inspection
 2. **XML -> ICC**: Reconstruct ICC profiles from XML (enables manual mutation testing)
-3. **ICC -> JSON**: Convert binary ICC profiles to IccJSON for structured mutation
+3. **ICC -> JSON**: Convert valid binary ICC profiles to IccJSON for structured
+   mutation; emit bounded `IccProfileDiagnostic` JSON for malformed blobs
 4. **JSON -> ICC**: Reconstruct ICC profiles from IccJSON
 5. **TIFF -> ICC**: Dump TIFF structure and preserve embedded ICC bytes for analysis
 6. **JPEG -> ICC**: Reassemble APP2 chunks and preserve embedded ICC bytes
@@ -77,6 +78,11 @@ COLORBLEED_STRICT_SANITIZERS=1 ./iccFromXml_unsafe input.xml /tmp/out.icc
 Do not pass `-sort` to `iccToJson_unsafe` in ColorBleed QA. The wrapper rejects
 that option with exit code 64 until the sorted JSON writer path is
 sanitizer-clean.
+
+`iccToXml_unsafe` and `iccToJson_unsafe` exit 6 after successfully writing raw
+diagnostic analysis when pre-flight is critical or `CIccProfile::Read()` fails.
+The JSON diagnostic has top-level key `IccProfileDiagnostic`; it is not an
+IccJSON profile and is not input for `iccFromJson_unsafe`.
 
 ## Integration with current upstream assessment
 
@@ -134,6 +140,9 @@ ERROR: Failed to read tag data at offset 0x1234
 
 Stdout is reserved for status and structured dump messages. Converted XML,
 JSON, and extracted ICC bytes are written to the requested output path.
+For malformed ICC blobs, exit 6 means the requested XML or JSON diagnostic was
+written successfully; retain that output as forensic data rather than treating
+it as a round-trippable profile representation.
 For TIFF automation, use `--evidence-json`: stdout then contains exactly one
 `colorbleed-tiff-evidence/v1` object, while diagnostics remain on stderr. Do not
 parse the verbose directory dump. The extraction is atomically published before

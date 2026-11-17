@@ -1,6 +1,6 @@
 # Hoyt's ColorBleed Tooling
 
-Last Updated: 2026-10-21 UTC by David Hoyt
+Last Updated: 2026-11-17 UTC by David Hoyt
 
 ICC Color Profile research tools to load & store unsafe file representations.
 
@@ -10,7 +10,7 @@ ICC Color Profile research tools to load & store unsafe file representations.
 |--------|-------------|
 | `iccToXml_unsafe` | ICC Profile -> XML (unsafe load) |
 | `iccFromXml_unsafe` | XML -> ICC Profile blob (unsafe store) |
-| `iccToJson_unsafe` | ICC Profile -> JSON (unsafe load; `-sort` is disabled in this wrapper pending sanitizer hardening) |
+| `iccToJson_unsafe` | ICC Profile -> IccJSON, with diagnostic JSON fallback for malformed binary blobs (`-sort` remains disabled) |
 | `iccFromJson_unsafe` | JSON -> ICC Profile blob (unsafe store) |
 | `iccTiffDump_unsafe` | Sandboxed TIFF dump and byte-exact embedded ICC extraction |
 | `iccJpegDump_unsafe` | Sandboxed JPEG APP2 inspection and byte-exact embedded ICC extraction |
@@ -169,6 +169,14 @@ make test        # build tools and run tests
   test-data/1x1-rgb8--sRGB_v4_ICC_preference.tiff /tmp/embedded.icc
 ./iccJpegDump_unsafe --forensic input.jpg /tmp/embedded-jpeg.icc
 ```
+
+When `CIccProfile::Read()` rejects a binary blob, `iccToXml_unsafe` and
+`iccToJson_unsafe` both preserve bounded raw header, tag-table, preview, and
+anomaly analysis in their requested representation and exit 6. Diagnostic JSON
+uses the top-level key `IccProfileDiagnostic`, never `IccProfile`; it is valid
+JSON for forensic inspection but is not an IccJSON profile and must not be
+passed to `iccFromJson_unsafe`. Critical pre-flight findings take the same
+diagnostic path without invoking the iccDEV profile parser.
 
 TIFF extraction happens before ICC parsing and validation. With upstream
 iccDEV `3e348201` or later, a deeply nested profile can be preserved exactly and

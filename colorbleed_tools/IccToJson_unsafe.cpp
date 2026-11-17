@@ -28,6 +28,7 @@
 #define COLORBLEED_SKIP_XML_PREFLIGHT
 #include "ColorBleedPreflight.h"
 #include "ColorBleedSandbox.h"
+#include "ColorBleedDiagnosticJson.h"
 
 static std::string* g_json_output = nullptr;
 static char         g_dst_path[PATH_MAX] = {0};
@@ -102,6 +103,47 @@ static void WritePartialOutput() {
   }
 }
 
+static bool WriteDiagnosticJsonOutput(const char* src_path,
+                                      const char* dst_path,
+                                      const char* failure_reason,
+                                      int indent,
+                                      size_t& output_size) {
+  output_size = 0;
+  std::string diagnostic_json;
+  try {
+    if (!GenerateDiagnosticJson(src_path, diagnostic_json, failure_reason,
+                                indent)) {
+      return false;
+    }
+  } catch (const std::exception& e) {
+    fprintf(stderr, "[ColorBleed] Diagnostic JSON generation failed: %s\n",
+            e.what());
+    return false;
+  }
+
+  diagnostic_json += '\n';
+  int fd = open(dst_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (fd < 0) {
+    return false;
+  }
+
+  FILE* file = fdopen(fd, "wb");
+  if (!file) {
+    close(fd);
+    return false;
+  }
+
+  size_t written =
+      fwrite(diagnostic_json.data(), 1, diagnostic_json.size(), file);
+  fclose(file);
+  if (written != diagnostic_json.size()) {
+    return false;
+  }
+
+  output_size = written;
+  return true;
+}
+
 int main(int argc, char* argv[])
 {
   if (argc == 2 && IsHelpFlag(argv[1])) {
@@ -169,6 +211,33 @@ int main(int argc, char* argv[])
     limits.max_wall_sec = 15;
   }
 
+  if (preflight.worst == PreflightSeverity::CRITICAL) {
+    fprintf(stderr,
+            "[ColorBleed] CRITICAL pre-flight -- routing to diagnostic JSON\n");
+    std::string reason = "Pre-flight CRITICAL:";
+    for (const auto& warning : preflight.warnings) {
+      if (warning.severity == PreflightSeverity::CRITICAL) {
+        reason += " [" + warning.heuristic + "] " + warning.message + ";";
+      }
+    }
+
+    size_t diagnostic_size = 0;
+    if (WriteDiagnosticJsonOutput(src_path, dst_path, reason.c_str(), indent,
+                                  diagnostic_size)) {
+      printf("[ColorBleed] Diagnostic JSON written (%zu bytes) -> %s\n",
+             diagnostic_size, dst_path);
+      printf("[ColorBleed] CRITICAL pre-flight: ToJson skipped to prevent "
+             "parser errors\n");
+      printf("[ColorBleed] Output contains raw binary analysis -- NOT a valid "
+             "IccJSON profile\n");
+      return 6;
+    }
+
+    fprintf(stderr,
+            "[ColorBleed] WARNING: diagnostic JSON generation failed, "
+            "attempting ToJson\n");
+  }
+
   SandboxResult result = RunSandboxed([&]() -> int {
     CIccTagCreator::PushFactory(new CIccTagJsonFactory());
     CIccMpeCreator::PushFactory(new CIccMpeJsonFactory());
@@ -182,7 +251,27 @@ int main(int argc, char* argv[])
     }
 
     if (!profile.Read(&srcIO)) {
-      fprintf(stderr, "Unable to read '%s'\n", src_path);
+      fprintf(stderr,
+              "Unable to read '%s' -- generating diagnostic JSON from raw "
+              "binary\n",
+              src_path);
+      srcIO.Close();
+
+      size_t diagnostic_size = 0;
+      if (WriteDiagnosticJsonOutput(
+              src_path, dst_path,
+              "iccDEV CIccProfile::Read() returned false", indent,
+              diagnostic_size)) {
+        fprintf(stderr,
+                "[ColorBleed] Diagnostic JSON written (%zu bytes) -> %s\n",
+                diagnostic_size, dst_path);
+        printf("[ColorBleed] DIAGNOSTIC MODE: profile malformed, raw analysis "
+               "written\n");
+        return 6;
+      }
+
+      fprintf(stderr, "[ColorBleed] Failed to write diagnostic JSON to %s\n",
+              dst_path);
       return 2;
     }
 
@@ -247,6 +336,15 @@ int main(int argc, char* argv[])
     fprintf(stderr, "Unable to write '%s'\n", dst_path);
     return 5;
   }, limits);
+
+  if (result.exit_code == 6 && !result.timed_out && !result.oom_killed &&
+      result.signal_num == 0) {
+    printf("\n[ColorBleed] Diagnostic JSON written (profile malformed, "
+           "library Read failed)\n");
+    printf("[ColorBleed] Output contains raw binary analysis -- NOT a valid "
+           "IccJSON profile\n");
+    return 6;
+  }
 
   result.Report("ICC -> JSON", src_path);
 

@@ -59,6 +59,13 @@ make setup
 Do not pass `-sort` to `iccToJson_unsafe` in ColorBleed QA. That wrapper exits
 64 for `-sort` until the sorted JSON writer path is sanitizer-clean.
 
+If the ICC binary is malformed, `iccToJson_unsafe` writes bounded raw analysis
+under `IccProfileDiagnostic` and exits 6, matching the diagnostic behavior of
+`iccToXml_unsafe`. This is valid forensic JSON but not an IccJSON profile: do
+not feed it to `iccFromJson_unsafe`. Treat the output as successfully preserved
+diagnostic evidence and inspect `Status`, `FailureReason`, `Header`, `TagTable`,
+and `Anomalies`.
+
 For sanitizer reproductions of malformed profile JSON, keep STL/libstdc++
 template noise suppressed while preserving iccDEV parser reports:
 
