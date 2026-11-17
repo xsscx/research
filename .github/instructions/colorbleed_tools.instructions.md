@@ -35,10 +35,12 @@ cd colorbleed_tools && make setup && make
 ## Purpose
 
 1. **ICC -> XML**: Convert binary ICC profiles to human-readable XML for inspection
-2. **XML -> ICC**: Reconstruct ICC profiles from XML (enables manual mutation testing)
+2. **XML -> ICC**: Reconstruct ICC profiles from XML or explicitly restore a
+   verified diagnostic binary envelope
 3. **ICC -> JSON**: Convert valid binary ICC profiles to IccJSON for structured
    mutation; emit bounded `IccProfileDiagnostic` JSON for malformed blobs
-4. **JSON -> ICC**: Reconstruct ICC profiles from IccJSON
+4. **JSON -> ICC**: Reconstruct ICC profiles from IccJSON or explicitly restore
+   a verified diagnostic binary envelope
 5. **TIFF -> ICC**: Dump TIFF structure and preserve embedded ICC bytes for analysis
 6. **JPEG -> ICC**: Reassemble APP2 chunks and preserve embedded ICC bytes
 7. **Round-trip testing**: ICC -> XML/JSON -> ICC to verify parse/serialize fidelity
@@ -59,6 +61,10 @@ cd colorbleed_tools && make setup && make
 
 # Convert JSON to ICC
 ./iccFromJson_unsafe input.json output.icc
+
+# Restore exact malformed bytes from lossless diagnostic output
+./iccFromXml_unsafe diagnostic.xml restored.icc --restore-diagnostic
+./iccFromJson_unsafe diagnostic.json restored.icc --restore-diagnostic
 
 # Dump TIFF structure, ICC diagnostics, and exact embedded profile bytes
 ./iccTiffDump_unsafe input.tif output.icc
@@ -81,8 +87,12 @@ sanitizer-clean.
 
 `iccToXml_unsafe` and `iccToJson_unsafe` exit 6 after successfully writing raw
 diagnostic analysis when pre-flight is critical or `CIccProfile::Read()` fails.
-The JSON diagnostic has top-level key `IccProfileDiagnostic`; it is not an
-IccJSON profile and is not input for `iccFromJson_unsafe`.
+The JSON diagnostic has top-level key `IccProfileDiagnostic`; it is not a
+semantic IccJSON profile. For inputs up to 32 MiB, both representations contain
+a `colorbleed-binary-envelope/v1` payload. Only `--restore-diagnostic` may
+decode it; restoration must verify the complete, declared-profile, and trailing
+lengths and SHA-256 values before atomically publishing the original bytes.
+Treat this as representation fidelity, not successful semantic parsing.
 
 ## Integration with current upstream assessment
 
@@ -142,7 +152,8 @@ Stdout is reserved for status and structured dump messages. Converted XML,
 JSON, and extracted ICC bytes are written to the requested output path.
 For malformed ICC blobs, exit 6 means the requested XML or JSON diagnostic was
 written successfully; retain that output as forensic data rather than treating
-it as a round-trippable profile representation.
+it as a semantic round-trip profile representation. Explicit diagnostic
+restoration returns 0 only after byte length and hash verification succeeds.
 For TIFF automation, use `--evidence-json`: stdout then contains exactly one
 `colorbleed-tiff-evidence/v1` object, while diagnostics remain on stderr. Do not
 parse the verbose directory dump. The extraction is atomically published before

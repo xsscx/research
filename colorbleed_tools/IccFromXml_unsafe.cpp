@@ -38,12 +38,19 @@
 #include "IccLibXMLVer.h"
 #define COLORBLEED_SKIP_ICC_PREFLIGHT
 #include "ColorBleedPreflight.h"
+#include "ColorBleedBinaryEnvelope.h"
 #include "ColorBleedSandbox.h"
+#include <cerrno>
 #include <cstring>
 #include <climits>
 #include <cstdlib>
 #include <fcntl.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <string>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <vector>
 
 static constexpr int kExitUsage = 64;
 static constexpr int kExitNoInput = 66;
@@ -55,9 +62,188 @@ static bool IsHelpFlag(const char* arg) {
 static void PrintUsage() {
   printf("IccFromXml_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibXML Version " ICCLIBXMLVER "\n");
   printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
-  printf("Usage: IccFromXml_unsafe xml_file saved_profile_file {-noid -v{=[relax_ng_schema_file]}}\n");
+  printf("Usage: IccFromXml_unsafe xml_file saved_profile_file "
+         "{-noid -v{=[relax_ng_schema_file]}|--restore-diagnostic}\n");
+  printf("  --restore-diagnostic  restore and verify a ColorBleed binary envelope\n");
   printf("  Sandboxed: fork-isolated with ASan/UBSan recoverable mode\n");
   printf("\n");
+}
+
+static bool GetXmlAttribute(xmlNodePtr node,
+                            const char* name,
+                            std::string& value,
+                            std::string& error) {
+  xmlChar* attribute = xmlGetProp(node, BAD_CAST name);
+  if (!attribute) {
+    error = std::string("BinaryEnvelope attribute is missing: ") + name;
+    return false;
+  }
+  value = reinterpret_cast<const char*>(attribute);
+  xmlFree(attribute);
+  return true;
+}
+
+static bool ParseXmlUnsigned(const std::string& text,
+                             const char* name,
+                             uint64_t& value,
+                             std::string& error) {
+  if (text.empty() || text[0] == '-') {
+    error = std::string("BinaryEnvelope attribute is not unsigned: ") + name;
+    return false;
+  }
+  for (unsigned char character : text) {
+    if (character < '0' || character > '9') {
+      error = std::string("BinaryEnvelope attribute is not unsigned: ") + name;
+      return false;
+    }
+  }
+  errno = 0;
+  char* end = nullptr;
+  unsigned long long parsed = strtoull(text.c_str(), &end, 10);
+  if (errno == ERANGE || !end || *end != '\0') {
+    error = std::string("BinaryEnvelope attribute is not unsigned: ") + name;
+    return false;
+  }
+  value = static_cast<uint64_t>(parsed);
+  return true;
+}
+
+static bool LoadXmlBinaryEnvelope(const char* xml_path,
+                                  ColorBleedBinaryEnvelope& envelope,
+                                  std::string& error) {
+  xmlDocPtr document = xmlReadFile(
+      xml_path, nullptr,
+      XML_PARSE_NONET | XML_PARSE_NOERROR | XML_PARSE_NOWARNING |
+          XML_PARSE_COMPACT);
+  if (!document) {
+    error = "unable to parse diagnostic XML";
+    return false;
+  }
+  if (document->intSubset || document->extSubset) {
+    xmlFreeDoc(document);
+    error = "diagnostic XML must not contain a document type declaration";
+    return false;
+  }
+
+  xmlNodePtr root = xmlDocGetRootElement(document);
+  if (!root || root->type != XML_ELEMENT_NODE ||
+      !xmlStrEqual(root->name, BAD_CAST "IccProfileDiagnostic")) {
+    xmlFreeDoc(document);
+    error = "missing root IccProfileDiagnostic element";
+    return false;
+  }
+
+  xmlNodePtr binary = nullptr;
+  for (xmlNodePtr child = root->children; child; child = child->next) {
+    if (child->type == XML_ELEMENT_NODE &&
+        xmlStrEqual(child->name, BAD_CAST "BinaryEnvelope")) {
+      binary = child;
+      break;
+    }
+  }
+  if (!binary) {
+    xmlFreeDoc(document);
+    error = "missing IccProfileDiagnostic/BinaryEnvelope element";
+    return false;
+  }
+
+  std::string format;
+  std::string restorable;
+  std::string encoding;
+  std::string length;
+  std::string header_declared_length;
+  std::string declared_length;
+  std::string trailing_length;
+  if (!GetXmlAttribute(binary, "format", format, error) ||
+      !GetXmlAttribute(binary, "restorable", restorable, error) ||
+      !GetXmlAttribute(binary, "encoding", encoding, error) ||
+      !GetXmlAttribute(binary, "length", length, error) ||
+      !GetXmlAttribute(binary, "headerDeclaredProfileLength",
+                       header_declared_length, error) ||
+      !GetXmlAttribute(binary, "declaredProfileLength", declared_length,
+                       error) ||
+      !GetXmlAttribute(binary, "trailingLength", trailing_length, error)) {
+    xmlFreeDoc(document);
+    return false;
+  }
+  if (format != kColorBleedEnvelopeFormat) {
+    xmlFreeDoc(document);
+    error = "unsupported diagnostic binary envelope format";
+    return false;
+  }
+  if (restorable != "true") {
+    std::string omission_reason;
+    if (GetXmlAttribute(binary, "omissionReason", omission_reason, error)) {
+      error = omission_reason;
+    } else {
+      error = "diagnostic binary envelope is not restorable";
+    }
+    xmlFreeDoc(document);
+    return false;
+  }
+  envelope.restorable = true;
+  if (encoding != "base64") {
+    xmlFreeDoc(document);
+    error = "unsupported diagnostic binary envelope encoding";
+    return false;
+  }
+  if (!ParseXmlUnsigned(length, "length", envelope.length, error) ||
+      !ParseXmlUnsigned(header_declared_length,
+                        "headerDeclaredProfileLength",
+                        envelope.header_declared_profile_length, error) ||
+      !ParseXmlUnsigned(declared_length, "declaredProfileLength",
+                        envelope.declared_profile_length, error) ||
+      !ParseXmlUnsigned(trailing_length, "trailingLength",
+                        envelope.trailing_length, error) ||
+      !GetXmlAttribute(binary, "sha256", envelope.sha256, error) ||
+      !GetXmlAttribute(binary, "declaredProfileSha256",
+                       envelope.declared_profile_sha256, error) ||
+      !GetXmlAttribute(binary, "trailingSha256", envelope.trailing_sha256,
+                       error)) {
+    xmlFreeDoc(document);
+    return false;
+  }
+
+  xmlChar* content = xmlNodeGetContent(binary);
+  if (!content) {
+    xmlFreeDoc(document);
+    error = "diagnostic binary envelope has no base64 content";
+    return false;
+  }
+  envelope.data_base64 = reinterpret_cast<const char*>(content);
+  xmlFree(content);
+  xmlFreeDoc(document);
+  return true;
+}
+
+static int RestoreDiagnosticXml(const char* xml_path, const char* icc_path) {
+  ColorBleedBinaryEnvelope envelope;
+  std::string error;
+  if (!LoadXmlBinaryEnvelope(xml_path, envelope, error)) {
+    fprintf(stderr, "[ColorBleed] Unable to load diagnostic envelope: %s\n",
+            error.c_str());
+    return 1;
+  }
+
+  std::vector<uint8_t> bytes;
+  if (!ColorBleedVerifyEnvelope(envelope, bytes, error)) {
+    fprintf(stderr, "[ColorBleed] Diagnostic envelope verification failed: %s\n",
+            error.c_str());
+    return 1;
+  }
+  if (!ColorBleedWriteAtomic(icc_path, bytes, error)) {
+    fprintf(stderr, "[ColorBleed] Diagnostic restore failed: %s\n",
+            error.c_str());
+    return 2;
+  }
+
+  printf("[ColorBleed] Restored %zu binary bytes (sha256=%s)\n",
+         bytes.size(), envelope.sha256.c_str());
+  printf("[ColorBleed] Declared profile: %llu bytes  Trailing data: %llu bytes\n",
+         static_cast<unsigned long long>(envelope.declared_profile_length),
+         static_cast<unsigned long long>(envelope.trailing_length));
+  fflush(stdout);
+  return 0;
 }
 
 /** Convert ICC XML profile to binary format in a sandboxed child process. */
@@ -81,12 +267,16 @@ int main(int argc, char* argv[])
 
   // Parse optional flags before fork
   bool bNoId = false;
+  bool restore_diagnostic = false;
   std::string szRelaxNGDir;
   const char* szRelaxNGFileName = "SampleIccRELAX.rng";
 
   for (int i=3; i<argc; i++) {
     if (!stricmp(argv[i], "-noid")) {
       bNoId = true;
+    }
+    else if (!stricmp(argv[i], "--restore-diagnostic")) {
+      restore_diagnostic = true;
     }
     else if (!strncmp(argv[i], "-v", 2) || !strncmp(argv[i], "-V", 2)) {
       if (argv[i][2]=='=') {
@@ -128,9 +318,39 @@ int main(int argc, char* argv[])
   const char* xml_path = resolved_xml;
   const char* icc_path = safe_dst.c_str();
 
-  printf("[ColorBleed] Sandboxed XML->ICC conversion\n");
+  printf("[ColorBleed] Sandboxed XML->ICC %s\n",
+         restore_diagnostic ? "diagnostic restoration" : "conversion");
   printf("[ColorBleed] Input:  %s\n", xml_path);
   printf("[ColorBleed] Output: %s\n", icc_path);
+
+  if (restore_diagnostic) {
+    struct stat input_stat;
+    if (stat(xml_path, &input_stat) != 0 || input_stat.st_size < 0 ||
+        input_stat.st_size > static_cast<off_t>(64) * 1024 * 1024) {
+      fprintf(stderr,
+              "[ColorBleed] Diagnostic XML exceeds the 64 MB restore limit\n");
+      return 1;
+    }
+
+    SandboxLimits restore_limits;
+    restore_limits.max_mem_mb = 4096;
+    restore_limits.max_cpu_sec = 30;
+    restore_limits.max_fsize_mb = 128;
+    restore_limits.max_wall_sec = 15;
+    SandboxResult restore_result = RunSandboxed([&]() -> int {
+      return RestoreDiagnosticXml(xml_path, icc_path);
+    }, restore_limits);
+    restore_result.Report("Diagnostic XML -> ICC bytes", xml_path);
+    if (restore_result.SanitizerFinding()) {
+      printf("[ColorBleed] FINDING: Input triggered sanitizer report\n");
+      return restore_result.exit_code;
+    }
+    if (restore_result.crashed) {
+      printf("[ColorBleed] FINDING: Input triggered library crash\n");
+      return 100 + restore_result.signal_num;
+    }
+    return restore_result.exit_code;
+  }
 
   // Pre-flight validation (file size, XXE detection -- no iccDEV calls)
   PreflightResult preflight = PreflightValidateXML(xml_path);

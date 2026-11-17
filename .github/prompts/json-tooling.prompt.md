@@ -61,10 +61,20 @@ Do not pass `-sort` to `iccToJson_unsafe` in ColorBleed QA. That wrapper exits
 
 If the ICC binary is malformed, `iccToJson_unsafe` writes bounded raw analysis
 under `IccProfileDiagnostic` and exits 6, matching the diagnostic behavior of
-`iccToXml_unsafe`. This is valid forensic JSON but not an IccJSON profile: do
-not feed it to `iccFromJson_unsafe`. Treat the output as successfully preserved
-diagnostic evidence and inspect `Status`, `FailureReason`, `Header`, `TagTable`,
-and `Anomalies`.
+`iccToXml_unsafe`. This is valid forensic JSON but not a semantic IccJSON
+profile. Inspect `Status`, `FailureReason`, `Header`, `TagTable`, and
+`Anomalies`.
+
+Diagnostics for blobs up to 32 MiB include a lossless
+`colorbleed-binary-envelope/v1` payload. Restore it only through the explicit
+mode, which validates complete, declared-profile, and trailing-data hashes:
+
+```bash
+./iccFromJson_unsafe diagnostic.json restored.icc --restore-diagnostic
+```
+
+A byte-identical restored blob proves representation fidelity, not semantic
+parser acceptance; the malformed profile may still fail `CIccProfile::Read()`.
 
 For sanitizer reproductions of malformed profile JSON, keep STL/libstdc++
 template noise suppressed while preserving iccDEV parser reports:

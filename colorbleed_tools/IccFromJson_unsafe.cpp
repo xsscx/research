@@ -26,6 +26,7 @@
 #include "IccProfLibVer.h"
 #include "IccLibJSONVer.h"
 
+#include "ColorBleedBinaryEnvelope.h"
 #include "ColorBleedSandbox.h"
 
 #ifdef _WIN32
@@ -59,7 +60,9 @@ static bool IsHelpFlag(const char* arg) {
 static void PrintUsage() {
   printf("IccFromJson_unsafe built with IccProfLib Version " ICCPROFLIBVER ", IccLibJSON Version " ICCLIBJSONVER "\n");
   printf("Copyright (c) 2021-2026 David H Hoyt LLC\n");
-  printf("Usage: IccFromJson_unsafe json_file saved_profile_file {-noid}\n");
+  printf("Usage: IccFromJson_unsafe json_file saved_profile_file "
+         "{-noid|--restore-diagnostic}\n");
+  printf("  --restore-diagnostic  restore and verify a ColorBleed binary envelope\n");
   printf("  Sandboxed: fork-isolated with ASan/UBSan recoverable mode\n");
   printf("\n");
 }
@@ -222,6 +225,154 @@ static void WriteDiagnosticSidecar(const char* icc_path,
   fprintf(stderr, "[ColorBleed] Diagnostic sidecar written: %s\n", sidecar_path.c_str());
 }
 
+static bool GetJsonString(const IccJson& object,
+                          const char* name,
+                          std::string& value,
+                          std::string& error) {
+  if (!object.contains(name) || !object[name].is_string()) {
+    error = std::string("BinaryEnvelope.") + name + " must be a string";
+    return false;
+  }
+  value = object[name].get<std::string>();
+  return true;
+}
+
+static bool GetJsonUnsigned(const IccJson& object,
+                            const char* name,
+                            uint64_t& value,
+                            std::string& error) {
+  if (!object.contains(name)) {
+    error = std::string("BinaryEnvelope.") + name + " is missing";
+    return false;
+  }
+  const IccJson& field = object[name];
+  if (field.is_number_unsigned()) {
+    value = field.get<uint64_t>();
+    return true;
+  }
+  if (field.is_number_integer()) {
+    int64_t signed_value = field.get<int64_t>();
+    if (signed_value >= 0) {
+      value = static_cast<uint64_t>(signed_value);
+      return true;
+    }
+  }
+  error = std::string("BinaryEnvelope.") + name +
+      " must be a non-negative integer";
+  return false;
+}
+
+static bool LoadJsonBinaryEnvelope(const char* json_path,
+                                   ColorBleedBinaryEnvelope& envelope,
+                                   std::string& error) {
+  std::ifstream input(json_path, std::ios::binary);
+  if (!input.is_open()) {
+    error = "unable to open diagnostic JSON";
+    return false;
+  }
+
+  IccJson root;
+  try {
+    input >> root;
+  } catch (const std::exception& exception) {
+    error = std::string("unable to parse diagnostic JSON: ") +
+        exception.what();
+    return false;
+  }
+
+  if (!root.is_object() || !root.contains("IccProfileDiagnostic") ||
+      !root["IccProfileDiagnostic"].is_object()) {
+    error = "missing object root.IccProfileDiagnostic";
+    return false;
+  }
+  const IccJson& diagnostic = root["IccProfileDiagnostic"];
+  if (!diagnostic.contains("BinaryEnvelope") ||
+      !diagnostic["BinaryEnvelope"].is_object()) {
+    error = "missing object IccProfileDiagnostic.BinaryEnvelope";
+    return false;
+  }
+  const IccJson& binary = diagnostic["BinaryEnvelope"];
+
+  std::string format;
+  std::string encoding;
+  if (!GetJsonString(binary, "Format", format, error) ||
+      format != kColorBleedEnvelopeFormat) {
+    if (error.empty()) {
+      error = "unsupported diagnostic binary envelope format";
+    }
+    return false;
+  }
+  if (!binary.contains("Restorable") || !binary["Restorable"].is_boolean()) {
+    error = "BinaryEnvelope.Restorable must be boolean";
+    return false;
+  }
+  envelope.restorable = binary["Restorable"].get<bool>();
+  if (!envelope.restorable) {
+    if (binary.contains("OmissionReason") &&
+        binary["OmissionReason"].is_string()) {
+      envelope.omission_reason =
+          binary["OmissionReason"].get<std::string>();
+    }
+    error = envelope.omission_reason.empty()
+        ? "diagnostic binary envelope is not restorable"
+        : envelope.omission_reason;
+    return false;
+  }
+  if (!GetJsonString(binary, "Encoding", encoding, error) ||
+      encoding != "base64") {
+    if (error.empty()) {
+      error = "unsupported diagnostic binary envelope encoding";
+    }
+    return false;
+  }
+  if (!GetJsonUnsigned(binary, "Length", envelope.length, error) ||
+      !GetJsonUnsigned(binary, "HeaderDeclaredProfileLength",
+                       envelope.header_declared_profile_length, error) ||
+      !GetJsonUnsigned(binary, "DeclaredProfileLength",
+                       envelope.declared_profile_length, error) ||
+      !GetJsonUnsigned(binary, "TrailingLength", envelope.trailing_length,
+                       error) ||
+      !GetJsonString(binary, "SHA256", envelope.sha256, error) ||
+      !GetJsonString(binary, "DeclaredProfileSHA256",
+                     envelope.declared_profile_sha256, error) ||
+      !GetJsonString(binary, "TrailingSHA256", envelope.trailing_sha256,
+                     error) ||
+      !GetJsonString(binary, "Data", envelope.data_base64, error)) {
+    return false;
+  }
+  return true;
+}
+
+static int RestoreDiagnosticJson(const char* json_path, const char* icc_path) {
+  ColorBleedBinaryEnvelope envelope;
+  std::string error;
+  if (!LoadJsonBinaryEnvelope(json_path, envelope, error)) {
+    fprintf(stderr, "[ColorBleed] Unable to load diagnostic envelope: %s\n",
+            error.c_str());
+    return 1;
+  }
+
+  std::vector<uint8_t> bytes;
+  if (!ColorBleedVerifyEnvelope(envelope, bytes, error)) {
+    fprintf(stderr, "[ColorBleed] Diagnostic envelope verification failed: %s\n",
+            error.c_str());
+    return 1;
+  }
+  if (!ColorBleedWriteAtomic(icc_path, bytes, error)) {
+    fprintf(stderr, "[ColorBleed] Diagnostic restore failed: %s\n",
+            error.c_str());
+    return 2;
+  }
+
+  printf("[ColorBleed] Restored %zu binary bytes (sha256=%s)\n",
+         bytes.size(), envelope.sha256.c_str());
+  printf("[ColorBleed] Declared profile: %llu bytes  Trailing data: %llu bytes\n",
+         static_cast<unsigned long long>(envelope.declared_profile_length),
+         static_cast<unsigned long long>(envelope.trailing_length));
+  fflush(stdout);
+  return 0;
+}
+
 int main(int argc, char* argv[])
 {
   if (argc == 2 && IsHelpFlag(argv[1])) {
@@ -240,9 +391,12 @@ int main(int argc, char* argv[])
   }
 
   bool bNoId = false;
+  bool restore_diagnostic = false;
   for (int i = 3; i < argc; i++) {
     if (!ICC_STRICMP(argv[i], "-noid")) {
       bNoId = true;
+    } else if (!ICC_STRICMP(argv[i], "--restore-diagnostic")) {
+      restore_diagnostic = true;
     }
   }
 
@@ -260,7 +414,8 @@ int main(int argc, char* argv[])
     return kExitNoInput;
   }
 
-  printf("[ColorBleed] Sandboxed JSON->ICC conversion\n");
+  printf("[ColorBleed] Sandboxed JSON->ICC %s\n",
+         restore_diagnostic ? "diagnostic restoration" : "conversion");
   printf("[ColorBleed] Input:  %s\n", json_path);
   printf("[ColorBleed] Output: %s\n", icc_path);
 
@@ -277,6 +432,28 @@ int main(int argc, char* argv[])
   } else {
     fprintf(stderr, "[ColorBleed] JSON pre-flight: %lld bytes\n",
             static_cast<long long>(st.st_size));
+  }
+
+  if (restore_diagnostic) {
+    if (st.st_size < 0 || st.st_size > kMaxJsonFileBytes) {
+      fprintf(stderr,
+              "[ColorBleed] Diagnostic JSON exceeds the 64 MB restore limit\n");
+      return 1;
+    }
+
+    SandboxResult restore_result = RunSandboxed([&]() -> int {
+      return RestoreDiagnosticJson(json_path, icc_path);
+    }, limits);
+    restore_result.Report("Diagnostic JSON -> ICC bytes", json_path);
+    if (restore_result.SanitizerFinding()) {
+      printf("[ColorBleed] FINDING: Input triggered sanitizer report\n");
+      return restore_result.exit_code;
+    }
+    if (restore_result.crashed) {
+      printf("[ColorBleed] FINDING: Input triggered library crash\n");
+      return 100 + restore_result.signal_num;
+    }
+    return restore_result.exit_code;
   }
 
   JsonPreflightSummary json_summary = PreflightJsonFile(json_path);

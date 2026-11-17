@@ -269,6 +269,11 @@ build_config() {
 
     if [ "$bin" = "iccTiffDump_unsafe" ]; then
       tool_link_libs="$(pkg-config --libs libtiff-4 openssl 2>/dev/null || echo '-ltiff -lcrypto')"
+    elif [ "$bin" = "iccToXml_unsafe" ] ||
+         [ "$bin" = "iccFromXml_unsafe" ] ||
+         [ "$bin" = "iccToJson_unsafe" ] ||
+         [ "$bin" = "iccFromJson_unsafe" ]; then
+      tool_link_libs="$(pkg-config --libs libcrypto 2>/dev/null || echo '-lcrypto')"
     fi
 
     echo "  Building $bin..."
@@ -341,6 +346,8 @@ echo "    bin/sanitizer/iccToXml_unsafe input.icc output.xml"
 echo "  LLVM_PROFILE_FILE=/tmp/colorbleed-%m.profraw \\"
 echo "    bin/sanitizer/iccToJson_unsafe input.icc output.json"
 echo "  COLORBLEED_STRICT_SANITIZERS=1 bin/sanitizer/iccFromXml_unsafe input.xml output.icc"
+echo "  bin/sanitizer/iccFromXml_unsafe diagnostic.xml restored.icc --restore-diagnostic"
+echo "  bin/sanitizer/iccFromJson_unsafe diagnostic.json restored.icc --restore-diagnostic"
 echo ""
 echo "  # Default symlinks point to the selected build"
 echo "  ./iccToXml_unsafe input.icc output.xml"

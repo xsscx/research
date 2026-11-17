@@ -27,6 +27,8 @@
 #include <unistd.h>
 #include <vector>
 
+#include "ColorBleedBinaryEnvelope.h"
+
 static inline uint32_t DiagJsonReadBE32(const uint8_t* p) {
   return (static_cast<uint32_t>(p[0]) << 24) |
          (static_cast<uint32_t>(p[1]) << 16) |
@@ -123,6 +125,32 @@ static void DiagJsonAddAnomaly(IccJson& anomalies, const char* severity,
   anomalies.push_back(anomaly);
 }
 
+static void DiagJsonAddBinaryEnvelope(IccJson& diagnostic,
+                                      const char* icc_path,
+                                      uint64_t header_declared_length) {
+  ColorBleedBinaryEnvelope binary;
+  ColorBleedReadEnvelope(icc_path, header_declared_length, binary);
+
+  IccJson envelope;
+  envelope["Format"] = kColorBleedEnvelopeFormat;
+  envelope["Restorable"] = binary.restorable;
+  envelope["Encoding"] = "base64";
+  envelope["Length"] = binary.length;
+  envelope["HeaderDeclaredProfileLength"] =
+      binary.header_declared_profile_length;
+  envelope["DeclaredProfileLength"] = binary.declared_profile_length;
+  envelope["TrailingLength"] = binary.trailing_length;
+  if (binary.restorable) {
+    envelope["SHA256"] = binary.sha256;
+    envelope["DeclaredProfileSHA256"] = binary.declared_profile_sha256;
+    envelope["TrailingSHA256"] = binary.trailing_sha256;
+    envelope["Data"] = binary.data_base64;
+  } else {
+    envelope["OmissionReason"] = binary.omission_reason;
+  }
+  diagnostic["BinaryEnvelope"] = envelope;
+}
+
 /// Generate diagnostic JSON from raw ICC bytes without using iccDEV parsing.
 /// The top-level key is IccProfileDiagnostic, never IccProfile.
 static bool GenerateDiagnosticJson(const char* icc_path,
@@ -155,6 +183,7 @@ static bool GenerateDiagnosticJson(const char* icc_path,
   if (file_size < 132) {
     close(fd);
     diagnostic["Error"] = "File smaller than minimum ICC header (132 bytes)";
+    DiagJsonAddBinaryEnvelope(diagnostic, icc_path, 0);
     IccJson root;
     root["IccProfileDiagnostic"] = diagnostic;
     json_out = root.dump(indent, ' ', true,
@@ -196,6 +225,8 @@ static bool GenerateDiagnosticJson(const char* icc_path,
   int32_t illuminant_z = DiagJsonReadBE32S(raw_header + 76);
   uint32_t creator = DiagJsonReadBE32(raw_header + 80);
   uint32_t tag_count = DiagJsonReadBE32(raw_header + 128);
+
+  DiagJsonAddBinaryEnvelope(diagnostic, icc_path, profile_size);
 
   IccJson header;
   IccJson profile_size_json;

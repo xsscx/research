@@ -33,6 +33,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "ColorBleedBinaryEnvelope.h"
+
 // Known ICC profile class codes
 static const char* ClassNameFromSig(uint32_t sig) {
   switch (sig) {
@@ -134,6 +136,65 @@ static std::string XmlEscape(const char* s) {
   return out;
 }
 
+static std::string XmlCommentEscape(const char* value) {
+  std::string escaped = XmlEscape(value);
+  size_t offset = 0;
+  while ((offset = escaped.find("--", offset)) != std::string::npos) {
+    escaped.replace(offset, 2, "- -");
+    offset += 3;
+  }
+  if (!escaped.empty() && escaped.back() == '-') {
+    escaped += ' ';
+  }
+  return escaped;
+}
+
+static void AppendDiagnosticBinaryEnvelope(std::string& xml_out,
+                                           const char* icc_path,
+                                           uint64_t header_declared_length) {
+  ColorBleedBinaryEnvelope binary;
+  ColorBleedReadEnvelope(icc_path, header_declared_length, binary);
+
+  char buffer[1024];
+  if (!binary.restorable) {
+    snprintf(buffer, sizeof(buffer),
+             "  <BinaryEnvelope format=\"%s\" restorable=\"false\" "
+             "encoding=\"base64\" length=\"%llu\" "
+             "headerDeclaredProfileLength=\"%llu\" "
+             "declaredProfileLength=\"%llu\" trailingLength=\"%llu\" "
+             "omissionReason=\"%s\"/>\n",
+             kColorBleedEnvelopeFormat,
+             static_cast<unsigned long long>(binary.length),
+             static_cast<unsigned long long>(
+                 binary.header_declared_profile_length),
+             static_cast<unsigned long long>(binary.declared_profile_length),
+             static_cast<unsigned long long>(binary.trailing_length),
+             XmlEscape(binary.omission_reason.c_str()).c_str());
+    xml_out += buffer;
+    return;
+  }
+
+  snprintf(buffer, sizeof(buffer),
+           "  <BinaryEnvelope format=\"%s\" restorable=\"true\" "
+           "encoding=\"base64\" length=\"%llu\" sha256=\"%s\" "
+           "headerDeclaredProfileLength=\"%llu\" "
+           "declaredProfileLength=\"%llu\" "
+           "declaredProfileSha256=\"%s\" trailingLength=\"%llu\" "
+           "trailingSha256=\"%s\">",
+           kColorBleedEnvelopeFormat,
+           static_cast<unsigned long long>(binary.length),
+           binary.sha256.c_str(),
+           static_cast<unsigned long long>(
+               binary.header_declared_profile_length),
+           static_cast<unsigned long long>(binary.declared_profile_length),
+           binary.declared_profile_sha256.c_str(),
+           static_cast<unsigned long long>(binary.trailing_length),
+           binary.trailing_sha256.c_str());
+  xml_out += buffer;
+  xml_out += binary.data_base64;
+  xml_out += "</BinaryEnvelope>\n";
+}
+
 /// Generate a diagnostic XML representation of a malformed ICC profile.
 /// Reads raw binary data -- no iccDEV library calls.
 /// Returns true if XML was generated successfully.
@@ -162,6 +223,7 @@ static bool GenerateDiagnosticXml(const char* icc_path,
     char buf[128];
     snprintf(buf, sizeof(buf), "  <FileSize>%zu</FileSize>\n", fileSize);
     xml_out += buf;
+    AppendDiagnosticBinaryEnvelope(xml_out, icc_path, 0);
     xml_out += "  <Error>File smaller than minimum ICC header (132 bytes)</Error>\n";
     xml_out += "</IccProfileDiagnostic>\n";
     return true;
@@ -222,10 +284,10 @@ static bool GenerateDiagnosticXml(const char* icc_path,
   xml_out += "<!-- Generated from raw binary analysis (library Read() failed) -->\n";
   if (failure_reason) {
     xml_out += "<!-- Failure: ";
-    xml_out += XmlEscape(failure_reason);
+    xml_out += XmlCommentEscape(failure_reason);
     xml_out += " -->\n";
   }
-  xml_out += "<!-- WARNING: This profile is MALFORMED -- data may be incomplete or corrupt -->\n";
+  xml_out += "<!-- WARNING: This profile is MALFORMED; data may be incomplete or corrupt -->\n";
   xml_out += "<IccProfileDiagnostic>\n";
   xml_out += "  <Status>MALFORMED</Status>\n";
 
@@ -233,6 +295,7 @@ static bool GenerateDiagnosticXml(const char* icc_path,
   char buf[512];
   snprintf(buf, sizeof(buf), "  <FileSize>%zu</FileSize>\n", fileSize);
   xml_out += buf;
+  AppendDiagnosticBinaryEnvelope(xml_out, icc_path, profileSize);
 
   // Header section
   xml_out += "  <Header>\n";

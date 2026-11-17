@@ -9,9 +9,9 @@ ICC Color Profile research tools to load & store unsafe file representations.
 | Binary | Description |
 |--------|-------------|
 | `iccToXml_unsafe` | ICC Profile -> XML (unsafe load) |
-| `iccFromXml_unsafe` | XML -> ICC Profile blob (unsafe store) |
+| `iccFromXml_unsafe` | XML -> ICC Profile blob; explicit lossless diagnostic restoration |
 | `iccToJson_unsafe` | ICC Profile -> IccJSON, with diagnostic JSON fallback for malformed binary blobs (`-sort` remains disabled) |
-| `iccFromJson_unsafe` | JSON -> ICC Profile blob (unsafe store) |
+| `iccFromJson_unsafe` | JSON -> ICC Profile blob; explicit lossless diagnostic restoration |
 | `iccTiffDump_unsafe` | Sandboxed TIFF dump and byte-exact embedded ICC extraction |
 | `iccJpegDump_unsafe` | Sandboxed JPEG APP2 inspection and byte-exact embedded ICC extraction |
 | `iccDumpAll` | Enhanced ICC profile dump with full v5/iccMAX MPE element detail |
@@ -173,10 +173,24 @@ make test        # build tools and run tests
 When `CIccProfile::Read()` rejects a binary blob, `iccToXml_unsafe` and
 `iccToJson_unsafe` both preserve bounded raw header, tag-table, preview, and
 anomaly analysis in their requested representation and exit 6. Diagnostic JSON
-uses the top-level key `IccProfileDiagnostic`, never `IccProfile`; it is valid
-JSON for forensic inspection but is not an IccJSON profile and must not be
-passed to `iccFromJson_unsafe`. Critical pre-flight findings take the same
-diagnostic path without invoking the iccDEV profile parser.
+uses the top-level key `IccProfileDiagnostic`, never `IccProfile`; it is not a
+semantic IccJSON profile. Diagnostics up to 32 MiB also contain a
+`colorbleed-binary-envelope/v1` base64 payload with total, declared-profile,
+and trailing-data lengths and SHA-256 values. Restore the original bytes only
+with the explicit modes:
+
+```
+./iccFromXml_unsafe diagnostic.xml restored.icc --restore-diagnostic
+./iccFromJson_unsafe diagnostic.json restored.icc --restore-diagnostic
+```
+
+Restoration runs in the sandbox, verifies all three lengths and hashes, and
+atomically publishes the exact original blob. This measures representation
+fidelity; because it bypasses semantic profile parsing, it does not claim the
+malformed profile is valid or measure parser recovery. Critical pre-flight
+findings take the same diagnostic path without invoking the iccDEV profile
+parser. Larger inputs retain bounded structural diagnostics but record a
+non-restorable envelope with its omission reason.
 
 TIFF extraction happens before ICC parsing and validation. With upstream
 iccDEV `3e348201` or later, a deeply nested profile can be preserved exactly and
