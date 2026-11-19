@@ -7,12 +7,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCE_DIR="$SCRIPT_DIR/sources"
 BUILD_DIR="$SCRIPT_DIR/build-msan-libxml2"
 PREFIX="$SCRIPT_DIR/install-msan-libxml2"
-LIBXML2_VERSION="v2.15.2"
-LIBXML2_COMMIT="3d840e17858de03a09fba8b202e3a89267d5795a"
+LIBXML2_VERSION="v2.15.4"
+LIBXML2_COMMIT="96498992efa48d52b0e8b83058bd88dbdaf153c1"
 CC_BIN="${CC:-clang-22}"
 JOBS="${CFL_BUILD_JOBS:-$(nproc 2>/dev/null || echo 4)}"
 SOURCE="$SOURCE_DIR/libxml2"
 ARCHIVE="$PREFIX/lib/libxml2.a"
+VERSION_STAMP="$PREFIX/.libxml2-commit"
 
 for tool in "$CC_BIN" ar cmake git ninja; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -30,13 +31,29 @@ fi
 
 actual_commit="$(git -C "$SOURCE" rev-parse HEAD)"
 if [[ "$actual_commit" != "$LIBXML2_COMMIT" ]]; then
-  echo "[FAIL] ERROR: libxml2 source is $actual_commit; expected $LIBXML2_COMMIT ($LIBXML2_VERSION)" >&2
-  echo "       Remove $SOURCE and rerun to fetch the pinned release." >&2
-  exit 1
+  source_status="$(git -C "$SOURCE" status --porcelain)"
+  if [[ -n "$source_status" ]]; then
+    echo "[FAIL] ERROR: libxml2 source is $actual_commit with local changes; expected $LIBXML2_COMMIT ($LIBXML2_VERSION)" >&2
+    echo "       Preserve or remove the local changes before updating the pinned source." >&2
+    exit 1
+  fi
+  echo "[*] Updating libxml2 sources to $LIBXML2_VERSION"
+  git -C "$SOURCE" fetch --depth 1 origin "refs/tags/$LIBXML2_VERSION"
+  git -C "$SOURCE" checkout --detach "$LIBXML2_COMMIT"
+  actual_commit="$(git -C "$SOURCE" rev-parse HEAD)"
+  if [[ "$actual_commit" != "$LIBXML2_COMMIT" ]]; then
+    echo "[FAIL] ERROR: libxml2 source is $actual_commit; expected $LIBXML2_COMMIT ($LIBXML2_VERSION)" >&2
+    exit 1
+  fi
 fi
 
+installed_commit=""
+if [[ -f "$VERSION_STAMP" ]]; then
+  IFS= read -r installed_commit < "$VERSION_STAMP" || true
+fi
 if [[ ! -f "$ARCHIVE" || ! -f "$PREFIX/include/libxml2/libxml/parser.h" ]] ||
-   ! grep -a -q '__msan_' "$ARCHIVE"; then
+   ! grep -a -q '__msan_' "$ARCHIVE" ||
+   [[ "$installed_commit" != "$LIBXML2_COMMIT" ]]; then
   echo "[*] Configuring MemorySanitizer-instrumented libxml2"
   cmake -G Ninja -S "$SOURCE" -B "$BUILD_DIR" \
     -DBUILD_SHARED_LIBS=OFF \
@@ -63,5 +80,6 @@ if ! grep -a -q '__msan_' "$ARCHIVE"; then
   echo "[FAIL] ERROR: MemorySanitizer instrumentation is missing from $ARCHIVE" >&2
   exit 1
 fi
+printf '%s\n' "$LIBXML2_COMMIT" > "$VERSION_STAMP"
 
 echo "[OK] MemorySanitizer-instrumented libxml2: $ARCHIVE"

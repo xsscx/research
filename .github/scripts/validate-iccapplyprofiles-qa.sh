@@ -25,7 +25,7 @@ grep -Fq 'mutations=1000' "$sanitizer" || \
 grep -Fq 'mutations" != "max"' "$sanitizer" || \
     fail "sanitizer QA does not validate the max sentinel"
 
-grep -Fq '2400206be6fe0d93681c8a5c1535209366602eb1' \
+grep -Fq '441e2cdbd690c00174b1fa54d0b144bbc24a736c' \
     "$repo_root/afl/build-afl-runtime.sh" || fail "AFL++ 5.04a pin is stale"
 grep -Fq "JOBS=\"\${JOBS:-32}\"" "$repo_root/afl/build-afl-runtime.sh" || \
     fail "AFL++ runtime builder does not default to -j32"
@@ -33,7 +33,7 @@ grep -Fq 'AFL_REQUIRED_VERSION="5.04a"' "$repo_root/afl/build.sh" || \
     fail "AFL++ tool build does not require the pinned 5.04a wrappers"
 grep -Fq 'afl_wrapper_has_required_version' "$repo_root/afl/build.sh" || \
     fail "AFL++ tool build does not validate wrapper versions"
-if rg -n '05507e1880dc6df997c19e01423444ef37c36846|f5658bc20962a2556d98ecb21bc269b77d1fa845|45bb74bd3a6591e6853b704c390ab6156c0a3c88' \
+if rg -n '2400206be6fe0d93681c8a5c1535209366602eb1|05507e1880dc6df997c19e01423444ef37c36846|f5658bc20962a2556d98ecb21bc269b77d1fa845|45bb74bd3a6591e6853b704c390ab6156c0a3c88' \
     "$repo_root/AGENTS.md" "$repo_root/afl" "$repo_root/docs/afl" \
     "$repo_root/.github" --glob '!**/validate-iccapplyprofiles-qa.sh' >/dev/null; then
     fail "stale AFL++ runtime pin remains in active guidance"

@@ -74,7 +74,7 @@ Targets: ICC profiles -> profile/dump/deep_dump/toxml fuzzers; TIFF files -> tif
 For AFL `jpegdump` and `jpegdump-inject`, seed only `.jpg`/`.jpeg` files with
 embedded ICC profiles from `fuzz/graphics/jpg`; do not use raw `.icc` seeds.
 Before optimizing AFL lanes, run `./afl/build-afl-runtime.sh`; it pins AFL++
-5.04a development commit `2400206be6fe0d93681c8a5c1535209366602eb1`,
+5.04a development commit `441e2cdbd690c00174b1fa54d0b144bbc24a736c`,
 `-j32`, and configurable large-input support with a 64 MiB default safety
 bound.
 Keep `applyprofiles-hybrid-embedded` on its complete generated TIFF and validate

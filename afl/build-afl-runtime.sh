@@ -3,17 +3,17 @@
 
 set -euo pipefail
 
-AFL_COMMIT="2400206be6fe0d93681c8a5c1535209366602eb1"
+AFL_COMMIT="441e2cdbd690c00174b1fa54d0b144bbc24a736c"
 AFL_MAX_FILE_BYTES="${AFL_MAX_FILE_BYTES:-67108864}"
 AFL_REPOSITORY="https://github.com/AFLplusplus/AFLplusplus.git"
 AFL_SOURCE_DIR="${AFL_RUNTIME_SOURCE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/aflplusplus-stable}"
-CLANG_BIN="${CC:-clang-22}"
-CLANGXX_BIN="${CXX:-clang++-22}"
 if [[ -n "${LLVM_CONFIG:-}" ]]; then
     LLVM_CONFIG_BIN="$LLVM_CONFIG"
 else
     LLVM_CONFIG_BIN="llvm-config-22"
 fi
+GCC_PLUGIN_CC="${AFL_GCC_PLUGIN_CC:-gcc-15}"
+GCC_PLUGIN_CXX="${AFL_GCC_PLUGIN_CXX:-g++-15}"
 INSTALL_PREFIX="${PREFIX:-/usr/local}"
 JOBS="${JOBS:-32}"
 export -n AFL_RUNTIME_SOURCE_DIR 2>/dev/null || true
@@ -23,16 +23,25 @@ if [[ ! "$AFL_MAX_FILE_BYTES" =~ ^[0-9]+$ || "$AFL_MAX_FILE_BYTES" -lt 4194304 ]
     exit 1
 fi
 
-for tool in git make perl "$LLVM_CONFIG_BIN" "$CLANG_BIN" "$CLANGXX_BIN" gcc-15; do
+for tool in git make perl "$LLVM_CONFIG_BIN" "$GCC_PLUGIN_CC" "$GCC_PLUGIN_CXX"; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "ERROR: Required build tool not found: $tool" >&2
         echo "Install build-essential clang-22 llvm-22-dev llvm-22-tools lld-22" >&2
-        echo "libclang-rt-22-dev gcc-15-plugin-dev libpython3-dev zlib1g-dev." >&2
+        echo "libclang-rt-22-dev gcc-15-plugin-dev g++-15 libpython3-dev zlib1g-dev." >&2
+        exit 1
+    fi
+done
+
+LLVM_BINDIR="$("$LLVM_CONFIG_BIN" --bindir)"
+for tool in "$LLVM_BINDIR/clang" "$LLVM_BINDIR/clang++"; do
+    if [[ ! -x "$tool" ]]; then
+        echo "ERROR: LLVM compiler not found: $tool" >&2
         exit 1
     fi
 done
 
 echo "[*] AFL++ LLVM toolchain: $LLVM_CONFIG_BIN ($("$LLVM_CONFIG_BIN" --version))"
+echo "[*] AFL++ GCC plugin toolchain: $GCC_PLUGIN_CC / $GCC_PLUGIN_CXX"
 
 if [[ ! -d "$AFL_SOURCE_DIR/.git" ]]; then
     mkdir -p "$(dirname "$AFL_SOURCE_DIR")"
@@ -79,12 +88,14 @@ if ! grep -Fqx "#define MAX_FILE (${AFL_MAX_FILE_BYTES}L)" "$config_file"; then
 fi
 
 make -C "$AFL_SOURCE_DIR" clean
-make -C "$AFL_SOURCE_DIR" -j"$JOBS" source-only \
-    LLVM_CONFIG="$LLVM_CONFIG_BIN" CC="$CLANG_BIN" CXX="$CLANGXX_BIN" NO_NYX=1
+env CC="$GCC_PLUGIN_CC" CXX="$GCC_PLUGIN_CXX" \
+    make -C "$AFL_SOURCE_DIR" -j"$JOBS" source-only \
+    LLVM_CONFIG="$LLVM_CONFIG_BIN" NO_NYX=1
 
 install_cmd=(
+    env "CC=$GCC_PLUGIN_CC" "CXX=$GCC_PLUGIN_CXX"
     make -C "$AFL_SOURCE_DIR" install PREFIX="$INSTALL_PREFIX"
-    LLVM_CONFIG="$LLVM_CONFIG_BIN" CC="$CLANG_BIN" CXX="$CLANGXX_BIN" NO_NYX=1
+    LLVM_CONFIG="$LLVM_CONFIG_BIN" NO_NYX=1
 )
 if [[ -w "$INSTALL_PREFIX" ]]; then
     "${install_cmd[@]}"

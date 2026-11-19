@@ -101,27 +101,32 @@ fetch_source() {
     fi
 
     local actual
+    local source_status
     actual="$(git -C "$source" rev-parse HEAD)"
     if [[ "$actual" != "$commit" ]]; then
-        echo "[FAIL] $name source is $actual; expected $commit ($version)" >&2
-        echo "       Remove $source and rerun to fetch the pinned release." >&2
-        exit 1
-    fi
-}
-
-apply_source_patch() {
-    local name="$1"
-    local patch="$2"
-    local source="$SOURCE_DIR/$name"
-
-    if git -C "$source" apply --check "$patch" 2>/dev/null; then
-        git -C "$source" apply "$patch"
-        echo "[OK] Applied $(basename "$patch")"
-    elif git -C "$source" apply --reverse --check "$patch"; then
-        echo "[OK] Already applied: $(basename "$patch")"
-    else
-        echo "[FAIL] Patch does not apply to pinned $name: $patch" >&2
-        exit 1
+        if [[ "$name" == "libheif" &&
+              "$actual" == "62f1b8c76ed4d8305071fdacbe74ef9717bacac5" ]]; then
+            for migration in "$ROOT"/migrations/libheif-v1.21.2-*.patch; do
+                if git -C "$source" apply --reverse --check "$migration" 2>/dev/null; then
+                    git -C "$source" apply --reverse "$migration"
+                    echo "[OK] Reverted managed $(basename "$migration")"
+                fi
+            done
+        fi
+        source_status="$(git -C "$source" status --porcelain)"
+        if [[ -n "$source_status" ]]; then
+            echo "[FAIL] $name source is $actual with local changes; expected $commit ($version)" >&2
+            echo "       Preserve or remove the local changes before updating the pinned source." >&2
+            exit 1
+        fi
+        echo "[*] Updating $name sources to $version"
+        git -C "$source" fetch --depth 1 origin "refs/tags/$version"
+        git -C "$source" checkout --detach "$commit"
+        actual="$(git -C "$source" rev-parse HEAD)"
+        if [[ "$actual" != "$commit" ]]; then
+            echo "[FAIL] $name source is $actual; expected $commit ($version)" >&2
+            exit 1
+        fi
     fi
 }
 
@@ -304,8 +309,6 @@ configure_build_install() {
 }
 
 fetch_source libheif https://github.com/strukturag/libheif.git "$LIBHEIF_VERSION" "$LIBHEIF_COMMIT"
-apply_source_patch libheif "$ROOT/patches/libheif-empty-memory-read.patch"
-apply_source_patch libheif "$ROOT/patches/libheif-empty-vector-write.patch"
 if [[ "$ONLY_LIBHEIF" == "0" ]]; then
     fetch_source zlib https://github.com/madler/zlib.git "$ZLIB_VERSION" "$ZLIB_COMMIT"
     fetch_source libpng https://github.com/pnggroup/libpng.git "$LIBPNG_VERSION" "$LIBPNG_COMMIT"

@@ -64,7 +64,7 @@ instrumented static libc++ because linking the tools to the system's
 uninstrumented libstdc++ produces invalid shadow-state reports.
 
 The runtime builder pins AFL++ 5.04a development commit
-`2400206be6fe0d93681c8a5c1535209366602eb1`, selects the `llvm-config` matching
+`441e2cdbd690c00174b1fa54d0b144bbc24a736c`, selects the `llvm-config` matching
 the system Clang major, and uses `-j32`. Its compiled large-input safety bound
 defaults to 64 MiB and can be raised with `AFL_MAX_FILE_BYTES`; image seed
 discovery has no repository byte cap. The

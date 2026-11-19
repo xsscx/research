@@ -128,7 +128,7 @@ AFL_BASE=$PWD/afl/cmplog ./afl/start.sh fromcube --fresh --reseed --cmplog-binar
 
 `build.sh` uses the system `clang`/`clang++` and compatible AFL++ wrappers.
 `build-afl-runtime.sh` checks out AFL++ 5.04a development commit
-`2400206be6fe0d93681c8a5c1535209366602eb1`, configures a 64 MiB default
+`441e2cdbd690c00174b1fa54d0b144bbc24a736c`, configures a 64 MiB default
 large-input safety bound, and installs the matching runtime and compiler
 wrappers. Set `AFL_MAX_FILE_BYTES` when still larger images are required;
 image seed discovery itself has no repository byte cap.

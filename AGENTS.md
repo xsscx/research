@@ -29,7 +29,7 @@ See `.github/copilot-instructions.md` for build/test commands per component.
 Additional repo workflows in active use:
 - `./afl/build-afl-runtime.sh`
   -- install pinned AFL++ 5.04a development commit
-     `2400206be6fe0d93681c8a5c1535209366602eb1`
+     `441e2cdbd690c00174b1fa54d0b144bbc24a736c`
      with wrappers matching the system Clang major, `-j32`, and a configurable
      large-input testcase ceiling. Image seed discovery itself is uncapped.
 - `./fuzztest/build.sh && ./fuzztest/test.sh --seconds 60`

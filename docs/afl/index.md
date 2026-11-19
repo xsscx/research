@@ -252,7 +252,7 @@ Ubuntu, install them with `sudo apt-get install libtiff-tools`.
 
 This lane does not set a seed or generated-input byte cap. The pinned AFL++
 runtime is 5.04a development commit
-`2400206be6fe0d93681c8a5c1535209366602eb1`,
+`441e2cdbd690c00174b1fa54d0b144bbc24a736c`,
 built with `-j32` and a configurable 64 MiB default `MAX_FILE` safety bound by
 `afl/build-afl-runtime.sh`. Image seed discovery is uncapped; set
 `AFL_MAX_FILE_BYTES` when building for inputs above the default. `start.sh`

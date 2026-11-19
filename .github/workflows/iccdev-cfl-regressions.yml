@@ -118,7 +118,7 @@ jobs:
             .github/scripts/validate-cfl-applynamedcmm.sh
           grep -Fq -- '-DAVOID_FUZZER_FALSE_POSITIVE=1' \
             afl/third_party/build.sh
-          grep -Fq '3d840e17858de03a09fba8b202e3a89267d5795a' \
+          grep -Fq '96498992efa48d52b0e8b83058bd88dbdaf153c1' \
             cfl/third_party/build-msan-libxml2.sh
           grep -Fq 'test-msan-dependencies.sh' cfl/build.sh
           source cfl/fuzzers.sh

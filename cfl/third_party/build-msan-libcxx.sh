@@ -7,14 +7,15 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCE_DIR="$SCRIPT_DIR/sources"
 BUILD_DIR="$SCRIPT_DIR/build-msan-libcxx"
 PREFIX="$SCRIPT_DIR/install-msan-libcxx"
-LLVM_VERSION="llvmorg-22.1.2"
-LLVM_COMMIT="1ab49a973e210e97d61e5db6557180dcb92c3e98"
+LLVM_VERSION="llvmorg-22.1.8"
+LLVM_COMMIT="ca7933e47d3a3451d81e72ac174dcb5aa28b59d1"
 CC_BIN="${CC:-clang-22}"
 CXX_BIN="${CXX:-clang++-22}"
 JOBS="${CFL_BUILD_JOBS:-$(nproc 2>/dev/null || echo 4)}"
 SOURCE="$SOURCE_DIR/llvm-project"
 FUZZER_BUILD_DIR="$BUILD_DIR/libfuzzer"
 FUZZER_ARCHIVE="$PREFIX/lib/libclang_rt.fuzzer.a"
+VERSION_STAMP="$PREFIX/.llvm-project-commit"
 
 for tool in "$CC_BIN" "$CXX_BIN" ar cmake git ninja; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -35,13 +36,33 @@ git -C "$SOURCE" sparse-checkout set \
 
 actual_commit="$(git -C "$SOURCE" rev-parse HEAD)"
 if [[ "$actual_commit" != "$LLVM_COMMIT" ]]; then
-  echo "[FAIL] ERROR: llvm-project source is $actual_commit; expected $LLVM_COMMIT ($LLVM_VERSION)" >&2
-  echo "       Remove $SOURCE and rerun to fetch the pinned release." >&2
-  exit 1
+  source_status="$(git -C "$SOURCE" status --porcelain)"
+  if [[ -n "$source_status" ]]; then
+    echo "[FAIL] ERROR: llvm-project source is $actual_commit with local changes; expected $LLVM_COMMIT ($LLVM_VERSION)" >&2
+    echo "       Preserve or remove the local changes before updating the pinned source." >&2
+    exit 1
+  fi
+  echo "[*] Updating llvm-project runtime sources to $LLVM_VERSION"
+  git -C "$SOURCE" fetch --depth 1 origin "refs/tags/$LLVM_VERSION"
+  git -C "$SOURCE" checkout --detach "$LLVM_COMMIT"
+  git -C "$SOURCE" sparse-checkout set \
+    cmake compiler-rt/lib/fuzzer libc libcxx libcxxabi libunwind llvm/cmake \
+    llvm/utils/llvm-lit runtimes
+  actual_commit="$(git -C "$SOURCE" rev-parse HEAD)"
+  if [[ "$actual_commit" != "$LLVM_COMMIT" ]]; then
+    echo "[FAIL] ERROR: llvm-project source is $actual_commit; expected $LLVM_COMMIT ($LLVM_VERSION)" >&2
+    exit 1
+  fi
 fi
 
+installed_commit=""
+if [[ -f "$VERSION_STAMP" ]]; then
+  IFS= read -r installed_commit < "$VERSION_STAMP" || true
+fi
+runtime_rebuilt=0
 if [[ ! -f "$PREFIX/lib/libc++.a" || ! -f "$PREFIX/include/c++/v1/__config" ]] ||
-   ! grep -a -q '__msan_' "$PREFIX/lib/libc++.a"; then
+   ! grep -a -q '__msan_' "$PREFIX/lib/libc++.a" ||
+   [[ "$installed_commit" != "$LLVM_COMMIT" ]]; then
   echo "[*] Configuring MemorySanitizer-instrumented libc++"
   cmake -G Ninja -S "$SOURCE/runtimes" -B "$BUILD_DIR" \
     -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
@@ -64,6 +85,7 @@ if [[ ! -f "$PREFIX/lib/libc++.a" || ! -f "$PREFIX/include/c++/v1/__config" ]] |
   cmake --install "$BUILD_DIR" --component cxxabi
   cmake --install "$BUILD_DIR" --component cxx-headers
   cmake --install "$BUILD_DIR" --component cxxabi-headers
+  runtime_rebuilt=1
 fi
 
 if [[ ! -f "$PREFIX/lib/libc++.a" || ! -f "$PREFIX/include/c++/v1/__config" ]]; then
@@ -77,7 +99,9 @@ fi
 
 echo "[OK] MemorySanitizer-instrumented libc++: $PREFIX/lib/libc++.a"
 
-if [[ ! -f "$FUZZER_ARCHIVE" ]] || ! grep -a -q '__msan_' "$FUZZER_ARCHIVE"; then
+if [[ ! -f "$FUZZER_ARCHIVE" ]] ||
+   ! grep -a -q '__msan_' "$FUZZER_ARCHIVE" ||
+   [[ "$runtime_rebuilt" == "1" ]]; then
   fuzzer_source="$SOURCE/compiler-rt/lib/fuzzer"
   fuzzer_sources=(
     FuzzerCrossOver.cpp FuzzerDataFlowTrace.cpp FuzzerDriver.cpp
@@ -106,4 +130,5 @@ if ! grep -a -q '__msan_' "$FUZZER_ARCHIVE"; then
   echo "[FAIL] ERROR: MemorySanitizer instrumentation is missing from $FUZZER_ARCHIVE" >&2
   exit 1
 fi
+printf '%s\n' "$LLVM_COMMIT" > "$VERSION_STAMP"
 echo "[OK] MemorySanitizer-instrumented LibFuzzer: $FUZZER_ARCHIVE"

@@ -18,12 +18,9 @@ the AFL build.
 libheif is pinned and linked statically so ISO BMFF parsing contributes AFL
 feedback. Codec backends, plugin loading, and optional compression libraries
 are disabled because the HEIF lanes target carrier and ICC-property parsing,
-not pixel decoding. The local empty-vector patch guards a zero-length write
-that otherwise raises a deterministic `nonnull-attribute` UBSan finding on the
-upstream `empty-prof.heic` QA carrier before fuzzing can begin. A matching
-zero-length memory-reader guard prevents the same diagnostic when malformed
-carriers request an empty libheif read. Both guards leave non-empty reads and
-writes unchanged.
+not pixel decoding. The pinned release includes the zero-length reader and
+writer guards previously carried as local patches. Migration patches remain
+only so the builder can cleanly update generated v1.21.2 source trees.
 
 Run a clean dependency rebuild directly with:
 
