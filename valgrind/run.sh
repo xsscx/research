@@ -48,6 +48,8 @@ esac
 [[ ${#VG_SELECTED[@]} -gt 0 ]] || { usage >&2; exit 2; }
 command -v valgrind >/dev/null 2>&1 || { echo "ERROR: valgrind is not installed" >&2; exit 127; }
 command -v timeout >/dev/null 2>&1 || { echo "ERROR: timeout is not installed" >&2; exit 127; }
+command -v ldd >/dev/null 2>&1 || { echo "ERROR: ldd is not installed" >&2; exit 127; }
+command -v nm >/dev/null 2>&1 || { echo "ERROR: nm is not installed" >&2; exit 127; }
 
 if [[ "${VG_SELECTED[0]}" == "all" ]]; then
     [[ ${#VG_SELECTED[@]} -eq 1 ]] || { echo "ERROR: all cannot be combined with named targets" >&2; exit 2; }
@@ -73,33 +75,73 @@ if [[ -n "${LD_LIBRARY_PATH:-}" ]]; then
 fi
 
 failures=0
+declare -A target_runs=()
 for target in "${VG_SELECTED[@]}"; do
-    VG_RUN_WORK="$VG_OUTPUT_BASE/$target/work"
+    target_run=$(( ${target_runs[$target]:-0} + 1 ))
+    target_runs[$target]="$target_run"
+    target_dir_name="$target"
+    if [[ "$target_run" -gt 1 ]]; then
+        target_dir_name="$target-$target_run"
+    fi
+    VG_RUN_WORK="$VG_OUTPUT_BASE/$target_dir_name/work"
     if ! vg_configure_target "$target"; then
         echo "ERROR: unknown target: $target" >&2
         vg_print_targets >&2
         exit 2
     fi
     mkdir -p "$VG_RUN_WORK"
-    target_dir="$VG_OUTPUT_BASE/$target"
+    target_dir="$VG_OUTPUT_BASE/$target_dir_name"
     vg_log="$target_dir/$VG_TOOL.log"
     stdout_log="$target_dir/stdout.log"
     stderr_log="$target_dir/stderr.log"
+    prepare_stdout_log="$target_dir/prepare.stdout.log"
+    prepare_stderr_log="$target_dir/prepare.stderr.log"
+    verify_log="$target_dir/verify.log"
 
     [[ -x "$VG_BINARY" ]] || { echo "ERROR: missing binary for $target: $VG_BINARY" >&2; exit 2; }
     for required in "${VG_REQUIRED_FILES[@]}"; do
         [[ -e "$required" ]] || { echo "ERROR: missing input for $target: $required" >&2; exit 2; }
     done
-    if ldd "$VG_BINARY" 2>/dev/null | grep -Eq 'libasan|libubsan|libtsan|clang_rt\.(asan|ubsan|tsan)'; then
+    if vg_binary_uses_sanitizer "$VG_BINARY" "$runtime_library_path" "$VG_BUILD_DIR"; then
         echo "ERROR: Valgrind must not wrap a sanitizer binary: $VG_BINARY" >&2
         exit 2
     fi
 
     if [[ ${#VG_PREPARE[@]} -gt 0 ]]; then
-        LD_LIBRARY_PATH="$runtime_library_path" "${VG_PREPARE[@]}" >/dev/null
+        prepare_stdout="$prepare_stdout_log"
+        if [[ -n "$VG_PREPARE_STDOUT" ]]; then
+            prepare_stdout="$VG_PREPARE_STDOUT"
+        fi
+        set +e
+        LD_LIBRARY_PATH="$runtime_library_path" \
+            timeout -k 5s "${VG_TIMEOUT}s" "${VG_PREPARE[@]}" \
+            >"$prepare_stdout" 2>"$prepare_stderr_log"
+        prepare_rc=$?
+        set -e
+        prepare_result=""
+        if [[ "$prepare_rc" -eq 124 || "$prepare_rc" -eq 137 ]]; then
+            prepare_result="setup-timeout"
+        elif [[ "$prepare_rc" -ne 0 ]]; then
+            prepare_result="setup-failure"
+        else
+            for prepared in "${VG_PREPARED_FILES[@]}"; do
+                if [[ ! -s "$prepared" ]]; then
+                    echo "expected prepared input is missing: $prepared" >> "$prepare_stderr_log"
+                    prepare_result="setup-failure"
+                    break
+                fi
+            done
+        fi
+        if [[ -n "$prepare_result" ]]; then
+            printf '%s\t%s\t%s\tNA\t%s\t%s\n' \
+                "$target" "$VG_TOOL" "$prepare_rc" "$prepare_result" "$prepare_stderr_log" >> "$summary"
+            echo "[FAIL] $target: $prepare_result (rc=$prepare_rc errors=NA)"
+            failures=$((failures + 1))
+            continue
+        fi
     fi
 
-    common_args=(--error-exitcode=86 --num-callers=40 "--log-file=$vg_log")
+    common_args=(--error-exitcode=86 --num-callers=40 -s "--log-file=$vg_log")
     case "$VG_TOOL" in
         memcheck)
             tool_args=(--tool=memcheck --leak-check=full --show-leak-kinds=all
@@ -126,7 +168,7 @@ for target in "${VG_SELECTED[@]}"; do
         echo "[INFO] $target is usually most useful with $VG_RECOMMENDED_TOOL"
     fi
     set +e
-    DEBUGINFOD_URLS='' LD_LIBRARY_PATH="$runtime_library_path" \
+    env DEBUGINFOD_URLS= "LD_LIBRARY_PATH=$runtime_library_path" "${VG_ENV[@]}" \
         timeout -k 5s "${VG_TIMEOUT}s" valgrind "${tool_args[@]}" "${common_args[@]}" \
         "$VG_BINARY" "${VG_ARGS[@]}" >"$stdout_log" 2>"$stderr_log"
     rc=$?
@@ -157,12 +199,29 @@ for target in "${VG_SELECTED[@]}"; do
     elif [[ "$log_complete" -ne 1 ]]; then
         result="incomplete-log"
         failures=$((failures + 1))
-    elif [[ "$rc" -ne 0 || "$errors" -ne 0 ]]; then
+    elif [[ "$rc" -ge 128 ]]; then
+        result="signal"
+        failures=$((failures + 1))
+    elif [[ "$rc" -ne 0 && "$rc" -ne 86 ]]; then
+        result="tool-failure"
+        failures=$((failures + 1))
+    elif [[ "$rc" -eq 86 && "$errors" -eq 0 ]]; then
+        result="tool-failure"
+        failures=$((failures + 1))
+    elif [[ "$errors" -ne 0 ]]; then
         result="finding"
         [[ "$VG_ALLOW_FINDINGS" -eq 1 ]] || failures=$((failures + 1))
+    elif ! vg_verify_target "$stdout_log" >"$verify_log" 2>&1; then
+        result="verification-failure"
+        failures=$((failures + 1))
     fi
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$target" "$VG_TOOL" "$rc" "$errors" "$result" "$vg_log" >> "$summary"
-    echo "[$([[ "$result" == clean ]] && echo OK || echo WARN)] $target: $result (rc=$rc errors=$errors)"
+    case "$result" in
+        clean) level="OK" ;;
+        finding) level="WARN" ;;
+        *) level="FAIL" ;;
+    esac
+    echo "[$level] $target: $result (rc=$rc errors=$errors)"
 done
 
 echo "Evidence: $VG_OUTPUT_BASE"

@@ -22,6 +22,11 @@ artifacts, and `summary.tsv`. A finding or timeout makes the runner fail unless
 Missing completion summaries or profiler output are classified as
 `incomplete-log` and always fail the run.
 
+`--allow-findings` applies only to completed Valgrind diagnostics. Target
+failures, signals, timeouts, setup failures, incomplete logs, and output
+verification failures always fail the run. The runner records Valgrind's used
+default suppressions in each Memcheck, Helgrind, and DRD log.
+
 ## One-line analysis commands
 
 Run each supported Valgrind tool across the complete 13-target registry:
@@ -42,6 +47,16 @@ targets that exercise threads:
 ./valgrind/run.sh --tool drd connect-thread applyprofiles-row applysearch-row benchapply
 ```
 
+These targets cross the threaded CMM dispatch threshold rather than merely
+constructing a threaded wrapper. `applyprofiles-row` performs four 1,024-pixel
+row batches with four active threads. `applysearch-row` uses 257 records, which
+keeps DRD bounded while engaging two active threads. `benchapply` repeats
+2,048-pixel calls at one, two, and four threads. For a broader inverse-search
+Helgrind pass, use
+`VALGRIND_APPLYSEARCH_LINES=746 ./valgrind/run.sh --tool helgrind applysearch-row`.
+The full input is intentionally not the default DRD smoke because it can exceed
+three minutes under DRD.
+
 For one complete tool-family pass from a single shell line, run the full target
 registry under every supported tool. The loop stops on the first finding or
 timeout:
@@ -61,7 +76,8 @@ The complete registry is `connect-thread`, `dump`, `roundtrip`, `fromxml`,
 `fromjson`, `toxml`, `tojson`, `tiffdump`, `applynamedcmm`,
 `applyprofiles-row`, `applysearch-row`, `applytolink`, and `benchapply`. Use
 `./valgrind/run.sh --list` to print the current registry. Repeating a target on
-one command line runs it again; it does not add coverage.
+one command line runs it again and retains each repetition in a distinct
+evidence subdirectory; it does not add structural coverage by itself.
 
 ## Known findings and tool limitations
 
@@ -72,6 +88,11 @@ suppressed. Use `--allow-findings` only to finish evidence collection, then
 compare every reported context with the catalog. A changed or unlisted
 signature requires investigation.
 
+Successful targets also verify their declared outputs. The registry checks
+nonempty generated artifacts and stdout where applicable; `tiffdump` pins the
+SHA-256 of the extracted profile so raw extraction changes cannot pass solely
+because the tool returned zero.
+
 The build defaults to `iccDEV/` and `valgrind/build/`. Override them without
 editing scripts:
 
@@ -81,7 +102,8 @@ VALGRIND_ICCDEV_DIR=/path/to/iccDEV VALGRIND_BUILD_DIR=/home/xss/qa/iccdev-valgr
 
 The build explicitly disables ASAN, UBSAN, integer/float sanitizers, TSan,
 MSan, LSan, fuzzing instrumentation, and LTO. It rejects produced executables
-that dynamically link a sanitizer runtime.
+and build-tree libraries that dynamically or statically expose sanitizer
+runtimes.
 
 ## Container parity
 

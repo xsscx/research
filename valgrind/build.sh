@@ -32,6 +32,8 @@ done
 
 [[ "$VG_JOBS" =~ ^[1-9][0-9]*$ ]] || { echo "ERROR: --jobs must be a positive integer" >&2; exit 2; }
 [[ -f "$VG_SOURCE_DIR/Build/Cmake/CMakeLists.txt" ]] || { echo "ERROR: not an iccDEV source tree: $VG_SOURCE_DIR" >&2; exit 2; }
+command -v ldd >/dev/null 2>&1 || { echo "ERROR: ldd is not installed" >&2; exit 127; }
+command -v nm >/dev/null 2>&1 || { echo "ERROR: nm is not installed" >&2; exit 127; }
 
 if [[ "$VG_CLEAN" -eq 1 && -e "$VG_BUILD_DIR" ]]; then
     resolved_build="$(realpath -m "$VG_BUILD_DIR")"
@@ -84,6 +86,7 @@ fi
 
 cmake --build "$VG_BUILD_DIR" --parallel "$VG_JOBS" --target "${build_targets[@]}"
 
+runtime_library_path="$VG_BUILD_DIR/IccProfLib:$VG_BUILD_DIR/IccXML:$VG_BUILD_DIR/IccJSON:$VG_BUILD_DIR/IccConnect"
 for registered in "${VG_TARGETS[@]}"; do
     VG_RUN_WORK="$VG_BUILD_DIR/validation-work"
     vg_configure_target "$registered"
@@ -91,7 +94,8 @@ for registered in "${VG_TARGETS[@]}"; do
         echo "ERROR: expected executable is missing: $VG_BINARY" >&2
         exit 1
     fi
-    if [[ -x "$VG_BINARY" ]] && ldd "$VG_BINARY" 2>/dev/null | grep -Eq 'libasan|libubsan|libtsan|clang_rt\.(asan|ubsan|tsan)'; then
+    if [[ -x "$VG_BINARY" ]] && \
+        vg_binary_uses_sanitizer "$VG_BINARY" "$runtime_library_path" "$VG_BUILD_DIR"; then
         echo "ERROR: sanitizer runtime found in Valgrind binary: $VG_BINARY" >&2
         exit 1
     fi

@@ -11,12 +11,12 @@ finding.
 
 ## Reference environment
 
-The active classification below was revalidated on 2026-11-01 with:
+The active classification below was revalidated on 2026-11-19 with:
 
 - Valgrind 3.26.0
 - Linux 6.18.33.2-microsoft-standard-WSL2 x86_64
 - Clang 22.1.2 with libstdc++.so.6.0.35
-- iccDEV `471b42c3`
+- iccDEV `babb032e3d78`
 - The separate non-sanitized Debug build produced by `valgrind/build.sh`
 
 Reproduction commands:
@@ -27,9 +27,11 @@ Reproduction commands:
 ./valgrind/run.sh --tool drd --allow-findings connect-thread applyprofiles-row applysearch-row benchapply
 ```
 
-Memcheck completed all 13 registered targets with zero errors. Helgrind
-completed the four threaded targets with zero errors. DRD was clean for
-`connect-thread`; the other three threaded targets produced only DRD-CV-002.
+Memcheck completed all 13 registered targets with zero errors. Helgrind and
+DRD completed all four threshold-crossing threaded targets with zero errors.
+The former shallow workloads for `applyprofiles-row`, `applysearch-row`, and
+`benchapply` reproduced only DRD-CV-002 before the registry was corrected to
+execute worker threads.
 
 ## Retired: DRD-CV-001 notification without the associated mutex held
 
@@ -60,7 +62,7 @@ Do not classify new diagnostics under this retired entry. The current
 `connect-thread` target completes with zero DRD and Helgrind errors. Any future
 notification diagnostic requires a fresh investigation.
 
-## DRD-CV-002: destruction of an unobserved condition variable
+## Retired from active targets: DRD-CV-002 destruction of an unobserved condition variable
 
 Status: known DRD and libstdc++ instrumentation mismatch for the reviewed
 stacks.
@@ -73,7 +75,7 @@ pthread_cond_destroy_intercept
 CIccApplyThreadedCmmPool::~CIccApplyThreadedCmmPool()
 ```
 
-Observed targets and counts:
+Historical shallow targets and counts:
 
 | Target | Errors | Contexts |
 |---|---:|---:|
@@ -88,6 +90,13 @@ can therefore appear to DRD as destruction of an unknown object. The reviewed
 stack is emitted during implicit member destruction at `IccCmmThread.cpp:99`
 after the pool destructor has set the stop predicate and notified waiting
 workers while holding the mutex, then joined every joinable worker thread.
+
+The historical target commands supplied only 1 pixel, 6 records, and 4 pixels.
+Each call remained below the threaded dispatch threshold, so no worker thread
+observed either condition variable. Threshold-crossing replacements use four
+active image workers, two active inverse-search workers, and repeated one-,
+two-, and four-thread benchmark calls. Those replacements complete cleanly
+under both Helgrind and DRD.
 
 Classification boundary: only the pool-destructor signature above is known.
 An `EBUSY` result, a waiter surviving destruction, a different owner type, a
