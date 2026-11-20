@@ -19,8 +19,10 @@ libheif is pinned and linked statically so ISO BMFF parsing contributes AFL
 feedback. Codec backends, plugin loading, and optional compression libraries
 are disabled because the HEIF lanes target carrier and ICC-property parsing,
 not pixel decoding. The pinned release includes the zero-length reader and
-writer guards previously carried as local patches. Migration patches remain
-only so the builder can cleanly update generated v1.21.2 source trees.
+writer guards previously carried as local patches. Migration patches remain so
+the builder can cleanly update cached v1.21.2 libheif sources and v1.6.58
+libpng sources carrying the former pinned iCCP compatibility patch. Unknown
+source changes still stop the update.
 
 Run a clean dependency rebuild directly with:
 

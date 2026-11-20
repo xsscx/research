@@ -101,6 +101,7 @@ fetch_source() {
     fi
 
     local actual
+    local migration
     local source_status
     actual="$(git -C "$source" rev-parse HEAD)"
     if [[ "$actual" != "$commit" ]]; then
@@ -112,6 +113,14 @@ fetch_source() {
                     echo "[OK] Reverted managed $(basename "$migration")"
                 fi
             done
+        fi
+        if [[ "$name" == "libpng" &&
+              "$actual" == "3061454d980de7d53608f594194cfac722721d2a" ]]; then
+            migration="$ROOT/migrations/libpng-v1.6.58-iccp-completion-crc.patch"
+            if git -C "$source" apply --reverse --check "$migration" 2>/dev/null; then
+                git -C "$source" apply --reverse "$migration"
+                echo "[OK] Reverted managed $(basename "$migration")"
+            fi
         fi
         source_status="$(git -C "$source" status --porcelain)"
         if [[ -n "$source_status" ]]; then
