@@ -100,6 +100,7 @@ The registered properties are:
 | `IccProfileFuzzTest.ProfileOperationsDoNotCrash` | Lazy, eager, validating, and sub-profile readers with a typed selector for validation, tag inspection, PCC accessors, or copy/write operations |
 | `IccProfileFuzzTest.ProfileSerializationDoesNotCrash` | All profile-ID save methods, bounded memory serialization, reparse through a different reader, and operations on the reparsed profile |
 | `IccProfileFuzzTest.ProfileTagLookupDoesNotCrash` | Generated tag and type signatures across mutable/const lookup, typed lookup, tag I/O, description, and validation paths |
+| `IccProfileFuzzTest.ProfileCmmRoundTripDoesNotCrash` | Two-transform CMM construction, linear/tetrahedral interpolation, colorimetric/spectral tag selection, and single/batched pixel application |
 
 Every property keeps the raw profile bytes intact and supplies parser modes,
 operation selectors, save methods, and signatures as separate typed arguments.
@@ -118,7 +119,8 @@ explicit so malformed size fields cannot turn a smoke run into an unbounded
 resource-consumption test.
 Unit mode opens every curated seed with all four readers, checks each save
 method by serializing and reparsing, and verifies that curated tag-lookup seeds
-reach a real tag.
+reach a real tag. It also proves that the curated set reaches a complete
+two-transform CMM setup and pixel application path.
 
 FuzzTest stores its serialized coverage inputs below the ignored
 `fuzztest/corpus/` database; LibFuzzer compatibility mode uses the separate

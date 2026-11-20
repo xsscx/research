@@ -35,6 +35,7 @@
  * Contact: https://hoyt.net
  */
 
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -47,6 +48,7 @@
 #include <utility>
 #include <vector>
 
+#include "IccCmm.h"
 #include "IccIO.h"
 #include "IccProfile.h"
 #include "IccTag.h"
@@ -59,6 +61,7 @@ namespace {
 constexpr size_t kMaxProfileSize = 4 * 1024 * 1024;
 constexpr size_t kGeneratedProfileSoftMaxSize = 64 * 1024;
 constexpr size_t kMaxSerializedProfileSize = 16 * 1024 * 1024;
+constexpr size_t kMaxCmmSamples = 16;
 constexpr uint8_t kReaderModeCount = 4;
 constexpr uint8_t kProfileOperationCount = 4;
 constexpr uint8_t kMaxProfileControl = std::numeric_limits<uint8_t>::max();
@@ -70,10 +73,12 @@ static_assert(kFuzzSeedCount ==
               sizeof(kFuzzSeedProfileIndices) /
                   sizeof(kFuzzSeedProfileIndices[0]));
 using ProfileBytes = std::vector<uint8_t>;
+using CmmSamples = std::array<icFloatNumber, kMaxCmmSamples>;
 using ProfileSeed = std::tuple<ProfileBytes, uint8_t>;
 using ProfileRoundTripSeed = std::tuple<ProfileBytes, uint8_t, uint8_t>;
 using ProfileTagLookupSeed =
     std::tuple<ProfileBytes, uint32_t, uint32_t, uint8_t>;
+using ProfileCmmSeed = std::tuple<ProfileBytes, CmmSamples, uint8_t>;
 
 auto ProfileBytesDomain() {
     // FuzzTest's eager memory-dictionary update can expand repeated byte
@@ -220,6 +225,28 @@ std::vector<ProfileTagLookupSeed> LoadProfileTagLookupSeeds() {
     }
 
     return tag_lookup_seeds;
+}
+
+std::vector<ProfileCmmSeed> LoadProfileCmmSeeds() {
+    std::vector<ProfileCmmSeed> cmm_seeds;
+    const std::vector<ProfileBytes> profiles = LoadProfileBytes();
+    constexpr uint8_t controls[] = {8, 13, 26, 47};
+
+    if (profiles.empty())
+        return cmm_seeds;
+
+    for (size_t i = 0; i < kFuzzSeedCount; ++i) {
+        CmmSamples samples = {};
+        for (size_t sample = 0; sample < samples.size(); ++sample) {
+            samples[sample] = static_cast<icFloatNumber>((sample + i) % 5U) /
+                              static_cast<icFloatNumber>(4.0f);
+        }
+        cmm_seeds.emplace_back(
+            profiles[kFuzzSeedProfileIndices[i] % profiles.size()], samples,
+            controls[i]);
+    }
+
+    return cmm_seeds;
 }
 
 std::unique_ptr<CIccProfile> OpenProfile(const ProfileBytes &bytes,
@@ -434,6 +461,78 @@ void ProfileTagLookupDoesNotCrash(const ProfileBytes &bytes,
     }
 }
 
+bool ExerciseCmmRoundTrip(const ProfileBytes &bytes,
+                          const CmmSamples &samples, uint8_t control) {
+    if (bytes.size() > kMaxProfileSize)
+        return false;
+
+    std::string report;
+    std::unique_ptr<CIccProfile> profile = OpenProfile(bytes, 1, report);
+    if (!profile)
+        return false;
+
+    const icRenderingIntent intent =
+        static_cast<icRenderingIntent>(control & 3U);
+    const icXformInterp interpolation =
+        (control & 4U) ? icInterpTetrahedral : icInterpLinear;
+    const bool use_d2b_tags = (control & 8U) != 0;
+    constexpr icXformLutType lut_types[] = {
+        icXformLutColor,
+        icXformLutColorimetric,
+        icXformLutSpectral,
+    };
+    const icXformLutType lut_type =
+        lut_types[static_cast<size_t>(control >> 4U) %
+                  (sizeof(lut_types) / sizeof(lut_types[0]))];
+    const bool first_is_input = (control & 0x40U) == 0;
+    CIccCmm cmm(icSigUnknownData, icSigUnknownData, first_is_input);
+
+    if (cmm.AddXform(*profile, intent, interpolation, nullptr, lut_type,
+                     use_d2b_tags) != icCmmStatOk) {
+        return false;
+    }
+    if (cmm.AddXform(*profile, intent, interpolation, nullptr, lut_type,
+                     use_d2b_tags) != icCmmStatOk) {
+        return false;
+    }
+    if (cmm.Begin() != icCmmStatOk)
+        return false;
+
+    const size_t source_samples = cmm.GetSourceSamples();
+    const size_t destination_samples = cmm.GetDestSamples();
+    if (!source_samples || source_samples > kMaxCmmSamples ||
+        !destination_samples || destination_samples > kMaxCmmSamples) {
+        return false;
+    }
+
+    std::array<icFloatNumber, kMaxCmmSamples * 2U> source = {};
+    std::array<icFloatNumber, kMaxCmmSamples * 2U> destination = {};
+    for (size_t sample = 0; sample < source_samples; ++sample) {
+        source[sample] = samples[sample];
+        source[kMaxCmmSamples + sample] = samples[source_samples - sample - 1U];
+    }
+
+    if (cmm.Apply(destination.data(), source.data()) != icCmmStatOk)
+        return false;
+
+    std::array<icFloatNumber, kMaxCmmSamples * 2U> packed_source = {};
+    std::array<icFloatNumber, kMaxCmmSamples * 2U> packed_destination = {};
+    for (size_t pixel = 0; pixel < 2U; ++pixel) {
+        for (size_t sample = 0; sample < source_samples; ++sample) {
+            packed_source[pixel * source_samples + sample] =
+                source[pixel * kMaxCmmSamples + sample];
+        }
+    }
+    return cmm.Apply(packed_destination.data(), packed_source.data(), 2) ==
+           icCmmStatOk;
+}
+
+void ProfileCmmRoundTripDoesNotCrash(const ProfileBytes &bytes,
+                                     const CmmSamples &samples,
+                                     uint8_t control) {
+    (void)ExerciseCmmRoundTrip(bytes, samples, control);
+}
+
 TEST(IccProfileFuzzTest, CuratedSeedsOpen) {
     const std::vector<ProfileBytes> profiles = LoadProfileBytes();
     ASSERT_FALSE(profiles.empty());
@@ -502,6 +601,25 @@ TEST(IccProfileFuzzTest, CuratedSeedsReachTagLookup) {
     ASSERT_GT(readable_tag_count, 0U);
 }
 
+TEST(IccProfileFuzzTest, CuratedSeedsReachCmmApply) {
+    const std::vector<ProfileBytes> profiles = LoadProfileBytes();
+    ASSERT_FALSE(profiles.empty());
+    ASSERT_EQ(LoadProfileCmmSeeds().size(), kFuzzSeedCount);
+
+    CmmSamples samples = {};
+    for (size_t sample = 0; sample < samples.size(); ++sample) {
+        samples[sample] = static_cast<icFloatNumber>(sample % 5U) /
+                          static_cast<icFloatNumber>(4.0f);
+    }
+
+    size_t applied_profile_count = 0;
+    for (const ProfileBytes &bytes : profiles) {
+        if (ExerciseCmmRoundTrip(bytes, samples, 8U))
+            ++applied_profile_count;
+    }
+    ASSERT_GT(applied_profile_count, 0U);
+}
+
 FUZZ_TEST(IccProfileFuzzTest, ProfileOperationsDoNotCrash)
     .WithDomains(
         ProfileBytesDomain(),
@@ -522,5 +640,13 @@ FUZZ_TEST(IccProfileFuzzTest, ProfileTagLookupDoesNotCrash)
         fuzztest::Arbitrary<uint32_t>(),
         fuzztest::InRange<uint8_t>(0, 3))
     .WithSeeds(LoadProfileTagLookupSeeds);
+
+FUZZ_TEST(IccProfileFuzzTest, ProfileCmmRoundTripDoesNotCrash)
+    .WithDomains(
+        ProfileBytesDomain(),
+        fuzztest::ArrayOf<kMaxCmmSamples>(
+            fuzztest::InRange<icFloatNumber>(-0.25f, 1.25f)),
+        fuzztest::InRange<uint8_t>(0, kMaxProfileControl))
+    .WithSeeds(LoadProfileCmmSeeds);
 
 }  // namespace
