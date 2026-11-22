@@ -294,7 +294,7 @@ Track reusable inputs and source needed to reproduce runs on another VM:
 |-------|----------|
 | Harness and build source | `cfl/*.cpp`, `cfl/*.h`, `cfl/*.sh`, `CMakeLists.txt`, `Dockerfile` |
 | Optional patch stack | `cfl/patches/*.patch`, `cfl/patches/README.md` |
-| Dictionaries | `cfl/*.dict`, curated AFL target dictionaries |
+| Dictionaries | Canonical shared dictionaries under `cfl/*.dict` |
 | Minimal seed fixtures | `cfl/corpus/`, `cfl/seeds-*`, small named fixtures |
 | Promoted repro artifacts | Files moved to `test-profiles/`, `fuzz/`, or `docs/pocs/` with evidence |
 

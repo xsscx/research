@@ -79,7 +79,8 @@ inputs with colon-separated `ICCDEV_APPLYTOLINK_AFL_DIRS` and
 
 - the instrumented binary in `afl/bin/`
 - seed directories
-- the dictionary copied into the per-target directory
+- the canonical dictionary, normally under `cfl/`, copied into the ignored
+  per-target directory at launch
 - any fixed arguments needed to drive multi-argument tools
 
 The fixed arguments for `iccBenchApply` and all `iccApplyNamedCmm`, `iccApplyProfiles`,
@@ -487,13 +488,14 @@ Track reusable AFL assets:
 
 - `afl/*.sh` orchestration scripts
 - `afl/targets.sh`
-- curated per-target dictionaries such as `afl/afl-dump/dump.dict`
+- canonical shared dictionaries under `cfl/*.dict`
 - curated seed inputs only when they are intentionally promoted fixtures
 
 Keep runtime output local unless promoted:
 
 - `afl/bin/`
 - `afl/iccDEV/`
+- generated `afl/afl-*/*.dict` launch copies
 - `afl/afl-*/output*/`
 - AFL queue, crash, hang, stats, and log output
 

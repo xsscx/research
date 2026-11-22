@@ -442,10 +442,13 @@ prefix.
 ## Artifact Policy
 
 Track reusable orchestration assets such as `afl/*.sh`, `afl/targets.sh`, and
-curated dictionaries. Keep runtime output local:
+the canonical shared dictionaries under `cfl/*.dict`. `start.sh` copies the
+selected dictionary into the target directory at launch; those per-lane copies
+are generated runtime state. Keep runtime output local:
 
 - `afl/bin/`
 - `afl/iccDEV/`
+- `afl/afl-*/*.dict`
 - `afl/afl-*/input/`
 - `afl/afl-*/output*/`
 - `afl/afl-*/cmin*/`
