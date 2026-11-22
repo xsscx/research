@@ -230,11 +230,15 @@ afl_wrappers_compile() {
     test_dir="$(mktemp -d "$tmp_root/afl-wrapper-test.XXXXXX")"
     printf 'int main(void) { return 0; }\n' > "$test_dir/test.c"
     printf 'int main(void) { return 0; }\n' > "$test_dir/test.cpp"
-    AFL_CC="$cc_backend" AFL_CXX="$cxx_backend" "$wrapper" -c "$test_dir/test.c" -o "$test_dir/test.o" >/dev/null 2>&1 || {
+    env -u AFL_BUILD_DIR -u AFL_BIN_DIR \
+        AFL_CC="$cc_backend" AFL_CXX="$cxx_backend" \
+        "$wrapper" -c "$test_dir/test.c" -o "$test_dir/test.o" >/dev/null 2>&1 || {
         rm -rf "$test_dir"
         return 1
     }
-    AFL_CC="$cc_backend" AFL_CXX="$cxx_backend" "$wrapperxx" -c "$test_dir/test.cpp" -o "$test_dir/testxx.o" >/dev/null 2>&1 || {
+    env -u AFL_BUILD_DIR -u AFL_BIN_DIR \
+        AFL_CC="$cc_backend" AFL_CXX="$cxx_backend" \
+        "$wrapperxx" -c "$test_dir/test.cpp" -o "$test_dir/testxx.o" >/dev/null 2>&1 || {
         rm -rf "$test_dir"
         return 1
     }
@@ -246,7 +250,7 @@ afl_wrapper_has_required_version() {
     local wrapper="$1"
     local banner
 
-    banner="$("$wrapper" -h 2>&1 | head -n 1 || true)"
+    banner="$(env -u AFL_BUILD_DIR -u AFL_BIN_DIR "$wrapper" -h 2>&1 | head -n 1 || true)"
     [[ "$banner" == *"afl-cc++${AFL_REQUIRED_VERSION}"* ]]
 }
 

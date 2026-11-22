@@ -427,6 +427,22 @@ explicit `--cmplog-binary`. The `diverse` mode defaults to eight synchronized
 workers with different explore/exploit strategy and power-schedule pairs. Use
 `--strategy` and `--power-schedule` directly for a custom single strategy.
 
+For a PAWG lane that has stopped gaining coverage, build the comparison-logging
+variant and start a fresh, archived generation with deduplicated seeds:
+
+```bash
+AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-CMPLOG \
+  AFL_BIN_DIR=$PWD/afl/bin-cmplog \
+  ./afl/build.sh --cmplog --clean
+./afl/run-all.sh pawgreport --coverage-boost --seconds 21600 --parallel 4 --no-coverage
+./afl/run-all.sh pawgreport-text --coverage-boost --seconds 21600 --parallel 4 --no-coverage
+```
+
+Do not use `--coverage-boost` for a target that was still gaining coverage when
+its `-V` time limit ended. Resume that queue with `./afl/start.sh TARGET`.
+Leave a live healthy target running. To inspect the PAWG queue before relaunch,
+run `./afl/coverage.sh pawgreport --no-reachability --jobs 32`.
+
 ## Coverage and Reachability Toolchain
 
 `afl/build.sh` uses the system `clang`/`clang++` and compatible AFL++ wrappers.

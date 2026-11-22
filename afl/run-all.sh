@@ -57,7 +57,7 @@ usage() {
     echo "  --testcache-size N  set AFL_TESTCACHE_SIZE in MB; default ${TESTCACHE_SIZE}"
     echo "  --seed-limit N    override per-directory seed sample size"
     echo "  --seed-max-bytes N  override target maximum seed size"
-    echo "  --coverage-boost  preset: --resume --reseed --mode cmplog --mopt"
+    echo "  --coverage-boost  plateau preset: --fresh --reseed --mode cmplog --mopt"
     echo "  --not-started     run only targets without existing fuzzer_stats"
     echo "  --low-coverage N  run only targets with best bitmap coverage below N percent"
     echo "  --no-report       run fuzzers only"
@@ -193,7 +193,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --coverage-boost)
-            FRESH_MODE=0
+            FRESH_MODE=1
             RESEED=1
             CMPLOG_AUTO=1
             [[ "$MODE" == "default" ]] && MODE="cmplog"

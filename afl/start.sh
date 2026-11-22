@@ -745,12 +745,17 @@ copy_seed_file() {
     local seed_file="$1"
     local skip_type_check="${2:-0}"
     local skip_dry_run="${3:-0}"
-    local base dest suffix
+    local base dest seed_hash suffix
 
     if ! seed_file_size_allowed "$seed_file"; then
         return 1
     fi
     if [[ "$skip_type_check" -ne 1 ]] && ! seed_file_allowed "$seed_file"; then
+        return 1
+    fi
+    read -r seed_hash _ < <(sha256sum -- "$seed_file")
+    if [[ -n "${STAGED_SEED_HASHES[$seed_hash]:-}" ]]; then
+        SEED_DUPLICATES_SKIPPED=$((SEED_DUPLICATES_SKIPPED + 1))
         return 1
     fi
     if [[ "$skip_dry_run" -ne 1 ]] && ! seed_file_dry_run_ok "$seed_file"; then
@@ -766,6 +771,7 @@ copy_seed_file() {
         dest="$AFL_DIR/input/${base}.dup$suffix"
     done
     cp -- "$seed_file" "$dest"
+    STAGED_SEED_HASHES["$seed_hash"]=1
 }
 
 selected_seed_candidates() {
@@ -792,11 +798,21 @@ selected_seed_candidates() {
 prune_existing_seed_corpus
 INPUT_SEED_COUNT=$(find "$AFL_DIR/input" -mindepth 1 -maxdepth 1 -type f 2>/dev/null | wc -l)
 if [[ -z "$AFL_INPUT_DIR" && ( "$INPUT_SEED_COUNT" -eq 0 || "$AFL_RESEED" != "0" ) ]]; then
+    if ! command -v sha256sum >/dev/null 2>&1; then
+        echo "ERROR: sha256sum is required for AFL seed deduplication" >&2
+        exit 1
+    fi
     if [[ "$INPUT_SEED_COUNT" -eq 0 ]]; then
         echo "[*] Seeding input corpus..."
     else
         echo "[*] Reseeding input corpus..."
     fi
+    declare -A STAGED_SEED_HASHES=()
+    while IFS= read -r -d '' seed_file; do
+        read -r seed_hash _ < <(sha256sum -- "$seed_file")
+        STAGED_SEED_HASHES["$seed_hash"]=1
+    done < <(find "$AFL_DIR/input" -mindepth 1 -maxdepth 1 -type f -print0 2>/dev/null)
+    SEED_DUPLICATES_SKIPPED=0
     SEED_DRY_RUN_REJECTED=0
     for seed_file in "${SEED_FILES[@]}"; do
         if [[ -f "$seed_file" ]]; then
@@ -835,6 +851,7 @@ if [[ -z "$AFL_INPUT_DIR" && ( "$INPUT_SEED_COUNT" -eq 0 || "$AFL_RESEED" != "0"
     if [[ "${SEED_DRY_RUN_TARGET:-0}" -eq 1 ]]; then
         echo "    dry-run rejected $SEED_DRY_RUN_REJECTED seed(s) by target policy"
     fi
+    echo "    skipped $SEED_DUPLICATES_SKIPPED duplicate seed(s) by content"
 fi
 
 # Copy dictionary

@@ -53,6 +53,7 @@ AFL_TARGETS=(
     jpegdump-inject
     pawgreport
     pawgreport-fast
+    pawgreport-text
     pngdump
     pngdump-inject
     profileplot
@@ -126,6 +127,7 @@ afl_print_targets() {
     echo "  jpegdump-inject  - iccJpegDump (--write-icc injection lane)"
     echo "  pawgreport       - iccPawgReport (PAWG profile assessment)"
     echo "  pawgreport-fast  - iccPawgReport (small/no-trim profile assessment lane)"
+    echo "  pawgreport-text  - iccPawgReport (default text report lane)"
     echo "  pngdump          - iccPngDump (PNG -> ICC extraction)"
     echo "  pngdump-inject   - iccPngDump (--write-icc injection lane)"
     echo "  profileplot      - iccProfilePlot (descriptor list JSON lane)"
@@ -1022,10 +1024,11 @@ afl_configure_target() {
                 AFL_ARGS=("@@" "${tmp_prefix}.icc")
             fi
             ;;
-        pawgreport|pawgreport-fast)
+        pawgreport|pawgreport-fast|pawgreport-text)
             BINARY="$BIN_DIR/iccPawgReport"
             [[ "$target" == "pawgreport-fast" ]] && AFL_DIR="$AFL_BASE/afl-pawgreport-fast"
-            DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
+            [[ "$target" == "pawgreport-text" ]] && AFL_DIR="$AFL_BASE/afl-pawgreport-text"
+            DICT="$REPO_ROOT/cfl/icc_master_curated.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -1034,15 +1037,23 @@ afl_configure_target() {
             SEED_MAX_BYTES=1048576
             SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
             AFL_DISABLE_TRIM_TARGET=1
+            AFL_FAST_CAL_TARGET=1
+            AFL_EXPAND_HAVOC_TARGET=1
+            AFL_SKIP_DETERMINISTIC_TARGET=1
             if [[ "$target" == "pawgreport-fast" ]]; then
                 SEED_MAX_BYTES=8192
                 SEED_LIMIT=96
-                AFL_FAST_CAL_TARGET=1
-                TARGET_NOTE="Fast PAWG report lane: seeds <= 8 KiB, AFL_FAST_CAL=1, AFL_DISABLE_TRIM=1."
+                TARGET_NOTE="Fast PAWG report lane: seeds <= 8 KiB, fast calibration, immediate expanded havoc, deterministic inference skipped, trimming disabled."
+            elif [[ "$target" == "pawgreport-text" ]]; then
+                TARGET_NOTE="PAWG text report lane: default human-readable report output with the broad ICC corpus and accelerated mutation settings."
             else
-                TARGET_NOTE="PAWG report lane: broad ICC corpus up to 1 MiB, AFL_DISABLE_TRIM=1 to avoid report-amplification timeouts during testcase trimming."
+                TARGET_NOTE="PAWG report lane: broad ICC corpus up to 1 MiB, fast calibration, immediate expanded havoc, deterministic inference skipped, trimming disabled."
             fi
-            AFL_ARGS=("--json" "@@")
+            if [[ "$target" == "pawgreport-text" ]]; then
+                AFL_ARGS=("@@")
+            else
+                AFL_ARGS=("--json" "@@")
+            fi
             ;;
         pngdump|pngdump-inject)
             BINARY="$BIN_DIR/iccPngDump"
@@ -1403,7 +1414,7 @@ afl_configure_target() {
     esac
 
     case "$target" in
-        applynamedcmm-hybrid-pcc|dump|dump-diag|dump-read|pawgreport|pawgreport-fast|profilevisualize|profilevisualize-fast|roundtrip|roundtrip-mpe|tojson|toxml|toxml-fast)
+        applynamedcmm-hybrid-pcc|dump|dump-diag|dump-read|pawgreport|pawgreport-fast|pawgreport-text|profilevisualize|profilevisualize-fast|roundtrip|roundtrip-mpe|tojson|toxml|toxml-fast)
             afl_append_ics_seed_dirs icc
             ;;
         applyprofiles-cfg)

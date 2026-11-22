@@ -349,13 +349,17 @@ ICC profile representation and reaches profile construction, validation, and
 serialization rather than only configuration parsing. Use the explicit `all`
 selector when both groups are required.
 
-When `afl-health` reports dead or plateaued campaigns across many binaries, use
-the coverage-boost preset to resume existing queues, reseed each target, enable
-matching CmpLog binaries from `afl/bin-cmplog/` when present, and raise AFL's
-testcase cache:
+When `afl-health` reports a coverage plateau, first build the matching CmpLog
+binaries. Then use the coverage-boost preset only for the plateaued target. The
+preset archives the prior generation, stages a fresh content-deduplicated seed
+sample, enables CmpLog with `AFL_CMPLOG_ONLY_NEW=1`, and starts MOpt. A stopped
+target that was still gaining coverage should be resumed without this preset.
 
 ```bash
-./afl/run-all.sh all --coverage-boost --seconds 3600 --parallel 1 --no-coverage
+AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-CMPLOG \
+  AFL_BIN_DIR=$PWD/afl/bin-cmplog \
+  ./afl/build.sh --cmplog --clean
+./afl/run-all.sh pawgreport --coverage-boost --seconds 21600 --parallel 4 --no-coverage
 ```
 
 Use `--no-coverage` for a faster stats/maps/triage pass, or `--dry-run` to audit
@@ -420,10 +424,14 @@ resuming a stale queue:
 ./afl/start.sh applysearch-hybrid-pcc --fresh --reseed
 ```
 
-Both PawgReport lanes disable AFL testcase trimming because malformed report
-inputs can amplify a one-byte trim mutation into a multi-second report. The
-standard `pawgreport` lane retains full calibration and the broad corpus;
-`pawgreport-fast` also enables fast calibration and limits seeds to 8 KiB.
+All three PawgReport lanes disable AFL testcase trimming because malformed report
+inputs can amplify a one-byte trim mutation into a multi-second report. They
+use fast calibration, enter expanded havoc immediately, and skip enhanced
+deterministic inference so broad seed sets reach mutation work promptly. The
+standard `pawgreport` lane accepts the broad corpus up to 1 MiB;
+`pawgreport-fast` limits seeds to 8 KiB, and `pawgreport-text` exercises the
+default human-readable report emitter that the JSON lane cannot reach. All
+three use the noise-free curated ICC master dictionary.
 
 For `iccProfilePlot`, keep the CLI surfaces separate and validate the shared
 fixture before starting:
