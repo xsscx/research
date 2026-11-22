@@ -1,5 +1,26 @@
 # CFL PAWG 13-channel slow-unit QA - 2026-11-12
 
+## 2026-11-22 follow-up
+
+The same 13-channel Q3 family recurred as
+`pawg-slow-unit-220c2ee5e9a4cf04120570fa992b9141ef6e3042` (354,931 bytes,
+SHA-256 `4fa25ef918a6c54eacb4e74c6c2239377ab5874a1d2a7d6badc3cad5d830cb55`).
+The exact artifact took 11.36 seconds in the ASan-and-coverage CFL harness,
+1.78 seconds in the AFL PAWG build, and 0.25 seconds in the existing Release
+control. It produced no sanitizer finding.
+
+Repeated campaign impact now justifies a CFL-only throughput control without
+changing production PAWG behavior. Patch 021 makes the n-D LUT smoothness
+corner ceiling compile-time configurable; patched CFL compiles its PAWG object
+with a 4,194,304-corner ceiling while standalone and AFL builds retain the
+8,388,608 default. This keeps 12-channel Q3 coverage and rejects 13-channel Q3
+before repeated CMM evaluation. The rebuilt CFL harness replayed the preserved
+artifact three times in 1.05-1.07 seconds with exit zero.
+
+The original review and upstream no-patch disposition remain below. The new
+limit is deliberately confined to the heavily instrumented CFL comparison
+build.
+
 ## Decision
 
 The two `icc_pawgreport_fuzzer` slow units are bounded campaign-throughput

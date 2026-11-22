@@ -382,6 +382,9 @@ The NamedCMM harness runs its full transform matrix. In the patched comparison
 build (`./build.sh --with-patches --branch ci-afl-cfl --refresh-iccdev`), patch
 020 bounds sampled-curve setup using its sample count and calculator cost.
 Patch 019 rejects the PAWG header-only CLUT empty payload before allocation.
+Patch 021 gives only the patched CFL PAWG object a 4,194,304-corner Q3 ceiling,
+so 13-channel n-D LUT profiles do not become sanitizer-and-coverage slow units;
+standalone and AFL PAWG builds retain the upstream 8,388,608-corner ceiling.
 
 For maintainer one-liners covering every active fuzzer, including smoke,
 explore, rare-path, and sanitizer reproduction modes, use

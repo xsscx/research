@@ -1,0 +1,19 @@
+diff --git a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h b/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h
+index 1c2bf457..3fc93220 100644
+--- a/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h
++++ b/Tools/CmdLine/IccPawgReport/IccQualityMetrics.h
+@@ -72,6 +72,13 @@ constexpr int kSmoothnessSamples = 65;
+ // so 14- and 15-channel profiles otherwise require roughly 16 and 34 million
+ // CLUT-corner visits.  Keep 13-channel profiles (about 7.5 million visits) in
+ // scope while refusing the next exponential step (CWE-400).
+-constexpr size_t kMaxSmoothnessInterpolationCorners = 8u * 1024u * 1024u;
++#ifndef ICCDEV_PAWG_MAX_SMOOTHNESS_INTERPOLATION_CORNERS
++// Instrumented research builds may lower this ceiling without changing the
++// standalone report's production default.
++#define ICCDEV_PAWG_MAX_SMOOTHNESS_INTERPOLATION_CORNERS \
++  (8u * 1024u * 1024u)
++#endif
++constexpr size_t kMaxSmoothnessInterpolationCorners =
++    ICCDEV_PAWG_MAX_SMOOTHNESS_INTERPOLATION_CORNERS;
+ constexpr double kPi = 3.141592653589793238462643383279502884;
+ constexpr double kDegToRad = kPi / 180.0;

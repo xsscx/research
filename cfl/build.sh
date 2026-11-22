@@ -5,7 +5,8 @@
 # Clones iccDEV, builds static libraries, then compiles all fuzzers.
 #
 # Usage:  ./build.sh                         # build all fuzzers against upstream master
-#         ./build.sh clean                   # remove build artifacts and start fresh
+#         ./build.sh clean                   # remove build artifacts and exit
+#         ./build.sh clean --with-patches    # clean, then rebuild with patches
 #         ./build.sh --sanitizer memory
 #         ./build.sh --sanitizer thread
 #
@@ -33,6 +34,9 @@ KEEP_ICCDEV="${CFL_KEEP_ICCDEV:-0}"
 ICCDEV_REF="${CFL_ICCDEV_REF:-master}"
 SANITIZER_MODE="${CFL_SANITIZER:-address}"
 DEFAULT_ICCDEV_DIR="$SCRIPT_DIR/iccDEV"
+BUILD_AFTER_CLEAN=0
+PAWG_FUZZER_SMOOTHNESS_CORNERS=4194304
+PAWG_FUZZER_CXXFLAGS=()
 
 # Sanitizer + debug + instrumentation + coverage flags
 COMMON_CFLAGS="-g3 -O0 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -Werror"
@@ -205,7 +209,7 @@ usage() {
   sed -n '2,12p' "$0" | sed 's/^# \?//'
   echo ""
   echo "Options:"
-  echo "  clean             remove build artifacts and nested iccDEV checkout"
+  echo "  clean             remove build artifacts; continue when build options follow"
   echo "  --with-patches    apply local patches from cfl/patches"
   echo "  --branch REF      clone/fetch the named iccDEV branch or tag (default: master)"
   echo "  --ref REF         alias for --branch"
@@ -223,6 +227,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --with-patches)
       WITH_PATCHES=1
+      BUILD_AFTER_CLEAN=1
       shift
       ;;
     --branch|--ref)
@@ -231,10 +236,12 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       ICCDEV_REF="$2"
+      BUILD_AFTER_CLEAN=1
       shift 2
       ;;
     --keep-iccdev)
       KEEP_ICCDEV=1
+      BUILD_AFTER_CLEAN=1
       shift
       ;;
     --sanitizer)
@@ -243,10 +250,12 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       SANITIZER_MODE="$2"
+      BUILD_AFTER_CLEAN=1
       shift 2
       ;;
     --refresh-iccdev)
       REFRESH_ICCDEV=1
+      BUILD_AFTER_CLEAN=1
       shift
       ;;
     -h|--help)
@@ -329,6 +338,12 @@ if [[ "$WITH_PATCHES" != "0" && "$WITH_PATCHES" != "1" ]]; then
   exit 1
 fi
 
+if [[ "$WITH_PATCHES" = "1" ]]; then
+  PAWG_FUZZER_CXXFLAGS+=(
+    "-DICCDEV_PAWG_MAX_SMOOTHNESS_INTERPOLATION_CORNERS=${PAWG_FUZZER_SMOOTHNESS_CORNERS}u"
+  )
+fi
+
 if [ "${CLEAN:-0}" = "1" ]; then
   banner "Cleaning build artifacts"
   rm -rf "${SCRIPT_DIR:?}/bin" "${SCRIPT_DIR:?}/bin-msan" \
@@ -340,7 +355,9 @@ if [ "${CLEAN:-0}" = "1" ]; then
     echo "Preserving external CFL_ICCDEV_DIR: $ICCDEV_DIR"
   fi
   echo "[OK] Clean complete"
-  exit 0
+  if [[ "$BUILD_AFTER_CLEAN" = "0" ]]; then
+    exit 0
+  fi
 fi
 
 for tool in "$CC" "$CXX" cmake pkg-config; do
@@ -729,8 +746,11 @@ echo "PAWG report fuzzers:"
 if [ -f "$PAWG_SRC" ]; then
   mkdir -p "$(dirname "$PAWG_OBJ")"
   echo "  Compiling PawgReport.o..."
+  if [[ ${#PAWG_FUZZER_CXXFLAGS[@]} -gt 0 ]]; then
+    echo "  CFL smoothness corner budget: $PAWG_FUZZER_SMOOTHNESS_CORNERS"
+  fi
   # shellcheck disable=SC2086
-  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS \
+  $CXX $CXXFLAGS_FUZZER $INCLUDE_FLAGS "${PAWG_FUZZER_CXXFLAGS[@]}" \
     -c "$PAWG_SRC" -o "$PAWG_OBJ" 2>&1
   for f in "${REPORT_FUZZERS[@]}"; do
     build_fuzzer "$f" "$PAWG_OBJ" &

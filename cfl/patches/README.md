@@ -65,6 +65,12 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   setup by the product of its serialized sample count and selector-width-aware
   calculator estimate. This keeps the supplied NamedCMM slow units from
   spending minutes inside `CIccSampledCalculatorCurve::Begin()`.
+- `021-pawg-fuzzer-smoothness-budget.patch`: makes the PAWG n-D LUT
+  smoothness work ceiling compile-time configurable. Patched CFL builds select
+  a 4,194,304-corner ceiling, retaining 12-channel Q3 coverage while rejecting
+  the 13-channel sanitizer-and-coverage slow-unit family before repeated CMM
+  evaluation. Standalone and AFL PAWG builds retain the upstream 8,388,608
+  default.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.
