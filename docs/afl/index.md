@@ -438,9 +438,10 @@ variant and start a fresh, archived generation with deduplicated seeds:
 ./afl/run-all.sh pawgreport-text --coverage-boost --seconds 21600 --parallel 4 --no-coverage
 ```
 
-The explicit path options are useful in remote orchestration and override the
-matching environment variables. On a standard checkout, `--cmplog` selects
-`afl/iccDEV/Build-AFL-CMPLOG` and `afl/bin-cmplog` automatically.
+The explicit path options are useful in remote orchestration. On a standard
+checkout, `--cmplog` selects `afl/iccDEV/Build-AFL-CMPLOG` and
+`afl/bin-cmplog` automatically and ignores stale `AFL_BUILD_DIR` or
+`AFL_BIN_DIR` exports; use the CLI path options for deliberate overrides.
 
 Do not use `--coverage-boost` for a target that was still gaining coverage when
 its `-V` time limit ended. Resume that queue with `./afl/start.sh TARGET`.

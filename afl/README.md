@@ -111,8 +111,9 @@ AFL_CMPLOG_BINARY=$PWD/afl/bin-cmplog/iccDumpProfile ./afl/start.sh dump
 `--cmplog` defaults to `afl/iccDEV/Build-AFL-CMPLOG` and
 `afl/bin-cmplog`, so `./afl/build.sh --cmplog --clean` is sufficient on
 standard checkouts. The explicit `--build-dir` and `--bin-dir` options take
-precedence over both those defaults and the corresponding environment
-variables, which makes remote automation independent of the invoking shell.
+precedence over those defaults. CmpLog builds ignore `AFL_BUILD_DIR` and
+`AFL_BIN_DIR` unless their CLI equivalents are provided, which prevents stale
+remote-shell exports from overwriting the normal AFL binaries.
 
 ```bash
 AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-LAF AFL_BIN_DIR=$PWD/afl/bin-laf ./afl/build.sh --laf --clean

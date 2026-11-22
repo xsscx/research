@@ -56,8 +56,8 @@ usage() {
     echo "  --shared          link/deploy iccDEV shared libraries"
     echo ""
     echo "Environment:"
-    echo "  AFL_BUILD_DIR     default build directory when --build-dir is omitted"
-    echo "  AFL_BIN_DIR       default binary directory when --bin-dir is omitted"
+    echo "  AFL_BUILD_DIR     non-CMPLOG build directory when --build-dir is omitted"
+    echo "  AFL_BIN_DIR       non-CMPLOG binary directory when --bin-dir is omitted"
     echo "  AFL_THIRD_PARTY_PREFIX override the dependency install prefix"
     echo "  AFL_SANITIZER     default --sanitizer value"
     echo "  AFL_ICCDEV_BRANCH default --branch value"
@@ -186,9 +186,18 @@ esac
 if [[ "$AFL_CMPLOG_BUILD" = "1" ]]; then
     BUILD_SUFFIX="${BUILD_SUFFIX}-CMPLOG"
     BIN_SUFFIX="${BIN_SUFFIX}-cmplog"
+    if [[ -z "$BUILD_DIR_CLI" && -n "${AFL_BUILD_DIR:-}" ]]; then
+        echo "[WARN] Ignoring AFL_BUILD_DIR for --cmplog; use --build-dir to override"
+    fi
+    if [[ -z "$BIN_DIR_CLI" && -n "${AFL_BIN_DIR:-}" ]]; then
+        echo "[WARN] Ignoring AFL_BIN_DIR for --cmplog; use --bin-dir to override"
+    fi
+    BUILD_DIR="${BUILD_DIR_CLI:-$ICCDEV_DIR/Build-AFL$BUILD_SUFFIX}"
+    BIN_DIR="${BIN_DIR_CLI:-$SCRIPT_DIR/bin$BIN_SUFFIX}"
+else
+    BUILD_DIR="${BUILD_DIR_CLI:-${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL$BUILD_SUFFIX}}"
+    BIN_DIR="${BIN_DIR_CLI:-${AFL_BIN_DIR:-$SCRIPT_DIR/bin$BIN_SUFFIX}}"
 fi
-BUILD_DIR="${BUILD_DIR_CLI:-${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL$BUILD_SUFFIX}}"
-BIN_DIR="${BIN_DIR_CLI:-${AFL_BIN_DIR:-$SCRIPT_DIR/bin$BIN_SUFFIX}}"
 THIRD_PARTY_PREFIX="${AFL_THIRD_PARTY_PREFIX:-$THIRD_PARTY_DIR/install$THIRD_PARTY_SUFFIX}"
 THIRD_PARTY_BUILD_DIR="${AFL_THIRD_PARTY_BUILD_DIR:-$THIRD_PARTY_DIR/build$THIRD_PARTY_SUFFIX}"
 
