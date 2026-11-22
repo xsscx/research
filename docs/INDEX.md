@@ -8,11 +8,11 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 | Task | Start Here |
 |------|------------|
 | Build or run repo tools | `../README.md`, `iccDEV/shell-helpers/README.md`, `iccDEV/Tools/README.md` |
-| Run AFL++ tool fuzzing | `afl/index.md` |
+| Run AFL++ tool fuzzing or automate isolated CmpLog builds | `afl/index.md`, `../afl/README.md` |
 | Run bounded iccApplyProfiles sanitizer or Valgrind QA | `afl/iccapplyprofiles-qa.md`, `../.github/skills/icc-tool-qa/SKILL.md` |
 | Run CFL LibFuzzer harnesses | `../cfl/README.md`, `Testing/CFL_MANUAL_FUZZER_COMMANDS.md` |
 | Review a plateaued CFL config fuzzer | `../.github/skills/cfl-config-fuzzing/SKILL.md`, `../.github/prompts/cfl-config-fuzzing.prompt.md` |
-| Run Google FuzzTest property harnesses | `../fuzztest/README.md` |
+| Run Google FuzzTest properties or minimize native corpora | `../fuzztest/README.md` |
 | Run local Memcheck, Helgrind, DRD, Massif, or Callgrind analysis | `../valgrind/README.md` |
 | Review fuzzing assets and A/B tracking policy | `Testing/FUZZ_CFL_INVENTORY.md` |
 | Investigate a bug or security issue | `pocs/`, `analysis/`, `cve/iccDEV-CVE-Report.md` |
@@ -28,6 +28,7 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 | Dump TIFF structure and preserve an embedded ICC | `../colorbleed_tools/Readme.md`, `../.github/prompts/tiff-icc-colorbleed.prompt.md` |
 | Set up Apple Silicon host flow | `LOCAL_MACOS_ARM64_ONBOARDING.md` |
 | Configure or troubleshoot MCP servers (`.mcp.json`) | `MCP_SERVER_SETUP.md` |
+| Configure or validate Codex Security and Daybreak Blue | `Testing/CODEX_SECURITY_DAYBREAK.md` |
 | Validate upstream PAWG, MCP, container, or maintainer tools | `ICCDEV_UPSTREAM_INTEROP.md`, `../.github/skills/iccdev-pawg-mcp/SKILL.md` |
 
 ## Security Research
