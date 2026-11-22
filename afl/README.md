@@ -102,9 +102,17 @@ Build the isolated AFL iccDEV checkout with comparison-guided variants when a
 campaign plateaus on parser-heavy paths:
 
 ```bash
-AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-CMPLOG AFL_BIN_DIR=$PWD/afl/bin-cmplog ./afl/build.sh --cmplog --clean
+./afl/build.sh --cmplog --clean \
+  --build-dir "$PWD/afl/iccDEV/Build-AFL-CMPLOG" \
+  --bin-dir "$PWD/afl/bin-cmplog"
 AFL_CMPLOG_BINARY=$PWD/afl/bin-cmplog/iccDumpProfile ./afl/start.sh dump
 ```
+
+`--cmplog` defaults to `afl/iccDEV/Build-AFL-CMPLOG` and
+`afl/bin-cmplog`, so `./afl/build.sh --cmplog --clean` is sufficient on
+standard checkouts. The explicit `--build-dir` and `--bin-dir` options take
+precedence over both those defaults and the corresponding environment
+variables, which makes remote automation independent of the invoking shell.
 
 ```bash
 AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-LAF AFL_BIN_DIR=$PWD/afl/bin-laf ./afl/build.sh --laf --clean
@@ -122,7 +130,9 @@ AFL_BIN_DIR=$PWD/afl/bin-laf AFL_BASE=$PWD/afl/laf ./afl/start.sh fromcube --fre
 ```
 
 ```bash
-AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-CMPLOG AFL_BIN_DIR=$PWD/afl/bin-cmplog ./afl/build.sh --cmplog --clean
+./afl/build.sh --cmplog --clean \
+  --build-dir "$PWD/afl/iccDEV/Build-AFL-CMPLOG" \
+  --bin-dir "$PWD/afl/bin-cmplog"
 AFL_BASE=$PWD/afl/cmplog ./afl/start.sh fromcube --fresh --reseed --cmplog-binary $PWD/afl/bin-cmplog/iccFromCube
 ```
 
@@ -356,9 +366,9 @@ sample, enables CmpLog with `AFL_CMPLOG_ONLY_NEW=1`, and starts MOpt. A stopped
 target that was still gaining coverage should be resumed without this preset.
 
 ```bash
-AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-CMPLOG \
-  AFL_BIN_DIR=$PWD/afl/bin-cmplog \
-  ./afl/build.sh --cmplog --clean
+./afl/build.sh --cmplog --clean \
+  --build-dir "$PWD/afl/iccDEV/Build-AFL-CMPLOG" \
+  --bin-dir "$PWD/afl/bin-cmplog"
 ./afl/run-all.sh pawgreport --coverage-boost --seconds 21600 --parallel 4 --no-coverage
 ```
 

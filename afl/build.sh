@@ -29,6 +29,8 @@ AFL_UBSAN_IGNORELIST="${AFL_UBSAN_IGNORELIST:-.github/ci/ubsan-ignorelist.txt}"
 AFL_REQUIRED_VERSION="5.04a"
 CLEAN_THIRD_PARTY=0
 SANITIZER_MODE="${AFL_SANITIZER:-address}"
+BUILD_DIR_CLI=""
+BIN_DIR_CLI=""
 
 # shellcheck source=afl/sanitizer-env.sh
 source "$SCRIPT_DIR/sanitizer-env.sh"
@@ -37,14 +39,16 @@ usage() {
     sed -n '2,8p' "$0" | sed 's/^# \?//'
     echo ""
     echo "Options:"
-    echo "  --clean           remove Build-AFL before building"
+    echo "  --clean           remove the resolved build directory before building"
     echo "  --clean-third-party rebuild all AFL-instrumented dependencies"
     echo "  --sanitizer MODE build with address (default), memory, or thread sanitizer"
+    echo "  --build-dir DIR   override the build directory"
+    echo "  --bin-dir DIR     override the deployed binary directory"
     echo "  --with-patches    apply local patches from afl/patches"
     echo "  --branch NAME     use iccDEV branch NAME; existing checkout stays local-only"
     echo "  --refresh-iccdev  fetch selected branch or origin/master and reset the nested checkout"
     echo "  --keep-iccdev     preserve current afl/iccDEV source edits"
-    echo "  --cmplog          build CMPLOG-instrumented tools"
+    echo "  --cmplog          build CMPLOG tools in isolated directories by default"
     echo "  --laf             build with LAF compare splitting"
     echo "  --ctx             build with context-sensitive coverage"
     echo "  --ngram N         build with AFL_LLVM_NGRAM_SIZE=N"
@@ -52,8 +56,8 @@ usage() {
     echo "  --shared          link/deploy iccDEV shared libraries"
     echo ""
     echo "Environment:"
-    echo "  AFL_BUILD_DIR     override build directory"
-    echo "  AFL_BIN_DIR       override deployed binary directory"
+    echo "  AFL_BUILD_DIR     default build directory when --build-dir is omitted"
+    echo "  AFL_BIN_DIR       default binary directory when --bin-dir is omitted"
     echo "  AFL_THIRD_PARTY_PREFIX override the dependency install prefix"
     echo "  AFL_SANITIZER     default --sanitizer value"
     echo "  AFL_ICCDEV_BRANCH default --branch value"
@@ -78,6 +82,22 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             SANITIZER_MODE="$2"
+            shift 2
+            ;;
+        --build-dir)
+            if [[ $# -lt 2 || -z "$2" || "$2" == --* ]]; then
+                echo "ERROR: --build-dir requires a directory"
+                exit 1
+            fi
+            BUILD_DIR_CLI="$2"
+            shift 2
+            ;;
+        --bin-dir)
+            if [[ $# -lt 2 || -z "$2" || "$2" == --* ]]; then
+                echo "ERROR: --bin-dir requires a directory"
+                exit 1
+            fi
+            BIN_DIR_CLI="$2"
             shift 2
             ;;
         --with-patches)
@@ -163,8 +183,12 @@ case "$SANITIZER_MODE" in
         THIRD_PARTY_SUFFIX="-tsan"
         ;;
 esac
-BUILD_DIR="${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL$BUILD_SUFFIX}"
-BIN_DIR="${AFL_BIN_DIR:-$SCRIPT_DIR/bin$BIN_SUFFIX}"
+if [[ "$AFL_CMPLOG_BUILD" = "1" ]]; then
+    BUILD_SUFFIX="${BUILD_SUFFIX}-CMPLOG"
+    BIN_SUFFIX="${BIN_SUFFIX}-cmplog"
+fi
+BUILD_DIR="${BUILD_DIR_CLI:-${AFL_BUILD_DIR:-$ICCDEV_DIR/Build-AFL$BUILD_SUFFIX}}"
+BIN_DIR="${BIN_DIR_CLI:-${AFL_BIN_DIR:-$SCRIPT_DIR/bin$BIN_SUFFIX}}"
 THIRD_PARTY_PREFIX="${AFL_THIRD_PARTY_PREFIX:-$THIRD_PARTY_DIR/install$THIRD_PARTY_SUFFIX}"
 THIRD_PARTY_BUILD_DIR="${AFL_THIRD_PARTY_BUILD_DIR:-$THIRD_PARTY_DIR/build$THIRD_PARTY_SUFFIX}"
 

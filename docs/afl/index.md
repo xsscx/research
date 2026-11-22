@@ -431,12 +431,16 @@ For a PAWG lane that has stopped gaining coverage, build the comparison-logging
 variant and start a fresh, archived generation with deduplicated seeds:
 
 ```bash
-AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-CMPLOG \
-  AFL_BIN_DIR=$PWD/afl/bin-cmplog \
-  ./afl/build.sh --cmplog --clean
+./afl/build.sh --cmplog --clean \
+  --build-dir "$PWD/afl/iccDEV/Build-AFL-CMPLOG" \
+  --bin-dir "$PWD/afl/bin-cmplog"
 ./afl/run-all.sh pawgreport --coverage-boost --seconds 21600 --parallel 4 --no-coverage
 ./afl/run-all.sh pawgreport-text --coverage-boost --seconds 21600 --parallel 4 --no-coverage
 ```
+
+The explicit path options are useful in remote orchestration and override the
+matching environment variables. On a standard checkout, `--cmplog` selects
+`afl/iccDEV/Build-AFL-CMPLOG` and `afl/bin-cmplog` automatically.
 
 Do not use `--coverage-boost` for a target that was still gaining coverage when
 its `-V` time limit ended. Resume that queue with `./afl/start.sh TARGET`.
