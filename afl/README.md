@@ -102,18 +102,33 @@ Build the isolated AFL iccDEV checkout with comparison-guided variants when a
 campaign plateaus on parser-heavy paths:
 
 ```bash
-./afl/build.sh --cmplog --clean \
-  --build-dir "$PWD/afl/iccDEV/Build-AFL-CMPLOG" \
-  --bin-dir "$PWD/afl/bin-cmplog"
-AFL_CMPLOG_BINARY=$PWD/afl/bin-cmplog/iccDumpProfile ./afl/start.sh dump
+./afl/build.sh --cmplog-pair --clean --with-patches --branch ci-afl-cfl
+./afl/start.sh dump --mode cmplog --mopt
 ```
 
 `--cmplog` defaults to `afl/iccDEV/Build-AFL-CMPLOG` and
 `afl/bin-cmplog`, so `./afl/build.sh --cmplog --clean` is sufficient on
-standard checkouts. The explicit `--build-dir` and `--bin-dir` options take
-precedence over those defaults. CmpLog builds ignore `AFL_BUILD_DIR` and
-`AFL_BIN_DIR` unless their CLI equivalents are provided, which prevents stale
-remote-shell exports from overwriting the normal AFL binaries.
+standard checkouts that already have `afl/bin/`. Fresh clients should use
+`--cmplog-pair`; it builds both `afl/bin/` and `afl/bin-cmplog/` and ignores
+stale `AFL_BUILD_DIR` and `AFL_BIN_DIR` exports. The explicit `--build-dir` and
+`--bin-dir` options take precedence for a single `--cmplog` build, but are
+intentionally rejected with the paired build because one path cannot safely
+hold both variants.
+
+For a fresh PAWG campaign on each client:
+
+```bash
+cd ~/research/afl
+git pull --ff-only
+./build.sh --with-patches --branch ci-afl-cfl --cmplog-pair --clean && \
+  test -x "$PWD/bin/iccPawgReport" && \
+  test -x "$PWD/bin-cmplog/iccPawgReport" && \
+  ./start.sh pawgreport --mode cmplog --mopt
+```
+
+`--mode cmplog` selects the CmpLog campaign preset. `--cmplog-auto` only asks
+an otherwise selected mode to attach a matching comparison binary; it does not
+replace the paired build or select the CmpLog preset.
 
 ```bash
 AFL_BUILD_DIR=$PWD/afl/iccDEV/Build-AFL-LAF AFL_BIN_DIR=$PWD/afl/bin-laf ./afl/build.sh --laf --clean
@@ -367,9 +382,7 @@ sample, enables CmpLog with `AFL_CMPLOG_ONLY_NEW=1`, and starts MOpt. A stopped
 target that was still gaining coverage should be resumed without this preset.
 
 ```bash
-./afl/build.sh --cmplog --clean \
-  --build-dir "$PWD/afl/iccDEV/Build-AFL-CMPLOG" \
-  --bin-dir "$PWD/afl/bin-cmplog"
+./afl/build.sh --cmplog-pair --clean --with-patches --branch ci-afl-cfl
 ./afl/run-all.sh pawgreport --coverage-boost --seconds 21600 --parallel 4 --no-coverage
 ```
 

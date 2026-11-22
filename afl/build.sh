@@ -8,6 +8,39 @@
 
 set -euo pipefail
 
+# A CmpLog campaign needs two matching binaries: the ordinary target executed
+# by AFL++ and the comparison-instrumented target passed with -c.  Keep the
+# existing --cmplog single-variant build for advanced callers, and provide one
+# deterministic paired build for fresh remote clients.
+PAIR_ARGS=()
+PAIR_REQUESTED=0
+PAIR_CONFLICT=0
+for arg in "$@"; do
+    case "$arg" in
+        --cmplog-pair)
+            PAIR_REQUESTED=1
+            ;;
+        --cmplog|--build-dir|--bin-dir)
+            PAIR_CONFLICT=1
+            PAIR_ARGS+=("$arg")
+            ;;
+        *)
+            PAIR_ARGS+=("$arg")
+            ;;
+    esac
+done
+if [[ "$PAIR_REQUESTED" == "1" ]]; then
+    if [[ "$PAIR_CONFLICT" == "1" ]]; then
+        echo "ERROR: --cmplog-pair cannot be combined with --cmplog, --build-dir, or --bin-dir" >&2
+        exit 1
+    fi
+    echo "[*] Building the ordinary AFL target set"
+    env -u AFL_BUILD_DIR -u AFL_BIN_DIR "$0" "${PAIR_ARGS[@]}"
+    echo "[*] Building the matching CmpLog target set"
+    env -u AFL_BUILD_DIR -u AFL_BIN_DIR "$0" "${PAIR_ARGS[@]}" --cmplog
+    exit 0
+fi
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_DIR="$REPO_ROOT/afl"
 AFL_BASE="${AFL_BASE:-$SCRIPT_DIR}"
@@ -49,6 +82,7 @@ usage() {
     echo "  --refresh-iccdev  fetch selected branch or origin/master and reset the nested checkout"
     echo "  --keep-iccdev     preserve current afl/iccDEV source edits"
     echo "  --cmplog          build CMPLOG tools in isolated directories by default"
+    echo "  --cmplog-pair     build ordinary and CMPLOG tools for a fresh campaign"
     echo "  --laf             build with LAF compare splitting"
     echo "  --ctx             build with context-sensitive coverage"
     echo "  --ngram N         build with AFL_LLVM_NGRAM_SIZE=N"
