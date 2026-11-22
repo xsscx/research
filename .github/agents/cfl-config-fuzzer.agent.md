@@ -1,6 +1,5 @@
 ---
 description: Review and improve CFL icc_cfg_fuzzer library coverage, JSON seeds, dictionary alignment, and plateau evidence.
-model: claude-sonnet-4.6
 tools:
   - bash
   - read

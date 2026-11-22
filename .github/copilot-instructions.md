@@ -267,13 +267,13 @@ read-only unless a task explicitly targets them.
 
 Invoke with `@agent-name` or `--agent=agent-name` from the CLI:
 
-| Agent | Purpose | Model |
-|-------|---------|-------|
-| `@security-scan` | Full ICC profile security analysis | claude-sonnet-4.6 |
-| `@crash-triage` | ASAN/UBSAN crash finding triage | claude-sonnet-4.6 |
-| `@upstream-issue` | Draft iccDEV bug reports (gold format) | claude-sonnet-4.6 |
-| `@pr-readiness` | Read-only upstream PR authorization and readiness audit | claude-sonnet-4.6 |
-| `@iccdev-maintainer` | Current PAWG, MCP, REST, container, and maintainer QA validation | claude-sonnet-4.6 |
+| Agent | Purpose | Model source |
+|-------|---------|--------------|
+| `@security-scan` | Full ICC profile security analysis | GitHub Copilot CLI selected/default model |
+| `@crash-triage` | ASAN/UBSAN crash finding triage | GitHub Copilot CLI selected/default model |
+| `@upstream-issue` | Draft iccDEV bug reports (gold format) | GitHub Copilot CLI selected/default model |
+| `@pr-readiness` | Read-only upstream PR authorization and readiness audit | GitHub Copilot CLI selected/default model |
+| `@iccdev-maintainer` | Current PAWG, MCP, REST, container, and maintainer QA validation | GitHub Copilot CLI selected/default model |
 
 ## Hooks
 

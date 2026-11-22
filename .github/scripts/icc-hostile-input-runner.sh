@@ -93,7 +93,7 @@ case "$tool_path" in
     *) fail "tool is outside the approved ICC executable roots: $tool_path" ;;
 esac
 case "$tool_name" in
-    iccDumpProfile|iccPawgReport|iccToXml|iccFromXml|iccToJson|iccFromJson|iccProfilePlot|iccApplyNamedCmm|iccApplyProfiles|iccApplyToLink|iccTiffDump_unsafe|iccJpegDump_unsafe|iccToXml_unsafe|iccFromXml_unsafe|iccToJson_unsafe|iccFromJson_unsafe|icc_*_fuzzer) ;;
+    iccDumpProfile|iccPawgReport|iccToXml|iccFromXml|iccToJson|iccFromJson|iccProfilePlot|iccApplyNamedCmm|iccApplyProfiles|iccApplySearch|iccApplyToLink|iccFromCube|iccV5DspObsToV4Dsp|iccTiffDump_unsafe|iccJpegDump_unsafe|iccToXml_unsafe|iccFromXml_unsafe|iccToJson_unsafe|iccFromJson_unsafe|icc_*_fuzzer) ;;
     *) fail "tool is not on the hostile-input allowlist: $tool_name" ;;
 esac
 

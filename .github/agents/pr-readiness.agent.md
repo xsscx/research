@@ -2,7 +2,6 @@
 description: >
   Read-only upstream PR readiness auditor. Verifies authorization, current-base
   linear history, complete validation, scope documentation, and review hygiene.
-model: claude-sonnet-4.6
 tools:
   - bash
   - read

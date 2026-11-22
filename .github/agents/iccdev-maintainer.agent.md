@@ -2,7 +2,6 @@
 description: >
   Validate and maintain current iccDEV PAWG, MCP, REST, unified-container, and
   maintainer QA workflows without relying on retired analyzer interfaces.
-model: claude-sonnet-4.6
 tools:
   - bash
   - read

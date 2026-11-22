@@ -3,7 +3,6 @@ description: >
   Draft upstream iccDEV bug reports in the gold standard golfed format.
   Zero prose, structured metadata, one-liner repro, CWE/CVSS enrichment.
   Based on issues #753, #794, #795.
-model: claude-sonnet-4.6
 tools:
   - bash
   - read

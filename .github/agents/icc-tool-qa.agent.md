@@ -1,6 +1,5 @@
 ---
 description: Run deterministic bounded iccApplyProfiles sanitizer and Valgrind QA and classify evidence without treating clean rejections as crashes.
-model: claude-sonnet-4.6
 tools:
   - bash
   - read

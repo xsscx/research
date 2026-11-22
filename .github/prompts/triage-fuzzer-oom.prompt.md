@@ -18,6 +18,9 @@ vectors and guide patch creation.
    sites with byte counts. Common iccDEV OOM patterns:
    - `CIccLocalizedUnicode` copy ctor -- unbounded mluc strings
    - `new icFloatNumber[nSize]` -- exponential CLUT grid allocation
+   - serialized CLUT with zero remaining bytes -- `CIccCLUT::Init()` treats a
+     zero size limit as unbounded programmatic construction; audit every
+     serialized caller and pass its real payload byte count
    - `calloc(nCount, ...)` -- unbounded element counts from XML
    - `std::list::_M_create_node` -- unbounded list growth
    - `CTiffImg::Open` / `TIFFStripSize` -- compressed bytes declare a huge
@@ -26,16 +29,19 @@ vectors and guide patch creation.
 3. **Create patch** -- Next number: `ls cfl/patches/0*.patch | tail -1`.
    Apply ALL prior patches first. Test: RSS should drop 10x+.
 
-4. **Verify** -- `ASAN_OPTIONS=detect_leaks=0 /path/to/fuzzer -runs=1 oom-file`.
+4. **Verify** -- replay through the mandatory hostile-input boundary, for
+   example `.github/scripts/icc-hostile-input-runner.sh --input oom-file
+   --workdir "$PWD" -- cfl/bin/FUZZER -runs=1 @INPUT0@`.
    Confirm that the oversized allocation disappears, the input is rejected or
    safely ignored, and representative valid corpus inputs still pass. Record
-   elapsed time, peak RSS, exit status, and the exact artifact hashes.
+   elapsed time, exit status, resource-limit outcome, and exact artifact hashes.
 
 5. **Cross-check product tooling** -- identify whether the CLI uses the same
-   allocation path. Use a virtual-memory limit for unpatched Release replays;
-   `strace -e trace=brk,mmap,mmap2` can prove the attempted size without
-   allowing a multi-gigabyte allocation. Metadata-only tools may not reach a
-   pixel-decoding allocation even when they accept the same file.
+   allocation path. Run it only through an approved boundary that enforces a
+   virtual-memory limit. A soft CLI parse failure does not clear an allocation
+   defect when Linux overcommit accepted the request before a later short read.
+   Metadata-only tools may not reach a pixel-decoding allocation even when they
+   accept the same file.
 
 ## Allocation Cap Guidelines
 
@@ -44,7 +50,7 @@ vectors and guide patch creation.
 | Tags per profile        | 1,000 | Compatibility ceiling |
 | Strings per tag         | 100   | Real profiles have <10 |
 | Text content per string | 64KB  | Largest real mluc ~4KB |
-| CLUT grid points        | 256   | ICC spec max per dim   |
+| CLUT grid per dimension | 255   | 8-bit field maximum; total data stays payload-bound |
 | TIFF decode buffer      | 256MB | Matches tile-band cap  |
 
 ## Usage
