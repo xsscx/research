@@ -29,7 +29,7 @@ default suppressions in each Memcheck, Helgrind, and DRD log.
 
 ## One-line analysis commands
 
-Run each supported Valgrind tool across the complete 13-target registry:
+Run each supported Valgrind tool across the complete target registry:
 
 ```bash
 ./valgrind/run.sh --tool memcheck all
@@ -72,12 +72,14 @@ directory for each tool and allow recorded findings:
 for tool in memcheck helgrind drd massif callgrind; do ./valgrind/run.sh --tool "$tool" --allow-findings --output-dir "valgrind/output/full-$tool" all || break; done
 ```
 
-The complete registry is `connect-thread`, `dump`, `roundtrip`, `fromxml`,
-`fromjson`, `toxml`, `tojson`, `tiffdump`, `applynamedcmm`,
-`applyprofiles-row`, `applysearch-row`, `applytolink`, and `benchapply`. Use
-`./valgrind/run.sh --list` to print the current registry. Repeating a target on
-one command line runs it again and retains each repetition in a distinct
-evidence subdirectory; it does not add structural coverage by itself.
+The registry includes profile parsing and representation tools, calculator and
+named-CMM application, threaded apply paths, `.cube` conversion, and v5
+display/observer conversion. Use `./valgrind/run.sh --list` to print the current
+source-of-truth inventory. `applynamedcmm-calculator` is the short deterministic
+reproduction for the process-lifetime calculator registry reported in iccDEV
+issue #3095. Repeating a target on one command line runs it again and retains
+each repetition in a distinct evidence subdirectory; it does not add structural
+coverage by itself.
 
 ## Known findings and tool limitations
 
@@ -87,6 +89,10 @@ Known findings remain visible in logs and `summary.tsv`; they are not silently
 suppressed. Use `--allow-findings` only to finish evidence collection, then
 compare every reported context with the catalog. A changed or unlisted
 signature requires investigation.
+
+Memcheck reports all leak kinds in its log, but only definite, indirect, and
+possible losses count as runner errors. `still reachable` process-lifetime
+registries remain visible for review without being mislabeled as lost memory.
 
 Successful targets also verify their declared outputs. The registry checks
 nonempty generated artifacts and stdout where applicable; `tiffdump` pins the

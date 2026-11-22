@@ -33,6 +33,33 @@ The former shallow workloads for `applyprofiles-row`, `applysearch-row`, and
 `benchapply` reproduced only DRD-CV-002 before the registry was corrected to
 execute worker threads.
 
+## Active: MEMCHECK-SR-001 calculator operation registry remains reachable
+
+Status: reproducible process-lifetime allocation, not a lost-memory finding.
+
+The first calculator transform lazily creates `CIccCalcOpMgr` and one operation
+definition per supported calculator opcode. The singleton pointer and its map
+remain rooted until process exit, so Memcheck reports exactly 4,816 bytes in
+171 `still reachable` blocks. It reports zero definite, indirect, or possible
+losses and zero errors. This is the signature reported in upstream iccDEV issue
+#3095.
+
+Reproduction:
+
+```bash
+./valgrind/run.sh --tool memcheck applynamedcmm-calculator
+```
+
+The allocation path is `CIccCalculatorFunc::SetOpDefs()` through
+`CIccCalcOpMgr::getOpDef()` and `CIccCalcOpMgr::GetInstance()`. The manager is a
+process-wide immutable operation-definition registry after construction; the
+current implementation intentionally does not run exit-time teardown.
+
+Classification boundary: only the stable `CIccCalcOpMgr` registry signature is
+covered. Any definite, indirect, or possible loss, a changed block/byte count,
+growth after repeated calculator setup, or a reachable allocation outside that
+registry requires fresh investigation.
+
 ## Retired: DRD-CV-001 notification without the associated mutex held
 
 Status: no longer reproducible after upstream `7860726c` (#2595) moved the

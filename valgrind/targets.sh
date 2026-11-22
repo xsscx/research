@@ -11,10 +11,13 @@ VG_TARGETS=(
     tojson
     tiffdump
     applynamedcmm
+    applynamedcmm-calculator
     applyprofiles-row
     applysearch-row
     applytolink
     benchapply
+    fromcube
+    v5dspobs
 )
 
 VG_BUILD_TARGETS=(
@@ -31,6 +34,8 @@ VG_BUILD_TARGETS=(
     iccApplySearch
     iccApplyToLink
     iccBenchApply
+    iccV5DspObsToV4Dsp
+    iccFromCube
 )
 
 vg_print_targets() {
@@ -44,10 +49,13 @@ vg_print_targets() {
     echo "  tojson            - binary profile to deterministic JSON serializer"
     echo "  tiffdump          - TIFF parser and embedded-profile extraction"
     echo "  applynamedcmm     - named CMM data application"
+    echo "  applynamedcmm-calculator - calculator CMM application and registry lifetime"
     echo "  applyprofiles-row - four-worker TIFF row application"
     echo "  applysearch-row   - threshold-crossing inverse-search application"
     echo "  applytolink       - DeviceLink generation"
     echo "  benchapply        - threaded benchmark application path"
+    echo "  fromcube          - .cube LUT conversion to an ICC DeviceLink"
+    echo "  v5dspobs          - v5 display/observer conversion to a v4 display"
 }
 
 vg_tool_binary() {
@@ -137,6 +145,11 @@ vg_configure_target() {
     local tiff_input="$REPO_ROOT/fuzz/graphics/tif/1x1-rgb8--Rec2020rgbSpectral.tiff"
     local threaded_tiff_input="$REPO_ROOT/fuzz/graphics/tif/64x64-tile32--Rec2020rgbColorimetric.tiff"
     local search_data="$VG_SOURCE_DIR/Testing/ApplyDataFiles/RGBSurface.txt"
+    local calculator_data="$VG_SOURCE_DIR/Testing/Calc/srgbCalcTest.txt"
+    local calculator_profile="$REPO_ROOT/test-profiles/argbCalc.icc"
+    local cube_input="$REPO_ROOT/docs/iccDEV/Tools/test-data/test-identity.cube"
+    local v5_display="$REPO_ROOT/test-profiles/LCDDisplay.icc"
+    local v5_observer="$REPO_ROOT/test-profiles/XYZ_float-D65_2deg-Part1.icc"
     local search_lines="${VALGRIND_APPLYSEARCH_LINES:-259}"
 
     VG_BINARY=""
@@ -234,6 +247,14 @@ vg_configure_target() {
             VG_EXPECT_STDOUT=1
             VG_NOTE="Exercises 16-bit tetrahedral named CMM application."
             ;;
+        applynamedcmm-calculator)
+            VG_CMAKE_TARGET="iccApplyNamedCmm"
+            VG_BINARY="$(vg_tool_binary IccApplyNamedCmm iccApplyNamedCmm)"
+            VG_ARGS=("-debugcalc" "$calculator_data" "3" "0" "$calculator_profile" "1")
+            VG_REQUIRED_FILES=("$calculator_data" "$calculator_profile")
+            VG_EXPECT_STDOUT=1
+            VG_NOTE="Exercises calculator operations and the process-lifetime CIccCalcOpMgr registry reported in iccDEV issue #3095."
+            ;;
         applyprofiles-row)
             VG_CMAKE_TARGET="iccApplyProfiles"
             VG_BINARY="$(vg_tool_binary IccApplyProfiles iccApplyProfiles)"
@@ -272,6 +293,22 @@ vg_configure_target() {
             VG_EXPECT_STDOUT=1
             VG_RECOMMENDED_TOOL="helgrind"
             VG_NOTE="Exercises repeated benchmark calls with one, two, and four active threads."
+            ;;
+        fromcube)
+            VG_CMAKE_TARGET="iccFromCube"
+            VG_BINARY="$(vg_tool_binary IccFromCube iccFromCube)"
+            VG_ARGS=("$cube_input" "$VG_RUN_WORK/from-cube.icc")
+            VG_REQUIRED_FILES=("$cube_input")
+            VG_EXPECTED_OUTPUTS=("$VG_RUN_WORK/from-cube.icc")
+            VG_NOTE="Exercises bounded .cube parsing and DeviceLink serialization."
+            ;;
+        v5dspobs)
+            VG_CMAKE_TARGET="iccV5DspObsToV4Dsp"
+            VG_BINARY="$(vg_tool_binary IccV5DspObsToV4Dsp iccV5DspObsToV4Dsp)"
+            VG_ARGS=("$v5_display" "$v5_observer" "$VG_RUN_WORK/v4-display.icc")
+            VG_REQUIRED_FILES=("$v5_display" "$v5_observer")
+            VG_EXPECTED_OUTPUTS=("$VG_RUN_WORK/v4-display.icc")
+            VG_NOTE="Exercises v5 display and observer conversion to a v4 display profile."
             ;;
         *)
             return 1
