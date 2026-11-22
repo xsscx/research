@@ -56,6 +56,15 @@ the isolated `cfl/iccDEV` checkout. The repository-tracked inventory is:
   and luminance illuminant outputs from the profile header when a malformed
   spectral viewing condition has no readable illuminant, preventing callers
   from consuming uninitialized connection-condition values.
+- `019-tag-clut-empty-payload-bound.patch`: rejects a header-only serialized
+  tag CLUT before its zero-byte payload selects the unbounded programmatic
+  allocation mode. This is the PAWG OOM path preserved as
+  `pawg-oom-09cf5db9e1345d7194ad05c4961c297bc15c5299`; replay that artifact
+  through `icc_pawgreport_fuzzer -runs=1` to verify the comparison patch.
+- `020-sampled-calculator-work-budget.patch`: bounds sampled-calculator curve
+  setup by the product of its serialized sample count and selector-width-aware
+  calculator estimate. This keeps the supplied NamedCMM slow units from
+  spending minutes inside `CIccSampledCalculatorCurve::Begin()`.
 
 The build accepts a patch that is already present in the selected upstream
 branch and reports it as `Already applied`. Any other patch conflict is fatal.

@@ -358,6 +358,22 @@ target-specific directory or prefix, for example
 content hash, so target attribution then depends on the source log or a narrow,
 recorded copy-time window. Do not infer a target from the bytes alone.
 
+An artifact directory is an output collection, not a shared input corpus. Do
+not append `/mnt/f/artifacts/` as a second corpus argument: it mixes PAWG,
+NamedCMM, image, XML, and typed artifacts into an unrelated harness and makes
+startup and slow-unit reports misleading. Use the target corpus alone, or the
+runner that derives `max_len` from its largest real input:
+
+```bash
+cd cfl
+./fuzz-local.sh -t 30000 -w 16 applynamedcmm
+```
+
+The NamedCMM harness runs its full transform matrix. In the patched comparison
+build (`./build.sh --with-patches --branch ci-afl-cfl --refresh-iccdev`), patch
+020 bounds sampled-curve setup using its sample count and calculator cost.
+Patch 019 rejects the PAWG header-only CLUT empty payload before allocation.
+
 For maintainer one-liners covering every active fuzzer, including smoke,
 explore, rare-path, and sanitizer reproduction modes, use
 `docs/Testing/CFL_MANUAL_FUZZER_COMMANDS.md`.

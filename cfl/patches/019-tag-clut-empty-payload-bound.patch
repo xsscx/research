@@ -1,0 +1,12 @@
+diff --git a/IccProfLib/IccTagLut.cpp b/IccProfLib/IccTagLut.cpp
+--- a/IccProfLib/IccTagLut.cpp
++++ b/IccProfLib/IccTagLut.cpp
+@@ -2277,7 +2277,7 @@ bool CIccCLUT::ReadData(icUInt32Number size, CIccIO *pIO, icUInt8Number nPrecis
+  */
+ bool CIccCLUT::Read(icUInt32Number size, CIccIO *pIO)
+ {
+-  if (size < 20)
++  if (size <= 20)
+     return false;
+ 
+   if (pIO->Read8(m_GridPoints, 16)!=16 ||

@@ -1,0 +1,19 @@
+diff --git a/IccProfLib/IccMpeBasic.cpp b/IccProfLib/IccMpeBasic.cpp
+--- a/IccProfLib/IccMpeBasic.cpp
++++ b/IccProfLib/IccMpeBasic.cpp
+@@ -2892,6 +2892,15 @@ bool CIccSampledCalculatorCurve::Begin(icElemInterp nInterp, CIccTagMultiProcess
+   if (nSize > ICC_MAXCALCCURVESIZE)
+     nSize = ICC_MAXCALCCURVESIZE;
+ 
++  // A serialized sampled curve multiplies its wire-selected sample count by
++  // the calculator's selector-width-aware operation cost. Bound that combined
++  // setup work before populating the table so a tiny profile cannot hold a
++  // transform in Begin() for minutes.
++  static const icUInt64Number kMaxSampledCalculatorWork = 10000000ULL;
++  const icUInt64Number calculatorCost = m_pCalc->GetEstimatedCost();
++  if (calculatorCost > kMaxSampledCalculatorWork / nSize)
++    return false;
++
+   SetSize(nSize);
+ 
+   // Same wire-supplied endpoints as CIccSingleSampledCurve::Begin, and the same
