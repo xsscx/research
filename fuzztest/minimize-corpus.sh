@@ -3,6 +3,7 @@
 #
 # Usage: ./minimize-corpus.sh [--seconds N] [--target SUITE.TEST|all]
 #                             [--jobs N] [--source DIR] [--output DIR]
+# --seconds sets the wall-clock safety timeout for each target.
 
 set -euo pipefail
 
@@ -154,18 +155,11 @@ fi
 if (( RUN_JOBS > target_count )); then
     RUN_JOBS=$target_count
 fi
-base_seconds=$((SECONDS_TO_RUN / target_count))
-extra_seconds=$((SECONDS_TO_RUN % target_count))
-if (( base_seconds == 0 )); then
-    base_seconds=1
-    extra_seconds=0
-fi
-
 mkdir -p "$OUTPUT_DIR"
 log_dir="$SCRIPT_DIR/logs/minimize-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p "$log_dir"
 summary_file="$log_dir/summary.tsv"
-printf 'target\tbudget_seconds\texit_status\tsource_files\toutput_files\n' \
+printf 'target\ttimeout_seconds\texit_status\tsource_files\toutput_files\n' \
     >"$summary_file"
 
 run_minimizer() {
@@ -179,7 +173,7 @@ run_minimizer() {
     exec env \
         FUZZTEST_MINIMIZE_TESTSUITE_DIR="$target_source" \
         FUZZTEST_TESTSUITE_OUT_DIR="$target_output" \
-        timeout --kill-after=10s "$((target_seconds + 60))s" "$BINARY" \
+        timeout --kill-after=10s "${target_seconds}s" "$BINARY" \
         "--fuzz=$run_target" \
         "--fuzz_for=${target_seconds}s" \
         --corpus_database= \
@@ -189,6 +183,7 @@ run_minimizer() {
 }
 
 echo "[*] Minimizing $target_count target corpus/corpora with $RUN_JOBS parallel job(s)"
+echo "[*] Per-target timeout: ${SECONDS_TO_RUN}s"
 overall_status=0
 pids=()
 cleanup_children() {
@@ -215,10 +210,7 @@ for ((batch_start = 0; batch_start < target_count; batch_start += RUN_JOBS)); do
 
     for ((target_index = batch_start; target_index < batch_end; ++target_index)); do
         run_target="${RUN_TARGETS[target_index]}"
-        target_seconds="$base_seconds"
-        if (( target_index < extra_seconds )); then
-            target_seconds=$((target_seconds + 1))
-        fi
+        target_seconds="$SECONDS_TO_RUN"
         target_log="$log_dir/${run_target//[^[:alnum:]_-]/_}.log"
         run_minimizer "$run_target" "$target_seconds" "$target_log" &
         pids+=("$!")
@@ -228,10 +220,7 @@ for ((batch_start = 0; batch_start < target_count; batch_start += RUN_JOBS)); do
     for ((batch_index = 0; batch_index < ${#pids[@]}; ++batch_index)); do
         target_index="${indices[batch_index]}"
         run_target="${RUN_TARGETS[target_index]}"
-        target_seconds="$base_seconds"
-        if (( target_index < extra_seconds )); then
-            target_seconds=$((target_seconds + 1))
-        fi
+        target_seconds="$SECONDS_TO_RUN"
         target_log="$log_dir/${run_target//[^[:alnum:]_-]/_}.log"
         set +e
         wait "${pids[batch_index]}"
@@ -244,6 +233,9 @@ for ((batch_start = 0; batch_start < target_count; batch_start += RUN_JOBS)); do
         printf '%s\t%s\t%s\t%s\t%s\n' \
             "$run_target" "$target_seconds" "$status" \
             "$source_count" "$output_count" >>"$summary_file"
+        if [[ "$status" == "124" || "$status" == "137" ]]; then
+            echo "[FAIL] $run_target exceeded its ${target_seconds}s timeout" >&2
+        fi
         if [[ "$status" != "0" || "$output_count" == "0" ||
               "$output_count" -gt "$source_count" ]]; then
             overall_status=1

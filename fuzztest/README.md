@@ -150,8 +150,10 @@ Periodically distill accumulated native entries into a separate corpus tree:
 
 The minimizer runs targets concurrently, verifies that every output is
 non-empty and no larger than its source, and never modifies the source corpus.
-Inspect its summary before replacing a corpus. Use `--source`, `--output`, and
-`--target` for controlled maintenance or scratch-storage campaigns.
+`--seconds` is a per-target wall-clock safety timeout, not a total budget split
+across concurrent targets. Inspect the summary before replacing a corpus. Use
+`--source`, `--output`, and `--target` for controlled maintenance or
+scratch-storage campaigns.
 
 Crash reproducers are written below the ignored `fuzztest/findings/` directory.
 Override that root with `ICC_FUZZTEST_REPRODUCERS_DIR`. Native FuzzTest findings
