@@ -3,7 +3,9 @@
 #
 # Usage: ./test.sh [--mode fuzzing|unit|libfuzzer] [--seconds N]
 #                  [--target SUITE.TEST|all] [--jobs N] [--replay-inputs N]
-#                  [--log-dir DIR]
+#                  [--log-dir DIR] [--build-dir DIR] [--corpus-dir DIR]
+#                  [--reproducers-dir DIR] [--framework-dir DIR]
+#                  [--iccdev-dir DIR]
 
 set -euo pipefail
 
@@ -18,9 +20,12 @@ MAX_REPLAY_INPUTS="${ICC_FUZZTEST_REPLAY_INPUTS:-64}"
 FRAMEWORK_DIR="${ICC_FUZZTEST_FRAMEWORK_DIR:-$SCRIPT_DIR/upstream}"
 ICCDEV_DIR="${ICC_FUZZTEST_ICCDEV_DIR:-$SCRIPT_DIR/iccDEV}"
 LIBFUZZER_MAX_LEN=4194432
+BUILD_DIR_CLI=""
+CORPUS_DIR_CLI=""
+REPRODUCERS_DIR_CLI=""
 
 usage() {
-    sed -n '2,6p' "$0" | sed 's/^# \?//'
+    sed -n '2,8p' "$0" | sed 's/^# \?//'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -73,6 +78,31 @@ while [[ $# -gt 0 ]]; do
             MAX_REPLAY_INPUTS="$2"
             shift 2
             ;;
+        --build-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --build-dir requires a directory" >&2; exit 1; }
+            BUILD_DIR_CLI="$2"
+            shift 2
+            ;;
+        --corpus-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --corpus-dir requires a directory" >&2; exit 1; }
+            CORPUS_DIR_CLI="$2"
+            shift 2
+            ;;
+        --reproducers-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --reproducers-dir requires a directory" >&2; exit 1; }
+            REPRODUCERS_DIR_CLI="$2"
+            shift 2
+            ;;
+        --framework-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --framework-dir requires a directory" >&2; exit 1; }
+            FRAMEWORK_DIR="$2"
+            shift 2
+            ;;
+        --iccdev-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --iccdev-dir requires a directory" >&2; exit 1; }
+            ICCDEV_DIR="$2"
+            shift 2
+            ;;
         -h|--help)
             usage
             exit 0
@@ -99,9 +129,9 @@ if [[ "$MODE" == "fuzzing" ]] && ! command -v shuf >/dev/null 2>&1; then
 fi
 
 case "$MODE" in
-    fuzzing) BUILD_DIR="${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build}" ;;
-    unit) BUILD_DIR="${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build-unit}" ;;
-    libfuzzer) BUILD_DIR="${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build-libfuzzer}" ;;
+    fuzzing) BUILD_DIR="${BUILD_DIR_CLI:-${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build}}" ;;
+    unit) BUILD_DIR="${BUILD_DIR_CLI:-${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build-unit}}" ;;
+    libfuzzer) BUILD_DIR="${BUILD_DIR_CLI:-${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build-libfuzzer}}" ;;
     *)
         echo "[FAIL] unsupported mode '$MODE' (use fuzzing, unit, or libfuzzer)" >&2
         exit 1
@@ -156,11 +186,11 @@ else
 fi
 
 if [[ "$MODE" == "libfuzzer" ]]; then
-    CORPUS_DIR="${ICC_FUZZTEST_CORPUS_DIR:-$SCRIPT_DIR/corpus-libfuzzer}"
+    CORPUS_DIR="${CORPUS_DIR_CLI:-${ICC_FUZZTEST_CORPUS_DIR:-$SCRIPT_DIR/corpus-libfuzzer}}"
 else
-    CORPUS_DIR="${ICC_FUZZTEST_CORPUS_DIR:-$SCRIPT_DIR/corpus}"
+    CORPUS_DIR="${CORPUS_DIR_CLI:-${ICC_FUZZTEST_CORPUS_DIR:-$SCRIPT_DIR/corpus}}"
 fi
-REPRODUCERS_DIR="${ICC_FUZZTEST_REPRODUCERS_DIR:-$SCRIPT_DIR/findings}"
+REPRODUCERS_DIR="${REPRODUCERS_DIR_CLI:-${ICC_FUZZTEST_REPRODUCERS_DIR:-$SCRIPT_DIR/findings}}"
 mkdir -p "$CORPUS_DIR" "$REPRODUCERS_DIR"
 
 target_count=${#RUN_TARGETS[@]}

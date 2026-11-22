@@ -49,8 +49,9 @@ CFL policy. Refreshes are explicit and refuse dirty source checkouts:
 ./fuzztest/build.sh --refresh-fuzztest --refresh-iccdev
 ```
 
-Use `ICC_FUZZTEST_FRAMEWORK_DIR` or `ICC_FUZZTEST_ICCDEV_DIR` to test an
-existing clean checkout without copying it.
+Use `--framework-dir`, `--iccdev-dir`, and `--build-dir` to select explicit
+remote-client paths without editing scripts. Their environment equivalents
+remain available, but command-line values take precedence.
 
 iccDEV is configured as its own top-level CMake project, built as an
 instrumented static core library, and imported by the harness project. This
@@ -153,7 +154,9 @@ non-empty and no larger than its source, and never modifies the source corpus.
 `--seconds` is a per-target wall-clock safety timeout, not a total budget split
 across concurrent targets. Inspect the summary before replacing a corpus. Use
 `--source`, `--output`, and `--target` for controlled maintenance or
-scratch-storage campaigns.
+scratch-storage campaigns. `--build-dir` selects the matching harness binary;
+`--log-dir` provides a stable automation destination. The test runner likewise
+accepts `--build-dir`, `--corpus-dir`, and `--reproducers-dir`.
 
 Crash reproducers are written below the ignored `fuzztest/findings/` directory.
 Override that root with `ICC_FUZZTEST_REPRODUCERS_DIR`. Native FuzzTest findings

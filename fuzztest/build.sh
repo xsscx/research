@@ -16,6 +16,7 @@ FRAMEWORK_DIR="${ICC_FUZZTEST_FRAMEWORK_DIR:-$SCRIPT_DIR/upstream}"
 ICCDEV_DIR="${ICC_FUZZTEST_ICCDEV_DIR:-$SCRIPT_DIR/iccDEV}"
 MODE="${ICC_FUZZTEST_MODE:-fuzzing}"
 JOBS="${ICC_FUZZTEST_JOBS:-32}"
+BUILD_DIR_CLI=""
 CLEAN=0
 REFRESH_FUZZTEST=0
 REFRESH_ICCDEV=0
@@ -29,6 +30,9 @@ usage() {
     echo "  --refresh-fuzztest  fetch and check out the pinned FuzzTest revision"
     echo "  --refresh-iccdev    fetch and check out the configured iccDEV revision"
     echo "  --jobs N            parallel build jobs (default: 32)"
+    echo "  --framework-dir DIR Google FuzzTest source checkout"
+    echo "  --iccdev-dir DIR    iccDEV source checkout"
+    echo "  --build-dir DIR     override the selected mode's build directory"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -61,6 +65,21 @@ while [[ $# -gt 0 ]]; do
             JOBS="$2"
             shift 2
             ;;
+        --framework-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --framework-dir requires a directory" >&2; exit 1; }
+            FRAMEWORK_DIR="$2"
+            shift 2
+            ;;
+        --iccdev-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --iccdev-dir requires a directory" >&2; exit 1; }
+            ICCDEV_DIR="$2"
+            shift 2
+            ;;
+        --build-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --build-dir requires a directory" >&2; exit 1; }
+            BUILD_DIR_CLI="$2"
+            shift 2
+            ;;
         -h|--help)
             usage
             exit 0
@@ -75,7 +94,7 @@ done
 
 case "$MODE" in
     fuzzing)
-        BUILD_DIR="${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build}"
+        BUILD_DIR="${BUILD_DIR_CLI:-${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build}}"
         MODE_OPTIONS=(
             -DFUZZTEST_FUZZING_MODE=ON
             -DFUZZTEST_COMPATIBILITY_MODE=
@@ -83,7 +102,7 @@ case "$MODE" in
         ICCDEV_C_FLAGS="-g -fno-omit-frame-pointer -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -UNDEBUG -fsanitize=address,undefined,integer,float-divide-by-zero,float-cast-overflow -fsanitize-coverage=inline-8bit-counters -fsanitize-coverage=trace-cmp"
         ;;
     unit)
-        BUILD_DIR="${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build-unit}"
+        BUILD_DIR="${BUILD_DIR_CLI:-${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build-unit}}"
         MODE_OPTIONS=(
             -DFUZZTEST_FUZZING_MODE=OFF
             -DFUZZTEST_COMPATIBILITY_MODE=
@@ -91,7 +110,7 @@ case "$MODE" in
         ICCDEV_C_FLAGS=""
         ;;
     libfuzzer)
-        BUILD_DIR="${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build-libfuzzer}"
+        BUILD_DIR="${BUILD_DIR_CLI:-${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build-libfuzzer}}"
         MODE_OPTIONS=(
             -DFUZZTEST_FUZZING_MODE=OFF
             -DFUZZTEST_COMPATIBILITY_MODE=libfuzzer
@@ -163,16 +182,19 @@ ensure_checkout "iccDEV" "$ICCDEV_REPOSITORY" "$ICCDEV_REF" \
     "$ICCDEV_DIR" "$REFRESH_ICCDEV"
 
 if [[ "$CLEAN" == "1" && -d "$BUILD_DIR" ]]; then
-    case "$BUILD_DIR" in
-        "$SCRIPT_DIR"/build|"$SCRIPT_DIR"/build-unit|"$SCRIPT_DIR"/build-libfuzzer)
-            echo "[*] Removing $BUILD_DIR"
-            cmake -E remove_directory "$BUILD_DIR"
-            ;;
-        *)
-            echo "[FAIL] refusing to clean unexpected build directory: $BUILD_DIR" >&2
+    resolved_build="$(realpath -m "$BUILD_DIR")"
+    case "$resolved_build" in
+        /|"$REPO_ROOT"|"$SCRIPT_DIR"|"$(realpath -m "$FRAMEWORK_DIR")"|"$(realpath -m "$ICCDEV_DIR")")
+            echo "[FAIL] refusing to clean protected path: $resolved_build" >&2
             exit 1
             ;;
     esac
+    if [[ "${resolved_build##*/}" != *build* ]]; then
+        echo "[FAIL] refusing to clean a path not named as a build directory: $resolved_build" >&2
+        exit 1
+    fi
+    echo "[*] Removing $resolved_build"
+    cmake -E remove_directory "$resolved_build"
 fi
 
 ICCDEV_BUILD_DIR="$BUILD_DIR/iccdev"

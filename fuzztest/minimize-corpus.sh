@@ -3,6 +3,7 @@
 #
 # Usage: ./minimize-corpus.sh [--seconds N] [--target SUITE.TEST|all]
 #                             [--jobs N] [--source DIR] [--output DIR]
+#                             [--build-dir DIR] [--log-dir DIR]
 # --seconds sets the wall-clock safety timeout for each target.
 
 set -euo pipefail
@@ -10,16 +11,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="${ICC_FUZZTEST_BUILD_DIR:-$SCRIPT_DIR/build}"
-BINARY="$BUILD_DIR/icc_profile_fuzz_test"
-BINARY_NAME="${BINARY##*/}"
 SECONDS_TO_RUN="${ICC_FUZZTEST_MINIMIZE_SECONDS:-300}"
 TARGET="${ICC_FUZZTEST_TARGET:-all}"
 RUN_JOBS="${ICC_FUZZTEST_RUN_JOBS:-0}"
 SOURCE_DIR="${ICC_FUZZTEST_CORPUS_DIR:-$SCRIPT_DIR/corpus}"
 OUTPUT_DIR="${ICC_FUZZTEST_MINIMIZED_CORPUS_DIR:-}"
+LOG_DIR=""
 
 usage() {
-    sed -n '2,6p' "$0" | sed 's/^# \?//'
+    sed -n '2,7p' "$0" | sed 's/^# \?//'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -64,6 +64,16 @@ while [[ $# -gt 0 ]]; do
             OUTPUT_DIR="$2"
             shift 2
             ;;
+        --build-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --build-dir requires a directory" >&2; exit 1; }
+            BUILD_DIR="$2"
+            shift 2
+            ;;
+        --log-dir)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "[FAIL] --log-dir requires a directory" >&2; exit 1; }
+            LOG_DIR="$2"
+            shift 2
+            ;;
         -h|--help)
             usage
             exit 0
@@ -75,6 +85,9 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+BINARY="$BUILD_DIR/icc_profile_fuzz_test"
+BINARY_NAME="${BINARY##*/}"
 
 if [[ ! "$RUN_JOBS" =~ ^[0-9]+$ ]]; then
     echo "[FAIL] ICC_FUZZTEST_RUN_JOBS must be zero or a positive integer" >&2
@@ -156,7 +169,7 @@ if (( RUN_JOBS > target_count )); then
     RUN_JOBS=$target_count
 fi
 mkdir -p "$OUTPUT_DIR"
-log_dir="$SCRIPT_DIR/logs/minimize-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+log_dir="${LOG_DIR:-$SCRIPT_DIR/logs/minimize-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
 mkdir -p "$log_dir"
 summary_file="$log_dir/summary.tsv"
 printf 'target\ttimeout_seconds\texit_status\tsource_files\toutput_files\n' \
