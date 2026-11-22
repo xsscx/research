@@ -55,5 +55,10 @@ require narrower harness-only exclusions.
 ## Tracking Policy
 
 Track harness source, scripts, CMake configuration, version pins, seed
-manifests, and documented regression fixtures. Do not commit `upstream/`,
-`iccDEV/`, `build*/`, `corpus*/`, findings, logs, or coverage output.
+manifests, and documented real-artifact evidence. Do not add new property tests,
+regression sources, CTest targets, synthetic fixtures, test-only harnesses, or
+validation frameworks merely to verify a FuzzTest infrastructure correction.
+Fix the existing property, domain, runner, minimizer, or build script and use
+the existing target plus preserved typed corpus input for validation. Do not
+commit `upstream/`, `iccDEV/`, `build*/`, `corpus*/`, findings, logs, or
+coverage output.

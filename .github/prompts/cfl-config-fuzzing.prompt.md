@@ -26,4 +26,6 @@ changes, rebuild, replay curated positive and negative JSON, and report:
 
 Treat a deterministic direct harness failure as library-defect evidence even
 when no command-line tool reproduces it. Do not create standalone C++ PoCs or
-commit bulk corpus, logs, profraw, profdata, or generated coverage HTML.
+commit bulk corpus, logs, profraw, profdata, or generated coverage HTML. Do not
+add regression sources, CTest targets, synthetic fixtures, test-only harnesses,
+or new validators; fix and replay the existing code path.

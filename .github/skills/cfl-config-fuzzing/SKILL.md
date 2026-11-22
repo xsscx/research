@@ -47,6 +47,11 @@ library-owned behavior. When a CLI reaches the same path, use it as additional
 ownership evidence. Minimize and preserve the JSON artifact plus the exact replay
 command; do not create a standalone C++ PoC.
 
+Do not add regression sources, CTest targets, synthetic fixtures, test-only
+harnesses, or new validation scripts. Correct the existing config harness,
+library comparison patch, seed, dictionary, or runner and validate it through
+the existing fuzzer with preserved JSON evidence.
+
 ## Validation
 
 Run:

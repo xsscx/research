@@ -26,6 +26,7 @@ profile files.
 
 For findings, a deterministic direct fuzzer replay is valid library evidence;
 do not demand a CLI reproduction and do not create a standalone C++ PoC.
-Promote only minimized JSON regression artifacts. Run both config-alignment
-validators, rebuild the target, replay curated seeds, and perform a bounded
-config smoke run before reporting success.
+Do not add regression sources, CTest targets, synthetic fixtures, test-only
+harnesses, or new validators. Preserve only minimized JSON evidence. Run the
+existing config-alignment validators, rebuild the target, replay curated seeds,
+and perform a bounded config smoke run before reporting success.

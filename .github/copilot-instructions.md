@@ -43,6 +43,14 @@ Do NOT create standalone `.cpp` PoCs or custom test programs for reproductions.
 Use existing project tools with durable input artifacts (`.icc`, XML, TIFF, PNG,
 JPEG, JSON config, `.cube`) and exact one-line replay commands.
 
+Fuzzing research is code-first. Changes in `afl/`, `cfl/`, `fuzztest/`, and
+`valgrind/` must not add regression source files, CTest registrations, synthetic
+test fixtures, test-only harnesses, or new test frameworks. Correct the actual
+library, harness, launcher, or policy and prove it with a preserved real
+artifact and existing build/replay commands. Upstream-required tests belong in
+the upstream repository and require separate user authorization; never carry
+them as research patch-stack content.
+
 `colorbleed_tools/` links unpatched upstream iccDEV. Keep hardening local to
 the tool wrapper when the behavior is converter-owned. Do not move those runtime
 guardrails into `cfl/patches/`.

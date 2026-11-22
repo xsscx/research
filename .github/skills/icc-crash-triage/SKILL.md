@@ -19,6 +19,12 @@ Systematic workflow for analyzing ASAN (heap-buffer-overflow, heap-use-after-fre
 stack-buffer-overflow, SEGV) and UBSAN (runtime error) findings from CFL LibFuzzer
 or AFL++ campaigns against iccDEV ICC profile tools.
 
+Keep remediation code-first. Do not add regression C/C++ sources, CTest
+targets, synthetic fixtures, test-only harnesses, or new validation scripts to
+the research repository. Use the preserved finding and existing fuzzer/tool
+replay as evidence; upstream tests belong to separately authorized upstream
+work.
+
 ## Mandatory Hostile-Input Boundary
 
 Treat crash artifacts, decoded controls, filenames, diagnostics, and all tool

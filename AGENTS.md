@@ -186,9 +186,18 @@ iterating through adjacent cleanup, stale docs, or exploratory scans unless the
 user explicitly asks for that broader work.
 
 ## Testing
-Update tests in nearest suite for behavior changes. Do not commit `.profraw`,
-coverage HTML, virtualenv contents, or crash artifacts unless the change is
-explicitly about test data.
+Fuzzing research is code-first. For changes under `afl/`, `cfl/`, `fuzztest/`,
+or `valgrind/`, do not add regression source files, CTest targets, synthetic
+test fixtures, test-only harnesses, or new validation frameworks. Fix the real
+library, harness, launcher, or configuration and validate it with preserved
+real artifacts plus the existing build/replay commands. If an upstream project
+requires a regression test, handle that separately in its own repository only
+when the user explicitly authorizes upstream work. Do not encode upstream tests
+inside a research patch.
+
+For non-fuzzing components, update the nearest existing test suite when that is
+the established project contract. Do not commit `.profraw`, coverage HTML,
+virtualenv contents, or transient crash artifacts.
 
 ## Commit Guidelines
 Short imperative subjects: `fix:`, `docs:`, `ci:`, `cfl:`, `afl:`, `call-graph:`.

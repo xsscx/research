@@ -29,6 +29,16 @@ ICC and TIFF-related validation work in this repository.
 3. Treat `results/` as supporting evidence, not the source of truth for current
    behavior.
 
+## Fuzzing Development Policy
+
+Fuzzing research in `afl/`, `cfl/`, `fuzztest/`, and `valgrind/` is code-first.
+Do not add regression source files, CTest targets, synthetic fixtures,
+test-only harnesses, or new validation frameworks to prove a research change.
+Correct the actual library patch, harness, launcher, configuration, dictionary,
+or corpus policy, then validate it with an existing fuzzer/tool and the
+preserved real artifact. Upstream regression tests belong in separately
+authorized upstream work, not in this monorepo's patch stacks.
+
 ## Notes
 
 - This README is an index. Re-run the scripts when exact behavior matters.

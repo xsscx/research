@@ -26,8 +26,11 @@ vectors and guide patch creation.
    - `CTiffImg::Open` / `TIFFStripSize` -- compressed bytes declare a huge
      decoded strip or tile buffer
 
-3. **Create patch** -- Next number: `ls cfl/patches/0*.patch | tail -1`.
-   Apply ALL prior patches first. Test: RSS should drop 10x+.
+3. **Create the code patch** -- Next number:
+   `ls cfl/patches/0*.patch | tail -1`. Apply all prior patches first. Patch
+   the real allocation path only. Do not add a regression source, CTest target,
+   synthetic fixture, test-only harness, or upstream test content to the
+   research patch stack.
 
 4. **Verify** -- replay through the mandatory hostile-input boundary, for
    example `.github/scripts/icc-hostile-input-runner.sh --input oom-file
@@ -35,6 +38,7 @@ vectors and guide patch creation.
    Confirm that the oversized allocation disappears, the input is rejected or
    safely ignored, and representative valid corpus inputs still pass. Record
    elapsed time, exit status, resource-limit outcome, and exact artifact hashes.
+   The preserved OOM artifact and real fuzzer replay are the decisive check.
 
 5. **Cross-check product tooling** -- identify whether the CLI uses the same
    allocation path. Run it only through an approved boundary that enforces a

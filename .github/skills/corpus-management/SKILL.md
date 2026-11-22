@@ -119,6 +119,10 @@ Compare file counts (local must be >= source) before swapping directories.
 
 ## Key Rules
 
+- Fuzzing research is code-first. Do not add regression source files, CTest
+  targets, synthetic fixtures, test-only harnesses, or new validation
+  frameworks. Validate real code changes with existing fuzzers and preserved
+  artifacts.
 - After rebuilding fuzzers, ALL old profraw is invalid (binary hash mismatch)
 - Use `${fuzzer_name}_%m_%p.profraw` naming (not just `%m.profraw`)
 - ALL batch operations MUST use all available CPU cores

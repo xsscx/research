@@ -148,6 +148,11 @@ Promote an artifact only after it has a stable name, a reproducible command,
 and a clear purpose. Prefer `test-profiles/`, `fuzz/`, or `docs/pocs/` for
 durable fixtures.
 
+Do not turn an AFL finding or script correction into a new regression source,
+CTest target, synthetic fixture, or test-only validator in this repository.
+Fix the tool patch, target definition, launcher, seed policy, or dictionary and
+validate with the preserved real AFL artifact and existing replay helpers.
+
 ## Triage Rule
 
 An AFL crash is actionable only after replay against the intended upstream

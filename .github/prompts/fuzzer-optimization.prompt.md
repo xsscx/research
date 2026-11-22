@@ -12,6 +12,11 @@ documents input format, coverage gaps, input crafting, and dictionary focus.
 Use this when a fuzzer's coverage has plateaued and you need to identify which code paths are
 unreachable, which need new seeds, and which need dictionary tokens.
 
+Keep the work code-first. Do not add regression sources, CTest targets,
+synthetic fixtures, test-only harnesses, or new validation scripts. Use the
+existing fuzzer with real corpus inputs and preserved artifacts for decisive
+before/after evidence.
+
 If this prompt is used for a repeated correction or wrap-up request, do not run
 a full optimization pass. Patch the named fuzzer policy or script, run the
 targeted validator or seed-only command that proves the fix, then commit and

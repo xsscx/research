@@ -128,6 +128,11 @@ cd cfl && ./build.sh --refresh-iccdev
   include large real inputs when required.
 - Use `LLVM_PROFILE_FILE=/dev/null` when coverage files are not needed.
 - Treat OOM and timeout files as evidence candidates, not automatic commits.
+- Keep CFL work code-first: do not add regression C/C++ sources, CTest targets,
+  synthetic fixtures, test-only harnesses, or new validation scripts. Fix the
+  production patch, harness, launcher, option, or corpus policy and replay the
+  preserved real artifact through the existing CFL binary. Do not embed
+  upstream regression tests in `cfl/patches/`.
 - Keep one-off run counts in dated reports, not hub docs.
 - Strengthen the existing multi-profile, serializer, V5 display-observer, and
   image/carrier targets before adding overlapping harnesses. Image/carrier

@@ -8,6 +8,11 @@ description: Analyze LLVM coverage gaps and create targeted seeds to increase CF
 Analyze LLVM coverage reports and create targeted seed ICC profiles and
 dictionary entries to increase code coverage for the CFL LibFuzzer harnesses.
 
+Keep the work code-first. Do not add regression sources, CTest targets,
+synthetic fixtures, test-only harnesses, or new validation frameworks. Improve
+the existing harness, seeds, dictionary, or runner and measure it with the real
+fuzzer and corpus.
+
 ## Prerequisites
 - Fuzzers built: `cfl/fuzzers.sh | wc -l` should match `ls cfl/bin/icc_*_fuzzer | wc -l`
 - Coverage data exists: profraw files in `/mnt/g/fuzz-ssd/profraw/` or another scratch `profraw/` directory
