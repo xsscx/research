@@ -9,6 +9,7 @@ material. Keep volatile counts, one-off results, and raw logs out of hub docs.
 |------|------------|
 | Build or run repo tools | `../README.md`, `iccDEV/shell-helpers/README.md`, `iccDEV/Tools/README.md` |
 | Run AFL++ tool fuzzing or automate isolated CmpLog builds | `afl/index.md`, `../afl/README.md` |
+| Run the AFL ICC structure-aware custom mutator | `afl/index.md#icc-structure-aware-mutation`, `../afl/mutators/README.md` |
 | Run bounded iccApplyProfiles sanitizer or Valgrind QA | `afl/iccapplyprofiles-qa.md`, `../.github/skills/icc-tool-qa/SKILL.md` |
 | Run CFL LibFuzzer harnesses | `../cfl/README.md`, `Testing/CFL_MANUAL_FUZZER_COMMANDS.md` |
 | Review a plateaued CFL config fuzzer | `../.github/skills/cfl-config-fuzzing/SKILL.md`, `../.github/prompts/cfl-config-fuzzing.prompt.md` |

@@ -30,6 +30,12 @@ Before changing AFL JPEG lanes, preserve their seed contract: `jpegdump` and
 `fuzz/graphics/jpg` that have extractable embedded ICC profiles. Do not seed
 those targets with raw `.icc` files.
 
+For a raw ICC AFL target, compare the checked-in custom mutator against the
+same initial corpus, target binary, runtime, and worker count in a separate
+`AFL_BASE`. Keep native AFL++ mutations enabled in the production arm. Judge
+the experiment by new edges per hour and source coverage, and do not use the
+ICC mutator on media, text, configuration, or bundled-input lanes.
+
 Before changing ProfilePlot coverage, preserve the A/B split: CFL renders all
 enumerated in-memory descriptors, while AFL covers the real CLI's `list`,
 `graph chroma:xy`, and `raster clut:A2B0 OUT.raw` modes. Validate the shared

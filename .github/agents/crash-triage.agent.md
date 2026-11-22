@@ -118,6 +118,9 @@ Read ASAN/UBSAN stack frames #2-#3. Classify by file path:
   the older `iccProfileVisualize` executable.
 - Preserve `AFL_WORK_DIR` from `afl/targets.sh`. `fromxml-includes` must replay
   from the staged support tree, and marked artifacts should be absolute paths.
+- Record `AFL_CUSTOM_MUTATOR_LIBRARY`, `AFL_CUSTOM_MUTATOR_ONLY`, and any
+  custom-operation suffix in the queue filename. Replay the saved artifact
+  bytes directly; loading the mutator is not required for reproduction.
 - Capture the tool exit before formatting output. Do not use an unguarded
   pipeline whose final `sed`, `tee`, or `grep` status masks the replay status.
 - A soft CLI parse failure does not disprove an allocation finding when the

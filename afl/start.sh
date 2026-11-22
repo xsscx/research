@@ -59,6 +59,11 @@ AFL_SEED_ORDER="${AFL_SEED_ORDER:-random}"
 AFL_TESTCACHE_SIZE_VAL="${AFL_TESTCACHE_SIZE:-256}"
 AFL_DICT_OVERRIDE="${AFL_DICT:-${AFL_DICTIONARY:-}}"
 AFL_FUZZ_BIN="${AFL_FUZZ_BIN:-afl-fuzz}"
+AFL_MUTATOR_SELECTION="${AFL_MUTATOR:-}"
+AFL_MUTATOR_ONLY_VAL="${AFL_MUTATOR_ONLY:-0}"
+if [[ -n "${AFL_CUSTOM_MUTATOR_ONLY:-}" ]]; then
+    AFL_MUTATOR_ONLY_VAL=1
+fi
 BIN_DIR="${AFL_BIN_DIR:-$REPO_ROOT/afl/bin}"
 AFL_DIR=""
 
@@ -104,6 +109,8 @@ usage() {
     echo "  --sequential-queue    pass -Z to afl-fuzz"
     echo "  --splice              pass -u to afl-fuzz"
     echo "  --testcache-size MB   set AFL_TESTCACHE_SIZE; default 256"
+    echo "  --mutator NAME|FILE   use icc or an explicit AFL++ mutator library"
+    echo "  --mutator-only        disable AFL++ native mutation stages"
     echo "  --extra-args ARGS     append shell-split extra afl-fuzz args"
     echo "  --help, -h            show this help"
     echo ""
@@ -161,6 +168,8 @@ while [[ $# -gt 0 ]]; do
         --sequential-queue) AFL_SEQUENTIAL_QUEUE=1; shift ;;
         --splice) AFL_SPLICE=1; shift ;;
         --testcache-size) AFL_TESTCACHE_SIZE_VAL="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --mutator) AFL_MUTATOR_SELECTION="$(option_arg "$1" "${2:-}")"; shift 2 ;;
+        --mutator-only) AFL_MUTATOR_ONLY_VAL=1; shift ;;
         --extra-args) AFL_EXTRA_ARGS="$(option_arg "$1" "${2:-}")"; shift 2 ;;
         --help|-h) TARGET="$1"; break ;;
         --list) TARGET="$1"; break ;;
@@ -346,12 +355,73 @@ if ! afl_configure_target "$TARGET"; then
     exit 1
 fi
 
+if [[ "$AFL_MUTATOR_ONLY_VAL" != "0" && "$AFL_MUTATOR_ONLY_VAL" != "1" ]]; then
+    echo "ERROR: AFL_MUTATOR_ONLY must be 0 or 1" >&2
+    exit 1
+fi
+
+if [[ -n "$AFL_MUTATOR_SELECTION" ]]; then
+    case "$AFL_MUTATOR_SELECTION" in
+        none)
+            unset AFL_CUSTOM_MUTATOR_LIBRARY AFL_CUSTOM_MUTATOR_ONLY
+            AFL_MUTATOR_ONLY_VAL=0
+            ;;
+        icc)
+            if ! afl_target_accepts_icc_mutator "$TARGET"; then
+                echo "ERROR: the ICC mutator cannot be used with non-ICC target: $TARGET" >&2
+                exit 1
+            fi
+            AFL_CUSTOM_MUTATOR_LIBRARY="$REPO_ROOT/afl/mutators/build/icc_profile_mutator.so"
+            ;;
+        *)
+            AFL_CUSTOM_MUTATOR_LIBRARY="$AFL_MUTATOR_SELECTION"
+            ;;
+    esac
+fi
+
+if [[ -n "${AFL_CUSTOM_MUTATOR_LIBRARY:-}" ]]; then
+    IFS=';' read -r -a mutator_libraries <<< "$AFL_CUSTOM_MUTATOR_LIBRARY"
+    resolved_mutator_libraries=()
+    for mutator_library in "${mutator_libraries[@]}"; do
+        if [[ ! -f "$mutator_library" || ! -r "$mutator_library" ]]; then
+            echo "ERROR: custom mutator library is not readable: $mutator_library" >&2
+            if [[ "$AFL_MUTATOR_SELECTION" == "icc" ]]; then
+                echo "Build it with: ./afl/build-mutator.sh" >&2
+            fi
+            exit 1
+        fi
+        resolved_mutator_libraries+=("$(realpath -e "$mutator_library")")
+    done
+    AFL_CUSTOM_MUTATOR_LIBRARY="$(IFS=';'; printf '%s' "${resolved_mutator_libraries[*]}")"
+    export AFL_CUSTOM_MUTATOR_LIBRARY
+elif [[ "$AFL_MUTATOR_ONLY_VAL" == "1" ]]; then
+    echo "ERROR: --mutator-only requires --mutator or AFL_CUSTOM_MUTATOR_LIBRARY" >&2
+    exit 1
+fi
+
+if [[ "$AFL_MUTATOR_SELECTION" == "icc" &&
+      "$AFL_MAX_LENGTH_EXPLICIT" -eq 0 &&
+      -z "$AFL_MAX_LENGTH" &&
+      "${SEED_MAX_BYTES:-0}" -gt 0 ]]; then
+    AFL_MAX_LENGTH="$SEED_MAX_BYTES"
+fi
+
+if [[ "$AFL_MUTATOR_ONLY_VAL" == "1" ]]; then
+    export AFL_CUSTOM_MUTATOR_ONLY=1
+else
+    unset AFL_CUSTOM_MUTATOR_ONLY
+fi
+
 if [[ "$AFL_SHOW_ARGV" == "1" ]]; then
     echo "Config: $AFL_ICCAPPLY_ARGS_CONFIG"
     echo "Work directory: $AFL_WORK_DIR"
     printf 'Command:'
     printf ' %q' "$BINARY" "${AFL_ARGS[@]}"
     printf '\n'
+    if [[ -n "${AFL_CUSTOM_MUTATOR_LIBRARY:-}" ]]; then
+        echo "Mutator: $AFL_CUSTOM_MUTATOR_LIBRARY"
+        echo "Mutator only: $AFL_MUTATOR_ONLY_VAL"
+    fi
     exit 0
 fi
 
@@ -934,6 +1004,14 @@ fi
 if [[ "$AFL_TESTCACHE_SIZE_VAL" != "0" ]]; then
     echo "[*] Test cache: ${AFL_TESTCACHE_SIZE_VAL} MB"
 fi
+if [[ -n "${AFL_CUSTOM_MUTATOR_LIBRARY:-}" ]]; then
+    echo "[*] Mutator:    $AFL_CUSTOM_MUTATOR_LIBRARY"
+    if [[ "$AFL_MUTATOR_ONLY_VAL" == "1" ]]; then
+        echo "[*] Mutations:  custom only"
+    else
+        echo "[*] Mutations:  custom + AFL++ native"
+    fi
+fi
 if [[ -n "$TARGET_NOTE" ]]; then
     echo "[WARN] $TARGET_NOTE"
 fi
@@ -1150,6 +1228,7 @@ export -n AFL_DICT_OVERRIDE AFL_FUZZ_BIN AFL_IMPORT_FIRST_VAL AFL_INPUT_FORMAT A
 export -n AFL_CAMPAIGN_MODE AFL_MOPT AFL_MOPT_ENABLE AFL_MOPT_SECS AFL_MOPT_SECS_LEGACY AFL_MUTATION_STRATEGY 2>/dev/null || true
 export -n AFL_POWER_SCHEDULE AFL_RESEED AFL_RUN_TIME AFL_SEED_LIMIT AFL_SEED_MAX_BYTES AFL_SEED_ONLY AFL_SEED_ORDER 2>/dev/null || true
 export -n AFL_SEQUENTIAL_QUEUE AFL_SPLICE AFL_TESTCACHE_SIZE_VAL AFL_TIMEOUT 2>/dev/null || true
+export -n AFL_MUTATOR AFL_MUTATOR_ONLY AFL_MUTATOR_ONLY_VAL AFL_MUTATOR_SELECTION 2>/dev/null || true
 
 if [[ "$PARALLEL" -eq 1 ]]; then
     echo "[*] Starting AFL (single instance)..."

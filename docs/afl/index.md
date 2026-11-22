@@ -116,6 +116,24 @@ not combine these sanitizer modes in one binary.
 `--run-time SEC`; both pass AFL++ `-V SEC`. For `iccApplyProfiles`, the
 `applyprofiles-row` target selects the explicit `-threads` row-apply lane.
 
+## ICC Structure-Aware Mutation
+
+Normal AFL tool builds compile `afl/mutators/build/icc_profile_mutator.so`.
+Refresh it independently with `./afl/build-mutator.sh`, then use it on a raw
+ICC target with either of these forms:
+
+```bash
+./afl/start.sh pawgreport-fast --mutator icc --time 60
+./afl/start.sh pawgreport --mode cmplog --mopt --mutator icc
+```
+
+Native AFL++ mutation remains enabled by default. Reserve `--mutator-only` for
+short attribution experiments. The built-in mutator rejects media, text,
+configuration, and bundled-input targets, and generated outputs inherit the
+target's configured input ceiling unless `AFL_MAX_LENGTH` is explicit. Run A/B
+campaigns from separate `AFL_BASE` directories and compare new edges per hour
+and source coverage. See `afl/mutators/README.md` for the mutation contract.
+
 The memory build also fetches pinned LLVM 22.1.8 runtime sources and builds a
 MemorySanitizer-instrumented static libc++. MSan requires instrumented C++
 dependencies; using the system's uninstrumented libstdc++ can taint ordinary

@@ -45,6 +45,10 @@ cd cfl && ./fuzz-local.sh
 ASAN_OPTIONS=detect_leaks=0 LLVM_PROFILE_FILE=/dev/null \
   cfl/bin/icc_dump_fuzzer -max_total_time=60 -timeout=30 \
   -rss_limit_mb=4096 cfl/corpus-icc_dump_fuzzer/
+
+# Raw ICC AFL mutator smoke (native AFL++ stages remain enabled)
+./afl/build-mutator.sh
+./afl/start.sh pawgreport-fast --mutator icc --time 60
 ```
 
 Special flags: `icc_link_fuzzer` needs `quarantine_size_mb=256`.
@@ -144,6 +148,11 @@ Compare file counts (local must be >= source) before swapping directories.
   single AFL instance writes `output/default/queue` and parallel instances write
   `output/main/queue` plus `output/secondary_N/queue`. Do not copy XML sidecars
   into a queue or crashes directory.
+- The built-in AFL ICC mutator is only for lanes whose `@@` input is a raw ICC
+  profile. Do not apply it to media, text, configuration, or bundled formats.
+  Keep native AFL++ mutations enabled for production runs, use a separate
+  `AFL_BASE` for the comparison arm, and judge it by new edges per hour plus
+  source coverage rather than execution speed alone.
 - Replay `fromxml-includes` from its staged support working directory. Use the
   AFL triage/map/minimize helpers so relative TXT/XML includes resolve. JSON
   `-cfg` lanes must use their isolated `afl/work/<target>/root` directory so

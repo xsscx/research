@@ -84,6 +84,11 @@ Before optimizing AFL lanes, run `./afl/build-afl-runtime.sh`; it pins AFL++
 bound.
 Keep `applyprofiles-hybrid-embedded` on its complete generated TIFF and validate
 all target assets with `.github/scripts/validate-afl-target-configs.sh --local`.
+For raw ICC AFL lanes, evaluate the checked-in custom mutator with matched A/B
+campaigns in separate `AFL_BASE` directories. Keep native mutation enabled for
+the production arm and compare new edges per hour plus source coverage, not
+only execution speed. Never attach the ICC mutator to JSON, XML, Cube, TIFF,
+PNG, JPEG, HEIF, configuration, or bundled-input lanes.
 For profile visualization, CFL's `profileplot` alias exercises the in-memory
 `IccVizModel` API. AFL owns the CLI split: `profileplot` lists descriptors,
 `profileplot-graph` renders `chroma:xy`, and `profileplot-raster` renders

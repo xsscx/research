@@ -21,6 +21,8 @@ FRESH_MODE="${AFL_RUN_ALL_FRESH:-1}"
 RESEED="${AFL_RUN_ALL_RESEED:-0}"
 CMPLOG_AUTO="${AFL_RUN_ALL_CMPLOG_AUTO:-0}"
 TESTCACHE_SIZE="${AFL_RUN_ALL_TESTCACHE_SIZE:-256}"
+MUTATOR="${AFL_RUN_ALL_MUTATOR:-}"
+MUTATOR_ONLY="${AFL_RUN_ALL_MUTATOR_ONLY:-0}"
 RUN_ALL_SEED_LIMIT="${AFL_RUN_ALL_SEED_LIMIT:-}"
 RUN_ALL_SEED_MAX_BYTES="${AFL_RUN_ALL_SEED_MAX_BYTES:-}"
 RUN_REPORT=1
@@ -55,6 +57,8 @@ usage() {
     echo "  --reseed          add configured target seeds before starting each target"
     echo "  --cmplog-auto     use matching afl/bin-cmplog binary when available"
     echo "  --testcache-size N  set AFL_TESTCACHE_SIZE in MB; default ${TESTCACHE_SIZE}"
+    echo "  --mutator NAME|FILE use icc on compatible raw-profile targets or an explicit library"
+    echo "  --mutator-only     disable AFL++ native mutation stages on selected targets"
     echo "  --seed-limit N    override per-directory seed sample size"
     echo "  --seed-max-bytes N  override target maximum seed size"
     echo "  --coverage-boost  plateau preset: --fresh --reseed --mode cmplog --mopt"
@@ -176,6 +180,15 @@ while [[ $# -gt 0 ]]; do
             TESTCACHE_SIZE="$2"
             shift 2
             ;;
+        --mutator)
+            if [[ $# -lt 2 || -z "$2" || "$2" == --* ]]; then
+                echo "ERROR: --mutator requires icc or a library path" >&2
+                exit 1
+            fi
+            MUTATOR="$2"
+            shift 2
+            ;;
+        --mutator-only) MUTATOR_ONLY=1; shift ;;
         --seed-limit)
             if [[ $# -lt 2 || ! "$2" =~ ^[0-9]+$ ]]; then
                 echo "ERROR: --seed-limit requires a non-negative integer" >&2
@@ -248,6 +261,14 @@ fi
 if [[ "$MODE" == "diverse" && "$PARALLEL_EXPLICIT" -eq 0 ]]; then
     PARALLEL=8
 fi
+if [[ "$MUTATOR_ONLY" != "0" && "$MUTATOR_ONLY" != "1" ]]; then
+    echo "ERROR: AFL_RUN_ALL_MUTATOR_ONLY must be 0 or 1" >&2
+    exit 1
+fi
+if [[ "$MUTATOR_ONLY" == "1" && -z "$MUTATOR" ]]; then
+    echo "ERROR: --mutator-only requires --mutator" >&2
+    exit 1
+fi
 
 if [[ -n "$TARGET_FILTER" ]] && ! target_known "$TARGET_FILTER"; then
     echo "ERROR: Unknown target '$TARGET_FILTER'" >&2
@@ -316,6 +337,12 @@ fi
 if [[ "$TESTCACHE_SIZE" != "0" ]]; then
     echo "    Test cache: ${TESTCACHE_SIZE} MB"
 fi
+if [[ -n "$MUTATOR" ]]; then
+    echo "    Mutator: $MUTATOR"
+    if [[ "$MUTATOR" == "icc" && -z "$TARGET_FILTER" ]]; then
+        echo "    Mutator scope: compatible raw ICC targets"
+    fi
+fi
 if [[ "$FILTER_NOT_STARTED" -eq 1 ]]; then
     echo "    Filter: not-started"
 fi
@@ -339,6 +366,14 @@ for target in "${targets[@]}"; do
     fi
     if [[ "$CMPLOG_AUTO" -ne 0 ]]; then
         cmd+=(AFL_CMPLOG_AUTO=1 AFL_CMPLOG_ONLY_NEW="${AFL_CMPLOG_ONLY_NEW:-1}")
+    fi
+    if [[ -n "$MUTATOR" ]]; then
+        if [[ "$MUTATOR" != "icc" ]] || afl_target_accepts_icc_mutator "$target"; then
+            cmd+=(AFL_MUTATOR="$MUTATOR" AFL_MUTATOR_ONLY="$MUTATOR_ONLY")
+        elif [[ -n "$TARGET_FILTER" ]]; then
+            echo "ERROR: the ICC mutator cannot be used with non-ICC target: $target" >&2
+            exit 1
+        fi
     fi
     if [[ -n "$RUN_ALL_SEED_LIMIT" ]]; then
         cmd+=(AFL_SEED_LIMIT="$RUN_ALL_SEED_LIMIT")

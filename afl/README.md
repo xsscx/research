@@ -51,9 +51,11 @@ that separate checkout is available. Override its location with
 ```bash
 ./afl/build-afl-runtime.sh
 ./afl/build.sh
+./afl/build-mutator.sh
 ./afl/build.sh --sanitizer memory
 ./afl/start.sh --list
 ./afl/start.sh dump
+./afl/start.sh dump --mutator icc
 ./afl/start.sh --sanitizer memory dump
 ./afl/start.sh --sanitizer thread --time 60 applyprofiles-row
 ./afl/status.sh dump --detail
@@ -68,6 +70,9 @@ the registered HEIF, tiled TIFF, or TIFF-directory CLI contracts, refresh it
 explicitly with `./afl/build.sh --refresh-iccdev`. The build now fails if any
 registered target binary is omitted instead of reporting a partial deployment
 as successful.
+
+Normal `build.sh` runs also compile the ICC profile custom mutator. Use
+`build-mutator.sh` when only the shared object needs to be refreshed.
 
 The pinned static libtiff build retains its JPEG codec for compressed TIFF
 coverage, so AFL resolves `JPEG::JPEG` before importing libtiff. This transitive
@@ -115,15 +120,15 @@ stale `AFL_BUILD_DIR` and `AFL_BIN_DIR` exports. The explicit `--build-dir` and
 intentionally rejected with the paired build because one path cannot safely
 hold both variants.
 
-For a fresh PAWG campaign on each client:
+For a clean client update, paired AFL/CmpLog rebuild, and PAWG launch:
 
 ```bash
-cd ~/research/afl
-git pull --ff-only
-./build.sh --with-patches --branch ci-afl-cfl --cmplog-pair --clean && \
-  test -x "$PWD/bin/iccPawgReport" && \
-  test -x "$PWD/bin-cmplog/iccPawgReport" && \
-  ./start.sh pawgreport --mode cmplog --mopt
+cd ~/research
+git pull --ff-only origin main
+cd afl
+./build.sh --with-patches --branch ci-afl-cfl \
+  --refresh-iccdev --cmplog-pair --clean
+./start.sh pawgreport --mode cmplog --mopt --mutator icc
 ```
 
 `--mode cmplog` selects the CmpLog campaign preset. `--cmplog-auto` only asks
@@ -181,11 +186,12 @@ The campaign review in `~/afl-review.md` identifies these practical next steps:
 | Coverage mapping | `./afl/map.sh` | Compare queue, crash, hang, or input coverage before promoting artifacts. |
 | Source coverage | AFLplusplus `cov-analysis` | Build a dedicated coverage binary and annotate AFL queues with LLVM source coverage. |
 | Static reachability | AFLplusplus `fuzz-reachability` | Cross-reference cov-analysis with reachable-but-unreached functions. |
+| ICC custom mutator | `./afl/build-mutator.sh` and `./afl/start.sh TARGET --mutator icc` | Use on raw ICC targets; keep native AFL++ mutations enabled for production campaigns. |
 | Dashboard | AFL++ StatsD + Prometheus + Grafana | Export long-run trends without parsing `fuzzer_stats` manually. |
 
-Persistent mode and custom ICC mutators remain future work. They require either
-tool changes or a dedicated AFL custom mutator shared object; do not emulate them
-with shell wrappers around the existing CLI tools.
+Persistent mode remains future work because it requires upstream tool changes.
+The checked-in ICC custom mutator is compiled as a shared object and rebuilds
+profile structure after mutation; see [mutators/README.md](mutators/README.md).
 
 Current mode-specific lanes cover the newer CLI surfaces that are otherwise
 fixed before mutation: `fromjson-noid`, `tiffdump-ifd`, `tiffdump-list`,

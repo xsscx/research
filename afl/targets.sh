@@ -171,6 +171,59 @@ afl_target_is_qa_only() {
     esac
 }
 
+afl_target_accepts_icc_mutator() {
+    case "$1" in
+        benchapply|applynamedcmm|applynamedcmm-v5-brdf|applynamedcmm-debugcalc)
+            return 0
+            ;;
+        applynamedcmm-hybrid-chain|applynamedcmm-hybrid-pcc)
+            return 0
+            ;;
+        applyprofiles|applyprofiles-fast|applyprofiles-deep)
+            return 0
+            ;;
+        applyprofiles-hybrid-pcc|applyprofiles-row)
+            return 0
+            ;;
+        applysearch|applysearch-noinit|applysearch-fast|applysearch-hybrid-pcc)
+            return 0
+            ;;
+        applysearch-weight-positive|applysearch-weight-positive-fast)
+            return 0
+            ;;
+        applysearch-weight-zero|applysearch-weight-negative|applysearch-weight-nan)
+            return 0
+            ;;
+        applytolink|applytolink-v5|applytolink-cube)
+            return 0
+            ;;
+        dump|dump-diag|dump-read|pawgreport|pawgreport-fast|pawgreport-text)
+            return 0
+            ;;
+        profileplot|profileplot-graph|profileplot-raster)
+            return 0
+            ;;
+        profilevisualize|profilevisualize-fast|roundtrip|roundtrip-mpe)
+            return 0
+            ;;
+        specseptotiff|specseptotiff-compress|specseptotiff-desc)
+            return 0
+            ;;
+        specseptotiff-harvest|specseptotiff-sep|specseptotiff-short)
+            return 0
+            ;;
+        specseptotiff-tiles|specseptotiff-bigtiff)
+            return 0
+            ;;
+        tojson|toxml|toxml-fast|v5dspobs)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 afl_continuous_target_names() {
     local target
 

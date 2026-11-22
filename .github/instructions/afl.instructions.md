@@ -37,10 +37,12 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 ```bash
 ./afl/build-afl-runtime.sh
 ./afl/build.sh          # default: unpatched upstream iccDEV
+./afl/build-mutator.sh
 ./afl/build.sh --sanitizer memory
 ./afl/build.sh --sanitizer thread
 ./afl/start.sh --list
 ./afl/start.sh dump
+./afl/start.sh dump --mutator icc
 ./afl/start.sh --sanitizer memory dump
 ./afl/start.sh --sanitizer thread --time 60 applyprofiles-row
 ./afl/start.sh toxml --parallel 4
@@ -55,6 +57,17 @@ profile. Do not seed either lane from `test-profiles/`, `extended-test-profiles/
 .github/scripts/validate-afl-target-configs.sh
 .github/scripts/validate-afl-target-configs.sh --local --sanitizer memory
 ```
+
+## ICC Custom Mutator Contract
+
+The checked-in ICC mutator applies only when a target's `@@` input is an
+ordinary binary ICC profile. Do not attach it to TIFF, PNG, JPEG, HEIF, JSON,
+XML, Cube, configuration, or bundled-input lanes. Production runs keep AFL++'s
+native mutations enabled; use `--mutator-only` only for attribution. Respect
+the target input ceiling and validate mutator work with a real AFL campaign and
+the operation names in retained queue entries. Do not add CTest cases,
+standalone test programs, synthetic fixtures, or a new validation framework
+for this fuzzing component.
 
 MSan and TSan use isolated `Build-AFL-*`, `bin-*`, and third-party dependency
 directories. Select the matching runtime with `start.sh --sanitizer memory`,
