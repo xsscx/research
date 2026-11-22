@@ -235,15 +235,17 @@ std::vector<ProfileCmmSeed> LoadProfileCmmSeeds() {
     if (profiles.empty())
         return cmm_seeds;
 
-    for (size_t i = 0; i < kFuzzSeedCount; ++i) {
+    // Seed every curated profile so calculator-bearing fixtures such as
+    // argbCalc.icc reach CMM Begin() before generated mutations start.
+    for (size_t i = 0; i < profiles.size(); ++i) {
         CmmSamples samples = {};
         for (size_t sample = 0; sample < samples.size(); ++sample) {
             samples[sample] = static_cast<icFloatNumber>((sample + i) % 5U) /
                               static_cast<icFloatNumber>(4.0f);
         }
-        cmm_seeds.emplace_back(
-            profiles[kFuzzSeedProfileIndices[i] % profiles.size()], samples,
-            controls[i]);
+        cmm_seeds.emplace_back(profiles[i], samples,
+                               controls[i % (sizeof(controls) /
+                                             sizeof(controls[0]))]);
     }
 
     return cmm_seeds;
@@ -604,7 +606,7 @@ TEST(IccProfileFuzzTest, CuratedSeedsReachTagLookup) {
 TEST(IccProfileFuzzTest, CuratedSeedsReachCmmApply) {
     const std::vector<ProfileBytes> profiles = LoadProfileBytes();
     ASSERT_FALSE(profiles.empty());
-    ASSERT_EQ(LoadProfileCmmSeeds().size(), kFuzzSeedCount);
+    ASSERT_EQ(LoadProfileCmmSeeds().size(), profiles.size());
 
     CmmSamples samples = {};
     for (size_t sample = 0; sample < samples.size(); ++sample) {
