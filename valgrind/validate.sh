@@ -88,8 +88,8 @@ chmod +x "$validation_tmp/bin/valgrind" \
 
 set +e
 FAKE_COMPLETE=0 PATH="$validation_tmp/bin:$PATH" \
-    VALGRIND_BUILD_DIR="$validation_tmp/build" \
     "$REPO_ROOT/valgrind/run.sh" --tool memcheck --timeout 1 \
+    --source-dir "$REPO_ROOT/iccDEV" --build-dir "$validation_tmp/build" \
     --output-dir "$validation_tmp/incomplete" dump \
     >"$validation_tmp/stdout.log" 2>"$validation_tmp/stderr.log"
 run_rc=$?

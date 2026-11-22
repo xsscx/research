@@ -100,10 +100,14 @@ SHA-256 of the extracted profile so raw extraction changes cannot pass solely
 because the tool returned zero.
 
 The build defaults to `iccDEV/` and `valgrind/build/`. Override them without
-editing scripts:
+editing scripts; explicit CLI paths take precedence and work for both build and
+run automation:
 
 ```bash
-VALGRIND_ICCDEV_DIR=/path/to/iccDEV VALGRIND_BUILD_DIR=/home/xss/qa/iccdev-valgrind ./valgrind/build.sh --clean
+./valgrind/build.sh --clean --source-dir /path/to/iccDEV \
+  --build-dir /home/xss/qa/iccdev-valgrind-build
+./valgrind/run.sh --tool memcheck --source-dir /path/to/iccDEV \
+  --build-dir /home/xss/qa/iccdev-valgrind-build all
 ```
 
 The build explicitly disables ASAN, UBSAN, integer/float sanitizers, TSan,

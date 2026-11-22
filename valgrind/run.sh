@@ -22,6 +22,8 @@ usage() {
     echo "Options:"
     echo "  --tool memcheck|helgrind|drd|massif|callgrind"
     echo "  --timeout N          per-target timeout in seconds (default: 120)"
+    echo "  --source-dir DIR     iccDEV source tree"
+    echo "  --build-dir DIR      non-sanitized Valgrind build tree"
     echo "  --output-dir DIR     new evidence directory"
     echo "  --allow-findings     return success after recording Valgrind findings"
     echo "  --list               list targets"
@@ -31,6 +33,8 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --tool) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; VG_TOOL="$2"; shift 2 ;;
         --timeout) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; VG_TIMEOUT="$2"; shift 2 ;;
+        --source-dir) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; VG_SOURCE_DIR="$2"; shift 2 ;;
+        --build-dir) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; VG_BUILD_DIR="$2"; shift 2 ;;
         --output-dir) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; VG_OUTPUT_BASE="$2"; VG_OUTPUT_EXPLICIT=1; shift 2 ;;
         --allow-findings) VG_ALLOW_FINDINGS=1; shift ;;
         --list) vg_print_targets; exit 0 ;;
@@ -50,6 +54,8 @@ command -v valgrind >/dev/null 2>&1 || { echo "ERROR: valgrind is not installed"
 command -v timeout >/dev/null 2>&1 || { echo "ERROR: timeout is not installed" >&2; exit 127; }
 command -v ldd >/dev/null 2>&1 || { echo "ERROR: ldd is not installed" >&2; exit 127; }
 command -v nm >/dev/null 2>&1 || { echo "ERROR: nm is not installed" >&2; exit 127; }
+[[ -d "$VG_SOURCE_DIR" ]] || { echo "ERROR: source directory not found: $VG_SOURCE_DIR" >&2; exit 2; }
+[[ -d "$VG_BUILD_DIR" ]] || { echo "ERROR: build directory not found: $VG_BUILD_DIR" >&2; exit 2; }
 
 if [[ "${VG_SELECTED[0]}" == "all" ]]; then
     [[ ${#VG_SELECTED[@]} -eq 1 ]] || { echo "ERROR: all cannot be combined with named targets" >&2; exit 2; }
