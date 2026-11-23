@@ -163,11 +163,11 @@
 "data"
 "dtim"
 
-# Rendering intent bytes (little-endian u32)
+# Rendering intent bytes (ICC big-endian u32)
 "\x00\x00\x00\x00"
-"\x01\x00\x00\x00"
-"\x02\x00\x00\x00"
-"\x03\x00\x00\x00"
+"\x00\x00\x00\x01"
+"\x00\x00\x00\x02"
+"\x00\x00\x00\x03"
 
 # ICC header magic number
 "acsp"

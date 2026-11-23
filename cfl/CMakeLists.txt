@@ -238,6 +238,33 @@ if(ENABLE_FUZZING AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_link_libraries(icc_heifdump_fuzzer PkgConfig::CFL_HEIF)
   endif()
 
+  if(CFL_SANITIZER STREQUAL "address")
+    set(ICC_PROFILE_MUTATOR_SOURCES
+      ${CMAKE_CURRENT_LIST_DIR}/icc_profile_custom_mutator.cpp
+      ${CMAKE_CURRENT_LIST_DIR}/../afl/mutators/icc_profile_mutator.cpp
+    )
+    foreach(profile_fuzzer IN ITEMS
+        icc_applynamedcmm_fuzzer
+        icc_applyprofiles_fuzzer
+        icc_applyprofiles_row_fuzzer
+        icc_applysearch_fuzzer
+        icc_applysearch_weight_fuzzer
+        icc_connect_fuzzer
+        icc_dump_fuzzer
+        icc_link_fuzzer
+        icc_pawgreport_fuzzer
+        icc_profilevisualize_fuzzer
+        icc_proflib_fuzzer
+        icc_roundtrip_fuzzer
+        icc_tojson_fuzzer
+        icc_toxml_fuzzer
+        icc_v5dspobs_fuzzer)
+      if(TARGET ${profile_fuzzer})
+        target_sources(${profile_fuzzer} PRIVATE ${ICC_PROFILE_MUTATOR_SOURCES})
+      endif()
+    endforeach()
+  endif()
+
   message(STATUS "Fuzzing harnesses configured:")
   message(STATUS "  Core: proflib, v5dspobs, roundtrip, dump, link, fromcube, profilevisualize (7)")
   message(STATUS "  Apply: applynamedcmm, applyprofiles, applyprofiles-row, applysearch, applysearch-weight (5)")

@@ -396,17 +396,20 @@ cfl_resolve_dict() {
   local mapped=""
 
   case "$fuzzer" in
-    icc_cfg_fuzzer|icc_connect_fuzzer) mapped="icc_cfg.dict" ;;
+    icc_applynamedcmm_fuzzer|icc_applyprofiles_fuzzer|icc_applyprofiles_row_fuzzer|\
+    icc_applysearch_fuzzer|icc_applysearch_weight_fuzzer|icc_connect_fuzzer|\
+    icc_dump_fuzzer|icc_link_fuzzer|icc_pawgreport_fuzzer|\
+    icc_profilevisualize_fuzzer|icc_proflib_fuzzer|icc_roundtrip_fuzzer|\
+    icc_tojson_fuzzer|icc_toxml_fuzzer|icc_v5dspobs_fuzzer)
+      mapped="icc_profile_binary.dict"
+      ;;
+    icc_cfg_fuzzer) mapped="icc_cfg.dict" ;;
     icc_fromjson_fuzzer) mapped="icc_json.dict" ;;
-    icc_proflib_fuzzer) mapped="icc_core.dict" ;;
-    icc_roundtrip_fuzzer) mapped="icc_core.dict" ;;
-    icc_tojson_fuzzer) mapped="icc_core.dict" ;;
-    icc_toxml_fuzzer) mapped="icc_xml_consolidated.dict" ;;
   esac
 
   for candidate in \
-    "$script_dir/${fuzzer}.dict" \
     ${mapped:+"$script_dir/$mapped"} \
+    "$script_dir/${fuzzer}.dict" \
     "$script_dir/icc_core.dict" \
     "$script_dir/icc.dict"; do
     if [[ -f "$candidate" ]]; then

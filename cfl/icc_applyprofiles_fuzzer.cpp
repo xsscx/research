@@ -43,20 +43,23 @@
 // (8/16/32-bit, Lab/XYZ/RGB), CIccPixelBuf, CIccFileIO profile embedding,
 // and the complete source->CMM->destination pixel loop.
 //
-// Input format (backward compatible):
-//   [0..profile_end]:  ICC profile data (75% of input)
-//   [profile_end+0]:   intent (0-3)
-//   [profile_end+1]:   interp (bit 0)
-//   [profile_end+2]:   flags: bit0=BPC, bit1=luminance, bit2=useV5SubProfile,
+// Input format:
+//   [0..declared ICC size): complete ICC profile data
+//   [declared ICC size+0]: intent (0-3)
+//   [declared ICC size+1]: interp (bit 0)
+//   [declared ICC size+2]: flags: bit0=BPC, bit1=luminance, bit2=useV5SubProfile,
 //                              bit3=embed_icc, bit4..5=bps_select, bit6..7=photo_select
-//   [profile_end+3]:   bit0=use_d2bx, bit1..2=width(1-4), bit3..4=height(1-4)
-//   [profile_end+4]:   bit0=row Apply path, bit1=dst compression, bit2=dst planar,
+//   [declared ICC size+3]: bit0=use_d2bx, bit1..2=width(1-4), bit3..4=height(1-4)
+//   [declared ICC size+4]: bit0=row Apply path, bit1=dst compression, bit2=dst planar,
 //                      bits3..5=transform type (color, named, preview, gamut,
 //                      BRDF parameters/direct/MCS parameters, or MCS)
-//   [profile_end+5]:   bit0=src tiled, bit1=src BigTIFF, bit2=dst tiled,
+//   [declared ICC size+5]: bit0=src tiled, bit1=src BigTIFF, bit2=dst tiled,
 //                      bit3=dst BigTIFF, bits4..5=tile width selector,
 //                      bits6..7=tile height selector (16, 32, 64, or 128)
-//   [profile_end+6..]: pixel seed data
+//   [declared ICC size+6..]: pixel seed data
+//
+// The control trailer is optional. Raw profiles use header-derived defaults;
+// profile bytes are never truncated to manufacture controls.
 //
 
 #include <stdint.h>
@@ -139,17 +142,28 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  if (size > 5 * 1024 * 1024) return 0;
+  if (size < 132 || size > 5 * 1024 * 1024) return 0;
 
-  // Split input: first part is profile data, rest is control data
-  size_t profile_size = (size * 3) / 4;
-  if (profile_size < 132) return 0;
+  const uint32_t declared_size =
+      (static_cast<uint32_t>(data[0]) << 24U) |
+      (static_cast<uint32_t>(data[1]) << 16U) |
+      (static_cast<uint32_t>(data[2]) << 8U) |
+      static_cast<uint32_t>(data[3]);
+  const size_t profile_size = declared_size >= 132 && declared_size <= size
+                                  ? declared_size
+                                  : size;
 
   const uint8_t *profile_data = data;
-  const uint8_t *control_data = data + profile_size;
-  size_t control_size = size - profile_size;
-
-  if (control_size < 4) return 0;
+  const uint8_t default_control[6] = {
+      data[67], data[8], data[44], data[16], data[12], data[20],
+  };
+  const size_t trailer_size = size - profile_size;
+  const uint8_t *control_data = trailer_size >= 4
+                                    ? data + profile_size
+                                    : default_control;
+  const size_t control_size = trailer_size >= 4
+                                  ? trailer_size
+                                  : sizeof(default_control);
 
   // Extract fuzzing parameters from control data (backward compatible layout)
   icRenderingIntent intent = (icRenderingIntent)(control_data[0] % 4);

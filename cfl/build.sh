@@ -632,6 +632,19 @@ build_fuzzer() {
         target_defines+=("-DCFL_APPLYSEARCH_THREADED=1")
         ;;
     esac
+  else
+    case "$name" in
+      icc_applynamedcmm_fuzzer|icc_applyprofiles_fuzzer|icc_applyprofiles_row_fuzzer|\
+      icc_applysearch_fuzzer|icc_applysearch_weight_fuzzer|icc_connect_fuzzer|\
+      icc_dump_fuzzer|icc_link_fuzzer|icc_pawgreport_fuzzer|\
+      icc_profilevisualize_fuzzer|icc_proflib_fuzzer|icc_roundtrip_fuzzer|\
+      icc_tojson_fuzzer|icc_toxml_fuzzer|icc_v5dspobs_fuzzer)
+        extra_sources+=(
+          "$SCRIPT_DIR/icc_profile_custom_mutator.cpp"
+          "$SCRIPT_DIR/../afl/mutators/icc_profile_mutator.cpp"
+        )
+        ;;
+    esac
   fi
 
   # shellcheck disable=SC2086
