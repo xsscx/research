@@ -8,6 +8,12 @@
 
 set -euo pipefail
 
+# Keep this build-script control out of AFL++'s AFL_* option namespace.  Accept
+# the former name for compatibility, but remove it before invoking a wrapper.
+ICCDEV_BUILD_AFL_MUTATOR="${ICCDEV_BUILD_AFL_MUTATOR:-${AFL_BUILD_ICC_MUTATOR:-1}}"
+export ICCDEV_BUILD_AFL_MUTATOR
+unset AFL_BUILD_ICC_MUTATOR
+
 # A CmpLog campaign needs two matching binaries: the ordinary target executed
 # by AFL++ and the comparison-instrumented target passed with -c.  Keep the
 # existing --cmplog single-variant build for advanced callers, and provide one
@@ -37,7 +43,7 @@ if [[ "$PAIR_REQUESTED" == "1" ]]; then
     echo "[*] Building the ordinary AFL target set"
     env -u AFL_BUILD_DIR -u AFL_BIN_DIR "$0" "${PAIR_ARGS[@]}"
     echo "[*] Building the matching CmpLog target set"
-    env -u AFL_BUILD_DIR -u AFL_BIN_DIR AFL_BUILD_ICC_MUTATOR=0 \
+    env -u AFL_BUILD_DIR -u AFL_BIN_DIR ICCDEV_BUILD_AFL_MUTATOR=0 \
         "$0" "${PAIR_ARGS[@]}" --cmplog
     exit 0
 fi
@@ -98,7 +104,7 @@ usage() {
     echo "  AFL_ICCDEV_BRANCH default --branch value"
     echo "  AFL_CLANG_FAST    override the afl-clang-fast wrapper path"
     echo "  AFL_CLANG_FASTXX  override the afl-clang-fast++ wrapper path"
-    echo "  AFL_BUILD_ICC_MUTATOR set to 0 to skip the standalone ICC mutator build"
+    echo "  ICCDEV_BUILD_AFL_MUTATOR set to 0 to skip the standalone ICC mutator build"
 }
 
 CLEAN=0
@@ -796,7 +802,7 @@ AFL_BIN_DIR="$BIN_DIR" \
     --local --sanitizer "$SANITIZER_MODE"
 
 echo ""
-if [[ "${AFL_BUILD_ICC_MUTATOR:-1}" != "0" ]]; then
+if [[ "$ICCDEV_BUILD_AFL_MUTATOR" != "0" ]]; then
     "$SCRIPT_DIR/build-mutator.sh"
     echo ""
 fi
