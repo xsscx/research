@@ -11,7 +11,16 @@ historical analyzer identifiers or totals.
 |----------|---------|-------|
 | **ICC.1-2022-05.pdf** | v4.4 (126 pages) | Main profile specification - header layout, tag table, required tags, data types, PCS |
 | **ICC.2-2023.pdf** | v5.1 (iccMAX) | Extended profile specification - spectral PCS, MPE, calculator elements |
-| **ICC.1_Adaptive_Gain_Curve.pdf** | April 2025 amendment | ADGC tag - RGB+Input/Display only |
+| [Headroom Adaptive Gain Curve](icc1_amendment_headroom_adaptive_gain_curve.pdf) | ICC.1:2022 amendment approved 2026-10-19 | Replaces the April 2025 Adaptive Gain Curve amendment. [ICC amendment index](https://www.color.org/v4spec/) |
+| [CICP type update](icc1_amendment_cicptype.pdf) | ICC.1:2022 amendment approved 2026-10-19 | Optional chromaticity data for the CICP type. [ICC original](https://media.color.org/icc1_amendment_cicptype.pdf) |
+| [Extended Device Colour Space](extendedDeviceColorSpace-amendment.pdf) | ICC.2:2023 amendment approved 2025-10-30 | Adds spectral device-space signatures, spectral range and source-side connection conditions for Abstract profiles. [ICC original](https://archive.color.org/iccmax/download/extendedDeviceColorSpace-amendment.pdf) |
+| [CICP tag and type](CICP_tag_and_type_amendment.pdf) | ICC.2:2019 amendment | Introduces video-encoding metadata for iccMAX. [ICC original](https://archive.color.org/iccmax/download/CICP_tag_and_type_amendment.pdf) |
+
+ICC lists ICC.1:2022 and ICC.2:2023 as its current editions. ISO 15076-1:2025
+corresponds to ICC.1:2022. ISO 20677:2019 was confirmed in 2024.
+[ICC specifications](https://www.color.org/icc_specs2/) |
+[ISO 15076-1](https://www.iso.org/standard/86740.html) |
+[ISO 20677](https://www.iso.org/standard/68806.html)
 
 ## HTML Overlays
 
@@ -71,15 +80,51 @@ historical analyzer identifiers or totals.
 
 ## ICS (Interoperability Conformance Specifications)
 
-These documents define the ICC Specification (ICS) framework for extended color
-workflows.
+ICC approved the following eight core ICS documents on 2021-02-19. Each
+defines conformance for a particular subclass and workflow.
+[ICC core ICS register](https://www.color.org/iccmax/ics/)
 
 | Document | Scope |
 |----------|-------|
 | **ICS-ExtendedOutput-Part1.pdf** | Extended output color space modeling and device profile validation |
+| [Extended Output Part 2](ICS-ExtendedOutput-Part2.pdf) | Advanced printer encoding with spectral and custom colorimetric PCS support. [ICC original](https://archive.color.org/iccmax/ics/ICS-ExtendedOutput-Part2.pdf) |
+| [Colorimetric Encoding Part 1](ICS-Colorimetric-Part1.pdf) | Basic colorimetric encoding. [ICC original](https://archive.color.org/iccmax/ics/ICS-Colorimetric-Part1.pdf) |
+| [Spectral Reflectance Part 1](ICS-SpectralReflectance-Part1.pdf) | Basic spectral processing. [ICC original](https://archive.color.org/iccmax/ics/ICS-SpectralReflectance-Part1.pdf) |
+| [Spectral Reflectance Part 2](ICS-SpectralReflectance-Part2.pdf) | Extended spectral processing. [ICC original](https://archive.color.org/iccmax/ics/ICS-SpectralReflectance-Part2.pdf) |
 | **ICS-ExtendedRange-Part1.pdf** | Extended gamut color representations - Part 1 |
 | **ICS-ExtendedRange-Part2.pdf** | Extended gamut color representations - Part 2 |
 | **ICS-ExtendedRange-Part3.pdf** | Extended gamut color representations - Part 3 |
+
+## Hybrid profiles and the ICC5 proposal
+
+Public sources checked on 2026-11-23. ICC.1:2022 Annex H points to Technical
+Note 04-2018 for embedding an iccMAX child. It describes an `ICC5` tag with
+type `ICCp`, matching profile class and device space, and selecting either
+the child's processing or the host's transforms. The iccDEV implementation
+commit identifies the *Optional ICC5 Tag Proposal* (12-10-2025 text) and
+records that it awaited acceptance. The public ICC and ISO sources checked
+yielded neither the complete proposal nor an approval record for that annex.
+[Technical Note 04-2018](Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf) |
+[ICC technical-note index](https://www.color.org/technotes/) |
+[Author's commit](https://github.com/InternationalColorConsortium/iccDEV/commit/dd6164446f5e87562a066a0a104d8817bcd9771f)
+
+| Publication | What it establishes |
+|---|---|
+| [Hybrid Printer Output Profiles](T20260158.pdf), Max Derhak, 2026 TAGA Proceedings, pp. 159-160, 171 | The author describes omitting redundant host tags, adding spot channels, and using a spectral PCS. The paper describes the reflectance subclass as under development. [Publisher](https://library.taga.org/2026-proceedings/T20260158) |
+| [ICC Experts' Day presentation](gjovik2026-22-max_derhak-ics.pdf), 2026-09-21, slides 16-20 | Describes the hybrid workflows and explicitly labels the staging packages preliminary. [ICC original](https://media.color.org/gjovik2026-22-max_derhak-ics.pdf) |
+| [Private tag documentation for ICCP](iccp-tagdocumentation.pdf), tag registered 2026-09-07 | This separate uppercase tag (`49434350`) permits omission of duplicate host tags and specifies matching data colour space and profile class. The 2018 `ICC5` tag is `49434335` and its type `ICCp` is `49434370`. The private sheet cites Annex X of ICC.2:2019, but the published edition's annexes end at K. [ICC original](https://media.color.org/iccp-tagdocumentation.pdf), [tag registry](https://registry.color.org/tag-signatures/) and [type registry](https://registry.color.org/type-signatures/) |
+
+The following ICC repository PDFs specify their respective packages. Their
+public availability establishes what the packages require. The Experts' Day
+presentation describes their development status, and no separate ballot
+record for the general ICC5 annex was located.
+[ICC package specification policy](ICC-ICS-SPECIFICATION_POLICY.md)
+
+| Hybrid subclass | Requirements in the package PDF |
+|---|---|
+| [Printer With Reflectance](ICS-HybridPrinterWithReflectance.pdf) (`sref`) | Section 6.2, Tables 3-4 require the same device space, zero colorimetric PCS, and child `swpt`, `D2B3` and `svcn`. The inverse spectral scenario uses a search over the forward transform. [ICC source on main](https://github.com/InternationalColorConsortium/ics/blob/715df3b448e6ee10f98260ef334225f64f8bd9b2/packages/HybridPrinterWithReflectance/ICS-HybridPrinterWithReflectance.pdf) |
+| [Hybrid Multi-Spectral Encoding](ICS-HybridMultiSpectralEncoding.pdf) (`mspc`) | Section 6.2, Tables 3-4 specify matching data colour space and child `swpt`, `B2D3`, `D2B3` and `svcn`. The worked XML pairs an RGB host with an 8CLR child and omits the child's `swpt`. Use the tables when assessing the example. [ICC package and example](https://github.com/InternationalColorConsortium/ics/tree/715df3b448e6ee10f98260ef334225f64f8bd9b2/packages/HybridMultiSpectralEncoding) |
+| [Printer With Overprint Simulation](ICS-HybridPrinterWithOverprintSimulation.pdf) (`osim`) | Marked PRELIMINARY. Section 6.2, Tables 3-4 and section 6.2.3 specify an `ncXXXX` child whose first channels match the host, its own `clin` and an AToB transform. For a CMYK host the first four channel names are Cyan, Magenta, Yellow and Black. [ICC source on staging](https://github.com/InternationalColorConsortium/ics/blob/1c8241446205abfcfc58573d6b4c5a82b09d8199/packages/HybridPrinterWithOverprintSimulation/ICS-HybridPrinterWithOverprintSimulation.pdf) |
 
 ## Technical Notes
 
@@ -89,7 +134,7 @@ workflows.
 | **ICC-Technote-PartialAdaptation.pdf** | Chromatic adaptation tag validation, chad matrix |
 | **ICC_TN-06-2025_Recommendations_on_calculation_of_tristimulus_values.pdf** | Tristimulus weighting functions, observer data |
 | **PSD_TechNote.pdf** | Profile Sequence Descriptor parsing pitfalls, size inference attacks |
-| **Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf** | Rules for nesting ICC.2 (v5/iccMAX) profiles inside ICC.1 (v4) profiles — version bridging constraints | CF-153..CF-158 |
+| [Embedding an ICC.2 profile in an ICC.1 profile](Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf) | TN 04-2018, the ICC5 profile-in-profile technical note. [ICC original](https://archive.color.org/files/technotes/Embedding_an_ICC.2_profile_in_an_ICC.1_profile.pdf) |
 
 ## Specification Revisions
 
