@@ -123,13 +123,12 @@ hold both variants.
 For a clean client update, paired AFL/CmpLog rebuild, and PAWG launch:
 
 ```bash
-cd ~/research
-git pull --ff-only origin main
-cd afl
-./build.sh --with-patches --branch ci-afl-cfl \
-  --refresh-iccdev --cmplog-pair --clean
-./start.sh pawgreport --mode cmplog --mopt --mutator icc
+cd ~/research && git fetch origin main && git merge --ff-only origin/main && cd afl && ./build-afl-runtime.sh && ./build.sh --with-patches --branch ci-afl-cfl --refresh-iccdev --cmplog-pair --clean && test -x "$PWD/bin/iccPawgReport" && test -x "$PWD/bin-cmplog/iccPawgReport" && test -r "$PWD/mutators/build/icc_profile_mutator.so" && exec ./start.sh pawgreport --fresh --mode cmplog --mopt --mutator icc
 ```
+
+Copy and paste the line unchanged on each client. Do not manually remove
+`iccDEV`, `bin`, or `bin-cmplog`; the paired clean build manages them and the
+three `test` checks prevent launch with an incomplete build.
 
 `--mode cmplog` selects the CmpLog campaign preset. `--cmplog-auto` only asks
 an otherwise selected mode to attach a matching comparison binary; it does not

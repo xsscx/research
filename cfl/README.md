@@ -17,11 +17,12 @@ for an explicit compatibility experiment with another matching Clang runtime.
 For a clean client update and patched CFL rebuild:
 
 ```bash
-cd ~/research
-git pull --ff-only origin main
-cd cfl
-./build.sh clean --with-patches --branch ci-afl-cfl
+cd ~/research && git fetch origin main && git merge --ff-only origin/main && cd cfl && ./build.sh clean --with-patches --branch ci-afl-cfl && test -x "$PWD/bin/icc_pawgreport_fuzzer"
 ```
+
+Copy and paste the line unchanged on each client. When `clean` is combined with
+build options, the script cleans and then rebuilds; do not manually remove
+`iccDEV` or `bin`.
 
 ```bash
 # Build current upstream master.
