@@ -435,7 +435,7 @@ afl_configure_target() {
         benchapply)
             BINARY="$BIN_DIR/iccBenchApply"
             AFL_DIR="$AFL_BASE/afl-benchapply"
-            DICT="$REPO_ROOT/cfl/icc_link_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_FILES=("$srgb_profile")
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
@@ -450,7 +450,7 @@ afl_configure_target() {
             ;;
         applynamedcmm|applynamedcmm-v5-brdf|applynamedcmm-debugcalc|applynamedcmm-cfg|namedcmm-cfg)
             BINARY="$BIN_DIR/iccApplyNamedCmm"
-            DICT="$REPO_ROOT/cfl/icc_applynamedcmm_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -520,7 +520,7 @@ afl_configure_target() {
         applynamedcmm-hybrid-chain|namedcmm-hybrid-chain)
             BINARY="$BIN_DIR/iccApplyNamedCmm"
             AFL_DIR="$AFL_BASE/afl-applynamedcmm-hybrid-chain"
-            DICT="$REPO_ROOT/cfl/icc_applynamedcmm_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             HYBRID_NEEDS_SUPPORT=1
             SEED_MAX_BYTES=1048576
             SEED_LIMIT=200
@@ -543,7 +543,7 @@ afl_configure_target() {
         applynamedcmm-hybrid-pcc|namedcmm-hybrid-pcc)
             BINARY="$BIN_DIR/iccApplyNamedCmm"
             AFL_DIR="$AFL_BASE/afl-applynamedcmm-hybrid-pcc"
-            DICT="$REPO_ROOT/cfl/icc_applynamedcmm_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             HYBRID_NEEDS_SUPPORT=1
             SEED_MAX_BYTES=1048576
             SEED_LIMIT=300
@@ -565,7 +565,7 @@ afl_configure_target() {
             ;;
         applyprofiles|profiles|applyprofiles-fast|profiles-fast|applyprofiles-deep|profiles-deep|applyprofiles-cfg|profiles-cfg|applyprofiles-search|profiles-search|applyprofiles-hybrid-embedded|profiles-hybrid-embedded|applyprofiles-hybrid-pcc|profiles-hybrid-pcc|applyprofiles-row|profiles-row)
             BINARY="$BIN_DIR/iccApplyProfiles"
-            DICT="$REPO_ROOT/cfl/icc_applyprofiles_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -722,7 +722,7 @@ afl_configure_target() {
             else
                 AFL_DIR="$AFL_BASE/afl-applysearch"
             fi
-            DICT="$REPO_ROOT/cfl/icc_applysearch_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/cfl/corpus-icc_applysearch_fuzzer"
                 "$REPO_ROOT/test-profiles"
@@ -765,7 +765,7 @@ afl_configure_target() {
                 AFL_FAST_CAL_TARGET=1
                 TARGET_NOTE="ApplySearch no-init lane: fuzzes the destination profile with float data and linear interpolation while omitting -INIT."
             elif [[ "$target" == applysearch-hybrid-pcc || "$target" == search-hybrid-pcc ]]; then
-                DICT="$REPO_ROOT/cfl/icc_applysearch_fuzzer.dict"
+                DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
                 HYBRID_NEEDS_SUPPORT=1
                 SEED_MAX_BYTES=524288
                 SEED_FILE_TYPE_REGEX='^(color profile|ColorSync color profile|data)'
@@ -869,7 +869,7 @@ afl_configure_target() {
             ;;
         applytolink|applytolink-v5|applytolink-cube)
             BINARY="$BIN_DIR/iccApplyToLink"
-            DICT="$REPO_ROOT/cfl/icc_link_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -897,7 +897,7 @@ afl_configure_target() {
             ;;
         dump|dump-diag|dump-read)
             BINARY="$BIN_DIR/iccDumpProfile"
-            DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -1081,7 +1081,7 @@ afl_configure_target() {
             BINARY="$BIN_DIR/iccPawgReport"
             [[ "$target" == "pawgreport-fast" ]] && AFL_DIR="$AFL_BASE/afl-pawgreport-fast"
             [[ "$target" == "pawgreport-text" ]] && AFL_DIR="$AFL_BASE/afl-pawgreport-text"
-            DICT="$REPO_ROOT/cfl/icc_master_curated.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -1142,7 +1142,7 @@ afl_configure_target() {
         profilevisualize|profilevisualize-fast)
             BINARY="$BIN_DIR/iccProfileVisualize"
             [[ "$target" == "profilevisualize-fast" ]] && AFL_DIR="$AFL_BASE/afl-profilevisualize-fast"
-            DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -1165,7 +1165,7 @@ afl_configure_target() {
             ;;
         profileplot|profileplot-graph|profileplot-raster)
             BINARY="$BIN_DIR/iccProfilePlot"
-            DICT="$REPO_ROOT/cfl/icc_dump_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -1197,7 +1197,7 @@ afl_configure_target() {
         roundtrip|roundtrip-mpe)
             BINARY="$BIN_DIR/iccRoundTrip"
             [[ "$target" == "roundtrip-mpe" ]] && AFL_DIR="$AFL_BASE/afl-roundtrip-mpe"
-            DICT="$REPO_ROOT/cfl/icc_roundtrip_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -1224,7 +1224,7 @@ afl_configure_target() {
             else
                 AFL_DIR="$AFL_BASE/afl-specseptotiff"
             fi
-            DICT="$REPO_ROOT/cfl/icc_specsep_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -1409,7 +1409,7 @@ afl_configure_target() {
             ;;
         tojson)
             BINARY="$BIN_DIR/iccToJson"
-            DICT="$REPO_ROOT/cfl/icc_core.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -1420,7 +1420,7 @@ afl_configure_target() {
         toxml|toxml-fast)
             BINARY="$BIN_DIR/iccToXml"
             [[ "$target" == "toxml-fast" ]] && AFL_DIR="$AFL_BASE/afl-toxml-fast"
-            DICT="$REPO_ROOT/cfl/icc_toxml_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_DIRS=(
                 "$REPO_ROOT/test-profiles"
                 "$REPO_ROOT/fuzz/graphics/icc"
@@ -1439,7 +1439,7 @@ afl_configure_target() {
             ;;
         v5dspobs)
             BINARY="$BIN_DIR/iccV5DspObsToV4Dsp"
-            DICT="$REPO_ROOT/cfl/icc_v5dspobs_fuzzer.dict"
+            DICT="$REPO_ROOT/cfl/icc_profile_binary.dict"
             SEED_FILES=(
                 "$REPO_ROOT/test-profiles/LCDDisplay.icc"
                 "$REPO_ROOT/test-profiles/Rec2020rgbSpectral.icc"

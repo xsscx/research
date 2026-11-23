@@ -371,7 +371,7 @@ done
 
 afl_configure_target pawgreport
 expect_value "PawgReport trimming disabled" "$AFL_DISABLE_TRIM_TARGET" "1"
-expect_value "PawgReport dictionary" "$DICT" "$REPO_ROOT/cfl/icc_master_curated.dict"
+expect_value "PawgReport dictionary" "$DICT" "$REPO_ROOT/cfl/icc_profile_binary.dict"
 expect_value "PawgReport fast calibration" "$AFL_FAST_CAL_TARGET" "1"
 expect_value "PawgReport expanded havoc" "$AFL_EXPAND_HAVOC_TARGET" "1"
 expect_value "PawgReport deterministic policy" "$AFL_SKIP_DETERMINISTIC_TARGET" "1"
@@ -385,7 +385,7 @@ expect_value "fast PawgReport expanded havoc" "$AFL_EXPAND_HAVOC_TARGET" "1"
 expect_value "fast PawgReport deterministic policy" "$AFL_SKIP_DETERMINISTIC_TARGET" "1"
 
 afl_configure_target pawgreport-text
-expect_value "text PawgReport dictionary" "$DICT" "$REPO_ROOT/cfl/icc_master_curated.dict"
+expect_value "text PawgReport dictionary" "$DICT" "$REPO_ROOT/cfl/icc_profile_binary.dict"
 expect_value "text PawgReport argc" "${#AFL_ARGS[@]}" "1"
 expect_arg pawgreport-text 0 "@@"
 expect_value "text PawgReport fast calibration" "$AFL_FAST_CAL_TARGET" "1"

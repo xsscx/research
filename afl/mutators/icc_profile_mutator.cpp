@@ -21,10 +21,11 @@
 #include <cstring>
 #include <limits>
 #include <new>
-#include <random>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "icc_profile_registry.h"
 
 struct afl_state;
 using afl_state_t = struct afl_state;
@@ -47,45 +48,125 @@ constexpr std::uint32_t make_signature(char a, char b, char c, char d) {
 
 constexpr std::uint32_t kAcspSignature = make_signature('a', 'c', 's', 'p');
 
-constexpr std::array<std::uint32_t, 24> kTagSignatures = {
-    make_signature('A', '2', 'B', '0'), make_signature('A', '2', 'B', '1'),
-    make_signature('A', '2', 'B', '2'), make_signature('B', '2', 'A', '0'),
-    make_signature('B', '2', 'A', '1'), make_signature('B', '2', 'A', '2'),
-    make_signature('D', '2', 'B', '0'), make_signature('B', '2', 'D', '0'),
-    make_signature('p', 'r', 'e', '0'), make_signature('p', 'r', 'e', '1'),
-    make_signature('p', 'r', 'e', '2'), make_signature('g', 'a', 'm', 't'),
-    make_signature('c', 'h', 'a', 'd'), make_signature('c', 'i', 'c', 'p'),
-    make_signature('c', 'p', 'r', 't'), make_signature('d', 'e', 's', 'c'),
-    make_signature('d', 'm', 'n', 'd'), make_signature('d', 'm', 'd', 'd'),
-    make_signature('l', 'u', 'm', 'i'), make_signature('m', 'e', 'a', 's'),
-    make_signature('n', 'c', 'l', '2'), make_signature('p', 'r', 'o', 'f'),
-    make_signature('v', 'u', 'e', 'd'), make_signature('w', 't', 'p', 't')};
-
-constexpr std::array<std::uint32_t, 20> kTypeSignatures = {
+constexpr auto kTypeSignatures = std::array{
+    make_signature('c', 'h', 'r', 'm'), make_signature('c', 'i', 'c', 'p'),
+    make_signature('c', 'l', 'r', 'o'), make_signature('c', 'l', 'r', 't'),
     make_signature('c', 'u', 'r', 'v'), make_signature('p', 'a', 'r', 'a'),
+    make_signature('c', 'u', 'r', 'f'), make_signature('d', 'a', 't', 'a'),
+    make_signature('d', 'i', 'c', 't'), make_signature('d', 't', 'i', 'm'),
+    make_signature('f', 'c', 't', ' '), make_signature('f', 'l', '1', '6'),
+    make_signature('f', 'l', '3', '2'), make_signature('f', 'l', '6', '4'),
+    make_signature('g', 'b', 'd', ' '),
     make_signature('m', 'f', 't', '1'), make_signature('m', 'f', 't', '2'),
     make_signature('m', 'A', 'B', ' '), make_signature('m', 'B', 'A', ' '),
-    make_signature('m', 'p', 'e', 't'), make_signature('c', 'l', 'u', 't'),
-    make_signature('X', 'Y', 'Z', ' '), make_signature('m', 'l', 'u', 'c'),
-    make_signature('t', 'e', 'x', 't'), make_signature('d', 'e', 's', 'c'),
-    make_signature('d', 'a', 't', 'a'), make_signature('d', 'i', 'c', 't'),
-    make_signature('m', 'e', 'a', 's'), make_signature('s', 'f', '3', '2'),
+    make_signature('m', 'e', 'a', 's'), make_signature('m', 'l', 'u', 'c'),
+    make_signature('m', 'p', 'e', 't'), make_signature('n', 'c', 'l', '2'),
+    make_signature('p', 's', 'e', 'q'), make_signature('p', 's', 'i', 'd'),
+    make_signature('r', 'c', 's', '2'), make_signature('s', 'f', '3', '2'),
+    make_signature('s', 'i', 'g', ' '), make_signature('s', 'm', 'a', 't'),
+    make_signature('s', 'r', 'n', 'g'), make_signature('s', 'v', 'c', 'n'),
+    make_signature('s', 'd', 'i', 'n'), make_signature('t', 'a', 'r', 'y'),
+    make_signature('t', 's', 't', 'r'), make_signature('t', 'e', 'x', 't'),
+    make_signature('d', 'e', 's', 'c'), make_signature('u', 'f', '3', '2'),
+    make_signature('u', 'i', '0', '8'),
     make_signature('u', 'i', '1', '6'), make_signature('u', 'i', '3', '2'),
-    make_signature('u', 'i', '6', '4'), make_signature('v', 'i', 'e', 'w')};
+    make_signature('u', 'i', '6', '4'), make_signature('v', 'i', 'e', 'w'),
+    make_signature('u', 't', 'f', '8'), make_signature('u', 't', '1', '6'),
+    make_signature('X', 'Y', 'Z', ' '), make_signature('z', 'u', 't', '8'),
+    make_signature('z', 'x', 'm', 'l'), make_signature('I', 'C', 'C', 'p')};
 
-constexpr std::array<std::uint32_t, 8> kDeviceClasses = {
+constexpr auto kDeviceClasses = std::array{
     make_signature('s', 'c', 'n', 'r'), make_signature('m', 'n', 't', 'r'),
     make_signature('p', 'r', 't', 'r'), make_signature('l', 'i', 'n', 'k'),
-    make_signature('s', 'p', 'a', 'c'), make_signature('a', 'b', 's', 't'),
-    make_signature('n', 'm', 'c', 'l'), make_signature('c', 'o', 'l', 'r')};
+    make_signature('a', 'b', 's', 't'), make_signature('s', 'p', 'a', 'c'),
+    make_signature('n', 'm', 'c', 'l'), make_signature('c', 'e', 'n', 'c'),
+    make_signature('m', 'i', 'd', ' '), make_signature('m', 'l', 'n', 'k'),
+    make_signature('m', 'v', 'i', 's')};
 
-constexpr std::array<std::uint32_t, 12> kColorSpaces = {
+constexpr auto kColorSpaces = std::array{
+    0U, make_signature('X', 'Y', 'Z', ' '),
+    make_signature('L', 'a', 'b', ' '), make_signature('L', 'u', 'v', ' '),
+    make_signature('Y', 'C', 'b', 'r'), make_signature('Y', 'x', 'y', ' '),
+    make_signature('L', 'M', 'S', ' '),
     make_signature('R', 'G', 'B', ' '), make_signature('C', 'M', 'Y', 'K'),
-    make_signature('G', 'R', 'A', 'Y'), make_signature('L', 'a', 'b', ' '),
-    make_signature('X', 'Y', 'Z', ' '), make_signature('2', 'C', 'L', 'R'),
-    make_signature('3', 'C', 'L', 'R'), make_signature('4', 'C', 'L', 'R'),
-    make_signature('5', 'C', 'L', 'R'), make_signature('8', 'C', 'L', 'R'),
-    make_signature('F', 'C', 'L', 'R'), make_signature('s', 'p', 'e', 'c')};
+    make_signature('G', 'R', 'A', 'Y'), make_signature('H', 'S', 'V', ' '),
+    make_signature('H', 'L', 'S', ' '), make_signature('C', 'M', 'Y', ' '),
+    make_signature('2', 'C', 'L', 'R'), make_signature('3', 'C', 'L', 'R'),
+    make_signature('4', 'C', 'L', 'R'), make_signature('5', 'C', 'L', 'R'),
+    make_signature('6', 'C', 'L', 'R'), make_signature('7', 'C', 'L', 'R'),
+    make_signature('8', 'C', 'L', 'R'), make_signature('9', 'C', 'L', 'R'),
+    make_signature('A', 'C', 'L', 'R'), make_signature('B', 'C', 'L', 'R'),
+    make_signature('C', 'C', 'L', 'R'), make_signature('D', 'C', 'L', 'R'),
+    make_signature('E', 'C', 'L', 'R'), make_signature('F', 'C', 'L', 'R'),
+    make_signature('n', 'm', 'c', 'l'), make_signature('s', 'p', 'e', 'c')};
+
+constexpr auto kProfileVersions = std::array{
+    0x02000000U, 0x04000000U, 0x04200000U, 0x04300000U,
+    0x04400000U, 0x05000000U};
+
+struct TagRecipe {
+    std::uint32_t tag;
+    std::uint32_t type;
+    std::uint32_t minimum_version;
+};
+
+constexpr auto kTagRecipes = std::array{
+    TagRecipe{make_signature('A', '2', 'B', '0'), make_signature('m', 'A', 'B', ' '), 0x04000000U},
+    TagRecipe{make_signature('A', '2', 'B', '1'), make_signature('m', 'A', 'B', ' '), 0x04000000U},
+    TagRecipe{make_signature('A', '2', 'B', '2'), make_signature('m', 'A', 'B', ' '), 0x04000000U},
+    TagRecipe{make_signature('A', '2', 'B', '3'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('A', '2', 'M', '0'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('B', '2', 'A', '0'), make_signature('m', 'B', 'A', ' '), 0x04000000U},
+    TagRecipe{make_signature('B', '2', 'A', '1'), make_signature('m', 'B', 'A', ' '), 0x04000000U},
+    TagRecipe{make_signature('B', '2', 'A', '2'), make_signature('m', 'B', 'A', ' '), 0x04000000U},
+    TagRecipe{make_signature('B', '2', 'A', '3'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('D', '2', 'B', '0'), make_signature('m', 'p', 'e', 't'), 0x04200000U},
+    TagRecipe{make_signature('D', '2', 'B', '1'), make_signature('m', 'p', 'e', 't'), 0x04200000U},
+    TagRecipe{make_signature('D', '2', 'B', '2'), make_signature('m', 'p', 'e', 't'), 0x04200000U},
+    TagRecipe{make_signature('D', '2', 'B', '3'), make_signature('m', 'p', 'e', 't'), 0x04400000U},
+    TagRecipe{make_signature('B', '2', 'D', '0'), make_signature('m', 'p', 'e', 't'), 0x04200000U},
+    TagRecipe{make_signature('B', '2', 'D', '1'), make_signature('m', 'p', 'e', 't'), 0x04200000U},
+    TagRecipe{make_signature('B', '2', 'D', '2'), make_signature('m', 'p', 'e', 't'), 0x04200000U},
+    TagRecipe{make_signature('B', '2', 'D', '3'), make_signature('m', 'p', 'e', 't'), 0x04400000U},
+    TagRecipe{make_signature('M', '2', 'A', '0'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('M', '2', 'B', '0'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('M', '2', 'B', '3'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('M', '2', 'S', '0'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('M', '2', 'S', '3'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('b', 'A', 'B', '0'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('b', 'B', 'A', '0'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('b', 'D', 'B', '0'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('d', 'A', 'B', '0'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('d', 'D', 'B', '0'), make_signature('m', 'p', 'e', 't'), 0x05000000U},
+    TagRecipe{make_signature('p', 'r', 'e', '0'), make_signature('m', 'A', 'B', ' '), 0x04000000U},
+    TagRecipe{make_signature('p', 'r', 'e', '1'), make_signature('m', 'B', 'A', ' '), 0x04000000U},
+    TagRecipe{make_signature('p', 'r', 'e', '2'), make_signature('m', 'B', 'A', ' '), 0x04000000U},
+    TagRecipe{make_signature('c', 'i', 'c', 'p'), make_signature('c', 'i', 'c', 'p'), 0x04400000U},
+    TagRecipe{make_signature('m', 'e', 't', 'a'), make_signature('d', 'i', 'c', 't'), 0x04000000U},
+    TagRecipe{make_signature('p', 's', 'i', 'd'), make_signature('p', 's', 'i', 'd'), 0x04000000U},
+    TagRecipe{make_signature('c', 'i', 'i', 's'), make_signature('s', 'i', 'g', ' '), 0x04000000U},
+    TagRecipe{make_signature('b', 'X', 'Y', 'Z'), make_signature('X', 'Y', 'Z', ' '), 0x02000000U},
+    TagRecipe{make_signature('g', 'X', 'Y', 'Z'), make_signature('X', 'Y', 'Z', ' '), 0x02000000U},
+    TagRecipe{make_signature('r', 'X', 'Y', 'Z'), make_signature('X', 'Y', 'Z', ' '), 0x02000000U},
+    TagRecipe{make_signature('w', 't', 'p', 't'), make_signature('X', 'Y', 'Z', ' '), 0x02000000U},
+    TagRecipe{make_signature('b', 'k', 'p', 't'), make_signature('X', 'Y', 'Z', ' '), 0x02000000U},
+    TagRecipe{make_signature('b', 'T', 'R', 'C'), make_signature('c', 'u', 'r', 'v'), 0x02000000U},
+    TagRecipe{make_signature('g', 'T', 'R', 'C'), make_signature('c', 'u', 'r', 'v'), 0x02000000U},
+    TagRecipe{make_signature('r', 'T', 'R', 'C'), make_signature('c', 'u', 'r', 'v'), 0x02000000U},
+    TagRecipe{make_signature('k', 'T', 'R', 'C'), make_signature('c', 'u', 'r', 'v'), 0x02000000U},
+    TagRecipe{make_signature('c', 'h', 'a', 'd'), make_signature('s', 'f', '3', '2'), 0x04000000U},
+    TagRecipe{make_signature('c', 'h', 'r', 'm'), make_signature('c', 'h', 'r', 'm'), 0x02000000U},
+    TagRecipe{make_signature('c', 'l', 'r', 'o'), make_signature('c', 'l', 'r', 'o'), 0x04000000U},
+    TagRecipe{make_signature('c', 'l', 'r', 't'), make_signature('c', 'l', 'r', 't'), 0x04000000U},
+    TagRecipe{make_signature('c', 'p', 'r', 't'), make_signature('m', 'l', 'u', 'c'), 0x04000000U},
+    TagRecipe{make_signature('d', 'e', 's', 'c'), make_signature('m', 'l', 'u', 'c'), 0x04000000U},
+    TagRecipe{make_signature('d', 'm', 'n', 'd'), make_signature('m', 'l', 'u', 'c'), 0x04000000U},
+    TagRecipe{make_signature('d', 'm', 'd', 'd'), make_signature('m', 'l', 'u', 'c'), 0x04000000U},
+    TagRecipe{make_signature('c', 'a', 'l', 't'), make_signature('d', 't', 'i', 'm'), 0x02000000U},
+    TagRecipe{make_signature('m', 'e', 'a', 's'), make_signature('m', 'e', 'a', 's'), 0x02000000U},
+    TagRecipe{make_signature('n', 'c', 'l', '2'), make_signature('n', 'c', 'l', '2'), 0x02000000U},
+    TagRecipe{make_signature('t', 'e', 'c', 'h'), make_signature('s', 'i', 'g', ' '), 0x02000000U},
+    TagRecipe{make_signature('v', 'i', 'e', 'w'), make_signature('v', 'i', 'e', 'w'), 0x02000000U}};
 
 constexpr std::array<std::uint32_t, 8> kBoundaryValues = {
     0U, 1U, 2U, 0x7fffU, 0xffffU, 0x7fffffffU, 0x80000000U,
@@ -99,12 +180,30 @@ struct TagRecord {
 struct IccProfile {
     std::array<std::uint8_t, kHeaderSize> header{};
     std::vector<TagRecord> tags;
+    std::vector<std::uint8_t> trailer;
+};
+
+struct MutationRng {
+    explicit MutationRng(unsigned int seed)
+        : value((static_cast<std::uint64_t>(seed) << 1U) | 1U) {}
+
+#if defined(__clang__)
+    __attribute__((no_sanitize("integer")))
+#endif
+    std::uint64_t next() {
+        value ^= value >> 12U;
+        value ^= value << 25U;
+        value ^= value >> 27U;
+        return value;
+    }
+
+    std::uint64_t value;
 };
 
 struct MutatorState {
     explicit MutatorState(unsigned int seed) : rng(seed) {}
 
-    std::mt19937_64 rng;
+    MutationRng rng;
     std::vector<std::uint8_t> output;
     std::string description = "icc-init";
 };
@@ -123,6 +222,11 @@ void write_be32(std::uint8_t *data, std::uint32_t value) {
     data[3] = static_cast<std::uint8_t>(value);
 }
 
+void write_be16(std::uint8_t *data, std::uint16_t value) {
+    data[0] = static_cast<std::uint8_t>(value >> 8U);
+    data[1] = static_cast<std::uint8_t>(value);
+}
+
 std::size_t align4(std::size_t value) {
     return (value + 3U) & ~static_cast<std::size_t>(3U);
 }
@@ -131,8 +235,94 @@ std::size_t choose(MutatorState &state, std::size_t count) {
     if (!count) {
         return 0;
     }
-    std::uniform_int_distribution<std::size_t> distribution(0, count - 1U);
-    return distribution(state.rng);
+    return static_cast<std::size_t>(state.rng.next() % count);
+}
+
+std::uint32_t choose_registered_signature(MutatorState &state) {
+    const IccRegisteredTagRange &range =
+        kIccRegisteredTagRanges[choose(state, kIccRegisteredTagRanges.size())];
+    const std::uint64_t span = static_cast<std::uint64_t>(range.last) -
+                               static_cast<std::uint64_t>(range.first) + 1U;
+    return range.first +
+           static_cast<std::uint32_t>(state.rng.next() % span);
+}
+
+std::size_t minimum_payload_size(std::uint32_t type) {
+    if (type == make_signature('X', 'Y', 'Z', ' ')) {
+        return 20U;
+    }
+    if (type == make_signature('c', 'i', 'c', 'p')) {
+        return 44U;
+    }
+    if (type == make_signature('m', 'A', 'B', ' ') ||
+        type == make_signature('m', 'B', 'A', ' ')) {
+        return 32U;
+    }
+    if (type == make_signature('m', 'p', 'e', 't') ||
+        type == make_signature('m', 'l', 'u', 'c') ||
+        type == make_signature('d', 'i', 'c', 't') ||
+        type == make_signature('p', 'a', 'r', 'a')) {
+        return 16U;
+    }
+    if (type == make_signature('m', 'e', 'a', 's') ||
+        type == make_signature('v', 'i', 'e', 'w')) {
+        return 36U;
+    }
+    if (type == make_signature('n', 'c', 'l', '2')) {
+        return 84U;
+    }
+    if (type == make_signature('d', 't', 'i', 'm')) {
+        return 20U;
+    }
+    if (type == make_signature('t', 'e', 'x', 't')) {
+        return 9U;
+    }
+    if (type == make_signature('c', 'u', 'r', 'v') ||
+        type == make_signature('c', 'h', 'r', 'm') ||
+        type == make_signature('c', 'l', 'r', 'o') ||
+        type == make_signature('c', 'l', 'r', 't') ||
+        type == make_signature('p', 's', 'e', 'q') ||
+        type == make_signature('p', 's', 'i', 'd') ||
+        type == make_signature('s', 'i', 'g', ' ') ||
+        type == make_signature('s', 'f', '3', '2')) {
+        return 12U;
+    }
+    return 8U;
+}
+
+void set_payload_type(TagRecord &tag, std::uint32_t type) {
+    const bool same_type = tag.payload.size() >= 4U &&
+                           read_be32(tag.payload.data()) == type;
+    const std::size_t minimum_size = minimum_payload_size(type);
+    if (!same_type || tag.payload.size() < minimum_size) {
+        tag.payload.assign(minimum_size, 0U);
+    }
+    write_be32(tag.payload.data(), type);
+
+    if (type == make_signature('m', 'A', 'B', ' ') ||
+        type == make_signature('m', 'B', 'A', ' ')) {
+        tag.payload[8U] = 3U;
+        tag.payload[9U] = 3U;
+    } else if (type == make_signature('m', 'p', 'e', 't')) {
+        write_be16(tag.payload.data() + 8U, 3U);
+        write_be16(tag.payload.data() + 10U, 3U);
+    } else if (type == make_signature('m', 'l', 'u', 'c')) {
+        write_be32(tag.payload.data() + 12U, 12U);
+    } else if (type == make_signature('d', 'i', 'c', 't')) {
+        write_be32(tag.payload.data() + 12U, 16U);
+    }
+}
+
+void apply_tag_recipe(MutatorState &state, IccProfile &profile,
+                      TagRecord &tag) {
+    const TagRecipe &recipe = kTagRecipes[choose(state, kTagRecipes.size())];
+    tag.signature = recipe.tag;
+    set_payload_type(tag, recipe.type);
+    const std::uint32_t version = read_be32(profile.header.data() + 8U);
+    if (version < recipe.minimum_version) {
+        write_be32(profile.header.data() + 8U, recipe.minimum_version);
+    }
+    state.description = "icc-tag-semantic";
 }
 
 bool parse_profile(const std::uint8_t *data, std::size_t size,
@@ -181,40 +371,44 @@ bool parse_profile(const std::uint8_t *data, std::size_t size,
         parsed.tags.push_back(std::move(tag));
     }
 
+    parsed.trailer.assign(data + declared, data + size);
+
     profile = std::move(parsed);
     return true;
 }
 
 bool serialize_profile(const IccProfile &profile, std::size_t max_size,
                        std::vector<std::uint8_t> &output) {
-    if (profile.tags.size() > kMaxTags || max_size < kTagTableOffset ||
-        max_size > std::numeric_limits<std::uint32_t>::max()) {
+    if (profile.tags.size() > kMaxTags || max_size < kTagTableOffset) {
         return false;
     }
 
-    std::size_t total = kTagTableOffset + profile.tags.size() * kTagEntrySize;
-    total = align4(total);
+    std::size_t profile_size =
+        kTagTableOffset + profile.tags.size() * kTagEntrySize;
+    profile_size = align4(profile_size);
     for (const TagRecord &tag : profile.tags) {
-        if (tag.payload.size() > max_size - std::min(total, max_size)) {
+        if (profile_size > max_size ||
+            tag.payload.size() > max_size - profile_size) {
             return false;
         }
-        total += tag.payload.size();
-        if (total > max_size) {
+        profile_size += tag.payload.size();
+        if (profile_size > max_size) {
             return false;
         }
-        total = align4(total);
-        if (total > max_size) {
+        profile_size = align4(profile_size);
+        if (profile_size > max_size) {
             return false;
         }
     }
 
-    if (total > std::numeric_limits<std::uint32_t>::max()) {
+    if (profile_size > std::numeric_limits<std::uint32_t>::max() ||
+        profile.trailer.size() > max_size - profile_size) {
         return false;
     }
 
-    output.assign(total, 0);
+    output.assign(profile_size + profile.trailer.size(), 0);
     std::copy(profile.header.begin(), profile.header.end(), output.begin());
-    write_be32(output.data(), static_cast<std::uint32_t>(total));
+    write_be32(output.data(), static_cast<std::uint32_t>(profile_size));
     write_be32(output.data() + 36U, kAcspSignature);
     write_be32(output.data() + kTagCountOffset,
                static_cast<std::uint32_t>(profile.tags.size()));
@@ -235,15 +429,19 @@ bool serialize_profile(const IccProfile &profile, std::size_t max_size,
         }
         payload_offset = align4(payload_offset + tag.payload.size());
     }
+    if (!profile.trailer.empty()) {
+        std::copy(profile.trailer.begin(), profile.trailer.end(),
+                  output.begin() + static_cast<std::ptrdiff_t>(profile_size));
+    }
     return true;
 }
 
 void mutate_header(MutatorState &state, IccProfile &profile) {
-    const std::size_t operation = choose(state, 8U);
+    const std::size_t operation = choose(state, 11U);
     switch (operation) {
         case 0:
             write_be32(profile.header.data() + 8U,
-                       choose(state, 2U) ? 0x04300000U : 0x05000000U);
+                       kProfileVersions[choose(state, kProfileVersions.size())]);
             state.description = "icc-header-version";
             break;
         case 1:
@@ -279,20 +477,63 @@ void mutate_header(MutatorState &state, IccProfile &profile) {
             state.description = "icc-header-illuminant";
             break;
         }
-        default: {
+        case 7: {
             const std::size_t byte_offset = 84U + choose(state, 16U);
             profile.header[byte_offset] =
-                static_cast<std::uint8_t>(state.rng() & 0xffU);
+                static_cast<std::uint8_t>(state.rng.next() & 0xffU);
             state.description = "icc-header-id";
             break;
         }
+        case 8:
+            write_be32(profile.header.data() + 8U, 0x05000000U);
+            write_be32(profile.header.data() + 100U,
+                       choose(state, 3U) == 0U ? 0x7273001fU
+                                              : (choose(state, 2U) ? 0x7473001fU
+                                                                   : 0x6573001fU));
+            state.description = "icc-header-spectral-pcs";
+            break;
+        case 9:
+            write_be32(profile.header.data() + 8U, 0x05000000U);
+            for (std::size_t offset : {104U, 110U}) {
+                write_be16(profile.header.data() + offset,
+                           static_cast<std::uint16_t>(0x5df0U));
+                write_be16(profile.header.data() + offset + 2U,
+                           static_cast<std::uint16_t>(0x61b4U));
+                write_be16(profile.header.data() + offset + 4U,
+                           static_cast<std::uint16_t>(31U));
+            }
+            state.description = "icc-header-spectral-range";
+            break;
+        default:
+            write_be32(profile.header.data() + 8U, 0x05000000U);
+            write_be32(profile.header.data() + 116U,
+                       0x6d630000U |
+                           static_cast<std::uint32_t>(1U + choose(state, 16U)));
+            state.description = "icc-header-mcs";
+            break;
     }
 }
 
 const TagRecord *choose_donor_tag(MutatorState &state,
-                                  const IccProfile *donor) {
+                                  const IccProfile *donor,
+                                  const TagRecord &target) {
     if (!donor || donor->tags.empty()) {
         return nullptr;
+    }
+
+    for (const TagRecord &candidate : donor->tags) {
+        if (candidate.signature == target.signature) {
+            return &candidate;
+        }
+    }
+    if (target.payload.size() >= 4U) {
+        const std::uint32_t target_type = read_be32(target.payload.data());
+        for (const TagRecord &candidate : donor->tags) {
+            if (candidate.payload.size() >= 4U &&
+                read_be32(candidate.payload.data()) == target_type) {
+                return &candidate;
+            }
+        }
     }
     return &donor->tags[choose(state, donor->tags.size())];
 }
@@ -344,12 +585,15 @@ void mutate_payload(MutatorState &state, TagRecord &tag,
             break;
         case 3:
             if (donor && !donor->payload.empty()) {
+                const std::size_t donor_prefix =
+                    donor->payload.size() > 8U ? 8U : 0U;
                 const std::size_t copy_size = std::min<std::size_t>(
-                    64U, std::min(tag.payload.size(), donor->payload.size()));
-                const std::size_t destination =
-                    choose(state, tag.payload.size() - copy_size + 1U);
-                const std::size_t source =
-                    choose(state, donor->payload.size() - copy_size + 1U);
+                    64U, std::min(tag.payload.size() - protected_prefix,
+                                  donor->payload.size() - donor_prefix));
+                const std::size_t destination = protected_prefix +
+                    choose(state, tag.payload.size() - protected_prefix - copy_size + 1U);
+                const std::size_t source = donor_prefix +
+                    choose(state, donor->payload.size() - donor_prefix - copy_size + 1U);
                 std::copy_n(donor->payload.data() + source, copy_size,
                             tag.payload.data() + destination);
                 state.description = "icc-payload-crossover";
@@ -379,7 +623,7 @@ void mutate_payload(MutatorState &state, TagRecord &tag,
                 choose(state, tag.payload.size() - protected_prefix + 1U);
             std::vector<std::uint8_t> bytes(insert_size);
             for (std::uint8_t &byte : bytes) {
-                byte = static_cast<std::uint8_t>(state.rng() & 0xffU);
+                byte = static_cast<std::uint8_t>(state.rng.next() & 0xffU);
             }
             tag.payload.insert(tag.payload.begin() + static_cast<std::ptrdiff_t>(position),
                                bytes.begin(), bytes.end());
@@ -392,27 +636,39 @@ void mutate_payload(MutatorState &state, TagRecord &tag,
 bool mutate_profile(MutatorState &state, IccProfile &profile,
                     const IccProfile *donor, bool &corrupt_directory) {
     corrupt_directory = false;
-    const std::size_t operation = choose(state, 10U);
-    const TagRecord *donor_tag = choose_donor_tag(state, donor);
+    const std::size_t operation = choose(state, 11U);
 
-    if (operation == 0U || profile.tags.empty()) {
+    if (operation == 0U) {
         mutate_header(state, profile);
         return true;
     }
 
+    if (profile.tags.empty()) {
+        TagRecord tag;
+        apply_tag_recipe(state, profile, tag);
+        profile.tags.push_back(std::move(tag));
+        state.description = "icc-tag-create-semantic";
+        return true;
+    }
+
     const std::size_t tag_index = choose(state, profile.tags.size());
+    const TagRecord *donor_tag =
+        choose_donor_tag(state, donor, profile.tags[tag_index]);
     switch (operation) {
         case 1:
-            profile.tags[tag_index].signature =
-                kTagSignatures[choose(state, kTagSignatures.size())];
-            state.description = "icc-tag-signature";
+            apply_tag_recipe(state, profile, profile.tags[tag_index]);
             break;
         case 2:
+            profile.tags[tag_index].signature =
+                choose_registered_signature(state);
+            state.description = "icc-tag-registry";
+            break;
         case 3:
         case 4:
+        case 5:
             mutate_payload(state, profile.tags[tag_index], donor_tag);
             break;
-        case 5:
+        case 6:
             if (profile.tags.size() > 1U) {
                 profile.tags.erase(profile.tags.begin() +
                                    static_cast<std::ptrdiff_t>(tag_index));
@@ -421,7 +677,7 @@ bool mutate_profile(MutatorState &state, IccProfile &profile,
                 mutate_header(state, profile);
             }
             break;
-        case 6:
+        case 7:
             if (profile.tags.size() < kMaxTags) {
                 profile.tags.insert(
                     profile.tags.begin() + static_cast<std::ptrdiff_t>(tag_index),
@@ -431,7 +687,7 @@ bool mutate_profile(MutatorState &state, IccProfile &profile,
                 mutate_payload(state, profile.tags[tag_index], donor_tag);
             }
             break;
-        case 7:
+        case 8:
             if (donor_tag && profile.tags.size() < kMaxTags) {
                 const std::size_t insert_at = choose(state, profile.tags.size() + 1U);
                 profile.tags.insert(
@@ -442,7 +698,7 @@ bool mutate_profile(MutatorState &state, IccProfile &profile,
                 mutate_payload(state, profile.tags[tag_index], nullptr);
             }
             break;
-        case 8:
+        case 9:
             if (profile.tags.size() > 1U) {
                 std::size_t other = choose(state, profile.tags.size());
                 if (other == tag_index) {
@@ -566,6 +822,12 @@ extern "C" std::size_t afl_custom_fuzz(
     }
     return mutate(*static_cast<MutatorState *>(opaque), buf, buf_size, out_buf,
                   add_buf, add_buf_size, max_size);
+}
+
+extern "C" unsigned int afl_custom_fuzz_count(
+    void *, const std::uint8_t *buf, std::size_t buf_size) {
+    IccProfile profile;
+    return parse_profile(buf, buf_size, profile) ? 4U : 1U;
 }
 
 extern "C" std::size_t afl_custom_havoc_mutation(

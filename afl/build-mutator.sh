@@ -57,7 +57,7 @@ trap 'rm -f -- "$temp_output"' EXIT
     -Wall -Wextra -Wpedantic -Werror \
     "$SOURCE" -o "$temp_output"
 
-for symbol in afl_custom_init afl_custom_fuzz afl_custom_deinit; do
+for symbol in afl_custom_init afl_custom_fuzz afl_custom_fuzz_count afl_custom_deinit; do
     if ! nm -D --defined-only "$temp_output" | awk '{print $3}' | grep -Fxq "$symbol"; then
         echo "ERROR: custom mutator ABI symbol is missing: $symbol" >&2
         exit 1
