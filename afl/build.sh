@@ -319,7 +319,7 @@ afl_wrapper_has_required_version() {
     local wrapper="$1"
     local banner
 
-    banner="$(env -u AFL_BUILD_DIR -u AFL_BIN_DIR "$wrapper" -h 2>&1 | head -n 1 || true)"
+    banner="$(env -u AFL_BUILD_DIR -u AFL_BIN_DIR "$wrapper" -h 2>&1 || true)"
     [[ "$banner" == *"afl-cc++${AFL_REQUIRED_VERSION}"* ]]
 }
 
@@ -353,9 +353,12 @@ select_afl_wrappers() {
             wrapperxx="${wrapper}++"
         fi
         [[ -x "$wrapperxx" ]] || continue
-        if ! afl_wrapper_has_required_version "$wrapper" ||
-            ! afl_wrapper_has_required_version "$wrapperxx"; then
-            echo "[INFO] Ignoring AFL++ wrapper that is not ${AFL_REQUIRED_VERSION}: $wrapper" >&2
+        if ! afl_wrapper_has_required_version "$wrapper"; then
+            echo "[INFO] Ignoring AFL++ C wrapper that is not ${AFL_REQUIRED_VERSION}: $wrapper" >&2
+            continue
+        fi
+        if ! afl_wrapper_has_required_version "$wrapperxx"; then
+            echo "[INFO] Ignoring AFL++ C++ wrapper that is not ${AFL_REQUIRED_VERSION}: $wrapperxx" >&2
             continue
         fi
         if afl_wrappers_compile "$wrapper" "$wrapperxx" "$cc_backend" "$cxx_backend"; then

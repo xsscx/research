@@ -4,6 +4,7 @@
 set -euo pipefail
 
 AFL_COMMIT="441e2cdbd690c00174b1fa54d0b144bbc24a736c"
+AFL_REQUIRED_VERSION="5.04a"
 AFL_MAX_FILE_BYTES="${AFL_MAX_FILE_BYTES:-67108864}"
 AFL_REPOSITORY="https://github.com/AFLplusplus/AFLplusplus.git"
 AFL_SOURCE_DIR="${AFL_RUNTIME_SOURCE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/aflplusplus-stable}"
@@ -105,14 +106,33 @@ fi
 
 afl_fuzz="$INSTALL_PREFIX/bin/afl-fuzz"
 afl_cc="$INSTALL_PREFIX/bin/afl-clang-fast"
+afl_cxx="$INSTALL_PREFIX/bin/afl-clang-fast++"
 "$afl_fuzz" --version
 if ! { "$afl_fuzz" -hh 2>&1 || true; } | grep -q "default: ${AFL_MAX_FILE_BYTES}"; then
     echo "ERROR: Installed AFL++ does not report a $AFL_MAX_FILE_BYTES-byte testcase ceiling" >&2
     exit 1
 fi
-if [[ ! -x "$afl_cc" ]]; then
-    echo "ERROR: Installed AFL++ compiler wrapper not found: $afl_cc" >&2
-    exit 1
-fi
+for wrapper in "$afl_cc" "$afl_cxx"; do
+    if [[ ! -x "$wrapper" ]]; then
+        echo "ERROR: Installed AFL++ compiler wrapper not found: $wrapper" >&2
+        exit 1
+    fi
+    wrapper_help="$("$wrapper" -h 2>&1 || true)"
+    if [[ "$wrapper_help" != *"afl-cc++${AFL_REQUIRED_VERSION}"* ]]; then
+        echo "ERROR: Installed AFL++ compiler wrapper is not ${AFL_REQUIRED_VERSION}: $wrapper" >&2
+        exit 1
+    fi
+done
+
+wrapper_test_dir="$(mktemp -d)"
+trap 'rm -rf -- "$wrapper_test_dir"' EXIT
+printf 'int main(void) { return 0; }\n' >"$wrapper_test_dir/test.c"
+printf 'int main() { return 0; }\n' >"$wrapper_test_dir/test.cpp"
+env AFL_CC="$LLVM_BINDIR/clang" AFL_CXX="$LLVM_BINDIR/clang++" \
+    "$afl_cc" -c "$wrapper_test_dir/test.c" -o "$wrapper_test_dir/test.o"
+env AFL_CC="$LLVM_BINDIR/clang" AFL_CXX="$LLVM_BINDIR/clang++" \
+    "$afl_cxx" -c "$wrapper_test_dir/test.cpp" -o "$wrapper_test_dir/testxx.o"
+rm -rf -- "$wrapper_test_dir"
+trap - EXIT
 
 echo "Installed AFL++ $AFL_COMMIT with MAX_FILE=$AFL_MAX_FILE_BYTES under $INSTALL_PREFIX."
